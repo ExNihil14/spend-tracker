@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>На подтверждение</h2>
+<table>
+  <tr><th>Дата</th><th>Описание</th><th>Сумма</th><th>Предложено</th><th>Conf</th><th></th></tr>
+  {% for t in pending %}
+  <tr>
+    <td>{{ t.date }}</td>
+    <td>{{ t.description }}{% if t.merchant %}<br><small>{{ t.merchant }}</small>{% endif %}</td>
+    <td class="{{ 'pos' if t.amount_kopecks > 0 else 'neg' }}">{{ fmt(t.amount_kopecks) }}</td>
+    <td><span class="chip" style="background:{{ cat_colors.get(t.category, '#9ca3af') }}">{{ t.category }}</span></td>
+    <td>{{ '%.2f' | format(t.confidence) }}</td>
+    <td>
+      <form hx-patch="/api/transactions/{{ t.id }}" hx-target="closest tr" hx-swap="outerHTML">
+        <select name="category">
+          {% for c in all_categories %}<option value="{{ c }}" {% if c == t.category %}selected{% endif %}>{{ c }}</option>{% endfor %}
+        </select>
+        <button type="submit">Подтвердить</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6">Всё подтверждено</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}
