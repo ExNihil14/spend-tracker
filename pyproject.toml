@@ -1,0 +1,38 @@
+[project]
+name = "spendtrack"
+version = "0.1.0"
+description = "Spendtrack: трекер расходов + LLM-категоризация (FastAPI + SQLite + htmx)"
+readme = "README.md"
+authors = [
+    { name = "exnihil14", email = "pahan1488@mail.ru" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.141.1",
+    "jinja2>=3.1.6",
+    "openai>=3.13.0",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "uvicorn[standard]>=0.52.4",
+]
+
+[project.scripts]
+spendtrack = "spendtrack.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "ruff>=0.16.7",
+]
