@@ -18,6 +18,7 @@ class LLMEndpoint(BaseModel):
 class LLMSettings(BaseModel):
     primary: LLMEndpoint
     fallback: LLMEndpoint
+    deepseek: LLMEndpoint
     offline: LLMEndpoint
     max_tokens: int = 400
 

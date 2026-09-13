@@ -31,6 +31,7 @@ def call_llm(
     attempts = [
         (cfg.llm.primary.base_url, cfg.llm.primary.model, cfg.freel_llm_api_key or "no-key", "primary"),
         (cfg.llm.fallback.base_url, cfg.llm.fallback.model, cfg.openrouter_api_key or "no-key", "fallback"),
+        (cfg.llm.deepseek.base_url, cfg.llm.deepseek.model, "no-key", "deepseek"),
     ]
     if endpoint_override:
         attempts = [(endpoint_override, model_override or cfg.llm.primary.model,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from spendtrack.reports import categories_with_totals, report_month
+from spendtrack.reports import categories_with_totals, report_daily, report_month
 from spendtrack.store import parse_amount
 
 
@@ -38,3 +38,16 @@ def test_empty_db(store):
     assert rep["income_k"] == 0
     assert rep["expense_k"] == 0
     assert rep["categories"] == []
+
+
+def test_report_daily_series(store):
+    _populate(store)
+    series = report_daily(store, "2026-09")
+    by_date = {d["date"]: d for d in series}
+    assert by_date["2026-09-01"]["total_k"] == -123450
+    assert "2026-10-01" not in by_date
+    assert all(d["date"] >= "2026-09-01" and d["date"] <= "2026-09-30" for d in series)
+
+
+def test_report_daily_empty(store):
+    assert report_daily(store, "2026-09") == []

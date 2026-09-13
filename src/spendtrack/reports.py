@@ -32,3 +32,13 @@ def categories_with_totals(store: Store, month: str | None = None) -> list[dict]
     sql += " GROUP BY category ORDER BY category"
     rows = store.conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
+
+
+def report_daily(store: Store, month: str) -> list[dict]:
+    """Дневной ряд расходов за месяц (непродажные дни отсутствуют в выводе)."""
+    rows = store.conn.execute(
+        "SELECT date, SUM(amount_kopecks) AS total_k FROM transactions"
+        " WHERE substr(date,1,7)=? GROUP BY date ORDER BY date",
+        (month,),
+    ).fetchall()
+    return [{"date": r["date"], "total_k": r["total_k"]} for r in rows]
