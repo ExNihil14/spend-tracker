@@ -36,3 +36,16 @@
 - Не кидать сырые суммы REAL/DECIMAL в БД
 - Не тестировать через сеть: LLM всегда через стаб в тестах
 - Не добавлять pandas/embeddings в этом проекте (для RAG — отдельная вилка)
+
+## Git-процесс (обязательно, из GIT_WORKFLOW_RECOMMENDATIONS.md)
+- Стратегия: trunk-based + короткие feature-ветки. `main` — единственная долгоживущая, всегда зелёная. НЕ создавать develop/release/*/hotfix/*.
+- Ветки: `feature/<slug>` (1-3 дня), `fix/<slug>`, `chore/<slug>`; после merge — `git branch -d`.
+- НЕ коммитить без явной команды пользователя. НЕ пушить без отдельной явной команды.
+- Перед коммитом: `uv run pytest && uv run ruff check`. Красные тесты — не коммитить.
+- Один коммит = один смысловой блок (Conventional Commits, тип(scope): тело). Не смешивать рефакторинг и фичу.
+- Merge в main: `git rebase main` → `git switch main && git merge --ff-only`. Не делать merge-коммиты.
+- Squash только для wip/fix-опечаток; осмысленные тематические коммиты — оставлять.
+- НИКОГДА `git push --force` и `git reset --hard` на main. Только на своей feature-ветке и с подтверждения.
+- НЕ коммитить: .env, data/, *.sqlite, ключи, токены.
+- Версии: SemVer `0.x.y` + аннотированные теги (git tag -a v0.1.0 -m "..."). CHANGELOG.md — из Conventional Commits.
+- Перед отчётом о готовности: показать `git status` и `git diff --stat` (факт, не слова).
