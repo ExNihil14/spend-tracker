@@ -108,13 +108,13 @@ def test_approve_queue_skip(page: Page, live_server, db_path):
     expect(page.locator("#review-rows")).to_contain_text("АЗС ЛУКОЙЛ")
     expect(page.locator("#review-rows")).to_contain_text("transport")
 
-    page.locator("#review-1 form button").click()
+    page.locator("#review-1 button:has-text('Пропустить')").click()
     _wait_single(page, "#review-rows")
     expect(page.locator("#review-rows")).to_contain_text("Все подтверждены")
 
 
-def test_approve_queue_approve_via_select(page: Page, live_server, db_path):
-    """Смена категории в <select> approve'ит транзакцию (hx-swap=delete)."""
+def test_approve_queue_approve_with_category(page: Page, live_server, db_path):
+    """Выбор другой категории + «Одобрить» — транзакция уходит из очереди."""
     _seed_pending(str(db_path), [
         ("fp-a1", "2026-09-12", "КАФЕ МОЛОКО",  -5000, 0.55, "food"),
         ("fp-a2", "2026-09-13", "АЗС ЛУКОЙЛ",  -15000, 0.65, "transport"),
@@ -124,11 +124,43 @@ def test_approve_queue_approve_via_select(page: Page, live_server, db_path):
     _wait_htmx(page, "#review-rows")
     expect(page.locator("#review-1")).to_contain_text("КАФЕ МОЛОКО")
 
-    # одобряем первую через смену категории в select
+    # одобряем первую: выбираем другую категорию и жмём «Одобрить»
     page.locator("#review-1 select[name='category']").select_option("groceries")
+    page.locator("#review-1 button:has-text('Одобрить')").click()
     _wait_single(page, "#review-rows")
     expect(page.locator("#review-1")).to_have_count(0)
     expect(page.locator("#review-2")).to_contain_text("АЗС ЛУКОЙЛ")
+
+
+def test_approve_queue_approve_as_proposed(page: Page, live_server, db_path):
+    """«Одобрить» без смены select принимает предложенную LLM категорию."""
+    _seed_pending(str(db_path), [
+        ("fp-p1", "2026-09-12", "СТРОЙКАОПТ МСК", -5000, 0.55, "household"),
+    ])
+
+    page.goto(f"{live_server}/approve")
+    _wait_htmx(page, "#review-rows")
+    expect(page.locator("#review-1")).to_contain_text("household")
+
+    page.locator("#review-1 button:has-text('Одобрить')").click()
+    _wait_single(page, "#review-rows")
+    expect(page.locator("#review-rows")).to_contain_text("Все подтверждены")
+    expect(page.locator("#approve-all-wrap button")).to_have_count(0)
+
+
+def test_dashboard_charts_render_via_boost(page: Page, live_server, db_path):
+    """Графики /dashboard рендерятся и при переходе через hx-boost (не только прямым заходом)."""
+    _seed_pending(str(db_path), [
+        ("fp-chart", "2026-09-12", "АЗС ЛУКОЙЛ", -15000, 0.65, "fuel"),
+    ])
+
+    page.goto(live_server)
+    page.click("a[href='/dashboard']")
+    expect(page.locator("#dailyChart")).to_be_visible()
+    page.wait_for_function(
+        "() => window.Chart && !!Chart.getChart(document.getElementById('dailyChart'))",
+        timeout=10_000,
+    )
 
 
 def test_approve_all_button(page: Page, live_server, db_path):

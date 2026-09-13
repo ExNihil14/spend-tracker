@@ -6,7 +6,18 @@
   <title>Spendtrack</title>
   <script src="/static/tailwind.js"></script>
   <script src="/static/htmx.min.js"></script>
+  <script src="/static/chart.umd.min.js"></script>
   <meta name="htmx-config" content='{"historyCacheSize": 0}'>
+  <style>
+    /* Tailwind v4 preflight делает cursor:default у кнопок — возвращаем указатель */
+    button:not(:disabled), [role="button"]:not(:disabled), summary, select:not(:disabled) { cursor: pointer; }
+    /* Уход строки очереди: видимая преемственность при approve/skip */
+    tr.review-row { transition: opacity 160ms ease, transform 160ms ease; }
+    tr.review-row.htmx-swapping { opacity: 0; transform: translateX(-16px); }
+    @media (prefers-reduced-motion: reduce) {
+      tr.review-row, tr.review-row.htmx-swapping { transition: none; transform: none; }
+    }
+  </style>
 </head>
 <body hx-boost="true" class="bg-slate-950 text-slate-200 min-h-screen">
 <div class="max-w-5xl mx-auto px-4 py-6">

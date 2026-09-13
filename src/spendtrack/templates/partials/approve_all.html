@@ -1,0 +1,10 @@
+<div id="approve-all-wrap"{% if oob %} hx-swap-oob="true"{% endif %}>
+  {% if pending %}
+  <button hx-post="/api/reviews/approve-all"
+          hx-target="#review-rows" hx-swap="outerHTML"
+          hx-confirm="Одобрить все {{ pending | length }} записей?"
+          class="bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">
+    Одобрить все
+  </button>
+  {% endif %}
+</div>

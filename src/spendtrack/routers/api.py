@@ -119,6 +119,24 @@ def _rows_html(request: Request, store: Store) -> str:
     ).body.decode()
 
 
+def _oob_approve_all(request: Request, store: Store) -> str:
+    """OOB: кнопка «Одобрить все» живёт/исчезает вместе с очередью."""
+    return templates.TemplateResponse(
+        request, "partials/approve_all.html",
+        {"pending": store.queued_for_review(), "oob": True},
+    ).body.decode()
+
+
+def _oob_empty_state(store: Store) -> str:
+    """OOB: плейсхолдер «Все подтверждены» появляется/убирается без перерисовки таблицы."""
+    if store.pending_count() == 0:
+        return (
+            '<tr id="review-empty" hx-swap-oob="beforeend:#review-rows">'
+            '<td colspan="6" class="px-5 py-8 text-center text-emerald-400/80">Все подтверждены</td></tr>'
+        )
+    return '<tr id="review-empty" hx-swap-oob="delete"></tr>'
+
+
 @router.post("/reviews/{tx_id}/approve", response_class=HTMLResponse)
 async def approve_review(request: Request, tx_id: int):
     store = _store()
@@ -132,7 +150,8 @@ async def approve_review(request: Request, tx_id: int):
         raise HTTPException(422, f"категория {chosen} вне таксономии")
     if not store.approve_review(tx_id, str(chosen)):
         raise HTTPException(409, "запись не в очереди")
-    return HTMLResponse(_rows_html(request, store) + _oob_badge(store))
+    return HTMLResponse(
+        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store))
 
 
 @router.post("/reviews/{tx_id}/skip", response_class=HTMLResponse)
@@ -140,14 +159,15 @@ async def skip_review(request: Request, tx_id: int):
     store = _store()
     if not store.skip_review(tx_id):
         raise HTTPException(409, "запись не в очереди")
-    return HTMLResponse(_rows_html(request, store) + _oob_badge(store))
+    return HTMLResponse(
+        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store))
 
 
 @router.post("/reviews/approve-all", response_class=HTMLResponse)
 async def approve_all(request: Request):
     store = _store()
     store.approve_all_reviews()
-    return HTMLResponse(_rows_html(request, store) + _oob_badge(store))
+    return HTMLResponse(_rows_html(request, store) + _oob_approve_all(request, store) + _oob_badge(store))
 
 
 @router.patch("/transactions/{tx_id}")

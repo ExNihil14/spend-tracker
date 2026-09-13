@@ -61,50 +61,64 @@
 </div>
 {% endif %}
 
-<script src="/static/chart.umd.min.js"></script>
 <script>
 (function () {
-  var daily = {{ daily_json | tojson }};
-  var cats = {{ categories_json | tojson }};
-  var colors = {{ colors_json | tojson }};
-  var tick = function (v) { return (v / 100).toFixed(2) + ' ₽'; };
+  function initCharts() {
+    if (typeof Chart === 'undefined') return;
+    var dailyEl = document.getElementById('dailyChart');
+    if (!dailyEl || dailyEl.dataset.init === '1') return;
+    dailyEl.dataset.init = '1';
 
-  if (daily.length) {
-    new Chart(document.getElementById('dailyChart'), {
-      type: 'bar',
-      data: {
-        labels: daily.map(function (d) { return d.date.slice(5); }),
-        datasets: [{
-          label: 'Сумма, ₽',
-          data: daily.map(function (d) { return d.total_k / 100; }),
-          backgroundColor: 'rgba(59,130,246,0.55)',
-          borderColor: 'rgba(59,130,246,1)',
-          borderWidth: 1
-        }]
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: { y: { ticks: { callback: tick, color: '#94a3b8' } },
-                  x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
-      }
-    });
+    var daily = {{ daily_json | tojson }};
+    var cats = {{ categories_json | tojson }};
+    var catColorMap = {{ cat_colors | tojson }};
+    var tick = function (v) { return (v / 100).toFixed(2) + ' ₽'; };
+
+    if (daily.length) {
+      new Chart(dailyEl, {
+        type: 'bar',
+        data: {
+          labels: daily.map(function (d) { return d.date.slice(5); }),
+          datasets: [{
+            label: 'Сумма, ₽',
+            data: daily.map(function (d) { return d.total_k / 100; }),
+            backgroundColor: 'rgba(59,130,246,0.55)',
+            borderColor: 'rgba(59,130,246,1)',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          scales: { y: { ticks: { callback: tick, color: '#94a3b8' } },
+                    x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
+        }
+      });
+    }
+
+    var catsEl = document.getElementById('catsChart');
+    var expenses = cats.filter(function (c) { return c.total_k < 0; })
+      .map(function (c) { return { label: c.category, value: -c.total_k / 100 }; });
+    if (expenses.length && catsEl) {
+      new Chart(catsEl, {
+        type: 'doughnut',
+        data: {
+          labels: expenses.map(function (e) { return e.label; }),
+          datasets: [{
+            data: expenses.map(function (e) { return e.value; }),
+            backgroundColor: expenses.map(function (e) { return catColorMap[e.label] || '#9ca3af'; }),
+            borderWidth: 0
+          }]
+        },
+        options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
+      });
+    }
   }
 
-  var expenses = cats.filter(function (c) { return c.total_k < 0; }).map(function (c) { return { label: c.category, value: -c.total_k / 100, color: null }; });
-  var catColorMap = {{ cat_colors | tojson }};
-  if (expenses.length) {
-    new Chart(document.getElementById('catsChart'), {
-      type: 'doughnut',
-      data: {
-        labels: expenses.map(function (e) { return e.label; }),
-        datasets: [{
-          data: expenses.map(function (e) { return e.value; }),
-          backgroundColor: expenses.map(function (e) { return catColorMap[e.label] || '#9ca3af'; }),
-          borderWidth: 0
-        }]
-      },
-      options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
-    });
+  if (window.htmx) { htmx.onLoad(initCharts); }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initCharts);
+  } else {
+    initCharts();
   }
 })();
 </script>
