@@ -26,8 +26,10 @@
 2. fallback: OpenRouter :free → `nvidia/nemotron-3-super-120b-a12b:free`.
 3. deepseek: abacus-web shim `http://127.0.0.1:3201/v1` → `deepseek-v4-1-flash`
    (0 кредитов, 1M ctx; токен TTL 1ч — обновлять session.json из curl браузера).
-4. offline: Ollama → qwen2.5-coder:3b (не для категоризации — только текстовая классификация без учёта JSON-контракта; правила работают и без LLM).
+4. offline: правила/кэш — ядро работает без сети (LLM недоступен → rule-only).
+   Ключ `offline` в `config/settings.toml` (Ollama qwen2.5-coder:3b) зарезервирован и
+   в `llm.py` НЕ используется — не описывать его как фолбэк.
 
 ## Тесты
-- pytest, 37 passed, все оффлайн (LLM через `classify_with_injectable`-стаб, сеть не ходит).
+- pytest, **71 unit + 8 e2e** (Playwright), все оффлайн (LLM через `classify_with_injectable`-стаб, сеть не ходит).
 - ruff (lint) чистый.

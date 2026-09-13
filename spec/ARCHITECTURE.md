@@ -38,7 +38,7 @@
 ## План (из MASTER_PLAN.md, Фаза A/B)
 - A1 ✅ стилизация UI Tailwind + верификация в браузере.
 - A2 ✅ категоризация через бесплатный DeepSeek (abacus-web shim 3201) третьим фолбэком.
-- A3 P3: форма подтверждения, негативные сценарии в тестах.
+- A3 ✅ форма подтверждения (Work 3: `/approve`, approve/skip/approve-all, `review_status`), негативные сценарии (TC-12..14).
 - B ✅ дашборды (Chart.js + htmx), URL-фильтры через hx-push-url, hx-boost + OOB-свапы.
 
 ## Фаза B (реализовано 13.09)
@@ -48,10 +48,10 @@
   с `hx-push-url` (состояние в URL); `store.list_transactions(..., search=None)` фильтрует по описанию/мерчанту.
 - **hx-boost**: `base.html` — `<body hx-boost="true">`, meta `htmx-config` historyCacheSize=0,
   навигация по страницам без полной перезагрузки.
-- **OOB-свап/счётчик**: `GET /api/pending-count` + обновление `#pending-count` после подтверждения
-  (`approve.html` hx-on::after-request fetch) и после добавления.
+- **OOB-свап/счётчик**: `#pending-count` обновляется `hx-swap-oob` из ответов approve/skip/approve-all
+  (Work 3, `511b630`); `GET /api/pending-count` — JSON для внешних проверок.
 - **Форма добавления** (`index.html`): `hx-post` → `/api/transactions`; эндпоинт принимает И JSON,
   И form-urlencoded (по content-type); при `HX-Request: true` возвращает HTML-фрагмент в `#newmsg`
   вместо JSON; overlay `#global-indicator` (htmx-indicator) во время запроса; после успеха — reset формы,
   обновление `#pending-count` и таблицы (`hx-trigger="refresh-list from:body"` на `#tx-table`).
-- **Тесты**: `report_daily` в `reports.py` + тесты; API-тесты JSON/form/HX-ветка; итого 43 passed, ruff чист.
+- **Тесты**: `report_daily` в `reports.py` + тесты; API-тесты JSON/form/HX-ветка; итого **71 unit + 8 e2e**, ruff чист.
