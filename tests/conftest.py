@@ -1,10 +1,52 @@
 from __future__ import annotations
 
+import json
+import time
+from pathlib import Path
+
 import pytest
 
 from spendtrack.config import ROOT
 from spendtrack.store import Store, parse_amount
 from spendtrack.taxonomy import load_taxonomy
+
+_PERF: dict[str, dict] = {}
+
+
+def _perf_dir() -> Path:
+    return ROOT / "reports"
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    outcome = yield
+    rep = outcome.get_result()
+    if rep.when == "call" and item.get_closest_marker("perf"):
+        _PERF[item.nodeid] = {
+            "seconds": round(rep.duration, 4),
+            "outcome": rep.outcome,
+        }
+
+
+@pytest.hookimpl(trylast=True)
+def pytest_sessionfinish(session, exitstatus):
+    if not _PERF:
+        return
+    out_dir = _perf_dir()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    ordered = sorted(_PERF.items(), key=lambda kv: -kv[1]["seconds"])
+    data = {
+        "generated": int(time.time()),
+        "python": "3.13",
+        "results": [
+            {"test": name, "seconds": m["seconds"], "outcome": m["outcome"]}
+            for name, m in ordered
+        ],
+        "total_seconds": round(sum(m["seconds"] for m in _PERF.values()), 4),
+    }
+    target = out_dir / "perf.json"
+    target.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"\n[perf] JSON report -> {target} ({len(_PERF)} cases)")
 
 
 @pytest.fixture()
