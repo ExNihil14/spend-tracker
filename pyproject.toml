@@ -21,6 +21,9 @@ spendtrack = "spendtrack.cli:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "perf: performance-тесты; длительности пишутся в reports/perf.json (JSON). Запуск: uv run pytest -m perf",
+]
 
 [tool.ruff]
 line-length = 100

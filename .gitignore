@@ -24,3 +24,6 @@ data/
 
 # Serena MCP local state
 .serena/
+
+# Perf reports (генерируются pytest -m perf)
+reports/
