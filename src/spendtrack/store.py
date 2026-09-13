@@ -16,6 +16,7 @@ def parse_amount(value: str | float) -> int:
     if isinstance(value, int) and not isinstance(value, bool):
         return value * 100
     s = str(value).replace(",", ".").replace(" ", "").replace("\u00a0", "")
+    s = s.replace("\u2212", "-").replace("\u2013", "-").replace("\u2014", "-")
     d = Decimal(s).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return int(d * 100)
 

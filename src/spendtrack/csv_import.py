@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import re
 from collections.abc import Iterator
 from io import StringIO
 
@@ -9,12 +10,28 @@ from spendtrack.categorize import categorize_transaction
 from spendtrack.store import Store, parse_amount
 from spendtrack.taxonomy import Taxonomy
 
+_DATE_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
+_DATE_DDMMYYYY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})")
+
 
 def _cell(row: dict, *keys: str) -> str:
     for k in keys:
         if k in row and row[k] not in (None, ""):
             return str(row[k]).strip()
     return ""
+
+
+def _iso_date(value: str) -> str:
+    """DD.MM.YYYY[ HH:MM] → YYYY-MM-DD (месячные фильтры/сортировка/дашборд — на ISO)."""
+    v = value.strip()
+    m = _DATE_ISO.match(v)
+    if m:
+        return m.group(1)
+    m = _DATE_DDMMYYYY.match(v)
+    if m:
+        d, mo, y = m.groups()
+        return f"{y}-{mo}-{d}"
+    return v[:10]
 
 
 def _guess_sep(header: str) -> str:
@@ -26,13 +43,16 @@ class SberAdaptor:
 
     def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
         for r in rows:
+            status = _cell(r, "Статус", "Status").lower()
+            if status in ("в обработке", "отклонено", "отменено", "ошибка"):
+                continue
             date = _cell(r, "Дата операции", "Дата")
             desc = _cell(r, "Описание", "Категория")
             amount = _cell(r, "Сумма операции", "Сумма")
             account = _cell(r, "Номер карты")
             if not date or not desc or not amount:
                 continue
-            yield {"date": date[:10], "description": desc, "amount_kopecks": parse_amount(amount),
+            yield {"date": _iso_date(date), "description": desc, "amount_kopecks": parse_amount(amount),
                    "account": account or None, "export_rowid": ""}
 
 
@@ -47,7 +67,7 @@ class TinkoffAdaptor:
             account = _cell(r, "Счёт", "Account")
             if not date or not desc or not amount:
                 continue
-            yield {"date": date[:10], "description": desc, "amount_kopecks": parse_amount(amount),
+            yield {"date": _iso_date(date), "description": desc, "amount_kopecks": parse_amount(amount),
                    "account": account or None, "export_rowid": ""}
 
 
@@ -62,7 +82,7 @@ class YandexMoneyAdaptor:
             account = _cell(r, "account", "Счёт")
             if not date or not desc or not amount:
                 continue
-            yield {"date": date[:10], "description": desc, "amount_kopecks": parse_amount(amount),
+            yield {"date": _iso_date(date), "description": desc, "amount_kopecks": parse_amount(amount),
                    "account": account or None, "export_rowid": ""}
 
 
@@ -103,7 +123,10 @@ def import_csv(
     if classify is None:
         classify = lambda tx, st, tax: categorize_transaction(tx, tax, st)
     if isinstance(raw, bytes):
-        raw = raw.decode("utf-8-sig", errors="replace")
+        try:
+            raw = raw.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            raw = raw.decode("cp1251", errors="replace")
     raw = raw.lstrip("\ufeff")
 
     lines = raw.splitlines()
