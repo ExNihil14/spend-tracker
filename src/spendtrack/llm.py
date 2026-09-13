@@ -7,6 +7,8 @@ from openai import OpenAI
 
 from spendtrack.config import load_settings
 
+REQUEST_TIMEOUT_S = 20.0
+
 
 def get_client(endpoint: str | None = None) -> tuple[OpenAI, str, str]:
     cfg = load_settings()
@@ -14,7 +16,7 @@ def get_client(endpoint: str | None = None) -> tuple[OpenAI, str, str]:
     key = cfg.freel_llm_api_key or "no-key"
     if "openrouter" in base:
         key = cfg.openrouter_api_key or "no-key"
-    return OpenAI(base_url=base, api_key=key), base, cfg.llm.primary.model
+    return OpenAI(base_url=base, api_key=key, timeout=REQUEST_TIMEOUT_S), base, cfg.llm.primary.model
 
 
 def call_llm(
@@ -39,7 +41,7 @@ def call_llm(
 
     for base_url, model, api_key, source in attempts:
         try:
-            client = OpenAI(base_url=base_url, api_key=api_key)
+            client = OpenAI(base_url=base_url, api_key=api_key, timeout=REQUEST_TIMEOUT_S)
             resp = client.chat.completions.create(
                 model=model,
                 messages=[
