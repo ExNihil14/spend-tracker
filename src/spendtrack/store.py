@@ -105,6 +105,9 @@ CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);
 """
 
 
+SCHEMA_VERSION = 2  # текущая версия схемы (см. Store._migrate)
+
+
 class Store:
     def __init__(self, db_path: Path | None = None):
         cfg = load_settings()
@@ -118,20 +121,37 @@ class Store:
         self._migrate()
         self.conn.commit()
 
+    # ---- версионированные миграции (PRAGMA user_version + журнал) ----
+    def _user_version(self) -> int:
+        return int(self.conn.execute("PRAGMA user_version").fetchone()[0])
+
+    def _mark_migration(self, version: int) -> None:
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS schema_migrations("
+            " version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)")
+        self.conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES(?,?)",
+            (version, _now_iso()))
+        self.conn.execute(f"PRAGMA user_version = {int(version)}")
+
     def _migrate(self) -> None:
-        """Work 3: колонки категоризации-очереди для существующих БД (только один раз)."""
-        cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
-        if "review_status" not in cols:
-            self.conn.execute("ALTER TABLE transactions ADD COLUMN category_llm TEXT")
-            self.conn.execute(
-                "ALTER TABLE transactions ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved'")
-            # Бэкфилл только при первичной миграции (иначе откатывает skip/approve).
-            self.conn.execute(
-                "UPDATE transactions SET review_status='pending'"
-                " WHERE category_source='llm_pending_review'")
-            self.conn.execute(
-                "UPDATE transactions SET category_llm=category"
-                " WHERE category_source IN ('llm','llm_pending_review') AND category_llm IS NULL")
+        """Версии: 1 — базовая схема; 2 — Work 3 (category_llm/review_status + бэкфилл)."""
+        if self._user_version() < 1:
+            self._mark_migration(1)
+        if self._user_version() < 2:
+            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
+            if "review_status" not in cols:
+                self.conn.execute("ALTER TABLE transactions ADD COLUMN category_llm TEXT")
+                self.conn.execute(
+                    "ALTER TABLE transactions ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved'")
+                # Бэкфилл только при реальном апгрейде старой схемы (иначе откатывает skip/approve).
+                self.conn.execute(
+                    "UPDATE transactions SET review_status='pending'"
+                    " WHERE category_source='llm_pending_review'")
+                self.conn.execute(
+                    "UPDATE transactions SET category_llm=category"
+                    " WHERE category_source IN ('llm','llm_pending_review') AND category_llm IS NULL")
+            self._mark_migration(2)
 
     def close(self) -> None:
         self.conn.close()
