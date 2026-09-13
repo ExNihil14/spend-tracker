@@ -30,7 +30,7 @@ def main() -> None:
 
     backup_dir = db_path.parent / "backup"
     backup_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(UTC).strftime("%Y%m%d")
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     target = backup_dir / f"spend-{stamp}.db"
 
     con = sqlite3.connect(db_path, timeout=30)
@@ -51,7 +51,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
-
-if __name__ == "__main__":
-    main()

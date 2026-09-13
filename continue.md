@@ -22,7 +22,6 @@
 - Авто-приём категории при confidence ≥ 0.9, иначе `llm_pending_review` → очередь.
 - Лог бакетов confidence (для калибровки порога).
 - UI: Tailwind v4 vendored (static/tailwind.js), card-summary, stripes, responsive grid.
-- 35 тестов (оффлайн, LLM инжектируемый).
 
 ## Архитектурные решения (зафиксировано, менять только через spec/review)
 - Суммы = `amount_kopecks INTEGER` (копейки), НЕ REAL/DECIMAL.
@@ -40,11 +39,12 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (13.09, вечер): 71 unit + 8 e2e зелёные, ruff чист; `main = origin/main` (`c4d470e`). Ниже — исторические снимки по датам, цифры в них не актуальны.**
+> **АКТУАЛЬНО (14.09): 71 unit + 8 e2e зелёные, ruff чист; `main = origin/main` (`bbc642d`). Ниже — исторические снимки; цифры в них не актуальны.**
 - ✅ **Фаза B закоммичена (77a25dc)**: дашборды (Chart.js+htmx), URL-фильтры hx-push-url, hx-boost, фикс формы добавления (JSON+form, HX-ветка HTML), deepseek-фолбэк, spec/ A+PIPELINE+stack. **43 passed, ruff чист, рабочее дерево чистое** — практика №3 MASTER_PLAN «commit перед задачей, diff после» выполнена.
 - ✅ mattpocock/skills audit (13.09): всё внедрённое используется.
-- ⏳ Сверить API-клиент с HX-фрагментом и модалкой в браузере юзера (последний визуальный smoke).
-- Открытые пробелы MASTER_PLAN: perf-маркер с JSON-выводом (Фаза 2), Hoppscotch-коллекция + Capture MCP скриншоты (Фаза 3), .env.local + remote + защита ветки (Фаза 4 — почти не начата).
+- ⏳ Визуальный smoke `/approve` в браузере юзера (план: `spec/QA_APPROVE_SMOKE.md`, демо-данные `scripts/review_demo.py seed`).
+- ✅ Пробелы MASTER_PLAN закрыты/пересмотрены: perf-маркер с JSON закрыт (`75f8165`, `reports/perf.json`, маркер в pyproject); Hoppscotch/Capture MCP — **отклонены** (SPENDRACK_PRIORITIES_REVIEW); Фаза 4 закрыта (v0.1.0, remote, защита `main`).
+- ⏭ Следующее по ROI (ревью 14.09): реальная выписка Сбербанка (импорт + фикстура) → **сортировка транзакций** (см. брейншторм: `statement_order` из выписки + `sort=` в URL + группировка по дням в хронологии + keyset-scroll) → категории/правила в UI + калибровка порога 0.9 по бакетам confidence.
 - ✅ Стилизация UI Tailwind завершена (13.09.2026): `base.html` + `index.html` + `approve.html` — утилитарные классы Tailwind v4 vendored (282KB static/tailwind.js), card-style summary, table stripes, responsive grid. Всё рендерится: smoke-тест 200 OK.
 - ✅ DeepSeek-категоризация добавлена третьим фолбэком в `llm.py` (FreeLLMAPI → OpenRouter → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96, source=deepseek.**
 - ✅ Контур верификации: `tests/test_fallback.py` (порядок primary→fallback→deepseek с моком, оффлайн), итого **37 passed**, ruff чист.
