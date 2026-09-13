@@ -26,11 +26,10 @@
 - тесты не ходят в сеть: LLM всегда стаб.
 
 ## Что активно / в работе
-- ✅ **Баг формы «Добавить» исправлен (13.09)**: эндпоинт `POST /api/transactions` теперь принимает И JSON (`TxIn(**request.json())`), И `form-urlencoded` (htmx-форма) по `content-type`. При `HX-Request: true` возвращает HTML-фрагмент («Добавлено: … → <b>категория</b>») в `#newmsg` вместо сырого JSON; JSON-клиентам как раньше. **43 passed, ruff чист.**
-- ✅ **UX формы**: кнопка `cursor-pointer`, форма показывает модальный overlay `#global-indicator` (htmx-indicator, «Добавление…») во время запроса, после добавления — reset формы, обновление `#pending-count` через fetch `/api/pending-count` и перезагрузка `#tx-table` событием `refresh-list from:body` (`hx-trigger`).
-- ✅ **Правило запуска сервера** зафиксировано в AGENTS.md + AGENT_ENVIRONMENT_PLAN.md: серверы/длинные процессы — `powershell Start-Process -WindowStyle Hidden`, НЕ `... &` в bash; бить слушающий PID по `Get-NetTCPConnection -LocalPort`, не родителя `uv` (иначе старый код на порту).
+- ✅ **Фаза B закоммичена (77a25dc)**: дашборды (Chart.js+htmx), URL-фильтры hx-push-url, hx-boost, фикс формы добавления (JSON+form, HX-ветка HTML), deepseek-фолбэк, spec/ A+PIPELINE+stack. **43 passed, ruff чист, рабочее дерево чистое** — практика №3 MASTER_PLAN «commit перед задачей, diff после» выполнена.
+- ✅ mattpocock/skills audit (13.09): всё внедрённое используется.
 - ⏳ Сверить API-клиент с HX-фрагментом и модалкой в браузере юзера (последний визуальный smoke).
-- ✅ mattpocock/skills audit (13.09): всё внедрённое используется (агент-ревьюер Spec/Standards, TDD, CONTEXT.md, Fowler smells), отклонённое осознанно (tickets, HTML-отчёты).
+- Открытые пробелы MASTER_PLAN: perf-маркер с JSON-выводом (Фаза 2), Hoppscotch-коллекция + Capture MCP скриншоты (Фаза 3), .env.local + remote + защита ветки (Фаза 4 — почти не начата).
 - ✅ Стилизация UI Tailwind завершена (13.09.2026): `base.html` + `index.html` + `approve.html` — утилитарные классы Tailwind v4 vendored (282KB static/tailwind.js), card-style summary, table stripes, responsive grid. Всё рендерится: smoke-тест 200 OK.
 - ✅ DeepSeek-категоризация добавлена третьим фолбэком в `llm.py` (FreeLLMAPI → OpenRouter → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96, source=deepseek.**
 - ✅ Контур верификации: `tests/test_fallback.py` (порядок primary→fallback→deepseek с моком, оффлайн), итого **37 passed**, ruff чист.
