@@ -43,3 +43,36 @@ def test_fallback_order_primary_fallback_deepseek(monkeypatch):
         cfg.llm.fallback.base_url,
         cfg.llm.deepseek.base_url,
     ]
+
+
+def test_circuit_breaker_skips_dead_primary(monkeypatch):
+    """3 фейла primary → breaker открыт → primary пропускается без вызова."""
+    cfg = load_settings()
+    llm_mod._breakers.clear()
+    called: list[str] = []
+
+    def fake_openai(base_url, api_key="", timeout=...):
+        mock = MagicMock()
+
+        def create(**kwargs):
+            called.append(base_url)
+            if base_url == cfg.llm.primary.base_url:
+                raise RuntimeError(f"mock fail {base_url}")
+            resp = MagicMock()
+            resp.choices[0].message.content = OK_JSON
+            return resp
+
+        mock.chat.completions.create = create
+        return mock
+
+    with patch.object(llm_mod, "OpenAI", fake_openai):
+        # 3 вызова: primary падает 3 раза → breaker primary открыт
+        for _ in range(3):
+            res = call_llm("sys", "usr", max_tokens=50)
+            assert res["source"] == "fallback" or res["source"] == "deepseek"
+        assert called.count(cfg.llm.primary.base_url) == 3
+        called.clear()
+        # теперь primary пропущен мгновенно, fallback сразу работает
+        res = call_llm("sys", "usr", max_tokens=50)
+        assert res["source"] == "fallback"
+        assert called.count(cfg.llm.primary.base_url) == 0
