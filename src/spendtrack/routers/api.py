@@ -84,14 +84,7 @@ def pending_count():
 def list_reviews(request: Request):
     """htmx-фрагмент очереди (одно место рендера → страница и oob едины)."""
     store = _store()
-    taxonomy = load_taxonomy()
-    pending = store.queued_for_review()
-    cats = {c.name: c.color for c in taxonomy.categories}
-    return templates.TemplateResponse(
-        request, "partials/review_rows.html",
-        {"pending": pending, "cat_colors": cats, "fmt": fmt_amount,
-         "all_categories": [c.name for c in taxonomy.categories]},
-    )
+    return HTMLResponse(_rows_html(request, store))
 
 
 @router.get("/reviews/count", response_class=HTMLResponse)
@@ -115,6 +108,17 @@ def _oob_badge(store: Store) -> str:
     )
 
 
+def _rows_html(request: Request, store: Store) -> str:
+    """Единый рендер фрагмента очереди (страница и htmx-ответы совпадают)."""
+    taxonomy = load_taxonomy()
+    cats = {c.name: c.color for c in taxonomy.categories}
+    return templates.TemplateResponse(
+        request, "partials/review_rows.html",
+        {"pending": store.queued_for_review(), "cat_colors": cats, "fmt": fmt_amount,
+         "all_categories": [c.name for c in taxonomy.categories]},
+    ).body.decode()
+
+
 @router.post("/reviews/{tx_id}/approve", response_class=HTMLResponse)
 async def approve_review(request: Request, tx_id: int):
     store = _store()
@@ -128,7 +132,7 @@ async def approve_review(request: Request, tx_id: int):
         raise HTTPException(422, f"категория {chosen} вне таксономии")
     if not store.approve_review(tx_id, str(chosen)):
         raise HTTPException(409, "запись не в очереди")
-    return HTMLResponse(_oob_badge(store))
+    return HTMLResponse(_rows_html(request, store) + _oob_badge(store))
 
 
 @router.post("/reviews/{tx_id}/skip", response_class=HTMLResponse)
@@ -136,21 +140,14 @@ async def skip_review(request: Request, tx_id: int):
     store = _store()
     if not store.skip_review(tx_id):
         raise HTTPException(409, "запись не в очереди")
-    return HTMLResponse(_oob_badge(store))
+    return HTMLResponse(_rows_html(request, store) + _oob_badge(store))
 
 
 @router.post("/reviews/approve-all", response_class=HTMLResponse)
 async def approve_all(request: Request):
     store = _store()
     store.approve_all_reviews()
-    taxonomy = load_taxonomy()
-    cats = {c.name: c.color for c in taxonomy.categories}
-    html = templates.TemplateResponse(
-        request, "partials/review_rows.html",
-        {"pending": [], "cat_colors": cats, "fmt": fmt_amount,
-         "all_categories": [c.name for c in taxonomy.categories]},
-    ).body.decode()
-    return HTMLResponse(html + _oob_badge(store))
+    return HTMLResponse(_rows_html(request, store) + _oob_badge(store))
 
 
 @router.patch("/transactions/{tx_id}")

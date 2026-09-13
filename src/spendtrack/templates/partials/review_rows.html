@@ -19,11 +19,11 @@
     <td class="px-5 py-3">
       <div class="flex items-center gap-2">
         <select name="category" hx-post="/api/reviews/{{ t.id }}/approve"
-                hx-target="#review-{{ t.id }}" hx-swap="delete"
+                hx-target="#review-rows" hx-swap="outerHTML"
                 class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           {% for c in all_categories %}<option value="{{ c }}" {% if c == (t.category_llm or t.category) %}selected{% endif %}>{{ c }}</option>{% endfor %}
         </select>
-        <form hx-post="/api/reviews/{{ t.id }}/skip" hx-target="#review-{{ t.id }}" hx-swap="delete">
+        <form hx-post="/api/reviews/{{ t.id }}/skip" hx-target="#review-rows" hx-swap="outerHTML">
           <button type="submit" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Пропустить</button>
         </form>
       </div>

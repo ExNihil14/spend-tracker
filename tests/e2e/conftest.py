@@ -52,6 +52,13 @@ def live_server(tmp_path_factory):
         proc.kill()
 
 
+@pytest.fixture()
+def db_path(live_server) -> Path:
+    """Путь к БД текущего e2e-сервера (для прямого засева данных)."""
+    assert DB_PATH is not None, "live_server не запущен"
+    return DB_PATH
+
+
 @pytest.fixture(autouse=True)
 def clean_db():
     """Каждый тест стартует с пустой БД (независимость сценариев)."""
