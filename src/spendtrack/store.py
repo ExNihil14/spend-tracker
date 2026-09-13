@@ -172,7 +172,8 @@ class Store:
         self.conn.commit()
 
     def list_transactions(self, month: str | None = None, category: str | None = None,
-                          needs_review: bool = False, limit: int = 500) -> list[dict]:
+                          needs_review: bool = False, limit: int = 500,
+                          search: str | None = None) -> list[dict]:
         sql = "SELECT * FROM transactions WHERE 1=1"
         params: list[str] = []
         needs_review_where = " AND (category_source='llm_pending_review' OR confidence<1.0 AND category_source NOT IN ('rule','import','manual'))"
@@ -182,6 +183,10 @@ class Store:
         if category:
             sql += " AND category=?"
             params.append(category)
+        if search:
+            sql += " AND (description LIKE ? OR merchant LIKE ?)"
+            like = f"%{search}%"
+            params.extend([like, like])
         if needs_review:
             sql += needs_review_where
         sql += " ORDER BY date DESC, id DESC LIMIT ?"

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from spendtrack.categorize import categorize_transaction
@@ -32,9 +33,15 @@ class ImportIn(BaseModel):
 
 
 @router.post("/transactions")
-def create(tx: TxIn):
+async def create(request: Request):
     store = _store()
     taxonomy = load_taxonomy()
+    ct = request.headers.get("content-type", "application/json")
+    if "application/json" in ct:
+        tx = TxIn(**await request.json())
+    else:
+        form = await request.form()
+        tx = TxIn(**{k: form.get(k) for k in ("date", "description", "amount", "account")})
     amount = parse_amount(tx.amount)
     account_anon = store.pseudonymize(tx.account)
     category = categorize_transaction(
@@ -48,7 +55,21 @@ def create(tx: TxIn):
         confidence=category["confidence"], merchant=category["merchant"],
         account_anon=account_anon, export_rowid="",
     )
+    if request.headers.get("hx-request", "").lower() == "true":
+        label = category["category"]
+        if category["source"] == "llm_pending_review":
+            msg = (f"Добавлено: {tx.description} → <b>{label}</b> "
+                   f"(conf {category['confidence']:.2f}), ждёт подтверждения.")
+        else:
+            msg = f"Добавлено: {tx.description} → <b>{label}</b>"
+        return HTMLResponse(f'<p class="text-blue-400">{msg}</p>')
     return {"id": tx_id, **category}
+
+
+@router.get("/pending-count")
+def pending_count():
+    store = _store()
+    return {"count": sum(1 for _ in store.queued_for_review())}
 
 
 @router.patch("/transactions/{tx_id}")
@@ -61,7 +82,7 @@ def confirm(tx_id: int, body: ConfirmIn):
     store.seed_merchant_cache(tx_id)
     if not ok:
         raise HTTPException(404, "не найдено")
-    return {"ok": True}
+    return {"ok": True, "pending_count": sum(1 for _ in store.queued_for_review())}
 
 
 @router.get("/transactions/{tx_id}")
