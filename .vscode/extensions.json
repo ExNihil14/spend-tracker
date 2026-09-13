@@ -1,0 +1,21 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "fastapilabs.fastapi-vscode",
+    "ms-playwright.playwright",
+    "tamasfe.even-better-toml",
+    "qwtel.sqlite-viewer",
+    "eamodio.gitlens",
+    "bradlc.vscode-tailwindcss",
+    "editorconfig.editorconfig",
+    "mikestead.dotenv",
+    "xubylele.jinja2-html-enhancer",
+    "atoolz.htmx-vscode-toolkit",
+    "usernamehw.errorlens"
+  ],
+  "unwantedRecommendations": [
+    "octref.vetur"
+  ]
+}

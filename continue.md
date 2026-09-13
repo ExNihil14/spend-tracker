@@ -7,6 +7,7 @@
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + htmx + SQLite + Tailwind.
 - Репозиторий: `D:\dev\personal\spend-tracker` (public, https://github.com/ExNihil14/spend-tracker).
 - Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
+- IDE: VS Code 1.137 + 13 расширений (Ruff, Pylance, официальный FastAPI, Playwright, Jinja2, htmx-toolkit, SQLite viewer, TOML, GitLens, Tailwind, EditorConfig, dotenv, Error Lens). Настройки в `.vscode/` (в репо): Ruff-форматтер Python, Pylance `standard`, pytest Test Explorer.
 - Готово: Фаза B, импорт банка (Work 2, `422a56f`), circuit breaker+E2E (`833c48c`),
   очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`). **70 unit + 8 e2e зелёные.**
 
