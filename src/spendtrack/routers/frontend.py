@@ -74,6 +74,7 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
             "report": report,
             "daily": daily,
             "current": current,
+            "pending": store.queued_for_review(),
             "fmt": fmt_amount,
             "cat_colors": cats,
             "categories_json": [dict(c) for c in report["categories"]],

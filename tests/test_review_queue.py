@@ -196,3 +196,16 @@ def test_oob_badge_swaps(client):
     assert "pending-count" in r.text
     assert 'hx-swap-oob="true"' in r.text
     assert ">0<" in r.text
+
+
+def test_dashboard_badge_shows_pending(client):
+    """Бейдж очереди в навигации на /dashboard показывает реальный счётчик (не 0)."""
+    import re
+    client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "СТРОЙКАОПТ X", "amount": "-50.00",
+    })
+    r = client.get("/dashboard")
+    assert r.status_code == 200
+    m = re.search(r'id="pending-count"[^>]*>(\d+)<', r.text)
+    assert m, "бейдж pending-count не найден"
+    assert int(m.group(1)) >= 1
