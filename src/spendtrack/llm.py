@@ -1,13 +1,29 @@
 from __future__ import annotations
 
 import json
+import logging
+import threading
 from typing import Any
 
+import httpx
 from openai import OpenAI
 
 from spendtrack.config import load_settings
+from spendtrack.resilience import CircuitBreaker
 
-REQUEST_TIMEOUT_S = 20.0
+log = logging.getLogger("spendtrack")
+
+REQUEST_TIMEOUT_S = httpx.Timeout(30.0, connect=3.0)  # read=30 (батч), connect=3 (мёртвый порт)
+
+_breakers: dict[str, CircuitBreaker] = {}
+_br_lock = threading.Lock()
+
+
+def _breaker(source: str) -> CircuitBreaker:
+    with _br_lock:
+        if source not in _breakers:
+            _breakers[source] = CircuitBreaker(source, fail_threshold=3, recovery_s=1800.0)
+        return _breakers[source]
 
 
 def get_client(endpoint: str | None = None) -> tuple[OpenAI, str, str]:
@@ -40,6 +56,10 @@ def call_llm(
                       cfg.freel_llm_api_key or "no-key", "override")] + attempts
 
     for base_url, model, api_key, source in attempts:
+        br = _breaker(source)
+        if not br.allowed():
+            log.info("llm[%s]: circuit open — пропуск без вызова", source)
+            continue
         try:
             client = OpenAI(base_url=base_url, api_key=api_key, timeout=REQUEST_TIMEOUT_S)
             resp = client.chat.completions.create(
@@ -52,8 +72,10 @@ def call_llm(
                 temperature=temperature,
             )
             content = resp.choices[0].message.content or ""
+            br.report_success()
             return {"content": content, "model": model, "source": source}
-        except Exception:  # noqa: BLE001, S112
+        except Exception:  # noqa: BLE001
+            br.report_failure()
             continue
 
     return {"content": "", "model": "none", "source": "failed"}

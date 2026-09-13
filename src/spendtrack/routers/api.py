@@ -43,7 +43,8 @@ async def create(request: Request):
         tx = TxIn(**await request.json())
     else:
         form = await request.form()
-        tx = TxIn(**{k: form.get(k) for k in ("date", "description", "amount", "account")})
+        tx = TxIn(**{k: str(v) for k, v in
+                     ((k, form.get(k)) for k in ("date", "description", "amount", "account")) if v is not None})
     amount = parse_amount(tx.amount)
     account_anon = store.pseudonymize(tx.account)
     category = categorize_transaction(
@@ -97,9 +98,18 @@ def get_one(tx_id: int):
 
 
 @router.post("/import")
-def do_import(body: ImportIn, request: Request):
+async def do_import(request: Request):
     store = _store()
     taxonomy = load_taxonomy()
+    ct = request.headers.get("content-type", "application/json")
+    if "application/json" in ct:
+        body = ImportIn(**await request.json())
+    else:
+        form = await request.form()
+        bank = form.get("bank")
+        csv = form.get("csv")
+        body = ImportIn(bank=str(bank) if bank is not None else "auto",
+                        csv=str(csv) if csv is not None else "")
     is_hx = request.headers.get("hx-request", "").lower() == "true"
     try:
         result = import_csv(body.csv, store, bank=body.bank, taxonomy=taxonomy)
@@ -108,10 +118,10 @@ def do_import(body: ImportIn, request: Request):
             return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')
         raise
     if is_hx:
-        status = {
+        status = str({
             "ok": "Импортировано",
             "empty": "Пустой файл",
-        }.get(result["status"], result["status"])
+        }.get(result["status"], result["status"]))
         msg = (
             f"{escape(status)}: +{result['added']} добавлено, "
             f"{result['dupes']} дублей, банк={escape(str(result.get('bank', '-')))}"
