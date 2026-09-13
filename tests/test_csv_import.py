@@ -104,3 +104,40 @@ def test_sber_non_breaking_space_separator(store):
     res = import_csv(csv_text, store, classify=_stub_classify())
     assert res["added"] == 1
     assert -123456 in {t["amount_kopecks"] for t in store.list_transactions()}
+
+
+def test_sber_dates_stored_iso(store):
+    """Реальная выписка: DD.MM.YYYY → ISO; иначе month-фильтры и дашборд ломаются."""
+    import_csv(SBER_CSV, store, classify=_stub_classify())
+    dates = {t["date"] for t in store.list_transactions()}
+    assert dates == {"2026-09-01"}
+    assert len(store.list_transactions(month="2026-09")) == 2
+
+
+def test_sber_pending_status_skipped(store):
+    """«В обработке» — не проведённая операция, в БД не попадает."""
+    csv_text = SBER_CSV + (
+        "3;03.09.2026 12:00;03.09.2026;1234;В обработке;-500,00;RUB;-500,00;RUB;Продукты;МАГНИТ\n"
+    )
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["added"] == 2
+    assert all("МАГНИТ" not in t["description"] for t in store.list_transactions())
+
+
+def test_cp1251_bytes_decoded(store):
+    """Файл Сбербанка в cp1251: кириллица должна декодироваться (иначе правила/LLM слепнут)."""
+    csv_text = (
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Описание\n"
+        "1;01.09.2026 10:00;1234;Выполнено;-100,00;RUB;ЛЕНТА\n"
+    )
+    res = import_csv(csv_text.encode("cp1251"), store, classify=_stub_classify())
+    assert res["added"] == 1
+    assert store.list_transactions()[0]["category"] == "groceries"
+
+
+def test_unicode_minus_amount(store):
+    """Экспорт может использовать типографский минус U+2212 — не должен падать."""
+    csv_text = SBER_CSV.replace("-1234,50", "\u22121 234,50")
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["added"] == 2
+    assert parse_amount("-1234.50") in {t["amount_kopecks"] for t in store.list_transactions()}
