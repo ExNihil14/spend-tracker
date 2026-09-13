@@ -13,7 +13,7 @@ uv run spendtrack count                          # счётчики
 
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 37 passed, все оффлайн (LLM-стаб)
+uv run pytest -q                # 71 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):

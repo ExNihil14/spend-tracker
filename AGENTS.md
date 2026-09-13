@@ -7,6 +7,8 @@
 - `continue.md` — состояние проекта и следующие шаги (источник для продолжения работы).
 - `spec/ARCHITECTURE.md` — архитектура/решения/план (источник истины).
 - `CONTEXT.md` — словарь терминов (не перифразировать).
+- `spec/PIPELINE.md` + `spec/stack.md` — команды/контур верификации и стек.
+- `spec/QA_APPROVE_SMOKE.md` — QA-план очереди `/approve` (читать при работах по очереди/категоризации).
 - Мастер-план из `D:\dev\docs\vibecoding\out_analysis\MASTER_PLAN.md` — практики/грабли/промпты (читай spec-раздел при изменениях).
 
 ## Команды
@@ -27,10 +29,10 @@
 - Суммы = `amount_kopecks INTEGER` (копейки), НЕ REAL
 - Fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — повторный импорт = no-op
 - account псевдонимизируется (`account_pseudonyms`), сырые номера карт не хранятся
-- Авто-приём категории от LLM при confidence ≥ 0.9, иначе → очередь «на подтверждение» (`category_source='llm_pending_review'`)
+- Авто-приём категории от LLM при confidence ≥ 0.9, иначе → очередь «на подтверждение» (`review_status='pending'`, `category_llm` = предложение LLM)
 - Правила детерминированные и тестируются на РЕАЛЬНЫХ описаниях (урок: «ЗАРПЛАТА» не ловит «ЗАРАБОТНАЯ»)
 - Правка юзера → merchant_cache (выигрывает над LLM) + пример в few-shot
-- LLM-фолбэк: FreeLLMAPI → OpenRouter fallback → оффлайн (правила работают и без LLM вообще)
+- LLM-фолбэк: FreeLLMAPI → OpenRouter :free → abacus-web shim (deepseek) → офлайн-правила (работают и без LLM вообще)
 
 ## Не делать
 - Не кидать сырые суммы REAL/DECIMAL в БД
