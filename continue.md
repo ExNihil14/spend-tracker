@@ -9,16 +9,16 @@
 - Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
 - IDE: VS Code 1.137 + 13 расширений (Ruff, Pylance, официальный FastAPI, Playwright, Jinja2, htmx-toolkit, SQLite viewer, TOML, GitLens, Tailwind, EditorConfig, dotenv, Error Lens). Настройки в `.vscode/` (в репо): Ruff-форматтер Python, Pylance `standard`, pytest Test Explorer.
 - Готово: Фаза B, импорт банка (Work 2, `422a56f`), circuit breaker+E2E (`833c48c`),
-  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`). **71 unit + 8 e2e зелёные.**
+  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`). **79 unit + 10 e2e зелёные.**
 
 ## Что сделано
 - Ядро детерминированное оффлайн: `store.py` (SQLite, WAL, копейки INTEGER),
   `categorize.py` (rule → LLM → validation → queue), `csv_import.py` (BANKS-адаптеры),
   `reports.py`, `llm.py` + `prompts.py` (free models), `routers/`, `cli.py`.
-- Тесты: **71 unit + 8 e2e** (Playwright), все оффлайн (LLM инжектируемый стаб).
+- Тесты: **79 unit + 10 e2e** (Playwright), все оффлайн (LLM инжектируемый стаб).
 - 18 категорий + keyword-правила в `config/taxonomy.toml` (правятся без кода).
 - Fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — повторный импорт no-op.
-- LLM-фолбэк: FreeLLMAPI → OpenRouter :free → **DeepSeek V4.1 Flash (abacus-web shim, порт 3201, 0 кредитов)** → оффлайн (правила работают и без LLM).
+- LLM-фолбэк (канон — `spec/ARCHITECTURE.md` §LLM-маршрут): OpenRouter :free → FreeLLMAPI (резерв, WSL на паузе) → **DeepSeek V4.1 Flash (abacus-web shim, порт 3201)** → оффлайн (правила работают и без LLM).
 - Авто-приём категории при confidence ≥ 0.9, иначе `llm_pending_review` → очередь.
 - Лог бакетов confidence (для калибровки порога).
 - UI: Tailwind v4 vendored (static/tailwind.js), card-summary, stripes, responsive grid.
@@ -39,14 +39,14 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (14.09): 71 unit + 8 e2e зелёные, ruff чист; `main = origin/main` (`bbc642d`). Ниже — исторические снимки; цифры в них не актуальны.**
+> **АКТУАЛЬНО (14.09): 79 unit + 10 e2e зелёные, ruff чист; `main = origin/main` (`c90e43e`). Ниже — исторические снимки; цифры в них не актуальны.**
 - ✅ **Фаза B закоммичена (77a25dc)**: дашборды (Chart.js+htmx), URL-фильтры hx-push-url, hx-boost, фикс формы добавления (JSON+form, HX-ветка HTML), deepseek-фолбэк, spec/ A+PIPELINE+stack. **43 passed, ruff чист, рабочее дерево чистое** — практика №3 MASTER_PLAN «commit перед задачей, diff после» выполнена.
 - ✅ mattpocock/skills audit (13.09): всё внедрённое используется.
 - ⏳ Визуальный smoke `/approve` в браузере юзера (план: `spec/QA_APPROVE_SMOKE.md`, демо-данные `scripts/review_demo.py seed`).
 - ✅ Пробелы MASTER_PLAN закрыты/пересмотрены: perf-маркер с JSON закрыт (`75f8165`, `reports/perf.json`, маркер в pyproject); Hoppscotch/Capture MCP — **отклонены** (SPENDRACK_PRIORITIES_REVIEW); Фаза 4 закрыта (v0.1.0, remote, защита `main`).
 - ⏭ Следующее по ROI (ревью 14.09): реальная выписка Сбербанка (импорт + фикстура) → **сортировка транзакций** (см. брейншторм: `statement_order` из выписки + `sort=` в URL + группировка по дням в хронологии + keyset-scroll) → категории/правила в UI + калибровка порога 0.9 по бакетам confidence.
 - ✅ Стилизация UI Tailwind завершена (13.09.2026): `base.html` + `index.html` + `approve.html` — утилитарные классы Tailwind v4 vendored (282KB static/tailwind.js), card-style summary, table stripes, responsive grid. Всё рендерится: smoke-тест 200 OK.
-- ✅ DeepSeek-категоризация добавлена третьим фолбэком в `llm.py` (FreeLLMAPI → OpenRouter → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96, source=deepseek.**
+- ✅ DeepSeek-категоризация добавлена третьим фолбэком (OpenRouter → FreeLLMAPI → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96.**
 - ✅ Контур верификации: `tests/test_fallback.py` (порядок primary→fallback→deepseek с моком, оффлайн), итого **37 passed**, ruff чист.
 - ✅ **Фаза 2 smoke-тест полного сценария (13.09)**: dev-сервер UP + shim UP → POST /api/transactions (live deepseek, conf 0.35 → llm_pending_review) → GET / (htmx: строка транзакции, бейдж категории, источник+conf, счётчик «Подтвердить»=1). Тестовая запись удалена после проверки.
 - ✅ **Фаза 1 (фундамент контекста)**: spec/ теперь содержит ARCHITECTURE.md + stack.md (стек/версии/LLM-маршрут) + PIPELINE.md (команды, контур верификации, аддитивные миграции).

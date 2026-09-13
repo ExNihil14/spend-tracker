@@ -54,4 +54,4 @@
   И form-urlencoded (по content-type); при `HX-Request: true` возвращает HTML-фрагмент в `#newmsg`
   вместо JSON; overlay `#global-indicator` (htmx-indicator) во время запроса; после успеха — reset формы,
   обновление `#pending-count` и таблицы (`hx-trigger="refresh-list from:body"` на `#tx-table`).
-- **Тесты**: `report_daily` в `reports.py` + тесты; API-тесты JSON/form/HX-ветка; итого **71 unit + 8 e2e**, ruff чист.
+- **Тесты**: `report_daily` в `reports.py` + тесты; API-тесты JSON/form/HX-ветка; итого **79 unit + 10 e2e**, ruff чист (CI: `.github/workflows/ci.yml`).
