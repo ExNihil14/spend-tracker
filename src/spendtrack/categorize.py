@@ -54,12 +54,14 @@ def classify_with_injectable(
 ) -> dict:
     """Тестируемая версия: llm_getter — функция (tx, store, taxonomy) -> dict.
 
-    Возвращает dict с category/source/confidence/merchant, где источник rule|llm|llm_pending_review.
+    Возвращает dict с category/source/confidence/merchant/category_llm/review_status,
+    где источник rule|llm|llm_pending_review.
     """
     rule_result = categorize_rules_only(tx, taxonomy, store)
     if rule_result:
         return {"category": rule_result, "confidence": 1.0, "merchant": tx.get("merchant"),
-                "reason": "keyword_rule", "source": "rule"}
+                "reason": "keyword_rule", "source": "rule",
+                "category_llm": None, "review_status": "approved"}
 
     llm_result = llm_getter(tx, store, taxonomy)
     conf = float(llm_result.get("confidence", 0.0))
@@ -68,15 +70,19 @@ def classify_with_injectable(
     logger.info("llm_decision: conf=%.3f bucket=%s accepted=%s desc=%s",
                 conf, bucket, conf >= acceptance, tx.get("description", "")[:40])
     if not taxonomy.is_valid(cat):
-        llm_result.update({"category": "other", "confidence": 0.0, "source": "llm_pending_review"})
+        llm_result.update({"category": "other", "confidence": 0.0, "source": "llm_pending_review",
+                           "category_llm": cat or None, "review_status": "pending"})
         return llm_result
+    llm_result["category_llm"] = cat
     if conf >= acceptance:
         llm_result["source"] = "llm"
+        llm_result["review_status"] = "approved"
         if llm_result.get("merchant"):
             store.merchant_cache_set(llm_result["merchant"], llm_result["category"])
         return llm_result
 
     llm_result["source"] = "llm_pending_review"
+    llm_result["review_status"] = "pending"
     return llm_result
 
 

@@ -4,14 +4,17 @@ from html import escape
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from spendtrack.categorize import categorize_transaction
+from spendtrack.config import ROOT
 from spendtrack.csv_import import import_csv
-from spendtrack.store import Store, parse_amount
+from spendtrack.store import Store, fmt_amount, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
+templates = Jinja2Templates(directory=ROOT / "src" / "spendtrack" / "templates")
 
 
 def _store() -> Store:
@@ -57,6 +60,8 @@ async def create(request: Request):
         category=category["category"], category_source=category["source"],
         confidence=category["confidence"], merchant=category["merchant"],
         account_anon=account_anon, export_rowid="",
+        category_llm=category.get("category_llm"),
+        review_status=category.get("review_status", "approved"),
     )
     if request.headers.get("hx-request", "").lower() == "true":
         label = category["category"]
@@ -72,7 +77,80 @@ async def create(request: Request):
 @router.get("/pending-count")
 def pending_count():
     store = _store()
-    return {"count": sum(1 for _ in store.queued_for_review())}
+    return {"count": store.pending_count()}
+
+
+@router.get("/reviews", response_class=HTMLResponse)
+def list_reviews(request: Request):
+    """htmx-фрагмент очереди (одно место рендера → страница и oob едины)."""
+    store = _store()
+    taxonomy = load_taxonomy()
+    pending = store.queued_for_review()
+    cats = {c.name: c.color for c in taxonomy.categories}
+    return templates.TemplateResponse(
+        request, "partials/review_rows.html",
+        {"pending": pending, "cat_colors": cats, "fmt": fmt_amount,
+         "all_categories": [c.name for c in taxonomy.categories]},
+    )
+
+
+@router.get("/reviews/count", response_class=HTMLResponse)
+def reviews_count(request: Request):
+    store = _store()
+    n = store.pending_count()
+    body = (
+        '<span id="pending-count" hx-swap-oob="true"'
+        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300">'
+        f"{n}</span>"
+    )
+    return HTMLResponse(body)
+
+
+def _oob_badge(store: Store) -> str:
+    n = store.pending_count()
+    return (
+        '<span id="pending-count" hx-swap-oob="true"'
+        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300">'
+        f"{n}</span>"
+    )
+
+
+@router.post("/reviews/{tx_id}/approve", response_class=HTMLResponse)
+async def approve_review(request: Request, tx_id: int):
+    store = _store()
+    taxonomy = load_taxonomy()
+    proposal = store.get_transaction(tx_id)
+    if not proposal:
+        raise HTTPException(404, "не найдено")
+    form = await request.form()
+    chosen = str(form.get("category") or "") or proposal.get("category_llm") or proposal.get("category")
+    if not taxonomy.is_valid(str(chosen)):
+        raise HTTPException(422, f"категория {chosen} вне таксономии")
+    if not store.approve_review(tx_id, str(chosen)):
+        raise HTTPException(409, "запись не в очереди")
+    return HTMLResponse(_oob_badge(store))
+
+
+@router.post("/reviews/{tx_id}/skip", response_class=HTMLResponse)
+async def skip_review(request: Request, tx_id: int):
+    store = _store()
+    if not store.skip_review(tx_id):
+        raise HTTPException(409, "запись не в очереди")
+    return HTMLResponse(_oob_badge(store))
+
+
+@router.post("/reviews/approve-all", response_class=HTMLResponse)
+async def approve_all(request: Request):
+    store = _store()
+    store.approve_all_reviews()
+    taxonomy = load_taxonomy()
+    cats = {c.name: c.color for c in taxonomy.categories}
+    html = templates.TemplateResponse(
+        request, "partials/review_rows.html",
+        {"pending": [], "cat_colors": cats, "fmt": fmt_amount,
+         "all_categories": [c.name for c in taxonomy.categories]},
+    ).body.decode()
+    return HTMLResponse(html + _oob_badge(store))
 
 
 @router.patch("/transactions/{tx_id}")
