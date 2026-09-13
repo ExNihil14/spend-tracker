@@ -13,7 +13,7 @@ uv run spendtrack count                          # счётчики
 
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 71 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
+uv run pytest -q                # 79 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):
@@ -27,7 +27,7 @@ uv run ruff check               # lint, чистый
 - SQLite WAL: отдельный процесс бэкапа не гонять параллельно с записью (см. README Task Scheduler).
 
 ## LLM-провайдеры (полный маршрут)
-1. FreeLLMAPI localhost:3001 (glm-4.5-flash) — primary.
+1. OpenRouter :free (nemotron-super-120b) — primary (канон: `spec/ARCHITECTURE.md` §LLM-маршрут).
 2. OpenRouter :free (nemotron-3-super-120b) — fallback.
 3. abacus-web shim 127.0.0.1:3201 (deepseek-v4-1-flash) — deepseek, токен TTL 1ч.
 4. Офлайн-правила/кэш — без сети.

@@ -32,7 +32,7 @@
 - Авто-приём категории от LLM при confidence ≥ 0.9, иначе → очередь «на подтверждение» (`review_status='pending'`, `category_llm` = предложение LLM)
 - Правила детерминированные и тестируются на РЕАЛЬНЫХ описаниях (урок: «ЗАРПЛАТА» не ловит «ЗАРАБОТНАЯ»)
 - Правка юзера → merchant_cache (выигрывает над LLM) + пример в few-shot
-- LLM-фолбэк: FreeLLMAPI → OpenRouter :free → abacus-web shim (deepseek) → офлайн-правила (работают и без LLM вообще)
+- LLM-фолбэк (канон — `spec/ARCHITECTURE.md` §LLM-маршрут): OpenRouter :free → FreeLLMAPI (резерв) → abacus-web shim (deepseek) → офлайн-правила (работают и без LLM вообще)
 
 ## Не делать
 - Не кидать сырые суммы REAL/DECIMAL в БД

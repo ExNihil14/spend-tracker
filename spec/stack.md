@@ -31,5 +31,5 @@
    в `llm.py` НЕ используется — не описывать его как фолбэк.
 
 ## Тесты
-- pytest, **71 unit + 8 e2e** (Playwright), все оффлайн (LLM через `classify_with_injectable`-стаб, сеть не ходит).
+- pytest, **79 unit + 10 e2e** (Playwright), все оффлайн (LLM через `classify_with_injectable`-стаб, сеть не ходит).
 - ruff (lint) чистый.

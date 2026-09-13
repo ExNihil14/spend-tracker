@@ -1,5 +1,7 @@
 # Spendtrack
 
+[![CI](https://github.com/ExNihil14/spend-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/ExNihil14/spend-tracker/actions/workflows/ci.yml)
+
 Трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx, offline-first.
 
 ## Установка (чистая машина)

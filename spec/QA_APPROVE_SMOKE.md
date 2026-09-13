@@ -30,7 +30,7 @@ uv run python scripts/review_demo.py clean
 Пайплайн категоризации (`categorize.py`), приоритет сверху вниз:
 1. **merchant_cache** — если мерчант уже подтверждался человеком → берём оттуда.
 2. **keyword-правило** (`taxonomy.toml`) → `category_source='rule'`, `confidence=1.0`, `review_status='approved'` — **в очередь НЕ попадает**.
-3. **LLM** (`llm.py`, фолбэк FreeLLMAPI → OpenRouter → abacus-web/DeepSeek → offline):
+3. **LLM** (`llm.py`, фолбэк OpenRouter :free → FreeLLMAPI → abacus-web/DeepSeek → offline — канон в `spec/ARCHITECTURE.md`):
    - `confidence >= 0.9` → `source='llm'`, `approved`, мерчант кладётся в кэш — **в очередь НЕ попадает**;
    - `confidence < 0.9` → `source='llm_pending_review'`, **`review_status='pending'` — в очередь**;
    - LLM вернул категорию вне таксономии → `category='other'`, `confidence=0.0`, `category_llm=<сырое>`, `pending` — в очередь.
