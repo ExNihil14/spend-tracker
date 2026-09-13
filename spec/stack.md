@@ -22,10 +22,10 @@
 - fingerprint-дедуп sha1(date|amount|desc|account_anon|export_rowid) — повторный импорт no-op.
 
 ## LLM-маршрут (порядок попыток в llm.py)
-1. primary: FreeLLMAPI `http://localhost:3001/v1` → glm-4.5-flash.
-2. fallback: OpenRouter :free → `nvidia/nemotron-3-super-120b-a12b:free`.
+1. primary: живой free-канал — сейчас OpenRouter :free (`nvidia/nemotron-3-super-120b-a12b:free`).
+2. fallback: FreeLLMAPI `http://localhost:3001/v1` → glm-4.5-flash (резерв; WSL на паузе).
 3. deepseek: abacus-web shim `http://127.0.0.1:3201/v1` → `deepseek-v4-1-flash`
-   (0 кредитов, 1M ctx; токен TTL 1ч — обновлять session.json из curl браузера).
+   (0 кредитов, 1M ctx; токен TTL 1ч — обновлять session.json из curl браузера; пауза до 20.09).
 4. offline: правила/кэш — ядро работает без сети (LLM недоступен → rule-only).
    Ключ `offline` в `config/settings.toml` (Ollama qwen2.5-coder:3b) зарезервирован и
    в `llm.py` НЕ используется — не описывать его как фолбэк.

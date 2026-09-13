@@ -24,9 +24,9 @@
 - `config/taxonomy.toml` — 18 категорий + keyword-правила (без кода).
 
 ## LLM-маршрут (порядок попыток в llm.py)
-1. primary: FreeLLMAPI (localhost:3001, Z.AI glm-4.5-flash).
-2. fallback: OpenRouter :free (nemotron-3-super-120b).
-3. deepseek: abacus-web shim (127.0.0.1:3201, deepseek-v4-1-flash, 0 кредитов, 1M ctx).
+1. primary: живой free-канал — сейчас OpenRouter :free (nemotron-3-super-120b).
+2. fallback: FreeLLMAPI (localhost:3001, Z.AI glm-4.5-flash; резерв, WSL на паузе).
+3. deepseek: abacus-web shim (127.0.0.1:3201, deepseek-v4-1-flash, 0 кредитов, 1M ctx; пауза до 20.09).
 4. offline: правила/кэш — ядро работает без сети (LLM недоступен → rule-only).
 
 ## Ключевые решения (зафиксировано)
