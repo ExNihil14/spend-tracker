@@ -209,3 +209,44 @@ def test_dashboard_badge_shows_pending(client):
     m = re.search(r'id="pending-count"[^>]*>(\d+)<', r.text)
     assert m, "бейдж pending-count не найден"
     assert int(m.group(1)) >= 1
+
+
+def test_approve_all_button_hidden_when_empty(client):
+    """После исчерпания очереди кнопка «Одобрить все» исчезает (OOB)."""
+    client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "СТРОЙКАОПТ X", "amount": "-50.00",
+    })
+    r = client.post("/api/reviews/approve-all")
+    assert 'id="approve-all-wrap"' in r.text
+    assert "Одобрить все" not in r.text
+    assert client.get("/api/pending-count").json()["count"] == 0
+
+
+def test_approve_all_button_present_when_pending(client):
+    client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "СТРОЙКАОПТ X", "amount": "-50.00",
+    })
+    r = client.get("/approve")
+    assert "Одобрить все" in r.text
+
+
+def test_empty_state_oob_after_last_decision(client):
+    """После последнего approve/skip плейсхолдер «Все подтверждены» приходит OOB."""
+    tx = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "СТРОЙКАОПТ X", "amount": "-50.00",
+    }).json()
+    r = client.post(f"/api/reviews/{tx['id']}/skip")
+    assert 'id="review-empty"' in r.text
+    assert 'hx-swap-oob="beforeend:#review-rows"' in r.text
+
+
+def test_empty_state_oob_deleted_when_rows_remain(client):
+    t1 = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "СТРОЙКАОПТ X", "amount": "-50.00",
+    }).json()
+    client.post("/api/transactions", json={
+        "date": "2026-09-13", "description": "СТРОЙКАОПТ Y", "amount": "-60.00",
+    })
+    r = client.post(f"/api/reviews/{t1['id']}/skip")
+    assert 'hx-swap-oob="delete"' in r.text
+    assert client.get("/api/pending-count").json()["count"] == 1

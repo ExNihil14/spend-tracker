@@ -1,6 +1,6 @@
 <tbody id="review-rows">
   {% for t in pending %}
-  <tr id="review-{{ t.id }}" class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
+  <tr id="review-{{ t.id }}" class="review-row border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
     <td class="px-5 py-3 whitespace-nowrap text-slate-400">{{ t.date }}</td>
     <td class="px-5 py-3">
       {{ t.description }}
@@ -18,18 +18,23 @@
     <td class="px-5 py-3 text-amber-400/90 text-xs">{{ '%.2f' | format(t.confidence) }}</td>
     <td class="px-5 py-3">
       <div class="flex items-center gap-2">
-        <select name="category" hx-post="/api/reviews/{{ t.id }}/approve"
-                hx-target="#review-rows" hx-swap="outerHTML"
-                class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          {% for c in all_categories %}<option value="{{ c }}" {% if c == (t.category_llm or t.category) %}selected{% endif %}>{{ c }}</option>{% endfor %}
-        </select>
-        <form hx-post="/api/reviews/{{ t.id }}/skip" hx-target="#review-rows" hx-swap="outerHTML">
+        <form hx-post="/api/reviews/{{ t.id }}/approve" hx-target="closest tr"
+              hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button"
+              class="flex items-center gap-2">
+          <select name="category"
+                  class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            {% for c in all_categories %}<option value="{{ c }}" {% if c == (t.category_llm or t.category) %}selected{% endif %}>{{ c }}</option>{% endfor %}
+          </select>
+          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Одобрить</button>
+        </form>
+        <form hx-post="/api/reviews/{{ t.id }}/skip" hx-target="closest tr"
+              hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button">
           <button type="submit" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Пропустить</button>
         </form>
       </div>
     </td>
   </tr>
   {% else %}
-  <tr><td colspan="6" class="px-5 py-8 text-center text-emerald-400/80">Все подтверждены</td></tr>
+  <tr id="review-empty"><td colspan="6" class="px-5 py-8 text-center text-emerald-400/80">Все подтверждены</td></tr>
   {% endfor %}
 </tbody>
