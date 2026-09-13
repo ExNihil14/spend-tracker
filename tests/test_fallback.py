@@ -20,7 +20,7 @@ def test_fallback_order_primary_fallback_deepseek(monkeypatch):
     cfg = load_settings()
     call_order: list[str] = []
 
-    def fake_openai(base_url, api_key=""):
+    def fake_openai(base_url, api_key="", timeout=20.0):
         mock = MagicMock()
 
         def create(**kwargs):

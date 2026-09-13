@@ -15,7 +15,8 @@ def parse_amount(value: str | float) -> int:
     """Сумма в копейках (INTEGER). -123.45 руб → -12345. Округление HALF_UP."""
     if isinstance(value, int) and not isinstance(value, bool):
         return value * 100
-    d = Decimal(str(value).replace(",", ".")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    s = str(value).replace(",", ".").replace(" ", "").replace("\u00a0", "")
+    d = Decimal(s).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return int(d * 100)
 
 

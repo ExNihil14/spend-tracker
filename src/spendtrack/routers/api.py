@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from html import escape
+
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -95,8 +97,24 @@ def get_one(tx_id: int):
 
 
 @router.post("/import")
-def do_import(body: ImportIn):
+def do_import(body: ImportIn, request: Request):
     store = _store()
     taxonomy = load_taxonomy()
-    result = import_csv(body.csv, store, bank=body.bank, taxonomy=taxonomy)
+    is_hx = request.headers.get("hx-request", "").lower() == "true"
+    try:
+        result = import_csv(body.csv, store, bank=body.bank, taxonomy=taxonomy)
+    except Exception as e:
+        if is_hx:
+            return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')
+        raise
+    if is_hx:
+        status = {
+            "ok": "Импортировано",
+            "empty": "Пустой файл",
+        }.get(result["status"], result["status"])
+        msg = (
+            f"{escape(status)}: +{result['added']} добавлено, "
+            f"{result['dupes']} дублей, банк={escape(str(result.get('bank', '-')))}"
+        )
+        return HTMLResponse(f'<p class="text-blue-400">{msg}</p>')
     return result

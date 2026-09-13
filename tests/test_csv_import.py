@@ -81,3 +81,26 @@ def test_whitespace_normalized_not_deduped_different(store):
     csv_text = SBER_CSV.replace(" 10:00", "  10:00   ").replace("ЛЕНТА\n2", "ЛЕНТА\n2")
     res = import_csv(csv_text, store, classify=_stub_classify())
     assert res["added"] == 2
+
+
+def test_sber_thousand_separator_space(store):
+    """Реальный Сбербанк: пробел-разделитель тысяч в сумме (-1 234,56)."""
+    csv_text = """Номер документа;Дата операции;Дата платежа;Номер карты;Статус;Сумма операции;Валюта операции;Сумма платежа;Валюта платежа;Категория;Описание
+1;01.09.2026 10:00;01.09.2026;1234;Выполнено;-1 234,56;RUB;-1 234,56;RUB;Продукты;ЛЕНТА
+2;02.09.2026 11:00;02.09.2026;1234;Выполнено;25 000,00;RUB;25 000,00;RUB;Зарплата;ЗАРАБОТНАЯ ПЛАТА
+"""
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["added"] == 2
+    by_amount = {t["amount_kopecks"]: t for t in store.list_transactions()}
+    assert -123456 in by_amount
+    assert 2500000 in by_amount
+
+
+def test_sber_non_breaking_space_separator(store):
+    """Сбер использует NBSP (\\u00a0) как разделитель тысяч в суммах."""
+    csv_text = """Номер документа;Дата операции;Дата платежа;Номер карты;Статус;Сумма операции;Валюта операции;Сумма платежа;Валюта платежа;Категория;Описание
+1;01.09.2026 10:00;01.09.2026;1234;Выполнено;-1\u00a0234,56;RUB;-1\u00a0234,56;RUB;Продукты;ЛЕНТА
+"""
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["added"] == 1
+    assert -123456 in {t["amount_kopecks"] for t in store.list_transactions()}

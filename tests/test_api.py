@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
-from spendtrack.main import app
+from spendtrack.main import _setup_logging, app
 
 
 @pytest.fixture()
@@ -14,9 +16,18 @@ def client(tmp_path, monkeypatch):
 
 
 def test_health(client):
-    r = client.get("/")
+    r = client.get("/health")
     assert r.status_code == 200
-    assert "Spendtrack" in r.text
+    assert r.json() == {"status": "ok", "transactions": 0}
+
+
+def test_logging_idempotent():
+    """Повторный вызов _setup_logging() не плодит handler'ы (дублирование строк в файле)."""
+    before = [h for h in logging.getLogger("spendtrack").handlers]
+    _setup_logging()
+    _setup_logging()
+    after = [h for h in logging.getLogger("spendtrack").handlers]
+    assert len(after) == max(len(before), 1)  # 1 настроенный handler, не 2
 
 
 def test_create_transaction_rule_category(client):
@@ -100,3 +111,26 @@ def test_index_category_and_search_filters(client):
     assert r3.status_code == 200
     assert "ЛЕНТА" in r3.text
     assert "СТРОЙКАОПТ" not in r3.text
+
+
+def test_import_hx_request_returns_html(client):
+    """htmx-форма импорта шлёт HX-Request → получает HTML-фрагмент, не JSON."""
+    csv_data = "Тип операции;Дата;Номер карты;Статус;Сумма операции;Валюта операции;Описание\n" \
+               "Перевод с карты;20.02.2026;****1234;Выполнено;-1 234,56;RUB;ЛЕНТА\n"
+    r = client.post("/api/import", json={"bank": "sber", "csv": csv_data},
+                    headers={"HX-Request": "true"})
+    assert r.status_code == 200
+    assert "<p" in r.text
+    assert "+1 добавлено" in r.text
+    assert "банк=sber" in r.text
+    assert "<script" not in r.text
+
+
+def test_import_json_client_gets_json(client):
+    """Обычный JSON-клиент (curl/CLI) → JSON, не фрагмент."""
+    csv_data = "Дата;Сумма операции;Категория;Описание;Счёт\n02.09.2026;-1200,00;Транспорт;UBER MUNCHEN;4081781"
+    r = client.post("/api/import", json={"bank": "tinkoff", "csv": csv_data})
+    assert r.status_code == 200
+    assert isinstance(r.json(), dict)
+    assert r.json()["added"] >= 1
+    assert "<p" not in r.text
