@@ -5,15 +5,22 @@ build/
 dist/
 wheels/
 *.egg-info
-
-# Virtual environments
 .venv
+.ruff_cache/
+.pytest_cache/
 
-# App data
-data/*.db
-data/*.db-wal
-data/*.db-shm
-.env.local
+# App data (никогда в репо: личные расходы, банк-экспорты)
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+
+# Secrets
+.env
+.env.*
+!.env.example
 
 # Serena MCP local state
 .serena/
