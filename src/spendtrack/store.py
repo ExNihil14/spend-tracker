@@ -53,7 +53,9 @@ CREATE TABLE IF NOT EXISTS transactions(
   import_batch TEXT,
   fingerprint TEXT UNIQUE,
   created TEXT NOT NULL,
-  updated TEXT NOT NULL
+  updated TEXT NOT NULL,
+  category_llm TEXT,                  -- предложение LLM (не перезаписывается = diff)
+  review_status TEXT NOT NULL DEFAULT 'approved'   -- pending | approved | skipped
 );
 
 CREATE TABLE IF NOT EXISTS categories(
@@ -112,7 +114,23 @@ class Store:
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.executescript(SCHEMA)
+        self._migrate()
         self.conn.commit()
+
+    def _migrate(self) -> None:
+        """Work 3: колонки категоризации-очереди для существующих БД (только один раз)."""
+        cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
+        if "review_status" not in cols:
+            self.conn.execute("ALTER TABLE transactions ADD COLUMN category_llm TEXT")
+            self.conn.execute(
+                "ALTER TABLE transactions ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved'")
+            # Бэкфилл только при первичной миграции (иначе откатывает skip/approve).
+            self.conn.execute(
+                "UPDATE transactions SET review_status='pending'"
+                " WHERE category_source='llm_pending_review'")
+            self.conn.execute(
+                "UPDATE transactions SET category_llm=category"
+                " WHERE category_source IN ('llm','llm_pending_review') AND category_llm IS NULL")
 
     def close(self) -> None:
         self.conn.close()
@@ -143,6 +161,8 @@ class Store:
         account_anon: str | None = None,
         import_batch: str | None = None,
         export_rowid: str = "",
+        category_llm: str | None = None,
+        review_status: str = "approved",
     ) -> int | None:
         fp = fingerprint(date, amount_kopecks, description, account_anon or "", export_rowid)
         existing = self.conn.execute("SELECT id FROM transactions WHERE fingerprint=?", (fp,)).fetchone()
@@ -151,10 +171,11 @@ class Store:
         now = _now_iso()
         cur = self.conn.execute(
             "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
-            " confidence, merchant, account_anon, import_batch, fingerprint, created, updated)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            " confidence, merchant, account_anon, import_batch, fingerprint, created, updated,"
+            " category_llm, review_status)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (date, description, amount_kopecks, category, category_source, confidence,
-             merchant, account_anon, import_batch, fp, now, now),
+             merchant, account_anon, import_batch, fp, now, now, category_llm, review_status),
         )
         self.conn.commit()
         return cur.lastrowid
@@ -167,6 +188,40 @@ class Store:
         self.conn.commit()
         return cur.rowcount > 0
 
+    def pending_count(self) -> int:
+        row = self.conn.execute(
+            "SELECT COUNT(*) c FROM transactions WHERE review_status='pending'").fetchone()
+        return row["c"]
+
+    def approve_review(self, tx_id: int, category: str) -> bool:
+        """Человек подтвердил предложенную категорию (или переопределил)."""
+        cur = self.conn.execute(
+            "UPDATE transactions SET category=?, category_source='rule', review_status='approved',"
+            " updated=? WHERE id=? AND review_status='pending'",
+            (category, _now_iso(), tx_id),
+        )
+        self.conn.commit()
+        if cur.rowcount:
+            self.seed_merchant_cache(tx_id)
+        return cur.rowcount > 0
+
+    def skip_review(self, tx_id: int) -> bool:
+        cur = self.conn.execute(
+            "UPDATE transactions SET review_status='skipped', updated=? WHERE id=? AND review_status='pending'",
+            (_now_iso(), tx_id),
+        )
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def approve_all_reviews(self) -> int:
+        cur = self.conn.execute(
+            "UPDATE transactions SET category=COALESCE(category_llm, category, 'other'),"
+            " category_source='rule', review_status='approved', updated=? WHERE review_status='pending'",
+            (_now_iso(),),
+        )
+        self.conn.commit()
+        return cur.rowcount
+
     def update_merchant(self, tx_id: int, merchant: str | None) -> None:
         self.conn.execute("UPDATE transactions SET merchant=?, updated=? WHERE id=?",
                           (merchant, _now_iso(), tx_id))
@@ -177,7 +232,6 @@ class Store:
                           search: str | None = None) -> list[dict]:
         sql = "SELECT * FROM transactions WHERE 1=1"
         params: list[str] = []
-        needs_review_where = " AND (category_source='llm_pending_review' OR confidence<1.0 AND category_source NOT IN ('rule','import','manual'))"
         if month:
             sql += " AND substr(date,1,7)=?"
             params.append(month)
@@ -189,8 +243,11 @@ class Store:
             like = f"%{search}%"
             params.extend([like, like])
         if needs_review:
-            sql += needs_review_where
-        sql += " ORDER BY date DESC, id DESC LIMIT ?"
+            sql += " AND review_status='pending'"
+        if needs_review:
+            sql += " ORDER BY date ASC, amount_kopecks DESC, id ASC LIMIT ?"
+        else:
+            sql += " ORDER BY date DESC, id DESC LIMIT ?"
         params.append(str(limit))
         rows = self.conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
