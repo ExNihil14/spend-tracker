@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -11,6 +13,8 @@ from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
 templates = Jinja2Templates(directory=ROOT / "src" / "spendtrack" / "templates")
+
+PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)
 
 
 def _store() -> Store:
@@ -24,8 +28,15 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
     taxonomy = load_taxonomy()
     current = _resolve_month(store, month, month_delta)
     sort = sort if sort in ("recent", "amount") else "recent"
-    transactions = store.list_transactions(month=current, category=category or None,
-                                           search=q or None, sort=sort)
+    has_more = False
+    next_after: str | None = None
+    if sort == "recent":
+        # keyset-страница целыми днями (готовность к большим спискам; «показать ещё» — sentinel)
+        transactions, next_after, has_more = store.list_transactions_days(
+            month=current, category=category or None, search=q or None, days=PAGE_DAYS)
+    else:
+        transactions = store.list_transactions(month=current, category=category or None,
+                                               search=q or None, sort=sort)
     group_days = sort == "recent"  # группировка только в хронологии (см. брейншторм 14.09)
     day_totals: dict[str, int] = {}
     if group_days:
@@ -51,6 +62,8 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
             "sort": sort,
             "group_days": group_days,
             "day_totals": day_totals,
+            "has_more": has_more,
+            "more_url": _more_url(current, category, q, sort, next_after, PAGE_DAYS) if has_more else None,
             "fmt": fmt_amount,
         },
     )
@@ -91,6 +104,44 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
             "daily_json": daily,
             "colors_json": colors,
         },
+    )
+
+
+def _more_url(month: str | None, category: str | None, q: str | None,
+              sort: str, after: str | None, days: int) -> str:
+    params: dict[str, str] = {"sort": sort, "days": str(days)}
+    if month:
+        params["month"] = month
+    if category:
+        params["category"] = category
+    if q:
+        params["q"] = q
+    if after:
+        params["after"] = after
+    return "/transactions/more?" + urlencode(params)
+
+
+@router.get("/transactions/more", response_class=HTMLResponse)
+def more_rows(request: Request, month: str | None = None, category: str | None = None,
+              q: str | None = None, sort: str = "recent", after: str | None = None,
+              days: int = PAGE_DAYS):
+    """Keyset-догрузка целыми днями (htmx sentinel): rows + итоги + следующий sentinel."""
+    days = max(1, min(int(days), 92))
+    store = _store()
+    taxonomy = load_taxonomy()
+    rows, next_after, has_more = store.list_transactions_days(
+        month=month or None, category=category or None, search=q or None,
+        days=days, after_date=after or None)
+    day_totals: dict[str, int] = {}
+    for t in rows:
+        day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
+    cats = {c.name: c.color for c in taxonomy.categories}
+    return templates.TemplateResponse(
+        request, "partials/tx_rows.html",
+        {"transactions": rows, "day_totals": day_totals, "group_days": True,
+         "cat_colors": cats, "fmt": fmt_amount,
+         "has_more": has_more,
+         "more_url": _more_url(month, category, q, sort, next_after, days)},
     )
 
 
