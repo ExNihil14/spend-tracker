@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from io import StringIO
 
 from spendtrack.categorize import categorize_transaction
-from spendtrack.store import Store, parse_amount
+from spendtrack.store import Store, fingerprint, parse_amount
 from spendtrack.taxonomy import Taxonomy
 
 _DATE_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
@@ -147,11 +147,17 @@ def import_csv(
     batch_id = store.add_batch("unknown.csv", sha, len(reader_all))
 
     added, dupes = 0, 0
+    seen: dict[str, int] = {}
     for rownum, tx in enumerate(adaptor.parse(iter(reader_all))):
-        tx["export_rowid"] = str(rownum)
         tx["statement_order"] = rownum
         account_anon = store.pseudonymize(tx.pop("account", None))
         tx["account_anon"] = account_anon
+        # export_rowid = индекс ПОВТОРЯЕМОСТИ (0,1,2...) одинаковых операций, а не позиция строки:
+        # реэкспорт со сдвигом строк не создаёт дублей, а легитимные одинаковые покупки в один
+        # день различаются (fable-review 12.09 + фикс сдвига реэкспорта 15.09).
+        base = fingerprint(tx["date"], tx["amount_kopecks"], tx["description"], account_anon or "", "")
+        tx["export_rowid"] = str(seen.get(base, 0))
+        seen[base] = seen.get(base, 0) + 1
         classification = classify(tx, store, taxonomy)
         tx["category"] = classification["category"]
         tx["category_source"] = classification["source"]

@@ -141,3 +141,57 @@ def test_unicode_minus_amount(store):
     res = import_csv(csv_text, store, classify=_stub_classify())
     assert res["added"] == 2
     assert parse_amount("-1234.50") in {t["amount_kopecks"] for t in store.list_transactions()}
+
+
+def test_reexport_with_shifted_rows_not_duplicated(store):
+    """Новая строка сверху сдвигает позиции — дедуп не должен ломаться (occurrence, не rownum)."""
+    c = _stub_classify()
+    assert import_csv(SBER_CSV, store, classify=c)["added"] == 2
+    header, rows = SBER_CSV.split("\n", 1)
+    new_line = "0;30.08.2026 09:00;30.08.2026;1234;Выполнено;-999,00;RUB;-999,00;RUB;Прочее;НОВОЕ\n"
+    res = import_csv(header + "\n" + new_line + rows, store, classify=c)
+    assert res["added"] == 1  # только новая строка
+    assert res["dupes"] == 2
+
+
+def test_reexport_with_extra_identical_copy_adds_one(store):
+    """В файле стало 2 одинаковых покупки (была 1) → добавляется ровно одна."""
+    c = _stub_classify()
+    import_csv(SBER_CSV, store, classify=c)
+    header, rows = SBER_CSV.split("\n", 1)
+    dup_line = "9;01.09.2026 10:00;01.09.2026;1234;Выполнено;-1234,50;RUB;-1234,50;RUB;Продукты;ЛЕНТА\n"
+    res = import_csv(header + "\n" + dup_line + rows, store, classify=c)
+    assert res["added"] == 1
+    assert res["dupes"] == 2
+
+
+YANDEX_CSV = """datetime;operation;amount;currency;category;title;merchant;description
+2026-09-02T10:00:00;payment;-1200.00;RUB;Транспорт;UBER MUNCHEN;UBER;Поездка
+"""
+
+
+def test_import_yandex(store):
+    """Yandex-адаптер: snapshot формата (ранее не был покрыт)."""
+    res = import_csv(YANDEX_CSV, store, classify=_stub_classify())
+    assert res["bank"] == "yandex"
+    assert res["added"] == 1
+    t = store.list_transactions()[0]
+    assert t["date"] == "2026-09-02"
+    assert t["amount_kopecks"] == -120000
+    assert t["description"] in ("Поездка", "UBER MUNCHEN")
+
+
+def test_comma_delimiter_with_dot_decimal(store):
+    """CSV с запятой-разделителем (и точкой в десятичных) — _guess_sep обрабатывает."""
+    csv_text = ("Номер документа,Дата операции,Номер карты,Статус,Сумма операции,Описание\n"
+                "1,01.09.2026 10:00,1234,Выполнено,-100.00,ЛЕНТА\n")
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["added"] == 1
+    assert store.list_transactions()[0]["amount_kopecks"] == -10000
+
+
+def test_sber_rejected_status_skipped(store):
+    csv_text = SBER_CSV + "4;04.09.2026 12:00;04.09.2026;1234;Отклонено;-700,00;RUB;-700,00;RUB;Продукты;АШАН\n"
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["added"] == 2
+    assert all("АШАН" not in t["description"] for t in store.list_transactions())
