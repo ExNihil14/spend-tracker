@@ -137,6 +137,16 @@ def _oob_empty_state(store: Store) -> str:
     return '<tr id="review-empty" hx-swap-oob="delete"></tr>'
 
 
+def _oob_toast(text: str) -> str:
+    """OOB-тост с подтверждением действия (aria-live; авто-скрытие — скрипт в base.html)."""
+    return (
+        '<div id="toast" hx-swap-oob="outerHTML" data-flash="1" role="status" aria-live="polite"'
+        ' class="fixed bottom-4 right-4 z-50 transition-opacity duration-200 bg-slate-800'
+        ' border border-slate-600 text-slate-100 text-sm rounded-lg px-4 py-2 shadow-xl">'
+        f"{escape(text)}</div>"
+    )
+
+
 @router.post("/reviews/{tx_id}/approve", response_class=HTMLResponse)
 async def approve_review(request: Request, tx_id: int):
     store = _store()
@@ -150,24 +160,32 @@ async def approve_review(request: Request, tx_id: int):
         raise HTTPException(422, f"категория {chosen} вне таксономии")
     if not store.approve_review(tx_id, str(chosen)):
         raise HTTPException(409, "запись не в очереди")
+    desc = str(proposal.get("description") or "")[:24]
     return HTMLResponse(
-        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store))
+        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store)
+        + _oob_toast(f"Одобрено: {chosen} — {desc}"))
 
 
 @router.post("/reviews/{tx_id}/skip", response_class=HTMLResponse)
 async def skip_review(request: Request, tx_id: int):
     store = _store()
+    tx = store.get_transaction(tx_id)
+    if not tx:
+        raise HTTPException(404, "не найдено")
     if not store.skip_review(tx_id):
         raise HTTPException(409, "запись не в очереди")
+    desc = str(tx.get("description") or "")[:24]
     return HTMLResponse(
-        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store))
+        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store)
+        + _oob_toast(f"Пропущено: {desc}"))
 
 
 @router.post("/reviews/approve-all", response_class=HTMLResponse)
 async def approve_all(request: Request):
     store = _store()
-    store.approve_all_reviews()
-    return HTMLResponse(_rows_html(request, store) + _oob_approve_all(request, store) + _oob_badge(store))
+    n = store.approve_all_reviews()
+    return HTMLResponse(_rows_html(request, store) + _oob_approve_all(request, store)
+                        + _oob_badge(store) + _oob_toast(f"Одобрено записей: {n}"))
 
 
 @router.patch("/transactions/{tx_id}")
