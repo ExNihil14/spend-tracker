@@ -26,6 +26,11 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
     sort = sort if sort in ("recent", "amount") else "recent"
     transactions = store.list_transactions(month=current, category=category or None,
                                            search=q or None, sort=sort)
+    group_days = sort == "recent"  # группировка только в хронологии (см. брейншторм 14.09)
+    day_totals: dict[str, int] = {}
+    if group_days:
+        for t in transactions:
+            day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
     pending = store.queued_for_review()
     report = report_month(store, current)
     totals = categories_with_totals(store, current)
@@ -44,6 +49,8 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
             "category": category or "",
             "q": q or "",
             "sort": sort,
+            "group_days": group_days,
+            "day_totals": day_totals,
             "fmt": fmt_amount,
         },
     )

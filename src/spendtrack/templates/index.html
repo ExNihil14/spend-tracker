@@ -98,7 +98,19 @@
       </tr>
     </thead>
     <tbody>
+      {% set ns = namespace(prev_date=None) %}
       {% for t in transactions %}
+      {% if group_days and t.date != ns.prev_date %}
+      {% set ns.prev_date = t.date %}
+      <tr class="bg-slate-950/50 border-b border-slate-800">
+        <td colspan="5" class="px-5 py-2 text-xs uppercase tracking-wide text-slate-400">
+          {{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}
+          <span class="ml-2 normal-case font-medium {{ 'text-emerald-400' if day_totals.get(t.date, 0) > 0 else 'text-rose-400/90' }}">
+            итог {{ fmt(day_totals.get(t.date, 0)) }}
+          </span>
+        </td>
+      </tr>
+      {% endif %}
       <tr class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
         <td class="px-5 py-3 whitespace-nowrap text-slate-400">{{ t.date }}</td>
         <td class="px-5 py-3">
