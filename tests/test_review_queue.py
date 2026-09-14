@@ -250,3 +250,17 @@ def test_empty_state_oob_deleted_when_rows_remain(client):
     r = client.post(f"/api/reviews/{t1['id']}/skip")
     assert 'hx-swap-oob="delete"' in r.text
     assert client.get("/api/pending-count").json()["count"] == 1
+
+
+def test_toast_on_approve_and_skip(client):
+    tx = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "СТРОЙКАОПТ X", "amount": "-50.00",
+    }).json()
+    r = client.post(f"/api/reviews/{tx['id']}/approve", data={"category": "restaurants"})
+    assert 'id="toast"' in r.text and "Одобрено: restaurants" in r.text
+
+    tx2 = client.post("/api/transactions", json={
+        "date": "2026-09-13", "description": "СТРОЙКАОПТ Y", "amount": "-60.00",
+    }).json()
+    r2 = client.post(f"/api/reviews/{tx2['id']}/skip")
+    assert "Пропущено:" in r2.text

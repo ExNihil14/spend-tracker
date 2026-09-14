@@ -158,6 +158,7 @@ approved/skipped --approve/skip--> 409 «запись не в очереди» (
 | 10 | Fixed | Графики `/dashboard` периодически не рисовались при переходе через `hx-boost` (гонка загрузки Chart.js). Библиотека перенесена в `head`, инициализация через `htmx.onLoad` + guard `dataset.init`; +e2e `dashboard_charts_render_via_boost`. | **Исправлено** |
 | 11 | Fixed | Долгий спиннер при добавлении расхода: мёртвый primary (FreeLLMAPI/WSL) давал +3с коннект-таймаут до живого OpenRouter. `settings.toml`: primary → OpenRouter :free, FreeLLMAPI — резерв (вернуть после оживления WSL/Abacus 20.09). | **Исправлено** |
 | 12 | Improved | **UX approve/skip (анализ субагента):** спиннер отклонён — операция 5–30 мс (< Doherty) даёт flicker; нужна преемственность. Внедрено: fade-уход строки 160 мс (`hx-target="closest tr"`, `hx-swap="outerHTML swap:160ms"`), `hx-disabled-elt="find button"` (двойной клик), OOB-плейсхолдер «Все подтверждены» (`beforeend`/`delete`), a11y `prefers-reduced-motion`. Ответ approve/skip = только OOB-части. | **Исправлено** |
+| 13 | Improved | **Toast-подтверждение** (2-й приоритет UX-анализа): OOB-тост «Одобрено: <категория> — <описание>» / «Пропущено: …» / «Одобрено записей: N», `role="status"` + `aria-live`, авто-скрытие 1.8 с (скрипт на `htmx:oobAfterSwap` в base.html). | **Внедрено** |
 
 ## 6. Быстрые команды проверки БД (не через UI)
 ```powershell

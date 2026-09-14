@@ -146,6 +146,7 @@ def test_approve_queue_approve_as_proposed(page: Page, live_server, db_path):
     _wait_single(page, "#review-rows")
     expect(page.locator("#review-rows")).to_contain_text("Все подтверждены")
     expect(page.locator("#approve-all-wrap button")).to_have_count(0)
+    expect(page.locator("#toast")).to_contain_text("Одобрено")
 
 
 def test_dashboard_charts_render_via_boost(page: Page, live_server, db_path):

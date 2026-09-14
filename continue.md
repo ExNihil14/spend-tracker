@@ -49,7 +49,8 @@
 - ✅ **Группировка по дням (15.09):** в режиме «recent» — заголовок дня `ДД.ММ.ГГГГ` + итог за день (цвет по знаку); в «крупные сначала» — плоский список. **Keyset-scroll осознанно отложен:** список помесячный, лимит 500 покрывает месяц; вернуться при мультимесячном режиме.
 - ✅ **Словарь мерчантов + точность правил:** `tests/merchants.py` (27 реалистичных брендов/формулировок) + `tests/test_rules_accuracy.py` — покрытие keyword-правил **100%** (оффлайн).
 - ✅ **Keyset-пагинация по дням (15.09):** `list_transactions_days` + `partials/tx_rows.html` + `/transactions/more` + sentinel (`hx-trigger="revealed"`) — готовность к большим спискам без разрезания дней/итогов; месяцу хватает одной страницы (PAGE_DAYS=31). Виртуализация `<table>` отклонена (анализ: `D:\dev\docs\machine\VIRTUALIZATION_ANALYSIS.md`); Фаза 2 (div-grid + content-visibility / TanStack Virtual) — по триггеру «все месяцы + >5K узлов».
-- ⏭ Следующее по ROI: категории/правила в UI + калибровка порога 0.9 по бакетам confidence → затем бюджеты по категориям.
+- ✅ **Toast-подтверждение (15.09):** OOB-тост «Одобрено: <категория> — <описание>» / «Пропущено: …» / «Одобрено записей: N» (`aria-live`, авто-скрытие 1.8с).
+- ⏭ Следующее по ROI: категории/правила в UI (сначала брейншторм субагентом) + калибровка порога 0.9 по бакетам confidence → затем бюджеты по категориям.
 - ✅ Стилизация UI Tailwind завершена (13.09.2026): `base.html` + `index.html` + `approve.html` — утилитарные классы Tailwind v4 vendored (282KB static/tailwind.js), card-style summary, table stripes, responsive grid. Всё рендерится: smoke-тест 200 OK.
 - ✅ DeepSeek-категоризация добавлена третьим фолбэком (OpenRouter → FreeLLMAPI → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96.**
 - ✅ Контур верификации: `tests/test_fallback.py` (порядок primary→fallback→deepseek с моком, оффлайн), итого **37 passed**, ruff чист.
