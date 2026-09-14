@@ -9,13 +9,13 @@
 - Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
 - IDE: VS Code 1.137 + 13 расширений (Ruff, Pylance, официальный FastAPI, Playwright, Jinja2, htmx-toolkit, SQLite viewer, TOML, GitLens, Tailwind, EditorConfig, dotenv, Error Lens). Настройки в `.vscode/` (в репо): Ruff-форматтер Python, Pylance `standard`, pytest Test Explorer.
 - Готово: Фаза B, импорт банка (Work 2, `422a56f`), circuit breaker+E2E (`833c48c`),
-  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`). **79 unit + 10 e2e зелёные.**
+  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`). **96 unit + 10 e2e зелёные.**
 
 ## Что сделано
 - Ядро детерминированное оффлайн: `store.py` (SQLite, WAL, копейки INTEGER),
   `categorize.py` (rule → LLM → validation → queue), `csv_import.py` (BANKS-адаптеры),
   `reports.py`, `llm.py` + `prompts.py` (free models), `routers/`, `cli.py`.
-- Тесты: **79 unit + 10 e2e** (Playwright), все оффлайн (LLM инжектируемый стаб).
+- Тесты: **96 unit + 10 e2e** (Playwright), все оффлайн (LLM инжектируемый стаб).
 - 18 категорий + keyword-правила в `config/taxonomy.toml` (правятся без кода).
 - Fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — повторный импорт no-op.
 - LLM-фолбэк (канон — `spec/ARCHITECTURE.md` §LLM-маршрут): OpenRouter :free → FreeLLMAPI (резерв, WSL на паузе) → **DeepSeek V4.1 Flash (abacus-web shim, порт 3201)** → оффлайн (правила работают и без LLM).
@@ -39,13 +39,14 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (14.09): 79 unit + 10 e2e зелёные, ruff чист; `main = origin/main` (`c90e43e`). Ниже — исторические снимки; цифры в них не актуальны.**
+> **АКТУАЛЬНО (15.09): 96 unit + 10 e2e зелёные, ruff чист; `main = origin/main` (`2a381f9`). Ниже — исторические снимки; цифры в них не актуальны.**
+> **Импорт провалидирован синтетикой** (реальных выписок нет): `tests/synth_bank.py` (seeded-генератор sber/tinkoff/yandex) + `tests/test_synth_import.py`; critical-фикс дедупа (occurrence вместо позиции строки — реэкспорт со сдвигом не дублирует). Стратегия: `D:\dev\docs\machine\TEST_DATA_STRATEGY.md`.
 - ✅ **Фаза B закоммичена (77a25dc)**: дашборды (Chart.js+htmx), URL-фильтры hx-push-url, hx-boost, фикс формы добавления (JSON+form, HX-ветка HTML), deepseek-фолбэк, spec/ A+PIPELINE+stack. **43 passed, ruff чист, рабочее дерево чистое** — практика №3 MASTER_PLAN «commit перед задачей, diff после» выполнена.
 - ✅ mattpocock/skills audit (13.09): всё внедрённое используется.
 - ⏳ Визуальный smoke `/approve` в браузере юзера (план: `spec/QA_APPROVE_SMOKE.md`, демо-данные `scripts/review_demo.py seed`).
 - ✅ Пробелы MASTER_PLAN закрыты/пересмотрены: perf-маркер с JSON закрыт (`75f8165`, `reports/perf.json`, маркер в pyproject); Hoppscotch/Capture MCP — **отклонены** (SPENDRACK_PRIORITIES_REVIEW); Фаза 4 закрыта (v0.1.0, remote, защита `main`).
 - ✅ **Сортировка транзакций (14.09):** режимы `recent` (дата DESC; внутри дня — `statement_order` из выписки, иначе id) и `amount` (|сумма| DESC) с URL-состоянием `?sort=`; миграция v3 (`statement_order`), импорт заполняет порядок строк; фильтры/месяц сохраняют sort.
-- ⏭ Следующее по ROI: реальная выписка Сбербанка (импорт + фикстура) → группировка по дням в «recent» + keyset-scroll → категории/правила в UI + калибровка порога 0.9 по бакетам confidence.
+- ⏭ Следующее по ROI: группировка по дням в «recent» + keyset-scroll → категории/правила в UI + калибровка порога 0.9 по бакетам confidence; бэклог тестов — `tests/merchants.py` + тест точности правил ≥90%.
 - ✅ Стилизация UI Tailwind завершена (13.09.2026): `base.html` + `index.html` + `approve.html` — утилитарные классы Tailwind v4 vendored (282KB static/tailwind.js), card-style summary, table stripes, responsive grid. Всё рендерится: smoke-тест 200 OK.
 - ✅ DeepSeek-категоризация добавлена третьим фолбэком (OpenRouter → FreeLLMAPI → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96.**
 - ✅ Контур верификации: `tests/test_fallback.py` (порядок primary→fallback→deepseek с моком, оффлайн), итого **37 passed**, ruff чист.
