@@ -19,11 +19,13 @@ def _store() -> Store:
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request, month: str | None = None, month_delta: int = 0,
-          category: str | None = None, q: str | None = None):
+          category: str | None = None, q: str | None = None, sort: str | None = None):
     store = _store()
     taxonomy = load_taxonomy()
     current = _resolve_month(store, month, month_delta)
-    transactions = store.list_transactions(month=current, category=category or None, search=q or None)
+    sort = sort if sort in ("recent", "amount") else "recent"
+    transactions = store.list_transactions(month=current, category=category or None,
+                                           search=q or None, sort=sort)
     pending = store.queued_for_review()
     report = report_month(store, current)
     totals = categories_with_totals(store, current)
@@ -41,6 +43,7 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
             "all_categories": [c.name for c in taxonomy.categories],
             "category": category or "",
             "q": q or "",
+            "sort": sort,
             "fmt": fmt_amount,
         },
     )

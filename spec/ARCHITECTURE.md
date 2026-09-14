@@ -31,6 +31,7 @@
 
 ## Ключевые решения (зафиксировано)
 - Авто-приём при confidence >= 0.9, иначе `llm_pending_review`.
+- Сортировка списка: `?sort=recent` (date DESC, внутри дня `COALESCE(statement_order,id)` DESC) | `?sort=amount` (ABS(amount) DESC); очередь — date ASC, amount DESC, id ASC.
 - Правка юзера → merchant_cache (выигрывает над LLM) + few-shot пример.
 - Лог бакетов confidence для калибровки порога.
 - Запуск: `uv run uvicorn spendtrack.main:app --port 8766` (или run.ps1).

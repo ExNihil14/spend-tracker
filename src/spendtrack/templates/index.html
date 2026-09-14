@@ -14,9 +14,9 @@
     <div class="text-lg font-semibold text-slate-100 mt-1">{{ fmt(report.balance_k) }}</div>
   </div>
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 flex items-center justify-between">
-    <a href="/?month_delta=-1" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
+    <a href="/?month_delta=-1{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
     <div class="text-sm font-medium text-slate-300">{{ current }}</div>
-    <a href="/?month_delta=1" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
+    <a href="/?month_delta=1{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
   </div>
 </div>
 
@@ -64,6 +64,12 @@
   <div class="px-5 py-3 border-b border-slate-800 flex flex-wrap items-center gap-3">
     <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Транзакции {{ current }}</h2>
     <form hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
+      <select name="sort"
+              class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" hx-include="#filters" hx-trigger="change">
+        <option value="recent" {% if sort == 'recent' %}selected{% endif %}>Сначала новые</option>
+        <option value="amount" {% if sort == 'amount' %}selected{% endif %}>Крупные сначала</option>
+      </select>
       <select name="category"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" hx-include="#filters" hx-trigger="change">
