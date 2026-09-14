@@ -292,6 +292,54 @@ class Store:
     def queued_for_review(self) -> list[dict]:
         return self.list_transactions(needs_review=True)
 
+    def list_transactions_days(
+        self,
+        month: str | None = None,
+        category: str | None = None,
+        search: str | None = None,
+        days: int = 31,
+        after_date: str | None = None,
+    ) -> tuple[list[dict], str | None, bool]:
+        """Keyset-страница ЦЕЛЫМИ днями (для больших списков): (rows, next_after, has_more).
+
+        Пагинация по датам (`date < after_date`), а не по строкам — дневные итоги и
+        группировка не разрезаются. Сортировка внутри дня: statement_order, иначе id.
+        """
+        where, params = [], []
+        if month:
+            where.append("substr(date,1,7)=?")
+            params.append(month)
+        if category:
+            where.append("category=?")
+            params.append(category)
+        if search:
+            where.append("(description LIKE ? OR merchant LIKE ?)")
+            params.extend([f"%{search}%", f"%{search}%"])
+        if after_date:
+            where.append("date < ?")
+            params.append(after_date)
+        clause = (" WHERE " + " AND ".join(where)) if where else ""
+
+        dates = [
+            r["date"]
+            for r in self.conn.execute(
+                f"SELECT DISTINCT date FROM transactions{clause} ORDER BY date DESC LIMIT ?",
+                [*params, str(days + 1)],
+            )
+        ]
+        has_more = len(dates) > days
+        dates = dates[:days]
+        if not dates:
+            return [], None, False
+
+        placeholders = ",".join("?" * len(dates))
+        rows = self.conn.execute(
+            f"SELECT * FROM transactions WHERE date IN ({placeholders})"
+            " ORDER BY date DESC, COALESCE(statement_order, id) DESC, id DESC",
+            dates,
+        ).fetchall()
+        return [dict(r) for r in rows], dates[-1], has_more
+
     # ---- category cache by merchant ----
     class MerchantCacheEntry:
         pass

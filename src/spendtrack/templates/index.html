@@ -98,39 +98,7 @@
       </tr>
     </thead>
     <tbody>
-      {% set ns = namespace(prev_date=None) %}
-      {% for t in transactions %}
-      {% if group_days and t.date != ns.prev_date %}
-      {% set ns.prev_date = t.date %}
-      <tr class="bg-slate-950/50 border-b border-slate-800">
-        <td colspan="5" class="px-5 py-2 text-xs uppercase tracking-wide text-slate-400">
-          {{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}
-          <span class="ml-2 normal-case font-medium {{ 'text-emerald-400' if day_totals.get(t.date, 0) > 0 else 'text-rose-400/90' }}">
-            итог {{ fmt(day_totals.get(t.date, 0)) }}
-          </span>
-        </td>
-      </tr>
-      {% endif %}
-      <tr class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
-        <td class="px-5 py-3 whitespace-nowrap text-slate-400">{{ t.date }}</td>
-        <td class="px-5 py-3">
-          {{ t.description }}
-          {% if t.merchant %}<div class="text-xs text-slate-500 mt-0.5">{{ t.merchant }}</div>{% endif %}
-        </td>
-        <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-emerald-400' if t.amount_kopecks > 0 else 'text-rose-400' }}">{{ fmt(t.amount_kopecks) }}</td>
-        <td class="px-5 py-3">
-          <a href="/?category={{ t.category }}" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium text-slate-900 hover:opacity-80 transition-opacity"
-             style="background:{{ cat_colors.get(t.category, '#9ca3af') }}">{{ t.category }}</a>
-        </td>
-        <td class="px-5 py-3">
-          <span class="text-slate-500 text-xs">{{ t.category_source }}
-            {% if t.confidence < 1 %}<span class="text-amber-400/80">({{ '%.2f' | format(t.confidence) }})</span>{% endif %}
-          </span>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="5" class="px-5 py-8 text-center text-slate-500">Пусто</td></tr>
-      {% endfor %}
+      {% include "partials/tx_rows.html" %}
     </tbody>
   </table>
   </div>
