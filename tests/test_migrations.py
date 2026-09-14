@@ -48,4 +48,6 @@ def test_legacy_db_upgraded_with_backfill(tmp_path):
     row = s.conn.execute("SELECT review_status, category_llm FROM transactions WHERE id=1").fetchone()
     assert row["review_status"] == "pending"
     assert row["category_llm"] == "other"
+    cols = {r[1] for r in s.conn.execute("PRAGMA table_info(transactions)")}
+    assert "statement_order" in cols
     s.close()

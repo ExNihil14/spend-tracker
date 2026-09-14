@@ -56,7 +56,8 @@ CREATE TABLE IF NOT EXISTS transactions(
   created TEXT NOT NULL,
   updated TEXT NOT NULL,
   category_llm TEXT,                  -- предложение LLM (не перезаписывается = diff)
-  review_status TEXT NOT NULL DEFAULT 'approved'   -- pending | approved | skipped
+  review_status TEXT NOT NULL DEFAULT 'approved',   -- pending | approved | skipped
+  statement_order INTEGER             -- порядок строки в выписке (сортировка внутри дня)
 );
 
 CREATE TABLE IF NOT EXISTS categories(
@@ -105,7 +106,7 @@ CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);
 """
 
 
-SCHEMA_VERSION = 2  # текущая версия схемы (см. Store._migrate)
+SCHEMA_VERSION = 3  # текущая версия схемы (см. Store._migrate)
 
 
 class Store:
@@ -135,7 +136,7 @@ class Store:
         self.conn.execute(f"PRAGMA user_version = {int(version)}")
 
     def _migrate(self) -> None:
-        """Версии: 1 — базовая схема; 2 — Work 3 (category_llm/review_status + бэкфилл)."""
+        """Версии: 1 — базовая схема; 2 — Work 3 (category_llm/review_status + бэкфилл); 3 — statement_order."""
         if self._user_version() < 1:
             self._mark_migration(1)
         if self._user_version() < 2:
@@ -152,6 +153,11 @@ class Store:
                     "UPDATE transactions SET category_llm=category"
                     " WHERE category_source IN ('llm','llm_pending_review') AND category_llm IS NULL")
             self._mark_migration(2)
+        if self._user_version() < 3:
+            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
+            if "statement_order" not in cols:
+                self.conn.execute("ALTER TABLE transactions ADD COLUMN statement_order INTEGER")
+            self._mark_migration(3)
 
     def close(self) -> None:
         self.conn.close()
@@ -184,6 +190,7 @@ class Store:
         export_rowid: str = "",
         category_llm: str | None = None,
         review_status: str = "approved",
+        statement_order: int | None = None,
     ) -> int | None:
         fp = fingerprint(date, amount_kopecks, description, account_anon or "", export_rowid)
         existing = self.conn.execute("SELECT id FROM transactions WHERE fingerprint=?", (fp,)).fetchone()
@@ -193,10 +200,11 @@ class Store:
         cur = self.conn.execute(
             "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
             " confidence, merchant, account_anon, import_batch, fingerprint, created, updated,"
-            " category_llm, review_status)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " category_llm, review_status, statement_order)"
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (date, description, amount_kopecks, category, category_source, confidence,
-             merchant, account_anon, import_batch, fp, now, now, category_llm, review_status),
+             merchant, account_anon, import_batch, fp, now, now, category_llm, review_status,
+             statement_order),
         )
         self.conn.commit()
         return cur.lastrowid
@@ -250,7 +258,7 @@ class Store:
 
     def list_transactions(self, month: str | None = None, category: str | None = None,
                           needs_review: bool = False, limit: int = 500,
-                          search: str | None = None) -> list[dict]:
+                          search: str | None = None, sort: str = "recent") -> list[dict]:
         sql = "SELECT * FROM transactions WHERE 1=1"
         params: list[str] = []
         if month:
@@ -267,8 +275,12 @@ class Store:
             sql += " AND review_status='pending'"
         if needs_review:
             sql += " ORDER BY date ASC, amount_kopecks DESC, id ASC LIMIT ?"
+        elif sort == "amount":
+            # «Крупные сначала»: по модулю суммы, свежие — при равенстве
+            sql += " ORDER BY ABS(amount_kopecks) DESC, date DESC, id DESC LIMIT ?"
         else:
-            sql += " ORDER BY date DESC, id DESC LIMIT ?"
+            # recent: внутри дня — порядок строк выписки (statement_order), иначе id
+            sql += " ORDER BY date DESC, COALESCE(statement_order, id) DESC, id DESC LIMIT ?"
         params.append(str(limit))
         rows = self.conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]

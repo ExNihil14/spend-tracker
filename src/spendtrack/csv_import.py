@@ -149,6 +149,7 @@ def import_csv(
     added, dupes = 0, 0
     for rownum, tx in enumerate(adaptor.parse(iter(reader_all))):
         tx["export_rowid"] = str(rownum)
+        tx["statement_order"] = rownum
         account_anon = store.pseudonymize(tx.pop("account", None))
         tx["account_anon"] = account_anon
         classification = classify(tx, store, taxonomy)
