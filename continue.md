@@ -46,7 +46,9 @@
 - ⏳ Визуальный smoke `/approve` в браузере юзера (план: `spec/QA_APPROVE_SMOKE.md`, демо-данные `scripts/review_demo.py seed`).
 - ✅ Пробелы MASTER_PLAN закрыты/пересмотрены: perf-маркер с JSON закрыт (`75f8165`, `reports/perf.json`, маркер в pyproject); Hoppscotch/Capture MCP — **отклонены** (SPENDRACK_PRIORITIES_REVIEW); Фаза 4 закрыта (v0.1.0, remote, защита `main`).
 - ✅ **Сортировка транзакций (14.09):** режимы `recent` (дата DESC; внутри дня — `statement_order` из выписки, иначе id) и `amount` (|сумма| DESC) с URL-состоянием `?sort=`; миграция v3 (`statement_order`), импорт заполняет порядок строк; фильтры/месяц сохраняют sort.
-- ⏭ Следующее по ROI: группировка по дням в «recent» + keyset-scroll → категории/правила в UI + калибровка порога 0.9 по бакетам confidence; бэклог тестов — `tests/merchants.py` + тест точности правил ≥90%.
+- ✅ **Группировка по дням (15.09):** в режиме «recent» — заголовок дня `ДД.ММ.ГГГГ` + итог за день (цвет по знаку); в «крупные сначала» — плоский список. **Keyset-scroll осознанно отложен:** список помесячный, лимит 500 покрывает месяц; вернуться при мультимесячном режиме.
+- ✅ **Словарь мерчантов + точность правил:** `tests/merchants.py` (27 реалистичных брендов/формулировок) + `tests/test_rules_accuracy.py` — покрытие keyword-правил **100%** (оффлайн).
+- ⏭ Следующее по ROI: категории/правила в UI + калибровка порога 0.9 по бакетам confidence → затем бюджеты по категориям.
 - ✅ Стилизация UI Tailwind завершена (13.09.2026): `base.html` + `index.html` + `approve.html` — утилитарные классы Tailwind v4 vendored (282KB static/tailwind.js), card-style summary, table stripes, responsive grid. Всё рендерится: smoke-тест 200 OK.
 - ✅ DeepSeek-категоризация добавлена третьим фолбэком (OpenRouter → FreeLLMAPI → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96.**
 - ✅ Контур верификации: `tests/test_fallback.py` (порядок primary→fallback→deepseek с моком, оффлайн), итого **37 passed**, ruff чист.
