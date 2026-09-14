@@ -66,3 +66,24 @@ def test_index_sort_param_renders_amount_order(tmp_path, monkeypatch):
     client = TestClient(app)
     html = client.get("/?sort=amount&month=2026-09").text
     assert html.index("КРУПНАЯ") < html.index("СРЕДНЯЯ") < html.index("МАЛАЯ")
+
+
+def test_day_grouping_only_in_recent(tmp_path, monkeypatch):
+    """Группировка по дням с итогами — только в режиме recent (в amount — плоский список)."""
+    db = tmp_path / "group.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    s = Store(db_path=db)
+    s.add_transaction(date="2026-09-11", description="ДЕНЬ1", amount_kopecks=-1000,
+                      category="other", category_source="manual")
+    s.add_transaction(date="2026-09-12", description="ДЕНЬ2", amount_kopecks=-2000,
+                      category="other", category_source="manual")
+    s.close()
+
+    client = TestClient(app)
+    html = client.get("/?month=2026-09").text
+    assert "12.09.2026" in html and "11.09.2026" in html
+    assert html.index("12.09.2026") < html.index("11.09.2026")  # recent: позже — выше
+    assert "итог" in html
+
+    flat = client.get("/?month=2026-09&sort=amount").text
+    assert "11.09.2026" not in flat
