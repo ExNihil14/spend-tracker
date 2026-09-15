@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from spendtrack.config import ROOT, load_settings
 from spendtrack.routers.api import router as api_router
 from spendtrack.routers.frontend import router as frontend_router
+from spendtrack.routers.settings import router as settings_router
 
 cfg = load_settings()
 LOG_DIR = ROOT / "logs"
@@ -45,6 +46,7 @@ def _setup_logging() -> None:
 app = FastAPI(title="Spendtrack", version="0.1.0")
 _setup_logging()
 app.include_router(frontend_router)
+app.include_router(settings_router)
 app.include_router(api_router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=ROOT / "src" / "spendtrack" / "static"), name="static")
