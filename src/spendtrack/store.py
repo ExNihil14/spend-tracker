@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS account_pseudonyms(
 );
 
 CREATE TABLE IF NOT EXISTS merchant_cache(
-  key TEXT PRIMARY KEY,               -- sha1(merchant|category-unknown-key)
+  key TEXT PRIMARY KEY,               -- sha1(merchant.upper()); от категории НЕ зависит
   merchant TEXT NOT NULL,
   category TEXT NOT NULL,
   confidence REAL NOT NULL DEFAULT 1.0,

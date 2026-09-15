@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -49,6 +51,34 @@ def test_rule_lifecycle_add_move_delete(page: Page, live_server, taxonomy_path):
     _wait_single(page, "#settings-rules")
     expect(page.locator(f'tr[data-pattern="{BROAD}"]')).to_have_count(0)
     assert BROAD not in taxonomy_path.read_text(encoding="utf-8")
+
+
+def test_category_rename_migrates_transactions(page: Page, live_server, db_path):
+    """Переименование категории из UI: подтверждение с числом строк + миграция БД."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+        " confidence, created, updated)"
+        " VALUES('2026-09-12', 'E2E ПЕРЕИМЕНОВАНИЕ', -100, 'other', 'manual', 1.0,"
+        " datetime('now'), datetime('now'))")
+    conn.commit()
+    conn.close()
+
+    page.goto(f"{live_server}/settings")
+    rename_form = 'form[hx-post="/settings/categories/rename/preview"]'
+    page.select_option(f'{rename_form} select[name="name"]', "other")
+    page.fill(f'{rename_form} input[name="new_name"]', "general")
+    page.click(f"{rename_form} button")
+    expect(page.locator("#rename-confirm")).to_contain_text("транзакций 1", timeout=10_000)
+
+    page.click('#rename-confirm button:has-text("Подтвердить")')
+    _wait_single(page, "#settings-categories")
+    expect(page.locator("#settings-categories")).to_contain_text("general")
+
+    conn = sqlite3.connect(str(db_path))
+    migrated = conn.execute("SELECT category FROM transactions").fetchone()[0]
+    conn.close()
+    assert migrated == "general"
 
 
 def test_rule_dead_badge_and_preview(page: Page, live_server):

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
 import re
 import tempfile
@@ -17,6 +18,8 @@ from pathlib import Path
 
 from spendtrack.config import CONFIG_DIR
 from spendtrack.store import Store
+
+logger = logging.getLogger(__name__)
 
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,31}$")
@@ -112,7 +115,10 @@ def save(data: dict, expected_hash: str | None, action: str, key: str, old=None,
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
-    _audit(action, key, old, new)
+    try:
+        _audit(action, key, old, new)  # после replace: сбой аудита не должен ронять операцию
+    except OSError:
+        logger.warning("taxonomy audit write failed (action=%s key=%s)", action, key, exc_info=True)
 
 
 # ---- операции ----
@@ -159,6 +165,74 @@ def usage_counts(store: Store) -> dict[str, int]:
     rows = store.conn.execute(
         "SELECT category, COUNT(1) n FROM transactions GROUP BY category").fetchall()
     return {r["category"]: r["n"] for r in rows}
+
+
+# ---- переименование категории (миграция TOML + БД) ----
+
+def _rename_targets(data: dict, old_name: str, new_name: str) -> tuple[str, str]:
+    cat = _find_category(data, old_name)
+    old = cat["name"]
+    new = validate_name(new_name)
+    if new == old:
+        raise TaxonomyError("новое имя совпадает с текущим — менять нечего")
+    if any(c["name"].lower() == new for c in data.get("categories", [])):
+        raise TaxonomyError(f"категория «{new}» уже существует")
+    return old, new
+
+
+def rename_counts(old: str, data: dict, store: Store) -> dict:
+    def count(sql: str) -> int:
+        return int(store.conn.execute(sql, (old,)).fetchone()[0])
+    return {
+        "transactions": count("SELECT COUNT(1) FROM transactions WHERE category=?"),
+        "proposals": count("SELECT COUNT(1) FROM transactions WHERE category_llm=?"),
+        "cache": count("SELECT COUNT(1) FROM merchant_cache WHERE category=?"),
+        "examples": count("SELECT COUNT(1) FROM examples WHERE category=?"),
+        "rules": sum(1 for r in data.get("rules", []) if r["category"] == old),
+    }
+
+
+def rename_preview(old_name: str, new_name: str, store: Store,
+                   expected_hash: str | None = None) -> dict:
+    """Предпросмотр переименования (read-only): имена + число затронутых записей."""
+    data = load_raw()
+    old, new = _rename_targets(data, old_name, new_name)
+    if expected_hash and expected_hash != file_hash():
+        raise TaxonomyError("файл taxonomy.toml изменён снаружи — обновите страницу и повторите")
+    return {"old": old, "new": new, "counts": rename_counts(old, data, store),
+            "file_hash": file_hash()}
+
+
+def _migrate_db_category(store: Store, src: str, dst: str) -> None:
+    with store.conn:  # одна транзакция: либо все таблицы, либо ни одной
+        store.conn.execute("UPDATE transactions SET category=? WHERE category=?", (dst, src))
+        store.conn.execute("UPDATE transactions SET category_llm=? WHERE category_llm=?", (dst, src))
+        store.conn.execute("UPDATE merchant_cache SET category=? WHERE category=?", (dst, src))
+        store.conn.execute("UPDATE examples SET category=? WHERE category=?", (dst, src))
+
+
+def rename_category(old_name: str, new_name: str, store: Store, expected_hash: str | None) -> dict:
+    """Переименовать категорию: TOML (имя + правила) и БД (транзакции/предложения/кэш/примеры).
+
+    save() атомарен и при сбое до replace не меняет файл, поэтому БД откатывается безопасно.
+    """
+    data = load_raw()
+    old, new = _rename_targets(data, old_name, new_name)
+    if expected_hash and expected_hash != file_hash():
+        raise TaxonomyError("файл taxonomy.toml изменён снаружи — обновите страницу и повторите")
+    counts = rename_counts(old, data, store)
+
+    _migrate_db_category(store, old, new)
+    try:
+        _find_category(data, old)["name"] = new
+        for r in data.get("rules", []):
+            if r["category"] == old:
+                r["category"] = new
+        save(data, expected_hash, "rename_category", old, {"name": old}, {"name": new})
+    except Exception:
+        _migrate_db_category(store, new, old)  # откат БД; TOML не изменён
+        raise
+    return {"old": old, "new": new, "counts": counts}
 
 
 # ---- операции с правилами ----

@@ -68,6 +68,85 @@ def test_set_color(tax_env):
     assert repo.load_raw()["categories"][0]["color"] == "#ffffff"
 
 
+# ── переименование категории (Фаза 3) ───────────────────────────────────────
+
+
+def test_rename_category_migrates_toml_db_and_rules(tax_env):
+    s = Store(db_path=tax_env.parent / "t.db")
+    tx_id = s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                              category="other", category_source="llm", category_llm="other",
+                              review_status="pending", merchant="МАГНИТ")
+    s.merchant_cache_set("МАГНИТ", "other")
+    s.add_example("ЛЕНТА", -100, "other")
+    res = repo.rename_category("other", "general", s, repo.file_hash())
+    assert res == {"old": "other", "new": "general",
+                   "counts": {"transactions": 1, "proposals": 1, "cache": 1, "examples": 1,
+                              "rules": 1}}
+
+    data = repo.load_raw()  # TOML: имя категории + правило
+    assert data["categories"][0]["name"] == "general"
+    assert data["rules"][0]["category"] == "general"
+    # БД: транзакции, предложение LLM, кэш мерчантов, примеры
+    assert s.conn.execute("SELECT category FROM transactions WHERE id=?", (tx_id,)).fetchone()[0] == "general"
+    assert s.conn.execute("SELECT category_llm FROM transactions WHERE id=?", (tx_id,)).fetchone()[0] == "general"
+    assert s.conn.execute("SELECT category FROM merchant_cache").fetchone()[0] == "general"
+    assert s.merchant_cache_get("МАГНИТ") == "general"  # ключ кэша не зависит от категории
+    assert s.conn.execute("SELECT category FROM examples").fetchone()[0] == "general"
+    audit = tax_env.with_name("taxonomy_audit.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert json.loads(audit[-1])["action"] == "rename_category"
+    s.close()
+
+
+def test_rename_validation_and_stale_hash(tax_env):
+    s = Store(db_path=tax_env.parent / "t.db")
+    repo.add_category("cafe", "#112233", None)
+    with pytest.raises(repo.TaxonomyError):  # имя занято
+        repo.rename_category("other", "cafe", s, None)
+    with pytest.raises(repo.TaxonomyError):  # невалидное имя
+        repo.rename_category("other", "плохое имя", s, None)
+    with pytest.raises(repo.TaxonomyError):  # категории нет
+        repo.rename_category("нет-такой", "general", s, None)
+    with pytest.raises(repo.TaxonomyError):  # файл изменён снаружи
+        repo.rename_category("other", "general", s, "deadbeef")
+    assert repo.load_raw()["categories"][0]["name"] == "other"
+    s.close()
+
+
+def test_rename_rollback_db_on_toml_failure(tax_env, monkeypatch):
+    s = Store(db_path=tax_env.parent / "t.db")
+    s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                      category="other", category_source="manual")
+
+    def boom(*args, **kwargs):
+        raise repo.TaxonomyError("disk full")
+
+    monkeypatch.setattr(repo, "save", boom)
+    with pytest.raises(repo.TaxonomyError):
+        repo.rename_category("other", "general", s, None)
+    assert s.conn.execute("SELECT category FROM transactions").fetchone()[0] == "other"
+    assert repo.load_raw()["categories"][0]["name"] == "other"  # TOML не тронут
+    s.close()
+
+
+def test_rename_preview_counts(tax_env):
+    s = Store(db_path=tax_env.parent / "t.db")
+    s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                      category="other", category_source="manual")
+    p = repo.rename_preview("Other", "general", s)  # old — case-insensitive
+    assert p["old"] == "other" and p["new"] == "general"
+    assert p["counts"]["transactions"] == 1 and p["counts"]["rules"] == 1
+    with pytest.raises(repo.TaxonomyError):  # preview со стухшим hash
+        repo.rename_preview("other", "general", s, "deadbeef")
+    s.close()
+
+
+def test_rename_same_name_message(tax_env):
+    s = Store(db_path=tax_env.parent / "t.db")
+    with pytest.raises(repo.TaxonomyError, match="совпадает"):  # в т.ч. смена регистра: Other = other
+        repo.rename_category("other", "Other", s, None)
+    s.close()
+
+
 def test_tester_winner_and_cache(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     res = repo.test_description("ЛЕНТА 123", s)
@@ -96,6 +175,32 @@ def test_settings_api_validation_error(tax_env):
     r = client.post("/settings/categories",
                     data={"name": "bad name", "color": "#112233", "file_hash": repo.file_hash()})
     assert "имя" in r.text
+
+
+def test_rename_api_preview_and_execute(tax_env):
+    s = Store(db_path=tax_env.parent / "t.db")
+    s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                      category="other", category_source="manual")
+    s.close()
+    client = TestClient(app)
+    r = client.post("/settings/categories/rename/preview",
+                    data={"name": "other", "new_name": "general", "file_hash": repo.file_hash()})
+    assert r.status_code == 200 and "Подтвердить" in r.text and "транзакций 1" in r.text
+
+    r2 = client.post("/settings/categories/rename",
+                     data={"name": "other", "new_name": "general", "file_hash": repo.file_hash()})
+    assert r2.status_code == 200 and "general" in r2.text
+    assert repo.load_raw()["categories"][0]["name"] == "general"
+
+
+def test_rename_api_errors(tax_env):
+    client = TestClient(app)
+    r = client.post("/settings/categories/rename/preview",
+                    data={"name": "other", "new_name": "bad name"})
+    assert "имя" in r.text
+    r2 = client.post("/settings/categories/rename",
+                     data={"name": "other", "new_name": "general", "file_hash": "deadbeef"})
+    assert "изменён снаружи" in r2.text
 
 
 def test_tester_endpoint(tax_env):

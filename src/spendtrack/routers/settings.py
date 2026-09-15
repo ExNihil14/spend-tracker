@@ -80,6 +80,37 @@ async def delete_category(request: Request):
     return _cats_fragment(request)
 
 
+@router.post("/settings/categories/rename/preview", response_class=HTMLResponse)
+async def rename_preview(request: Request):
+    form = await request.form()
+    store = _store()
+    try:
+        preview = repo.rename_preview(str(form.get("name") or ""),
+                                      str(form.get("new_name") or ""), store,
+                                      str(form.get("file_hash") or ""))
+    except repo.TaxonomyError as e:
+        store.close()
+        return templates.TemplateResponse(request, "partials/rename_confirm.html",
+                                          {"preview": None, "error": str(e)})
+    store.close()
+    return templates.TemplateResponse(request, "partials/rename_confirm.html",
+                                      {"preview": preview, "error": None})
+
+
+@router.post("/settings/categories/rename", response_class=HTMLResponse)
+async def rename_category(request: Request):
+    form = await request.form()
+    store = _store()
+    try:
+        repo.rename_category(str(form.get("name") or ""), str(form.get("new_name") or ""),
+                             store, str(form.get("file_hash") or ""))
+    except repo.TaxonomyError as e:
+        store.close()
+        return _cats_fragment(request, str(e))
+    store.close()
+    return _cats_fragment(request)
+
+
 def _rules_fragment(request: Request, error: str | None = None) -> HTMLResponse:
     ctx = _context()
     ctx["error"] = error
