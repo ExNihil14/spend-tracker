@@ -9,7 +9,12 @@
 - Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
 - IDE: VS Code 1.137 + 13 расширений (Ruff, Pylance, официальный FastAPI, Playwright, Jinja2, htmx-toolkit, SQLite viewer, TOML, GitLens, Tailwind, EditorConfig, dotenv, Error Lens). Настройки в `.vscode/` (в репо): Ruff-форматтер Python, Pylance `standard`, pytest Test Explorer.
 - Готово: Фаза B, импорт банка (Work 2, `422a56f`), circuit breaker+E2E (`833c48c`),
-  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`). **96 unit + 10 e2e зелёные.**
+  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`), /settings Фаза 1 (категории+тестер, `c9c42c4`).
+  **128 unit + 12 e2e зелёные.**
+- ✅ **/settings Фаза 2 — правила в UI** (`973d280`, ждёт push): add/delete/move ↑↓ + диагностика
+  мёртвых/дублей + live-превью. Эксперт-ревью `arch-reviewer`: GO с правками, P1 закрыт
+  (ложное «мёртвое» при битой категории перехватчика + tester-расхождение с рантаймом),
+  артефакт `D:\dev\docs\machine\EXPERT_REVIEW_SETTINGS_PHASE2.md`.
 
 ## Что сделано
 - Ядро детерминированное оффлайн: `store.py` (SQLite, WAL, копейки INTEGER),
@@ -39,7 +44,19 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (15.09): 96 unit + 10 e2e зелёные, ruff чист; `main = origin/main` (`2a381f9`). Ниже — исторические снимки; цифры в них не актуальны.**
+> **АКТУАЛЬНО (15.09): 128 unit + 12 e2e зелёные, ruff чист; `main` = `973d280` (Фаза 2 /settings), ждёт push юзера.** Ниже — исторические снимки; цифры в них не актуальны.
+> **✅ ФАЗА 2 /settings — ПРАВИЛА В UI (15.09):** `POST /settings/rules` (add в конец), `/delete`, `/move` (up/down swap),
+> `/preview` (live-превью дублей/перекрытия, debounce 400мс). Вся запись через общий `save()` — атомарно + `.bak` + аудит
+> (`add_rule|delete_rule|move_rule`) + конфликт-хэш. Диагностика `analyze_rules`: мёртвые = нет категории / дубль /
+> перехвачено более ранним правилом-подстрокой (first-match) + обратное «перекрывает #…»; сверху сводка.
+> **Эксперт-ревью (arch-reviewer, deepseek-v4-pro) — GO с правками, P1 закрыт:** перехватчиком в диагностике считается
+> только runtime-валидное правило (рантайм пропускает битые категории) + тестер больше не показывает winner из битого
+> правила; закрыты пробелы (`.bak` = предыдущая версия, MAX_RULES, lowercase round-trip). Артефакт:
+> `D:\dev\docs\machine\EXPERT_REVIEW_SETTINGS_PHASE2.md` (P2-бэклог: audit не должен ронять операцию, parse-back контентом и др.).
+> **Попутно починен латентный баг Фазы 1:** partials не содержали свои обёртки `#settings-categories/#settings-rules`,
+> из-за чего вторая операция без перезагрузки не находила htmx-target. E2E теперь изолирует taxonomy (`SPENDTRACK_TAXONOMY`,
+> tmp-копия + восстановление) — прод-конфиг не трогается. **Live NSSM:** диагностика нашла реальное мёртвое правило
+> в проде (#23 «ЗАРАБОТНАЯ ПЛАТА» перекрыто #21 «ЗАРАБОТНАЯ»), превью вернуло «дубль + будет мёртвым». Дизайн-док обновлён.
 > **Импорт провалидирован синтетикой** (реальных выписок нет): `tests/synth_bank.py` (seeded-генератор sber/tinkoff/yandex) + `tests/test_synth_import.py`; critical-фикс дедупа (occurrence вместо позиции строки — реэкспорт со сдвигом не дублирует). Стратегия: `D:\dev\docs\machine\TEST_DATA_STRATEGY.md`.
 - ✅ **Фаза B закоммичена (77a25dc)**: дашборды (Chart.js+htmx), URL-фильтры hx-push-url, hx-boost, фикс формы добавления (JSON+form, HX-ветка HTML), deepseek-фолбэк, spec/ A+PIPELINE+stack. **43 passed, ruff чист, рабочее дерево чистое** — практика №3 MASTER_PLAN «commit перед задачей, diff после» выполнена.
 - ✅ mattpocock/skills audit (13.09): всё внедрённое используется.
@@ -50,7 +67,8 @@
 - ✅ **Словарь мерчантов + точность правил:** `tests/merchants.py` (27 реалистичных брендов/формулировок) + `tests/test_rules_accuracy.py` — покрытие keyword-правил **100%** (оффлайн).
 - ✅ **Keyset-пагинация по дням (15.09):** `list_transactions_days` + `partials/tx_rows.html` + `/transactions/more` + sentinel (`hx-trigger="revealed"`) — готовность к большим спискам без разрезания дней/итогов; месяцу хватает одной страницы (PAGE_DAYS=31). Виртуализация `<table>` отклонена (анализ: `D:\dev\docs\machine\VIRTUALIZATION_ANALYSIS.md`); Фаза 2 (div-grid + content-visibility / TanStack Virtual) — по триггеру «все месяцы + >5K узлов».
 - ✅ **Toast-подтверждение (15.09):** OOB-тост «Одобрено: <категория> — <описание>» / «Пропущено: …» / «Одобрено записей: N» (`aria-live`, авто-скрытие 1.8с).
-- ⏭ Следующее по ROI: категории/правила в UI (сначала брейншторм субагентом) + калибровка порога 0.9 по бакетам confidence → затем бюджеты по категориям.
+- ⏭ Следующее по ROI: калибровка порога 0.9 по бакетам confidence (данные копятся) → бюджеты по категориям;
+  из Фазы 3 дизайна — переименование категории с миграцией DB (кнопка + подтверждение).
 - ✅ Стилизация UI Tailwind завершена (13.09.2026): `base.html` + `index.html` + `approve.html` — утилитарные классы Tailwind v4 vendored (282KB static/tailwind.js), card-style summary, table stripes, responsive grid. Всё рендерится: smoke-тест 200 OK.
 - ✅ DeepSeek-категоризация добавлена третьим фолбэком (OpenRouter → FreeLLMAPI → **abacus-web shim:3201/deepseek-v4-1-flash** → offline). Токен TTL 1ч. **Проверена ЖИВЫМ вызовом: «МАГНИТ» → groceries, conf 0.96.**
 - ✅ Контур верификации: `tests/test_fallback.py` (порядок primary→fallback→deepseek с моком, оффлайн), итого **37 passed**, ruff чист.
@@ -80,8 +98,8 @@
 6. ✅ Импорт банка (Work 2, `422a56f`) + circuit breaker/Playwright E2E (`833c48c`).
 7. ✅ Очередь подтверждения категоризации (Work 3, `0b746d6`) + e2e `/approve` (`511b630`).
    Единый фрагмент очереди `partials/review_rows.html`, все действия через `_rows_html`+OOB.
-8. Далее (по SPENDRACK_PRIORITIES_REVIEW.md): визуальный smoke `/approve` в браузере юзера,
-   затем — категории/правила в UI, затем бюджеты (когда данные достаточно чистые).
+8. ✅ Категории (`c9c42c4`) и правила (Фаза 2, WIP) в UI. Далее: визуальный smoke `/settings` в браузере юзера,
+   калибровка порога 0.9, затем бюджеты (когда данные достаточно чистые).
 
 ## Мета
 - Возврат к работе: просто прочитай эти файлы: AGENTS.md (команды), CONTEXT.md (словарь),
