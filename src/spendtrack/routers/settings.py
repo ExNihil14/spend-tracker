@@ -21,11 +21,15 @@ def _context() -> dict:
     store = _store()
     usage = repo.usage_counts(store)
     store.close()
+    analysis = repo.analyze_rules(data)
     return {
         "categories": data.get("categories", []),
         "rules": data.get("rules", []),
+        "rules_view": analysis,
         "usage": usage,
         "file_hash": repo.file_hash(),
+        "dead_count": sum(1 for a in analysis if a["dead"]),
+        "duplicate_count": sum(1 for a in analysis if a["duplicate_of"] is not None),
     }
 
 
@@ -74,6 +78,67 @@ async def delete_category(request: Request):
         return _cats_fragment(request, str(e))
     store.close()
     return _cats_fragment(request)
+
+
+def _rules_fragment(request: Request, error: str | None = None) -> HTMLResponse:
+    ctx = _context()
+    ctx["error"] = error
+    return templates.TemplateResponse(request, "partials/settings_rules.html", ctx)
+
+
+def _parse_index(raw: object) -> int:
+    try:
+        return int(str(raw))
+    except (TypeError, ValueError):
+        raise repo.TaxonomyError("некорректный индекс правила") from None
+
+
+@router.post("/settings/rules", response_class=HTMLResponse)
+async def add_rule(request: Request):
+    form = await request.form()
+    try:
+        repo.add_rule(str(form.get("pattern") or ""), str(form.get("category") or ""),
+                      str(form.get("file_hash") or ""))
+    except repo.TaxonomyError as e:
+        return _rules_fragment(request, str(e))
+    return _rules_fragment(request)
+
+
+@router.post("/settings/rules/delete", response_class=HTMLResponse)
+async def delete_rule(request: Request):
+    form = await request.form()
+    try:
+        repo.delete_rule(_parse_index(form.get("index")), str(form.get("file_hash") or ""))
+    except repo.TaxonomyError as e:
+        return _rules_fragment(request, str(e))
+    return _rules_fragment(request)
+
+
+@router.post("/settings/rules/move", response_class=HTMLResponse)
+async def move_rule(request: Request):
+    form = await request.form()
+    try:
+        repo.move_rule(_parse_index(form.get("index")), str(form.get("direction") or ""),
+                       str(form.get("file_hash") or ""))
+    except repo.TaxonomyError as e:
+        return _rules_fragment(request, str(e))
+    return _rules_fragment(request)
+
+
+@router.post("/settings/rules/preview", response_class=HTMLResponse)
+async def preview_rule(request: Request):
+    form = await request.form()
+    pattern = str(form.get("pattern") or "")
+    if len(pattern.strip()) < 2:  # не шумим ошибкой, пока пользователь печатает первый символ
+        return templates.TemplateResponse(request, "partials/rule_preview.html",
+                                          {"preview": None, "error": None})
+    try:
+        result = repo.preview_rule(pattern, str(form.get("category") or ""))
+    except repo.TaxonomyError as e:
+        return templates.TemplateResponse(request, "partials/rule_preview.html",
+                                          {"error": str(e), "preview": None})
+    return templates.TemplateResponse(request, "partials/rule_preview.html",
+                                      {"preview": result, "error": None})
 
 
 @router.post("/settings/test", response_class=HTMLResponse)
