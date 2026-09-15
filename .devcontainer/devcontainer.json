@@ -15,8 +15,9 @@
       "visibility": "private"
     }
   },
-  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh && $HOME/.local/bin/uv sync",
-  "postStartCommand": "nohup bash -c \"$HOME/.local/bin/uv sync && exec $HOME/.local/bin/uv run uvicorn spendtrack.main:app --host 0.0.0.0 --port 8766\" > /tmp/spendtrack.log 2>&1 &",
+  "postCreateCommand": "curl -LsSf https://astral.sh/uv/install.sh | sh",
+  "postStartCommand": "bash .devcontainer/start-app.sh",
+  "postAttachCommand": "bash .devcontainer/start-app.sh",
   "customizations": {
     "vscode": {
       "extensions": [
