@@ -53,7 +53,9 @@ uv run python scripts/review_demo.py seed   # демо-строки для пр�
 ```
 
 Открыть приложение: вкладка **PORTS** → порт 8766 → значок «Open in Browser».
-Логи: `tail -f /tmp/spendtrack.log`. Кнопка e2e-тестов в облаке (опционально): `uv run playwright install --with-deps chromium`.
+Сервер стартует автоматически при подключении к codespace (`.devcontainer/start-app.sh`); если не поднялся —
+`bash .devcontainer/start-app.sh`, состояние в `tail -f /tmp/spendtrack.log`.
+Кнопка e2e-тестов в облаке (опционально): `uv run playwright install --with-deps chromium`.
 
 ## Использование
 
