@@ -42,3 +42,56 @@ def report_daily(store: Store, month: str) -> list[dict]:
         (month,),
     ).fetchall()
     return [{"date": r["date"], "total_k": r["total_k"]} for r in rows]
+
+
+def confidence_calibration(store: Store, current_threshold: float = 0.9,
+                           candidates: tuple[float, ...] = (0.4, 0.5, 0.6, 0.7, 0.8, 0.9)) -> dict:
+    """Калибровка порога авто-приёма по фактам: где LLM ошибался (человек исправил категорию).
+
+    Берутся строки с предложением LLM (`category_llm`). «Решено» = review_status != 'pending';
+    «совпало» = итоговая категория равна предложению LLM; «исправлено» = человек выбрал другую
+    (в т.ч. автопринятые, позже поправленные: source='correction'). skipped — не сигнал качества.
+    Для кандидатных порогов t считается: сколько бы авто-приняли и сколько из них ошибочных.
+    """
+    rows = store.conn.execute(
+        "SELECT confidence, category, category_llm, review_status FROM transactions"
+        " WHERE category_llm IS NOT NULL AND category_llm != ''").fetchall()
+
+    resolved = [r for r in rows if r["review_status"] != "pending" and r["review_status"] != "skipped"]
+    pending = sum(1 for r in rows if r["review_status"] == "pending")
+    skipped = sum(1 for r in rows if r["review_status"] == "skipped")
+
+    def _wrong(row) -> bool:
+        return row["category"] != row["category_llm"]
+
+    buckets: dict[str, dict] = {}
+    for r in resolved:
+        key = f"{int(r['confidence'] * 10) / 10:.1f}"
+        b = buckets.setdefault(key, {"bucket": key, "n": 0, "agreed": 0, "corrected": 0})
+        b["n"] += 1
+        b["corrected" if _wrong(r) else "agreed"] += 1
+    for b in buckets.values():
+        b["wrong_rate"] = b["corrected"] / b["n"] if b["n"] else 0.0
+
+    thresholds = []
+    for t in candidates:
+        accepted = [r for r in resolved if r["confidence"] >= t]
+        wrong = sum(1 for r in accepted if _wrong(r))
+        thresholds.append({
+            "threshold": t,
+            "accepted": len(accepted),
+            "corrected": wrong,
+            "coverage": len(accepted) / len(resolved) if resolved else 0.0,
+            "wrong_rate": wrong / len(accepted) if accepted else 0.0,
+        })
+
+    return {
+        "total": len(rows),
+        "resolved": len(resolved),
+        "pending": pending,
+        "skipped": skipped,
+        "low_data": len(resolved) < 20,
+        "buckets": sorted(buckets.values(), key=lambda b: float(b["bucket"]), reverse=True),
+        "thresholds": thresholds,
+        "current_threshold": float(current_threshold),
+    }

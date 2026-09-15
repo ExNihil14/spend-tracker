@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from spendtrack.categorize import categorize_transaction
-from spendtrack.reports import report_month
+from spendtrack.reports import confidence_calibration, report_month
 from spendtrack.store import Store, fmt_amount, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
@@ -66,6 +66,31 @@ def cmd_count(args) -> int:
     return 0
 
 
+def cmd_confidence(args) -> int:
+    from spendtrack.config import load_settings
+    store = make_store()
+    current = load_settings().acceptance.auto_accept_confidence
+    rep = confidence_calibration(store, current_threshold=current)
+    print(f"Калибровка порога авто-приёма: всего с предложением LLM {rep['total']}, "
+          f"решено {rep['resolved']}, в очереди {rep['pending']}, пропущено {rep['skipped']}")
+    if rep["low_data"] and rep["resolved"]:
+        print(f"  данных мало (решено {rep['resolved']} < 20) — оценка ориентировочная")
+    if rep["buckets"]:
+        print(f"  {'conf':>5}  {'решено':>6}  {'совпало':>7}  {'исправлено':>10}  {'ошибок':>7}")
+        for b in rep["buckets"]:
+            print(f"  {b['bucket']:>5}  {b['n']:>6}  {b['agreed']:>7}  {b['corrected']:>10}"
+                  f"  {b['wrong_rate'] * 100:>6.1f}%")
+    else:
+        print("  нет данных: решённых LLM-предложений в БД пока нет")
+    if rep["resolved"]:
+        print("  если авто-принимать с conf >= t:")
+        for t in rep["thresholds"]:
+            print(f"    t={t['threshold']:.1f}: принято {t['accepted']} ({t['coverage'] * 100:.0f}%), "
+                  f"ошибочных {t['corrected']} ({t['wrong_rate'] * 100:.1f}%)")
+    print(f"Текущий порог (config/settings.toml): {rep['current_threshold']}")
+    return 0
+
+
 def cmd_confirm(args) -> int:
     store = make_store()
     ok = store.update_category(args.id, args.category, source="correction")
@@ -101,6 +126,9 @@ def main(argv: list[str] | None = None) -> int:
     a_cf.add_argument("id", type=int)
     a_cf.add_argument("category")
     a_cf.set_defaults(fn=cmd_confirm)
+
+    a_conf = sub.add_parser("confidence", help="калибровка порога авто-приёма LLM")
+    a_conf.set_defaults(fn=cmd_confidence)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):
