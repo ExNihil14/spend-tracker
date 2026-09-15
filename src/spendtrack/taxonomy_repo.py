@@ -161,17 +161,131 @@ def usage_counts(store: Store) -> dict[str, int]:
     return {r["category"]: r["n"] for r in rows}
 
 
+# ---- операции с правилами ----
+
+def _canonical_category(data: dict, category: str) -> str:
+    name = (category or "").strip().lower()
+    for c in data.get("categories", []):
+        if c["name"].lower() == name:
+            return c["name"]
+    raise TaxonomyError(f"категория «{category}» не найдена")
+
+
+def add_rule(pattern: str, category: str, expected_hash: str | None) -> None:
+    pattern = validate_pattern(pattern)
+    data = load_raw()
+    canonical = _canonical_category(data, category)
+    rules = data.get("rules", [])
+    if len(rules) >= MAX_RULES:
+        raise TaxonomyError(f"достигнут лимит правил ({MAX_RULES})")
+    if any(r["pattern"].upper() == pattern for r in rules):
+        raise TaxonomyError(f"правило «{pattern}» уже существует")
+    rule = {"pattern": pattern, "category": canonical}
+    rules.append(rule)
+    data["rules"] = rules
+    save(data, expected_hash, "add_rule", pattern, None, dict(rule))
+
+
+def delete_rule(index: int, expected_hash: str | None) -> None:
+    data = load_raw()
+    rules = data.get("rules", [])
+    if not 0 <= index < len(rules):
+        raise TaxonomyError("правило не найдено (список изменился — обновите страницу)")
+    removed = rules.pop(index)
+    save(data, expected_hash, "delete_rule", removed["pattern"], dict(removed), None)
+
+
+def move_rule(index: int, direction: str, expected_hash: str | None) -> None:
+    data = load_raw()
+    rules = data.get("rules", [])
+    if not 0 <= index < len(rules):
+        raise TaxonomyError("правило не найдено (список изменился — обновите страницу)")
+    if direction not in ("up", "down"):
+        raise TaxonomyError("направление перемещения: up|down")
+    target = index - 1 if direction == "up" else index + 1
+    if not 0 <= target < len(rules):
+        raise TaxonomyError("правило уже в начале списка" if direction == "up"
+                            else "правило уже в конце списка")
+    rules[index], rules[target] = rules[target], rules[index]
+    save(data, expected_hash, "move_rule", rules[target]["pattern"], index, target)
+
+
+def analyze_rules(data: dict | None = None) -> list[dict]:
+    """Диагностика порядка правил: дубли, «мёртвые» (перекрытые ранее) и битые категории.
+
+    Правило мёртвое, если его не может выиграть ни одно описание: категории нет в
+    таксономии, паттерн уже встречался раньше или любой матч перехватывает более
+    раннее правило с подстрокой этого паттерна (first-match).
+    """
+    data = data if data is not None else load_raw()
+    rules = data.get("rules", [])
+    cats = {c["name"] for c in data.get("categories", [])}
+    pats = [r["pattern"].upper() for r in rules]
+    valid = [r["category"] in cats for r in rules]  # рантайм пропускает битые категории
+    out: list[dict] = []
+    for i, r in enumerate(rules):
+        duplicate_of = None
+        shadowed_by = None
+        for j in range(i):
+            if not valid[j]:  # битое правило в рантайме не срабатывает — не перехватчик
+                continue
+            if duplicate_of is None and pats[j] == pats[i]:
+                duplicate_of = j
+            if shadowed_by is None and pats[j] in pats[i]:
+                shadowed_by = j
+        out.append({
+            "index": i,
+            "pattern": r["pattern"],
+            "category": r["category"],
+            "invalid_category": not valid[i],
+            "duplicate_of": duplicate_of,
+            "duplicate_differs": duplicate_of is not None
+            and rules[duplicate_of]["category"] != r["category"],
+            "shadowed_by": shadowed_by,
+            "shadows": [j for j in range(i + 1, len(rules))
+                        if valid[i] and valid[j] and pats[i] in pats[j]],
+            "dead": not valid[i] or duplicate_of is not None or shadowed_by is not None,
+        })
+    return out
+
+
+def preview_rule(pattern: str, category: str) -> dict:
+    """Предпросмотр правила, добавляемого в конец списка (без записи)."""
+    pattern = validate_pattern(pattern)
+    data = load_raw()
+    _canonical_category(data, category)
+    warnings: list[str] = []
+    analysis = analyze_rules(data)
+    for a in analysis:
+        if a["pattern"].upper() == pattern:
+            warnings.append(
+                f"дубль: правило «{a['pattern']}» уже есть (#{a['index']}, {a['category']})")
+            break
+    for a in analysis:
+        p = a["pattern"].upper()
+        if a["invalid_category"]:
+            continue  # битое правило не перехватывает — предупреждать не о чем
+        if p != pattern and p in pattern:
+            warnings.append(
+                f"будет мёртвым: совпадение сначала ловит #{a['index']} «{a['pattern']}»"
+                f" → {a['category']} (подтвердите и поднимите выше)")
+            break
+    return {"pattern": pattern, "warnings": warnings}
+
+
 # ---- тестер каскада (read-only) ----
 
 def test_description(description: str, store: Store) -> dict:
     desc = (description or "").strip().upper()
     data = load_raw()
+    cats = {c["name"] for c in data.get("categories", [])}
     matched = [
-        {"index": i, "pattern": r["pattern"], "category": r["category"]}
+        {"index": i, "pattern": r["pattern"], "category": r["category"],
+         "valid": r["category"] in cats}
         for i, r in enumerate(data.get("rules", []))
         if r["pattern"] in desc
     ]
     cached = store.merchant_cache_get(desc)
-    winner = cached or (matched[0]["category"] if matched else None)
+    winner = cached or next((m["category"] for m in matched if m["valid"]), None)
     return {"description": desc, "matched": matched, "cached": cached, "winner": winner,
-            "source": "merchant_cache" if cached else ("rule" if matched else "llm/offline")}
+            "source": "merchant_cache" if cached else ("rule" if winner else "llm/offline")}

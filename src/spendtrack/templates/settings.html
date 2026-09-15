@@ -2,37 +2,14 @@
 {% block content %}
 <div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 overflow-hidden">
   <h2 class="px-5 py-3 text-sm font-semibold text-slate-300 uppercase tracking-wide border-b border-slate-800">Категории</h2>
-  <div id="settings-categories">
-    {% include "partials/settings_categories.html" %}
-  </div>
+  {% include "partials/settings_categories.html" %}
 </div>
 
 <div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 overflow-hidden">
   <h2 class="px-5 py-3 text-sm font-semibold text-slate-300 uppercase tracking-wide border-b border-slate-800">
-    Правила <span class="text-slate-500 normal-case font-normal">(порядок = приоритет, первое совпадение выигрывает; редактирование — в следующей фазе)</span>
+    Правила <span class="text-slate-500 normal-case font-normal">(порядок = приоритет, первое совпадение выигрывает; ↑/↓ меняют приоритет)</span>
   </h2>
-  <div class="overflow-x-auto">
-    <table class="w-full text-sm">
-      <thead>
-        <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-950/40">
-          <th class="px-5 py-2.5 font-medium w-16">#</th>
-          <th class="px-5 py-2.5 font-medium">Паттерн</th>
-          <th class="px-5 py-2.5 font-medium">Категория</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for r in rules %}
-        <tr class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
-          <td class="px-5 py-2.5 text-slate-500">{{ loop.index0 }}</td>
-          <td class="px-5 py-2.5 font-mono text-xs text-slate-200">{{ r.pattern }}</td>
-          <td class="px-5 py-2.5 text-slate-300">{{ r.category }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="3" class="px-5 py-6 text-center text-slate-500">Правил нет</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  {% include "partials/settings_rules.html" %}
 </div>
 
 <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">

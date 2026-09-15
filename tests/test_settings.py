@@ -102,3 +102,230 @@ def test_tester_endpoint(tax_env):
     client = TestClient(app)
     r = client.post("/settings/test", data={"description": "ЛЕНТА 1"})
     assert "Итог" in r.text and "other" in r.text
+
+
+# ── правила: repo ───────────────────────────────────────────────────────────
+
+
+def _patterns() -> list[str]:
+    return [r["pattern"] for r in repo.load_raw()["rules"]]
+
+
+def test_add_rule_appends_with_audit(tax_env):
+    repo.add_rule("ПЯТЁРОЧКА МАГАЗИН", "other", repo.file_hash())
+    assert _patterns()[-1] == "ПЯТЁРОЧКА МАГАЗИН"
+    assert _patterns()[0] == "ЛЕНТА"  # старое правило не сдвинулось
+    audit = tax_env.with_name("taxonomy_audit.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert json.loads(audit[-1])["action"] == "add_rule"
+    bak = tax_env.with_suffix(".toml.bak").read_text(encoding="utf-8")
+    assert "ПЯТЁРОЧКА" not in bak and "ЛЕНТА" in bak  # бэкап — предыдущая версия
+
+
+def test_add_rule_limit(tax_env, monkeypatch):
+    monkeypatch.setattr(repo, "MAX_RULES", 1)
+    with pytest.raises(repo.TaxonomyError):
+        repo.add_rule("НОВОЕ ПРАВИЛО", "other", None)
+
+
+def test_lowercase_pattern_dedup_and_roundtrip(tax_env):
+    tax_env.write_text(TAXONOMY_MIN.replace('pattern = "ЛЕНТА"', 'pattern = "лента"'),
+                       encoding="utf-8")
+    with pytest.raises(repo.TaxonomyError):  # дедуп не зависит от регистра в файле
+        repo.add_rule("ЛЕНТА", "other", None)
+    repo.add_rule("НОВОЕ ПРАВИЛО", "other", None)  # запись не портит файл
+    assert "НОВОЕ ПРАВИЛО" in tax_env.read_text(encoding="utf-8")
+
+
+def test_add_rule_validation(tax_env):
+    with pytest.raises(repo.TaxonomyError):
+        repo.add_rule("x", "other", None)  # короткий паттерн
+    with pytest.raises(repo.TaxonomyError):
+        repo.add_rule("ОК ПРАВИЛО", "нет-такой", None)  # неизвестная категория
+    repo.add_rule("ОК ПРАВИЛО", "other", None)
+    with pytest.raises(repo.TaxonomyError):  # дубль case-insensitive
+        repo.add_rule("ок правило", "other", None)
+
+
+def test_rules_stale_hash(tax_env):
+    repo.add_rule("ПРАВИЛО 2", "other", None)
+    with pytest.raises(repo.TaxonomyError):
+        repo.add_rule("ПРАВИЛО 3", "other", "deadbeef")
+    with pytest.raises(repo.TaxonomyError):
+        repo.delete_rule(0, "deadbeef")
+    with pytest.raises(repo.TaxonomyError):
+        repo.move_rule(0, "down", "deadbeef")
+
+
+def test_delete_rule(tax_env):
+    repo.add_rule("УДАЛИТЬ МЕНЯ", "other", None)
+    idx = len(repo.load_raw()["rules"]) - 1
+    repo.delete_rule(idx, repo.file_hash())
+    assert "УДАЛИТЬ МЕНЯ" not in _patterns()
+    audit = tax_env.with_name("taxonomy_audit.jsonl").read_text(encoding="utf-8").strip().splitlines()
+    assert json.loads(audit[-1])["action"] == "delete_rule"
+    with pytest.raises(repo.TaxonomyError):
+        repo.delete_rule(99, None)
+
+
+def test_move_rule_swaps_and_bounds(tax_env):
+    repo.add_rule("ПЕРВОЕ", "other", None)
+    repo.add_rule("ВТОРОЕ", "other", None)
+    repo.move_rule(2, "up", repo.file_hash())
+    assert _patterns() == ["ЛЕНТА", "ВТОРОЕ", "ПЕРВОЕ"]
+    repo.move_rule(1, "down", repo.file_hash())
+    assert _patterns() == ["ЛЕНТА", "ПЕРВОЕ", "ВТОРОЕ"]
+    with pytest.raises(repo.TaxonomyError):
+        repo.move_rule(0, "up", None)
+    with pytest.raises(repo.TaxonomyError):
+        repo.move_rule(2, "down", None)
+    with pytest.raises(repo.TaxonomyError):
+        repo.move_rule(0, "sideways", None)
+
+
+def test_analyze_rules_dead_duplicate_invalid(tax_env):
+    tax_env.write_text(
+        """[[categories]]
+name = "other"
+color = "#9ca3af"
+
+[[categories]]
+name = "cafe"
+color = "#112233"
+
+[[rules]]
+pattern = "ЛЕНТА"
+category = "other"
+
+[[rules]]
+pattern = "ЛЕНТА 24"
+category = "cafe"
+
+[[rules]]
+pattern = "лЕнТа"
+category = "cafe"
+
+[[rules]]
+pattern = "МАГАЗИН"
+category = "missing"
+""",
+        encoding="utf-8",
+    )
+    a = repo.analyze_rules()
+    assert a[0]["dead"] is False and a[0]["shadows"] == [1, 2]
+    assert a[1]["shadowed_by"] == 0 and a[1]["dead"] and a[1]["duplicate_of"] is None
+    assert a[2]["duplicate_of"] == 0 and a[2]["duplicate_differs"] and a[2]["dead"]
+    assert a[3]["invalid_category"] and a[3]["dead"]
+
+
+def test_preview_rule(tax_env):
+    repo.add_rule("ЛЕНТА ОПТ", "other", None)
+    p = repo.preview_rule("ЛЕНТА ОПТ 24", "other")
+    assert any("будет мёртвым" in w for w in p["warnings"])
+    assert any("дубль" in w for w in repo.preview_rule("лента", "other")["warnings"])
+    assert repo.preview_rule("УНИКАЛЬНЫЙ ПАТТЕРН", "other")["warnings"] == []
+    with pytest.raises(repo.TaxonomyError):
+        repo.preview_rule("УНИКАЛЬНЫЙ ПАТТЕРН", "нет-такой")
+
+
+TAXONOMY_INVALID_BLOCKER = """[[categories]]
+name = "other"
+color = "#9ca3af"
+
+[[rules]]
+pattern = "ЛЕНТА"
+category = "missing"
+
+[[rules]]
+pattern = "ЛЕНТА 24"
+category = "other"
+"""
+
+
+def test_analyze_ignores_invalid_blocker(tax_env):
+    """Битое правило рантайм пропускает — оно не делает следующие правила мёртвыми (ревью P1)."""
+    tax_env.write_text(TAXONOMY_INVALID_BLOCKER, encoding="utf-8")
+    a = repo.analyze_rules()
+    assert a[0]["invalid_category"] and a[0]["dead"]
+    assert a[0]["shadows"] == []      # битое правило никого не перекрывает
+    assert a[1]["dead"] is False      # категория #1 валидна и сработает
+    assert a[1]["shadowed_by"] is None
+    # превью: битое правило не пугает «будет мёртвым», валидное — пугает
+    assert repo.preview_rule("ЛЕНТА 99", "other")["warnings"] == []
+    assert any("будет мёртвым" in w
+               for w in repo.preview_rule("ЛЕНТА 24 ОПТ", "other")["warnings"])
+
+
+def test_tester_skips_invalid_rule(tax_env):
+    tax_env.write_text(TAXONOMY_INVALID_BLOCKER, encoding="utf-8")
+    s = Store(db_path=tax_env.parent / "t.db")
+    res = repo.test_description("ЛЕНТА 24", s)
+    assert [m["index"] for m in res["matched"]] == [0, 1]
+    assert res["matched"][0]["valid"] is False
+    assert res["winner"] == "other" and res["source"] == "rule"
+    res2 = repo.test_description("ЛЕНТА 99", s)
+    assert res2["winner"] is None and res2["source"] == "llm/offline"
+    s.close()
+
+
+# ── правила: API ────────────────────────────────────────────────────────────
+
+
+def test_rules_api_add_move_delete(tax_env):
+    client = TestClient(app)
+    r = client.post("/settings/rules",
+                    data={"pattern": "АПТЕКА 36.6", "category": "other", "file_hash": repo.file_hash()})
+    assert r.status_code == 200 and 'data-pattern="АПТЕКА 36.6"' in r.text
+    assert 'id="settings-rules"' in r.text  # фрагмент владеет обёрткой (повторные операции работают)
+    assert _patterns()[-1] == "АПТЕКА 36.6"
+
+    idx = len(_patterns()) - 1
+    r2 = client.post("/settings/rules/move",
+                     data={"index": idx, "direction": "up", "file_hash": repo.file_hash()})
+    assert r2.status_code == 200 and _patterns()[idx - 1] == "АПТЕКА 36.6"
+
+    r3 = client.post("/settings/rules/delete",
+                     data={"index": idx - 1, "file_hash": repo.file_hash()})
+    assert r3.status_code == 200 and "АПТЕКА 36.6" not in _patterns()
+
+
+def test_rules_api_errors(tax_env):
+    client = TestClient(app)
+    r = client.post("/settings/rules",
+                    data={"pattern": "ЛЕНТА", "category": "other", "file_hash": repo.file_hash()})
+    assert "уже существует" in r.text
+    r2 = client.post("/settings/rules/delete", data={"index": "abc", "file_hash": repo.file_hash()})
+    assert "индекс" in r2.text
+    r3 = client.post("/settings/rules/move",
+                     data={"index": 0, "direction": "up", "file_hash": repo.file_hash()})
+    assert "начале" in r3.text
+
+
+def test_rules_preview_endpoint(tax_env):
+    client = TestClient(app)
+    r = client.post("/settings/rules/preview", data={"pattern": "лента", "category": "other"})
+    assert "дубль" in r.text
+    r2 = client.post("/settings/rules/preview", data={"pattern": "НОВЫЙ ПАТТЕРН", "category": "other"})
+    assert "конфликтов не найдено" in r2.text
+    r3 = client.post("/settings/rules/preview", data={"pattern": "x", "category": "other"})
+    assert "конфликт" not in r3.text and "дубль" not in r3.text
+
+
+def test_settings_page_shows_dead_badge(tax_env):
+    repo.add_rule("ЛЕНТА ОПТ", "other", None)
+    client = TestClient(app)
+    html = client.get("/settings").text
+    assert "мёртвое" in html and "Мёртвых правил" in html
+
+
+def test_categories_fragment_owns_wrapper(tax_env):
+    client = TestClient(app)
+    r = client.post("/settings/categories",
+                    data={"name": "cafe", "color": "#112233", "file_hash": repo.file_hash()})
+    assert 'id="settings-categories"' in r.text
+
+
+def test_tester_endpoint_marks_invalid_rule(tax_env):
+    tax_env.write_text(TAXONOMY_INVALID_BLOCKER, encoding="utf-8")
+    client = TestClient(app)
+    r = client.post("/settings/test", data={"description": "ЛЕНТА 24"})
+    assert "пропускается" in r.text and "other" in r.text

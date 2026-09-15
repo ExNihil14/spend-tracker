@@ -8,7 +8,7 @@
   {% endif %}
   <div class="text-slate-400 text-xs uppercase tracking-wide mt-2">Совпавшие правила (по порядку)</div>
   {% for m in result.matched %}
-  <div class="text-slate-300">#{{ m.index }} «{{ m.pattern }}» → <span class="text-slate-100">{{ m.category }}</span></div>
+  <div class="text-slate-300">#{{ m.index }} «{{ m.pattern }}» → <span class="text-slate-100">{{ m.category }}</span>{% if not m.valid %}<span class="text-rose-400"> (нет в таксономии — пропускается)</span>{% endif %}</div>
   {% else %}
   <div class="text-slate-500">правила не совпали</div>
   {% endfor %}

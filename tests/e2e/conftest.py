@@ -13,6 +13,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 DB_PATH: Path | None = None
+TAXONOMY_PATH: Path | None = None
+TAXONOMY_ORIGINAL: str | None = None
 
 
 def _free_port() -> int:
@@ -23,11 +25,15 @@ def _free_port() -> int:
 
 @pytest.fixture(scope="session")
 def live_server(tmp_path_factory):
-    """Отдельный uvicorn на tmp-порту + временная БД (прод-NSSM не трогаем)."""
-    global DB_PATH
+    """Отдельный uvicorn на tmp-порту + временные БД и taxonomy (прод-NSSM не трогаем)."""
+    global DB_PATH, TAXONOMY_PATH, TAXONOMY_ORIGINAL
     port = _free_port()
     DB_PATH = tmp_path_factory.mktemp("e2e") / "spend.db"
-    env = {**os.environ, "SPENDTRACK_DB_PATH": str(DB_PATH), "PYTHONUNBUFFERED": "1"}
+    TAXONOMY_PATH = tmp_path_factory.mktemp("e2e-tax") / "taxonomy.toml"
+    TAXONOMY_ORIGINAL = (ROOT / "config" / "taxonomy.toml").read_text(encoding="utf-8")
+    TAXONOMY_PATH.write_text(TAXONOMY_ORIGINAL, encoding="utf-8")
+    env = {**os.environ, "SPENDTRACK_DB_PATH": str(DB_PATH),
+           "SPENDTRACK_TAXONOMY": str(TAXONOMY_PATH), "PYTHONUNBUFFERED": "1"}
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "spendtrack.main:app",
          "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
@@ -59,9 +65,16 @@ def db_path(live_server) -> Path:
     return DB_PATH
 
 
+@pytest.fixture()
+def taxonomy_path(live_server) -> Path:
+    """Путь к временной taxonomy.toml e2e-сервера (прод-конфиг не трогаем)."""
+    assert TAXONOMY_PATH is not None, "live_server не запущен"
+    return TAXONOMY_PATH
+
+
 @pytest.fixture(autouse=True)
 def clean_db():
-    """Каждый тест стартует с пустой БД (независимость сценариев)."""
+    """Каждый тест стартует с пустой БД и исходной taxonomy (независимость сценариев)."""
     yield
     if DB_PATH is not None and DB_PATH.exists():
         con = sqlite3.connect(DB_PATH)
@@ -69,3 +82,5 @@ def clean_db():
         con.execute("DELETE FROM merchant_cache")
         con.commit()
         con.close()
+    if TAXONOMY_PATH is not None and TAXONOMY_ORIGINAL is not None:
+        TAXONOMY_PATH.write_text(TAXONOMY_ORIGINAL, encoding="utf-8")
