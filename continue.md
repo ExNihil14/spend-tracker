@@ -10,12 +10,14 @@
 - IDE: VS Code 1.137 + 13 расширений (Ruff, Pylance, официальный FastAPI, Playwright, Jinja2, htmx-toolkit, SQLite viewer, TOML, GitLens, Tailwind, EditorConfig, dotenv, Error Lens). Настройки в `.vscode/` (в репо): Ruff-форматтер Python, Pylance `standard`, pytest Test Explorer.
 - Готово: Фаза B, импорт банка (Work 2, `422a56f`), circuit breaker+E2E (`833c48c`),
   очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`), /settings Фазы 1-2 (категории/тестер `c9c42c4`,
-  правила `973d280`). **134 unit + 13 e2e зелёные.**
-- ⏳ **WIP (не закоммичено): README под практики 2026** (`README.md` переписан по структуре «шлюз»: возможности →
-  быстрый старт → использование → настройка (ENV) → разработка → бэкап; 3 скриншота `assets/` на синтетике;
-  убраны personal-пути/Task Scheduler/устаревшие цифры). Попутные фиксы: `.env` теперь читается приложением
-  (`env_file` в `config.py` + `tests/test_config.py`), бейдж «Подтвердить» на `/settings` показывал 0 (теперь
-  реальный pending + тест), добавлен `LICENSE` (MIT). Ресёрч-дайджест: `D:\dev\docs\machine\README_BEST_PRACTICES_2026.md`.
+  правила `973d280`). **143 unit + 13 e2e зелёные.**
+- ✅ **README под практики 2026 + фиксы** (`2872bae`, `c58dcf0`, `6d01458`, запушены): структура-«шлюз», 3 скриншота
+  `assets/`, `.env` теперь читается (`env_file` в `config.py` + `tests/test_config.py`), бейдж «Подтвердить» на
+  `/settings` (был 0), `LICENSE` (MIT). Ресёрч-дайджест: `D:\dev\docs\machine\README_BEST_PRACTICES_2026.md`.
+- ⏳ **Codespaces-стенд настроен (`1e0974a`, ждёт push):** `.devcontainer/devcontainer.json` (Python 3.13 + uv, `uv sync`,
+  авто-uvicorn на 8766, приватный порт) + бейдж/секция в README. Ресёрч вариантов: `D:\dev\docs\machine\RESEARCH_HOSTING_SPENDTRACKER.md`
+  (① Codespaces — выбран; ② Render/Tailscale — компромиссы). Следующий шаг — за юзером: push → создать codespace по
+  `codespaces.new/ExNihil14/spend-tracker`.
 - ✅ **Anti-freeze фикс (15.09):** `D:\dev\bootstrap\scripts\start-detached.ps1` — запуск долгоживущих процессов
   через WMI (`Win32_Process.Create`) ВНЕ job-объекта bash-тула: лаунчер возвращается за 1с (Start-Process висел
   до таймаута 60-120с). Правило обновлено в глобальном `AGENTS.md` + `ANTI_FREEZE_RUNBOOK.md`; проверено dummy-процессом.
@@ -64,7 +66,7 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (15.09): 143 unit + 13 e2e зелёные, ruff чист; калибровка порога закоммичена (`7f2ed66`+`23b99a1`, push — за юзером). WIP: README-обновление под практики 2026 + фиксы `.env`/бейджа/License/скриншотов — ждёт команды на коммит.** Ниже — исторические снимки; цифры в них не актуальны.
+> **АКТУАЛЬНО (15.09): 143 unit + 13 e2e зелёные, ruff чист; `main` = `1e0974a` (Codespaces-стенд), впереди origin на 1 коммит — push за юзером. Далее: создать codespace и проверить стенд.** Ниже — исторические снимки; цифры в них не актуальны.
 > **✅ ФАЗА 2 /settings — ПРАВИЛА В UI (15.09):** `POST /settings/rules` (add в конец), `/delete`, `/move` (up/down swap),
 > `/preview` (live-превью дублей/перекрытия, debounce 400мс). Вся запись через общий `save()` — атомарно + `.bak` + аудит
 > (`add_rule|delete_rule|move_rule`) + конфликт-хэш. Диагностика `analyze_rules`: мёртвые = нет категории / дубль /
