@@ -20,6 +20,12 @@
 - ✅ **UI-пикеры** (`efe7cc7`): `cursor:pointer` + тёмная схема popup (`color-scheme: dark`), accent-color, индикатор
   календаря; e2e расширен (cursor + colorScheme). Ресёрч date-picker: `D:\dev\docs\machine\RESEARCH_DATEPICKER_SPENDTRACKER.md`
   (вердикт — нативный; кастом №1 Air Datepicker, №2 Vanilla Calendar Pro — если после смоука захочется).
+- ⏳ **WIP: бюджеты по категориям** (дизайн `EXPERT_BUDGETS_DESIGN.md`): миграция v4 `budgets`, редактор в `/settings`,
+  бары «Бюджеты месяца» на `/dashboard`, `GET /api/budgets`, CLI `spendtrack budget`; rename/delete мигрируют бюджет.
+  Отклонено (по дизайну): rollover, месячные переопределения, уведомления. **Ревью OpenRouter (nemotron-3-ultra-550b:free, $0):
+  GO с правками — принят клэмп `max(0, spent)` для pct/remaining/over, hardening очистки бюджета при delete, граничные
+  тесты; P0/P1 частично отклонены фактами** (таблица создаётся до `_migrate`; Store-валидация — слой repo; порядок
+  save→clear безопаснее). Артефакт: `D:\dev\docs\machine\EXPERT_REVIEW_BUDGETS_OR.md`. Тесты: 156 unit + 15 e2e. Ждёт коммита.
 - ✅ **Anti-freeze фикс (15.09):** `D:\dev\bootstrap\scripts\start-detached.ps1` — запуск долгоживущих процессов
   через WMI (`Win32_Process.Create`) ВНЕ job-объекта bash-тула: лаунчер возвращается за 1с (Start-Process висел
   до таймаута 60-120с). Правило обновлено в глобальном `AGENTS.md` + `ANTI_FREEZE_RUNBOOK.md`; проверено dummy-процессом.
@@ -68,7 +74,7 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (15.09): 143 unit + 14 e2e зелёные, ruff чист; `main` = `efe7cc7` (Codespaces-фикс + UI-пикеры), впереди origin на 2 коммита — push за юзером. Далее: push → Rebuild Container в кодеспейсе (применит авто-старт), затем калибровка 0.9 / бюджеты.** Ниже — исторические снимки; цифры в них не актуальны.
+> **АКТУАЛЬНО (15.09): 156 unit + 15 e2e зелёные, ruff чист; `main = origin/main = 23ceeed`. WIP: бюджеты по категориям (ревью OpenRouter пройдено) — ждёт команды на коммит.** Ниже — исторические снимки; цифры в них не актуальны.
 > **✅ ФАЗА 2 /settings — ПРАВИЛА В UI (15.09):** `POST /settings/rules` (add в конец), `/delete`, `/move` (up/down swap),
 > `/preview` (live-превью дублей/перекрытия, debounce 400мс). Вся запись через общий `save()` — атомарно + `.bak` + аудит
 > (`add_rule|delete_rule|move_rule`) + конфликт-хэш. Диагностика `analyze_rules`: мёртвые = нет категории / дубль /
