@@ -20,12 +20,14 @@ def _context() -> dict:
     data = repo.load_raw()
     store = _store()
     usage = repo.usage_counts(store)
+    pending = store.pending_count()
     store.close()
     analysis = repo.analyze_rules(data)
     return {
         "categories": data.get("categories", []),
         "rules": data.get("rules", []),
         "rules_view": analysis,
+        "pending": [None] * pending,
         "usage": usage,
         "file_hash": repo.file_hash(),
         "dead_count": sum(1 for a in analysis if a["dead"]),
