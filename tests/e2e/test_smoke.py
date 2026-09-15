@@ -97,6 +97,17 @@ def test_health_endpoint(page: Page, live_server):
     expect(page.locator("body")).to_contain_text('"status"')
 
 
+def test_picker_inputs_have_pointer_cursor(page: Page, live_server):
+    """Нативные пикеры: курсор-указатель на поле + тёмная схема для popup (регрессия Tailwind preflight)."""
+    page.goto(live_server)
+    assert page.eval_on_selector('input[name="date"]',
+                                 "el => getComputedStyle(el).cursor") == "pointer"
+    assert page.evaluate("getComputedStyle(document.documentElement).colorScheme") == "dark"
+    page.goto(f"{live_server}/settings")
+    assert page.eval_on_selector('input[type="color"]',
+                                 "el => getComputedStyle(el).cursor") == "pointer"
+
+
 # ── Approve-очередь ─────────────────────────────────────────────────────────
 
 def test_approve_queue_skip(page: Page, live_server, db_path):

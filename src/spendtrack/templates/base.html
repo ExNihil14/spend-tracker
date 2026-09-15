@@ -9,8 +9,15 @@
   <script src="/static/chart.umd.min.js"></script>
   <meta name="htmx-config" content='{"historyCacheSize": 0}'>
   <style>
+    /* Тёмная схема для нативных виджетов (popup календаря, скроллбары) */
+    :root { color-scheme: dark; }
     /* Tailwind v4 preflight делает cursor:default у кнопок — возвращаем указатель */
-    button:not(:disabled), [role="button"]:not(:disabled), summary, select:not(:disabled) { cursor: pointer; }
+    button:not(:disabled), [role="button"]:not(:disabled), summary, select:not(:disabled),
+    input[type="date"]:not(:disabled), input[type="color"]:not(:disabled) { cursor: pointer; }
+    /* Нативный индикатор календаря: свой курсор + аккуратная иконка (Chromium) */
+    input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .75; }
+    input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+    input[type="date"] { accent-color: #6366f1; }
     /* Уход строки очереди: видимая преемственность при approve/skip */
     tr.review-row { transition: opacity 160ms ease, transform 160ms ease; }
     tr.review-row.htmx-swapping { opacity: 0; transform: translateX(-16px); }
