@@ -1,0 +1,21 @@
+{% if result %}
+<div class="bg-slate-950/50 border border-slate-800 rounded-lg p-4 space-y-1">
+  <div class="text-slate-400 text-xs uppercase tracking-wide">Описание</div>
+  <div class="font-mono text-xs text-slate-200 mb-2">{{ result.description }}</div>
+
+  {% if result.cached %}
+  <div class="text-emerald-400">merchant_cache: {{ result.cached }} (кэш приоритетнее правил)</div>
+  {% endif %}
+  <div class="text-slate-400 text-xs uppercase tracking-wide mt-2">Совпавшие правила (по порядку)</div>
+  {% for m in result.matched %}
+  <div class="text-slate-300">#{{ m.index }} «{{ m.pattern }}» → <span class="text-slate-100">{{ m.category }}</span></div>
+  {% else %}
+  <div class="text-slate-500">правила не совпали</div>
+  {% endfor %}
+
+  <div class="mt-2 pt-2 border-t border-slate-800">
+    Итог: <span class="font-medium text-slate-100">{{ result.winner or "— (уйдёт в LLM/офлайн)" }}</span>
+    <span class="text-slate-500">({{ result.source }})</span>
+  </div>
+</div>
+{% endif %}
