@@ -13,7 +13,7 @@
 ## Компоненты
 - `main.py` — FastAPI-приложение, монтирует routers/, склеивает store+llm.
 - `store.py` — SQLite (WAL). Таблицы: transactions, categories, merchant_cache,
-  account_pseudonyms, import_batches, examples, (log buckets confidence).
+  account_pseudonyms, import_batches, examples, budgets (лимиты по категориям, v4), (log buckets confidence).
 - `categorize.py` — конвейер категоризации (rule→llm→validation→queue), `classify_with_injectable`.
 - `csv_import.py` — импорт CSV по банкам (BANKS-адаптеры), fingerprint-дедуп.
 - `reports.py` — агрегаты по периодам/категориям.
@@ -34,6 +34,8 @@
 - Сортировка списка: `?sort=recent` (date DESC, внутри дня `COALESCE(statement_order,id)` DESC) | `?sort=amount` (ABS(amount) DESC); очередь — date ASC, amount DESC, id ASC.
 - Правка юзера → merchant_cache (выигрывает над LLM) + few-shot пример.
 - Лог бакетов confidence для калибровки порога.
+- Бюджеты: `budgets` (SQLite, не TOML), одна месячная константа без rollover; расход = знаковая сумма месяца
+  (возвраты уменьшают); `income`/`transfers` исключены (`BUDGET_EXCLUDED`); rename/delete категории мигрируют бюджет.
 - Запуск: `uv run uvicorn spendtrack.main:app --port 8766` (или run.ps1).
 
 ## План (из MASTER_PLAN.md, Фаза A/B)

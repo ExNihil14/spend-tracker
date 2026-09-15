@@ -6,7 +6,8 @@ from fastapi.templating import Jinja2Templates
 
 from spendtrack import taxonomy_repo as repo
 from spendtrack.config import ROOT
-from spendtrack.store import Store
+from spendtrack.reports import BUDGET_EXCLUDED
+from spendtrack.store import Store, fmt_amount
 
 router = APIRouter()
 templates = Jinja2Templates(directory=ROOT / "src" / "spendtrack" / "templates")
@@ -21,6 +22,7 @@ def _context() -> dict:
     store = _store()
     usage = repo.usage_counts(store)
     pending = store.pending_count()
+    budgets = store.budget_map()
     store.close()
     analysis = repo.analyze_rules(data)
     return {
@@ -29,6 +31,10 @@ def _context() -> dict:
         "rules_view": analysis,
         "pending": [None] * pending,
         "usage": usage,
+        "budgets": budgets,
+        "budget_categories": [c for c in data.get("categories", [])
+                              if c["name"] not in BUDGET_EXCLUDED],
+        "fmt": fmt_amount,
         "file_hash": repo.file_hash(),
         "dead_count": sum(1 for a in analysis if a["dead"]),
         "duplicate_count": sum(1 for a in analysis if a["duplicate_of"] is not None),
@@ -111,6 +117,25 @@ async def rename_category(request: Request):
         return _cats_fragment(request, str(e))
     store.close()
     return _cats_fragment(request)
+
+
+def _budgets_fragment(request: Request, error: str | None = None) -> HTMLResponse:
+    ctx = _context()
+    ctx["error"] = error
+    return templates.TemplateResponse(request, "partials/settings_budgets.html", ctx)
+
+
+@router.post("/settings/budgets", response_class=HTMLResponse)
+async def set_budget(request: Request):
+    form = await request.form()
+    store = _store()
+    try:
+        repo.set_budget(str(form.get("category") or ""), str(form.get("amount") or ""), store)
+    except repo.TaxonomyError as e:
+        store.close()
+        return _budgets_fragment(request, str(e))
+    store.close()
+    return _budgets_fragment(request)
 
 
 def _rules_fragment(request: Request, error: str | None = None) -> HTMLResponse:

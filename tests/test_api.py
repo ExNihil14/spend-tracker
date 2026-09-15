@@ -21,6 +21,20 @@ def test_health(client):
     assert r.json() == {"status": "ok", "transactions": 0}
 
 
+def test_api_budgets(client):
+    """Бюджеты: настройка через /settings, прогресс через GET /api/budgets (месяц последней транзакции)."""
+    r = client.post("/settings/budgets", data={"category": "groceries", "amount": "2000"})
+    assert r.status_code == 200
+    client.post("/api/transactions", json={"date": "2026-09-10", "description": "ЛЕНТА", "amount": "-500"})
+    body = client.get("/api/budgets?month=2026-09").json()
+    assert body["month"] == "2026-09"
+    item = {i["category"]: i for i in body["items"]}["groceries"]
+    assert (item["budget_k"], item["spent_k"], item["pct"]) == (200_000, 50_000, 25.0)
+
+    body2 = client.get("/api/budgets").json()  # месяц не задан → из последней транзакции
+    assert body2["month"] == "2026-09"
+
+
 def test_logging_idempotent():
     """Повторный вызов _setup_logging() не плодит handler'ы (дублирование строк в файле)."""
     before = [h for h in logging.getLogger("spendtrack").handlers]

@@ -12,6 +12,13 @@
   {% include "partials/settings_rules.html" %}
 </div>
 
+<div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 overflow-hidden">
+  <h2 class="px-5 py-3 text-sm font-semibold text-slate-300 uppercase tracking-wide border-b border-slate-800">
+    Бюджеты <span class="text-slate-500 normal-case font-normal">(месячные лимиты; прогресс — на дашборде)</span>
+  </h2>
+  {% include "partials/settings_budgets.html" %}
+</div>
+
 <div class="bg-slate-900 rounded-xl border border-slate-800 p-5">
   <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Тестер описания</h2>
   <form hx-post="/settings/test" hx-target="#tester-result" hx-swap="innerHTML" class="flex flex-wrap gap-2">

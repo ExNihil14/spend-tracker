@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from spendtrack.categorize import categorize_transaction
@@ -91,6 +92,26 @@ def cmd_confidence(args) -> int:
     return 0
 
 
+def cmd_budget(args) -> int:
+    from spendtrack.reports import budgets_progress
+    from spendtrack.taxonomy import load_taxonomy
+    store = make_store()
+    month = args.month
+    if not month:
+        row = store.conn.execute("SELECT MAX(date) m FROM transactions").fetchone()
+        month = (row["m"] or datetime.now(UTC).strftime("%Y-%m-%d"))[:7]
+    items = budgets_progress(store, month, known={c.name for c in load_taxonomy().categories})
+    print(f"== Бюджеты {month}")
+    if not items:
+        print("  бюджеты не заданы (настроить: /settings)")
+        return 0
+    for b in items:
+        mark = "  ПЕРЕРАСХОД" if b["over"] else ""
+        print(f"  {b['category']:<18} {fmt_amount(b['spent_k']):>12} / {fmt_amount(b['budget_k']):>12}"
+              f"  {b['pct']:>4.0f}%{mark}")
+    return 0
+
+
 def cmd_confirm(args) -> int:
     store = make_store()
     ok = store.update_category(args.id, args.category, source="correction")
@@ -129,6 +150,10 @@ def main(argv: list[str] | None = None) -> int:
 
     a_conf = sub.add_parser("confidence", help="калибровка порога авто-приёма LLM")
     a_conf.set_defaults(fn=cmd_confidence)
+
+    a_bg = sub.add_parser("budget", help="прогресс по бюджетам категорий")
+    a_bg.add_argument("--month", default=None)
+    a_bg.set_defaults(fn=cmd_budget)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):

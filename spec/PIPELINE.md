@@ -9,6 +9,8 @@ uv run spendtrack add -23.45 "MILK"              # CLI: добавить тра�
 uv run spendtrack import file.csv --bank sber    # импорт CSV (BANKS-адаптер)
 uv run spendtrack report --month 2026-09         # отчёт за месяц
 uv run spendtrack count                          # счётчики
+uv run spendtrack budget --month 2026-09         # прогресс по бюджетам категорий
+uv run spendtrack confidence                     # калибровка порога авто-приёма LLM
 ```
 
 ## Тесты / анализ

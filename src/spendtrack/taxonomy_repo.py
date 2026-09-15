@@ -11,13 +11,16 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import tempfile
 import tomllib
 from datetime import UTC, datetime
+from decimal import InvalidOperation
 from pathlib import Path
 
 from spendtrack.config import CONFIG_DIR
-from spendtrack.store import Store
+from spendtrack.reports import BUDGET_EXCLUDED
+from spendtrack.store import Store, parse_amount
 
 logger = logging.getLogger(__name__)
 
@@ -159,12 +162,41 @@ def delete_category(name: str, store: Store, expected_hash: str | None) -> None:
         raise TaxonomyError("категория используется в правилах — сначала удалите/переназначьте правила")
     data["categories"] = [c for c in data.get("categories", []) if c["name"] != real]
     save(data, expected_hash, "delete_category", real, {"name": real}, None)
+    if store.budget_map().get(real):  # бюджет уходит вместе с категорией (после успешной записи TOML)
+        try:
+            store.clear_budget(real)
+        except sqlite3.Error:
+            logger.warning("budget cleanup failed for deleted category %s", real, exc_info=True)
 
 
 def usage_counts(store: Store) -> dict[str, int]:
     rows = store.conn.execute(
         "SELECT category, COUNT(1) n FROM transactions GROUP BY category").fetchall()
     return {r["category"]: r["n"] for r in rows}
+
+
+# ---- бюджеты по категориям (БД) ----
+
+def set_budget(category: str, amount: str, store: Store) -> None:
+    """Установить/снять месячный бюджет категории (сумма в рублях; пусто/0 — снять)."""
+    data = load_raw()
+    name = _canonical_category(data, category)
+    if name in BUDGET_EXCLUDED:
+        raise TaxonomyError(f"категория «{name}» не бюджетируется (доход/перевод)")
+    raw = (amount or "").strip()
+    if not raw:
+        store.clear_budget(name)
+        return
+    try:
+        value = parse_amount(raw)
+    except (InvalidOperation, ValueError):
+        raise TaxonomyError("сумма должна быть числом (например, 20000 или 20000.50)") from None
+    if value == 0:
+        store.clear_budget(name)
+        return
+    if value < 0:
+        raise TaxonomyError("бюджет не может быть отрицательным")
+    store.set_budget(name, value)
 
 
 # ---- переименование категории (миграция TOML + БД) ----
@@ -188,6 +220,7 @@ def rename_counts(old: str, data: dict, store: Store) -> dict:
         "proposals": count("SELECT COUNT(1) FROM transactions WHERE category_llm=?"),
         "cache": count("SELECT COUNT(1) FROM merchant_cache WHERE category=?"),
         "examples": count("SELECT COUNT(1) FROM examples WHERE category=?"),
+        "budget": count("SELECT COUNT(1) FROM budgets WHERE category=?"),
         "rules": sum(1 for r in data.get("rules", []) if r["category"] == old),
     }
 
@@ -209,6 +242,7 @@ def _migrate_db_category(store: Store, src: str, dst: str) -> None:
         store.conn.execute("UPDATE transactions SET category_llm=? WHERE category_llm=?", (dst, src))
         store.conn.execute("UPDATE merchant_cache SET category=? WHERE category=?", (dst, src))
         store.conn.execute("UPDATE examples SET category=? WHERE category=?", (dst, src))
+        store.conn.execute("UPDATE budgets SET category=? WHERE category=?", (dst, src))
 
 
 def rename_category(old_name: str, new_name: str, store: Store, expected_hash: str | None) -> dict:
