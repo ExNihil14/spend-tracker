@@ -79,10 +79,11 @@ def test_rename_category_migrates_toml_db_and_rules(tax_env):
                               review_status="pending", merchant="МАГНИТ")
     s.merchant_cache_set("МАГНИТ", "other")
     s.add_example("ЛЕНТА", -100, "other")
+    s.set_budget("other", 20000_00)
     res = repo.rename_category("other", "general", s, repo.file_hash())
     assert res == {"old": "other", "new": "general",
                    "counts": {"transactions": 1, "proposals": 1, "cache": 1, "examples": 1,
-                              "rules": 1}}
+                              "budget": 1, "rules": 1}}
 
     data = repo.load_raw()  # TOML: имя категории + правило
     assert data["categories"][0]["name"] == "general"
@@ -90,6 +91,7 @@ def test_rename_category_migrates_toml_db_and_rules(tax_env):
     # БД: транзакции, предложение LLM, кэш мерчантов, примеры
     assert s.conn.execute("SELECT category FROM transactions WHERE id=?", (tx_id,)).fetchone()[0] == "general"
     assert s.conn.execute("SELECT category_llm FROM transactions WHERE id=?", (tx_id,)).fetchone()[0] == "general"
+    assert s.budget_map() == {"general": 20000_00}  # бюджет едет за категорией
     assert s.conn.execute("SELECT category FROM merchant_cache").fetchone()[0] == "general"
     assert s.merchant_cache_get("МАГНИТ") == "general"  # ключ кэша не зависит от категории
     assert s.conn.execute("SELECT category FROM examples").fetchone()[0] == "general"
@@ -148,6 +150,66 @@ def test_rename_same_name_message(tax_env):
     s.close()
 
 
+# ── бюджеты (БД) ────────────────────────────────────────────────────────────
+
+
+def test_set_budget_validation_and_clear(tax_env):
+    s = Store(db_path=tax_env.parent / "t.db")
+    repo.set_budget("other", "20000", s)
+    assert s.budget_map() == {"other": 20_000_00}
+    repo.set_budget("other", "12,5", s)          # запятая как разделитель
+    assert s.budget_map() == {"other": 1250}
+    repo.set_budget("other", "", s)              # пусто — снять
+    assert s.budget_map() == {}
+    repo.set_budget("other", "0", s)             # ноль — тоже снять
+    assert s.budget_map() == {}
+    with pytest.raises(repo.TaxonomyError):
+        repo.set_budget("нет-такой", "100", s)
+    with pytest.raises(repo.TaxonomyError):
+        repo.set_budget("other", "abc", s)
+    with pytest.raises(repo.TaxonomyError):
+        repo.set_budget("other", "-5", s)
+    s.close()
+
+
+def test_set_budget_excluded_category(tax_env):
+    tax_env.write_text('[[categories]]\nname = "income"\ncolor = "#00ff00"\n', encoding="utf-8")
+    s = Store(db_path=tax_env.parent / "t.db")
+    with pytest.raises(repo.TaxonomyError, match="не бюджетируется"):
+        repo.set_budget("income", "1000", s)
+    s.close()
+
+
+def test_delete_category_removes_budget(tax_env):
+    tax_env.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n', encoding="utf-8")
+    s = Store(db_path=tax_env.parent / "t.db")
+    repo.set_budget("other", "20000", s)
+    repo.delete_category("other", s, repo.file_hash())
+    assert s.budget_map() == {}
+    s.close()
+
+
+def test_settings_budgets_api_and_page(tax_env):
+    client = TestClient(app)
+    html = client.get("/settings").text
+    assert "Бюджеты" in html and 'id="settings-budgets"' in html
+
+    r = client.post("/settings/budgets", data={"category": "other", "amount": "20000"})
+    assert r.status_code == 200 and 'id="settings-budgets"' in r.text
+    s = Store(db_path=tax_env.parent / "t.db")
+    assert s.budget_map() == {"other": 20_000_00}
+    s.close()
+
+    r2 = client.post("/settings/budgets", data={"category": "other", "amount": ""})
+    assert r2.status_code == 200
+    s2 = Store(db_path=tax_env.parent / "t.db")
+    assert s2.budget_map() == {}
+    s2.close()
+
+    r3 = client.post("/settings/budgets", data={"category": "other", "amount": "abc"})
+    assert "числом" in r3.text
+
+
 def test_tester_winner_and_cache(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     res = repo.test_description("ЛЕНТА 123", s)
@@ -187,6 +249,7 @@ def test_rename_api_preview_and_execute(tax_env):
     r = client.post("/settings/categories/rename/preview",
                     data={"name": "other", "new_name": "general", "file_hash": repo.file_hash()})
     assert r.status_code == 200 and "Подтвердить" in r.text and "транзакций 1" in r.text
+    assert "бюджет: 0" in r.text  # у категории бюджета нет (счётчик в preview)
 
     r2 = client.post("/settings/categories/rename",
                      data={"name": "other", "new_name": "general", "file_hash": repo.file_hash()})

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from html import escape
 
 from fastapi import APIRouter, HTTPException, Request
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from spendtrack.categorize import categorize_transaction
 from spendtrack.config import ROOT
 from spendtrack.csv_import import import_csv
+from spendtrack.reports import budgets_progress
 from spendtrack.store import Store, fmt_amount, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
@@ -72,6 +74,19 @@ async def create(request: Request):
             msg = f"Добавлено: {tx.description} → <b>{label}</b>"
         return HTMLResponse(f'<p class="text-blue-400">{msg}</p>')
     return {"id": tx_id, **category}
+
+
+@router.get("/budgets")
+def budgets(month: str | None = None):
+    """Прогресс по бюджетам за месяц (по умолчанию — месяц последней транзакции)."""
+    store = _store()
+    taxonomy = load_taxonomy()
+    if not month:
+        row = store.conn.execute("SELECT MAX(date) m FROM transactions").fetchone()
+        month = (row["m"] or datetime.now(UTC).strftime("%Y-%m-%d"))[:7]
+    items = budgets_progress(store, month, known={c.name for c in taxonomy.categories})
+    store.close()
+    return {"month": month, "items": items}
 
 
 @router.get("/pending-count")

@@ -100,13 +100,19 @@ CREATE TABLE IF NOT EXISTS merchant_cache(
   updated TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS budgets(
+  category        TEXT PRIMARY KEY,            -- имя категории таксономии
+  amount_kopecks  INTEGER NOT NULL CHECK(amount_kopecks > 0),
+  updated         TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);
 CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);
 """
 
 
-SCHEMA_VERSION = 3  # текущая версия схемы (см. Store._migrate)
+SCHEMA_VERSION = 4  # текущая версия схемы (см. Store._migrate)
 
 
 class Store:
@@ -136,7 +142,7 @@ class Store:
         self.conn.execute(f"PRAGMA user_version = {int(version)}")
 
     def _migrate(self) -> None:
-        """Версии: 1 — базовая схема; 2 — Work 3 (category_llm/review_status + бэкфилл); 3 — statement_order."""
+        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets."""
         if self._user_version() < 1:
             self._mark_migration(1)
         if self._user_version() < 2:
@@ -158,6 +164,8 @@ class Store:
             if "statement_order" not in cols:
                 self.conn.execute("ALTER TABLE transactions ADD COLUMN statement_order INTEGER")
             self._mark_migration(3)
+        if self._user_version() < 4:
+            self._mark_migration(4)  # таблица budgets создана в SCHEMA (аддитивно)
 
     def close(self) -> None:
         self.conn.close()
@@ -377,6 +385,26 @@ class Store:
     def list_examples(self, limit: int = 8) -> list[dict]:
         rows = self.conn.execute("SELECT * FROM examples ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(r) for r in rows]
+
+    # ---- бюджеты по категориям ----
+    def set_budget(self, category: str, amount_kopecks: int) -> None:
+        if amount_kopecks <= 0:
+            raise ValueError("бюджет должен быть больше нуля")
+        self.conn.execute(
+            "INSERT INTO budgets(category, amount_kopecks, updated) VALUES(?,?,?)"
+            " ON CONFLICT(category) DO UPDATE SET amount_kopecks=excluded.amount_kopecks,"
+            " updated=excluded.updated",
+            (category, int(amount_kopecks), _now_iso()),
+        )
+        self.conn.commit()
+
+    def clear_budget(self, category: str) -> None:
+        self.conn.execute("DELETE FROM budgets WHERE category=?", (category,))
+        self.conn.commit()
+
+    def budget_map(self) -> dict[str, int]:
+        rows = self.conn.execute("SELECT category, amount_kopecks FROM budgets").fetchall()
+        return {r["category"]: r["amount_kopecks"] for r in rows}
 
     # ---- import batches ----
     def add_batch(self, filename: str, sha: str, nrows: int) -> str:

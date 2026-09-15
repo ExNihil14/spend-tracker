@@ -81,6 +81,29 @@ def test_category_rename_migrates_transactions(page: Page, live_server, db_path)
     assert migrated == "general"
 
 
+def test_budget_set_and_dashboard_bar(page: Page, live_server, db_path):
+    """Бюджет задаётся в /settings и показывается баром на /dashboard."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute(
+        "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+        " confidence, created, updated)"
+        " VALUES('2026-09-10', 'E2E БЮДЖЕТ', -150000, 'groceries', 'rule', 1.0,"
+        " datetime('now'), datetime('now'))")
+    conn.commit()
+    conn.close()
+
+    page.goto(f"{live_server}/settings")
+    form = page.locator('form[hx-post="/settings/budgets"]:has(input[value="groceries"])')
+    form.locator('input[name="amount"]').fill("2000")
+    form.locator('button[type="submit"]').click()
+    _wait_single(page, "#settings-budgets")
+
+    page.goto(f"{live_server}/dashboard")
+    expect(page.locator("body")).to_contain_text("Бюджеты месяца")
+    expect(page.locator("body")).to_contain_text("1500.00 / 2000.00 ₽")
+    expect(page.locator("body")).to_contain_text("75%")
+
+
 def test_rule_dead_badge_and_preview(page: Page, live_server):
     """Ниже широкого правила узкое становится «мёртвым»; предпросмотр ловит дубль."""
     page.goto(f"{live_server}/settings")

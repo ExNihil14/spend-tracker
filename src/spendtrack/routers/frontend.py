@@ -7,7 +7,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from spendtrack.config import ROOT
-from spendtrack.reports import categories_with_totals, report_daily, report_month
+from spendtrack.reports import (
+    budgets_progress,
+    categories_with_totals,
+    report_daily,
+    report_month,
+)
 from spendtrack.store import Store, fmt_amount
 from spendtrack.taxonomy import load_taxonomy
 
@@ -91,11 +96,13 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
     daily = report_daily(store, current)
     cats = {c.name: c.color for c in taxonomy.categories}
     colors = [cats.get(c["category"], "#9ca3af") for c in report["categories"]]
+    budgets = budgets_progress(store, current, known=set(cats))
     return templates.TemplateResponse(
         request, "dashboard.html",
         {
             "report": report,
             "daily": daily,
+            "budgets": budgets,
             "current": current,
             "pending": store.queued_for_review(),
             "fmt": fmt_amount,
