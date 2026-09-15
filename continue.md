@@ -14,10 +14,12 @@
 - ✅ **README под практики 2026 + фиксы** (`2872bae`, `c58dcf0`, `6d01458`, запушены): структура-«шлюз», 3 скриншота
   `assets/`, `.env` теперь читается (`env_file` в `config.py` + `tests/test_config.py`), бейдж «Подтвердить» на
   `/settings` (был 0), `LICENSE` (MIT). Ресёрч-дайджест: `D:\dev\docs\machine\README_BEST_PRACTICES_2026.md`.
-- ⏳ **Codespaces-стенд настроен (`1e0974a`, ждёт push):** `.devcontainer/devcontainer.json` (Python 3.13 + uv, `uv sync`,
-  авто-uvicorn на 8766, приватный порт) + бейдж/секция в README. Ресёрч вариантов: `D:\dev\docs\machine\RESEARCH_HOSTING_SPENDTRACKER.md`
-  (① Codespaces — выбран; ② Render/Tailscale — компромиссы). Следующий шаг — за юзером: push → создать codespace по
-  `codespaces.new/ExNihil14/spend-tracker`.
+- ✅ **Codespaces-стенд работает** (запущен юзером, записи через `review_demo.py seed` / импорт синтетики). Фикс авто-старта
+  `1c684e4` (start-app.sh + postAttach; требует Rebuild Container). Ресёрч: `D:\dev\docs\machine\RESEARCH_HOSTING_SPENDTRACKER.md`
+  (① Codespaces; ② Render/Tailscale — компромиссы).
+- ✅ **UI-пикеры** (`efe7cc7`): `cursor:pointer` + тёмная схема popup (`color-scheme: dark`), accent-color, индикатор
+  календаря; e2e расширен (cursor + colorScheme). Ресёрч date-picker: `D:\dev\docs\machine\RESEARCH_DATEPICKER_SPENDTRACKER.md`
+  (вердикт — нативный; кастом №1 Air Datepicker, №2 Vanilla Calendar Pro — если после смоука захочется).
 - ✅ **Anti-freeze фикс (15.09):** `D:\dev\bootstrap\scripts\start-detached.ps1` — запуск долгоживущих процессов
   через WMI (`Win32_Process.Create`) ВНЕ job-объекта bash-тула: лаунчер возвращается за 1с (Start-Process висел
   до таймаута 60-120с). Правило обновлено в глобальном `AGENTS.md` + `ANTI_FREEZE_RUNBOOK.md`; проверено dummy-процессом.
@@ -66,7 +68,7 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (15.09): 143 unit + 13 e2e зелёные, ruff чист; `main` = `1e0974a` (Codespaces-стенд), впереди origin на 1 коммит — push за юзером. Далее: создать codespace и проверить стенд.** Ниже — исторические снимки; цифры в них не актуальны.
+> **АКТУАЛЬНО (15.09): 143 unit + 14 e2e зелёные, ruff чист; `main` = `efe7cc7` (Codespaces-фикс + UI-пикеры), впереди origin на 2 коммита — push за юзером. Далее: push → Rebuild Container в кодеспейсе (применит авто-старт), затем калибровка 0.9 / бюджеты.** Ниже — исторические снимки; цифры в них не актуальны.
 > **✅ ФАЗА 2 /settings — ПРАВИЛА В UI (15.09):** `POST /settings/rules` (add в конец), `/delete`, `/move` (up/down swap),
 > `/preview` (live-превью дублей/перекрытия, debounce 400мс). Вся запись через общий `save()` — атомарно + `.bak` + аудит
 > (`add_rule|delete_rule|move_rule`) + конфликт-хэш. Диагностика `analyze_rules`: мёртвые = нет категории / дубль /
