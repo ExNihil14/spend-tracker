@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/ExNihil14/spend-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/ExNihil14/spend-tracker/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ExNihil14/spend-tracker)
 
 Трекер личных расходов с LLM-категоризацией: детерминированное ядро (правила) закрывает большую часть транзакций,
 LLM подключается только для остатка, спорное уходит в очередь ручного подтверждения. FastAPI + SQLite + htmx,
@@ -40,6 +41,19 @@ uv run uvicorn spendtrack.main:app --host 127.0.0.1 --port 8766
 ```
 
 Приложение: <http://127.0.0.1:8766> — БД создастся сама в `data/spend.db`.
+
+## Тестирование в GitHub Codespaces
+
+Прямая ссылка: [создать codespace](https://codespaces.new/ExNihil14/spend-tracker) (квота GitHub Free: 120 core-часов/мес).
+Контейнер сам ставит `uv`, зависимости и запускает приложение на порту 8766; порт **приватный** — доступен только
+после входа в GitHub (в приложении нет своей авторизации). Данные — **только синтетические**:
+
+```bash
+uv run python scripts/review_demo.py seed   # демо-строки для проверки очереди /approve
+```
+
+Открыть приложение: вкладка **PORTS** → порт 8766 → значок «Open in Browser».
+Логи: `tail -f /tmp/spendtrack.log`. Кнопка e2e-тестов в облаке (опционально): `uv run playwright install --with-deps chromium`.
 
 ## Использование
 
