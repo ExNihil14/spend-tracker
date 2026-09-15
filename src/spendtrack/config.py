@@ -28,7 +28,7 @@ class AcceptanceSettings(BaseModel):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SPENDTRACK_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="SPENDTRACK_", env_file=".env", extra="ignore")
 
     port: int = 8766
     llm: LLMSettings
