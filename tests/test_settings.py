@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -427,6 +428,17 @@ def test_categories_fragment_owns_wrapper(tax_env):
     r = client.post("/settings/categories",
                     data={"name": "cafe", "color": "#112233", "file_hash": repo.file_hash()})
     assert 'id="settings-categories"' in r.text
+
+
+def test_settings_page_pending_badge(tax_env):
+    s = Store(db_path=tax_env.parent / "t.db")
+    s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                      category="other", category_source="llm_pending_review",
+                      category_llm="groceries", review_status="pending")
+    s.close()
+    client = TestClient(app)
+    html = client.get("/settings").text
+    assert re.search(r'id="pending-count"[^>]*>\s*1\s*<', html)
 
 
 def test_tester_endpoint_marks_invalid_rule(tax_env):
