@@ -24,8 +24,10 @@ uv run spendtrack doctor [--json]                # целостность дан
   пустые import_batches (info) · бэкап `data/backup/spend-*.db` (папки нет → info, >48ч → warn, quick_check → critical).
   Битая БД не роняет прогон: упавший чек становится critical (`db_open`/`не удалось выполнить проверку`).
 - Авторемонта нет (read-only; Store на входе до-мигрирует старую схему — это норма).
-- Известное (16.09): задача `spendtrack-backup` не срабатывает (0x800710E0; Interactive + заряд батареи + StartWhenAvailable=False) —
-  чинить отдельно; doctor видит старый бэкап и даёт warn.
+- История (16.09): doctor нашёл, что задача `spendtrack-backup` не срабатывает (0x800710E0: Principal Interactive +
+  `DisallowStartIfOnBatteries=True` + `StartWhenAvailable=False`). Починено: догон пропусков включён, запуск на батарее
+  разрешён, `ExecutionTimeLimit=PT1H`; прогон задачи → `LastTaskResult=0`, свежий бэкап, doctor = ok.
+  Остаётся осознанно: `LogonType=Interactive` (при пропуске 03:00 задача догоняется при следующем входе в систему).
 
 ## Тесты / анализ
 ```bash
