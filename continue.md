@@ -12,7 +12,7 @@
   очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`), /settings Фазы 1-3 (категории `c9c42c4`,
   правила `973d280`, переименование `2e12d6c`), README/фиксы (`6d01458`), Codespaces (`1c684e4`), пикеры (`efe7cc7`),
   калибровка (`7f2ed66`), бюджеты (`73cc5fa`), фикс дашборда (`3076473`), CI e2e-джоб (`e5b13ac`).
-  **161 unit + 16 e2e зелёные.**
+  **185 unit + 16 e2e зелёные** (doctor +22; см. «АКТУАЛЬНО»).
 - ✅ **README под практики 2026 + фиксы** (`2872bae`, `c58dcf0`, `6d01458`, запушены): структура-«шлюз», 3 скриншота
   `assets/`, `.env` теперь читается (`env_file` в `config.py` + `tests/test_config.py`), бейдж «Подтвердить» на
   `/settings` (был 0), `LICENSE` (MIT). Ресёрч-дайджест: `D:\dev\docs\machine\README_BEST_PRACTICES_2026.md`.
@@ -76,7 +76,7 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (16.09, день): 163 unit + 16 e2e зелёные, ruff чист; `main` впереди origin на 2 (few-shot-фикс `approve-all` [ревью `EXPERT_REVIEW_APPROVEALL_OR.md`] + docs — push за юзером). WIP: QA-хвост очереди закрыт — сортировка внутри дня `ABS(amount) DESC` («крупные сверху», решение юзера 16.09), статусы замечаний #4/#5/#6 в `spec/QA_APPROVE_SMOKE.md`, тест `test_pending_sorted_by_date_then_amount_abs` (с tie-break: смешанные знаки и равные модули; ревью OpenRouter GO — `EXPERT_REVIEW_SORT_OR.md`, P0-устаревшие места в QA-доке исправлены) — ждёт команды на коммит. После пуша: `nssm restart spendtrack` (изменение Python — сортировка очереди). Сделано за день: визуальный smoke дашборда (фикс `3076473`) и **`/settings` smoke пройден юзером (все чеки)**, прод перезапущен (v4), CI e2e-джоб. Реальная выписка Сбера — закрыто: невозможна, контур синтетический (`TEST_DATA_STRATEGY.md`). Осталось: калибровка 0.9 при ≥20 решённых (сейчас 2), FinOps/виртуализация — по триггеру.** Ниже — исторические снимки; цифры в них не актуальны.
+> **АКТУАЛЬНО (16.09, вечер): 185 unit + 16 e2e зелёные, ruff чист; `main = 338ecf8` (origin синхрон; push за юзером был). НЕ закоммичен deliverable «doctor»: `src/spendtrack/doctor.py` + `tests/test_doctor.py` (22 теста), правки `cli.py`/`main.py` (`GET /health/data`), доки PIPELINE/CONTEXT (4 M + 2 ??). Ревью OpenRouter (`EXPERT_REVIEW_DOCTOR_OR.md`, $0, 337с): **GO с правками** — приняты `OR category IS NULL` для budgets (SQLite-квирк TEXT PRIMARY KEY; факт-проверено), detail quick_check (все строки ошибок), +5 тестов (db_open/taxonomy_config/precedence/NULL-budget/путь с пробелом); P0 про NULL в NOT NULL-колонках отклонены фактами (IntegrityError), кэш `/health/data` — YAGNI. Doctor: 9 проверок (quick_check/fingerprint_dupes/user_version/categories_invalid — critical; category_llm_invalid/refs_invalid/pending_source — warn; empty_batches — info; backup — info/warn/critical), CLI `uv run spendtrack doctor [--json]` (exit 1 только critical), API `GET /health/data` (503 при critical; `/health` не тронут). Живые смоуки: CLI на прод-БД (WARN только backup), dev-uvicorn `/health/data` 200 UTF-8 (остановлен). **Doctor нашёл реальную проблему: задача `spendtrack-backup` не срабатывает** (LastTaskResult 0x800710E0; Principal Interactive, DisallowStartIfOnBatteries=True, StartWhenAvailable=False) — ручной прогон `scripts/backup.py` работает (свежий `spend-20260916-131746.db`); фикс самой задачи — отдельная сессия/решение юзера (см. `spec/PIPELINE.md` §Doctor). После коммита+пуша: `nssm restart spendtrack` (Python-код; `/health/data` появится только после рестарта). Следующий deliverable: детекция рекуррингов/подписок (волна 1 п.2).** Ниже — исторические снимки; цифры в них не актуальны.
 > **✅ ФАЗА 2 /settings — ПРАВИЛА В UI (15.09):** `POST /settings/rules` (add в конец), `/delete`, `/move` (up/down swap),
 > `/preview` (live-превью дублей/перекрытия, debounce 400мс). Вся запись через общий `save()` — атомарно + `.bak` + аудит
 > (`add_rule|delete_rule|move_rule`) + конфликт-хэш. Диагностика `analyze_rules`: мёртвые = нет категории / дубль /
@@ -137,9 +137,10 @@
    DoD выполнен; property-тесты `parse_amount` добавлены 16.09); ③ ✅ smoke `/settings` пройден юзером (все чеки);
    ④ калибровка порога 0.9 — при решённых ≥20 (сейчас 2/20); ⑤ FinOps §11 / виртуализация — по триггеру;
    ⑥ ✅ CI e2e-джоб (`e5b13ac`); few-shot-фикс `approve-all` и сортировка очереди запушены (`35064ba`, `ce85a32`).
-   ⑦ **Следующая итерация (решение юзера 16.09): волна 1** — 1-й deliverable: **`doctor`/health целостности данных**
-   (CLI + `GET /health/data`; дизайн-скетч — `D:\dev\docs\machine\BRAINSTORM_SPENDTRACKER_NEXT.md`, раздел «Волна 1, шаг 1»);
-   затем recurring-детекция и `suggest-rules`. Брейншторм-синтез: тот же файл.
+   ⑦ **Волна 1 (решение юзера 16.09):** ① ✅ **`doctor`/health целостности данных** — CLI + `GET /health/data`,
+   9 проверок, тесты `tests/test_doctor.py`; НЕ закоммичен (ждёт команды; дизайн — `D:\dev\docs\machine\BRAINSTORM_SPENDTRACKER_NEXT.md`,
+   «Волна 1, шаг 1», уточнения `EXPERT_REVIEW_EXTRA_OR.md`); ② следующее — **детекция рекуррингов/подписок** (М),
+   затем `suggest-rules` из corrections (М). Брейншторм-синтез: тот же файл.
 
 ## Мета
 - Возврат к работе: просто прочитай эти файлы: AGENTS.md (команды), CONTEXT.md (словарь),

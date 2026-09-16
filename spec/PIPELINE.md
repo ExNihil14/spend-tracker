@@ -11,11 +11,25 @@ uv run spendtrack report --month 2026-09         # отчёт за месяц
 uv run spendtrack count                          # счётчики
 uv run spendtrack budget --month 2026-09         # прогресс по бюджетам категорий
 uv run spendtrack confidence                     # калибровка порога авто-приёма LLM
+uv run spendtrack doctor [--json]                # целостность данных (exit 1 только на critical)
 ```
+
+## Doctor (целостность данных)
+- CLI `spendtrack doctor` — таблица чеков; `--json` — машинный JSON; exit 0 = ok/warn, 1 = critical.
+- API `GET /health/data` → `{status, checks:[{id, severity, count, detail}]}`; 503 при critical.
+  `GET /health` (liveness) — отдельный эндпоинт, не трогать.
+- Проверки: quick_check (critical) · дубли fingerprint (critical) · `user_version==SCHEMA_VERSION` (critical) ·
+  категории вне таксономии (`transactions.category` critical; `category_llm` warn только при
+  `source != 'llm_pending_review'`; rules/budgets/merchant_cache/examples warn) · pending с чужим source (warn) ·
+  пустые import_batches (info) · бэкап `data/backup/spend-*.db` (папки нет → info, >48ч → warn, quick_check → critical).
+  Битая БД не роняет прогон: упавший чек становится critical (`db_open`/`не удалось выполнить проверку`).
+- Авторемонта нет (read-only; Store на входе до-мигрирует старую схему — это норма).
+- Известное (16.09): задача `spendtrack-backup` не срабатывает (0x800710E0; Interactive + заряд батареи + StartWhenAvailable=False) —
+  чинить отдельно; doctor видит старый бэкап и даёт warn.
 
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 79 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
+uv run pytest -q                # 180 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):
