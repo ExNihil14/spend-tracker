@@ -55,6 +55,9 @@ uv run python scripts/review_demo.py seed   # демо-строки для пр�
 Открыть приложение: вкладка **PORTS** → порт 8766 → значок «Open in Browser».
 Сервер стартует автоматически при подключении к codespace (`.devcontainer/start-app.sh`); если не поднялся —
 `bash .devcontainer/start-app.sh`, состояние в `tail -f /tmp/spendtrack.log`.
+Если после обновления кода страница отдаёт 500, а код уже новый — работает старый процесс
+(шаблоны Jinja горячие, Python — нет): `pkill -f "uvicorn spendtrack" && bash .devcontainer/start-app.sh`
+(или Codespaces: Stop/Start). Дальше сервер сам подхватывает изменения (`--reload`).
 Кнопка e2e-тестов в облаке (опционально): `uv run playwright install --with-deps chromium`.
 
 ## Использование
