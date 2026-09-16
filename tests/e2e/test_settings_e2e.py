@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from urllib.parse import parse_qs
 
 import pytest
 from playwright.sync_api import Page, expect
@@ -9,6 +10,23 @@ pytestmark = pytest.mark.e2e
 
 BROAD = "E2E ПАТТЕРН"
 NARROW = "E2E ПАТТЕРН 24"
+PATTERN_INPUT = '#settings-rules input[name="pattern"]'
+
+
+def _preview(page: Page, pattern: str) -> str:
+    """Дождаться превью ИМЕННО для `pattern` (по телу запроса) и вернуть HTML ответа.
+
+    Слепой `fill` + `to_contain_text` был гонкой (флейк CI 16.09): дебаунсенные запросы
+    прошлых действий и пустой ответ «паттерн <2 символов» могли переписать #rule-preview
+    позже нашего, и тест ждал текст, которого в итоге нет.
+    """
+    page.fill(PATTERN_INPUT, "")  # сброс: гарантируем changed-событие
+    with page.expect_response(
+        lambda r: "/settings/rules/preview" in r.url
+        and parse_qs(r.request.post_data or "").get("pattern") == [pattern]
+    ) as response:
+        page.fill(PATTERN_INPUT, pattern)
+    return response.value.text()
 
 
 def _wait_single(page: Page, selector: str, timeout: int = 15_000) -> None:
@@ -113,5 +131,6 @@ def test_rule_dead_badge_and_preview(page: Page, live_server):
     expect(page.locator(f'tr[data-pattern="{NARROW}"]')).to_contain_text("мёртвое")
     expect(page.locator("#settings-rules")).to_contain_text("Мёртвых правил")
 
-    page.fill('#settings-rules input[name="pattern"]', BROAD)
+    body = _preview(page, BROAD)
+    assert "дубль" in body, body
     expect(page.locator("#rule-preview")).to_contain_text("дубль", timeout=10_000)
