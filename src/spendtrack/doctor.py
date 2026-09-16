@@ -144,7 +144,7 @@ def check_empty_batches(conn: sqlite3.Connection) -> dict:
 # ---- 7. бэкапы (scripts/backup.py → data/backup/spend-*.db) ----
 def check_backup(db_path: Path) -> dict:
     backup_dir = db_path.parent / "backup"
-    files = sorted(backup_dir.glob("spend-*.db"), key=lambda p: p.stat().st_mtime)
+    files = sorted(backup_dir.glob("spend-*.db"), key=lambda p: (p.stat().st_mtime, p.name))
     if not files:
         return _check("backup", INFO, 0, f"бэкапов нет ({backup_dir})")
     newest = files[-1]
@@ -161,10 +161,14 @@ def check_backup(db_path: Path) -> dict:
 
 
 def _snapshot_quick_check(path: Path) -> str | None:
+    """quick_check снимка + «снимок не пустой»: файл 0 байт прошёл бы quick_check как пустая БД."""
     con: sqlite3.Connection | None = None
     try:
         con = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
         rows = con.execute("PRAGMA quick_check").fetchall()
+        has_tx = con.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='transactions'"
+        ).fetchone()[0]
     except sqlite3.Error as e:
         return str(e)[:200]
     finally:
@@ -173,14 +177,19 @@ def _snapshot_quick_check(path: Path) -> str | None:
     problems = [str(r[0]) for r in rows if str(r[0]) != "ok"]
     if problems:
         return problems[0].splitlines()[0].strip()[:200]
+    if not has_tx:
+        return "в снимке нет таблицы transactions"
     return None
 
 
 def _guarded(check_id: str, fn) -> dict:
-    """Битая БД не должна ронять весь doctor — неудачный чек становится critical."""
+    """Битая БД/нет доступа к файлам — не должны ронять весь doctor: чек становится critical.
+
+    OSError ловим наравне с sqlite3.Error: чтение бэкапов (glob/stat) — файловая система.
+    """
     try:
         return fn()
-    except sqlite3.Error as e:
+    except (sqlite3.Error, OSError) as e:
         return _check(check_id, CRITICAL, 1, f"не удалось выполнить проверку: {e}")
 
 
