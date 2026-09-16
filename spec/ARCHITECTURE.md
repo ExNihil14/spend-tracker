@@ -17,6 +17,7 @@
 - `categorize.py` — конвейер категоризации (rule→llm→validation→queue), `classify_with_injectable`.
 - `csv_import.py` — импорт CSV по банкам (BANKS-адаптеры), fingerprint-дедуп.
 - `reports.py` — агрегаты по периодам/категориям.
+- `recurring.py` — детекция рекуррингов/подписок (read-only эвристика; критерии — `spec/PIPELINE.md`).
 - `llm.py` + `prompts.py` — инжектируемый LLM-слой и промпт-контракты (JSON-выхлоп).
 - `routers/api.py` — JSON API; `routers/frontend.py` — htmx-страницы.
 - `cli.py` — CLI add/report/import/count.
@@ -36,6 +37,8 @@
 - Лог бакетов confidence для калибровки порога.
 - Бюджеты: `budgets` (SQLite, не TOML), одна месячная константа без rollover; расход = знаковая сумма месяца
   (возвраты уменьшают); `income`/`transfers` исключены (`BUDGET_EXCLUDED`); rename/delete категории мигрируют бюджет.
+- Рекурринги: read-only, вычисляются на лету (без таблиц/состояния); критерии и границы — `spec/PIPELINE.md`;
+  «цена» — медиана кластера сумм (±5%), не последний платёж.
 - Запуск: `uv run uvicorn spendtrack.main:app --port 8766` (или run.ps1).
 
 ## План (из MASTER_PLAN.md, Фаза A/B)

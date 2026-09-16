@@ -12,6 +12,7 @@ uv run spendtrack count                          # счётчики
 uv run spendtrack budget --month 2026-09         # прогресс по бюджетам категорий
 uv run spendtrack confidence                     # калибровка порога авто-приёма LLM
 uv run spendtrack doctor [--json]                # целостность данных (exit 1 только на critical)
+uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
 ```
 
 ## Doctor (целостность данных)
@@ -28,6 +29,14 @@ uv run spendtrack doctor [--json]                # целостность дан
   `DisallowStartIfOnBatteries=True` + `StartWhenAvailable=False`). Починено: догон пропусков включён, запуск на батарее
   разрешён, `ExecutionTimeLimit=PT1H`; прогон задачи → `LastTaskResult=0`, свежий бэкап, doctor = ok.
   Остаётся осознанно: `LogonType=Interactive` (при пропуске 03:00 задача догоняется при следующем входе в систему).
+
+## Рекурринги/подписки (read-only)
+- CLI `spendtrack recurring [--json]` + карточка «Подписки / рекурринги» на `/dashboard` (вся история).
+- Критерий: ≥3 расхода мерчанта, суммы в ±5% медианы кластера (жадная кластеризация; «цена» = медиана),
+  интервалы 27–34 дн (медиана 28–31), допускается 1 пропуск месяца (разрыв 56–62 дн); переводы не участвуют.
+- `active` — последнее списание ≤40 дн от сегодня; месячный итог считает только активные.
+- Ничего не хранится (вычисление на лету), авто-действий нет; JSON-ключ `subscriptions` (не `items` — Jinja).
+- Тесты: `tests/test_recurring.py` (17 unit, оффлайн) + e2e карточки `test_dashboard_recurring_card`.
 
 ## Тесты / анализ
 ```bash
