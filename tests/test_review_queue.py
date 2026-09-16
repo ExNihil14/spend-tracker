@@ -53,10 +53,26 @@ def test_migration_backfills_old_pending(tmp_path):
     post.close()
 
 
-def test_pending_sorted_by_date_asc_amount_desc(pending_store):
-    q = pending_store.queued_for_review()
-    assert [r["description"] for r in q] == ["АЗС XYZ", "КАФЕ А"]
-    assert [r["review_status"] for r in q] == ["pending", "pending"]
+def test_pending_sorted_by_date_then_amount_abs(tmp_path):
+    """Очередь: date ASC; внутри дня — ABS(amount) DESC («крупные сверху», решение 16.09)."""
+    s = Store(db_path=tmp_path / "sort.db")
+    for d, desc, kop in [
+        ("2026-09-01", "МЕЛКИЙ ДЕНЬ1", -100),    # ABS=100 — в конец дня
+        ("2026-09-01", "КРУПНЫЙ ДЕНЬ1", -9000),  # ABS=9000 — первый
+        ("2026-09-01", "ДОХОД ДЕНЬ1", 9000),     # тот же ABS, id выше → после КРУПНОГО
+        ("2026-09-01", "РАВНЫЙ АБС 1", -5000),
+        ("2026-09-01", "РАВНЫЙ АБС 2", -5000),   # равный ABS → tie-break id ASC
+        ("2026-09-02", "ДЕНЬ2", -500),
+    ]:
+        s.add_transaction(date=d, description=desc, amount_kopecks=kop, category="other",
+                          category_source="llm_pending_review", confidence=0.5,
+                          category_llm="food", review_status="pending")
+    q = s.queued_for_review()
+    assert [r["description"] for r in q] == [
+        "КРУПНЫЙ ДЕНЬ1", "ДОХОД ДЕНЬ1", "РАВНЫЙ АБС 1", "РАВНЫЙ АБС 2", "МЕЛКИЙ ДЕНЬ1", "ДЕНЬ2",
+    ]
+    assert [r["review_status"] for r in q] == ["pending"] * 6
+    s.close()
 
 
 def test_pending_count_excludes_approved(pending_store):
