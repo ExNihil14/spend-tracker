@@ -9,8 +9,9 @@
 - Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
 - IDE: VS Code 1.137 + 13 расширений (Ruff, Pylance, официальный FastAPI, Playwright, Jinja2, htmx-toolkit, SQLite viewer, TOML, GitLens, Tailwind, EditorConfig, dotenv, Error Lens). Настройки в `.vscode/` (в репо): Ruff-форматтер Python, Pylance `standard`, pytest Test Explorer.
 - Готово: Фаза B, импорт банка (Work 2, `422a56f`), circuit breaker+E2E (`833c48c`),
-  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`), /settings Фазы 1-2 (категории/тестер `c9c42c4`,
-  правила `973d280`). **143 unit + 13 e2e зелёные.**
+  очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`), /settings Фазы 1-3 (категории `c9c42c4`,
+  правила `973d280`, переименование `2e12d6c`), README/фиксы (`6d01458`), Codespaces (`1c684e4`), пикеры (`efe7cc7`),
+  калибровка (`7f2ed66`), **бюджеты по категориям (`73cc5fa`)**. **156 unit + 15 e2e зелёные.**
 - ✅ **README под практики 2026 + фиксы** (`2872bae`, `c58dcf0`, `6d01458`, запушены): структура-«шлюз», 3 скриншота
   `assets/`, `.env` теперь читается (`env_file` в `config.py` + `tests/test_config.py`), бейдж «Подтвердить» на
   `/settings` (был 0), `LICENSE` (MIT). Ресёрч-дайджест: `D:\dev\docs\machine\README_BEST_PRACTICES_2026.md`.
@@ -20,12 +21,12 @@
 - ✅ **UI-пикеры** (`efe7cc7`): `cursor:pointer` + тёмная схема popup (`color-scheme: dark`), accent-color, индикатор
   календаря; e2e расширен (cursor + colorScheme). Ресёрч date-picker: `D:\dev\docs\machine\RESEARCH_DATEPICKER_SPENDTRACKER.md`
   (вердикт — нативный; кастом №1 Air Datepicker, №2 Vanilla Calendar Pro — если после смоука захочется).
-- ⏳ **WIP: бюджеты по категориям** (дизайн `EXPERT_BUDGETS_DESIGN.md`): миграция v4 `budgets`, редактор в `/settings`,
-  бары «Бюджеты месяца» на `/dashboard`, `GET /api/budgets`, CLI `spendtrack budget`; rename/delete мигрируют бюджет.
-  Отклонено (по дизайну): rollover, месячные переопределения, уведомления. **Ревью OpenRouter (nemotron-3-ultra-550b:free, $0):
-  GO с правками — принят клэмп `max(0, spent)` для pct/remaining/over, hardening очистки бюджета при delete, граничные
-  тесты; P0/P1 частично отклонены фактами** (таблица создаётся до `_migrate`; Store-валидация — слой repo; порядок
-  save→clear безопаснее). Артефакт: `D:\dev\docs\machine\EXPERT_REVIEW_BUDGETS_OR.md`. Тесты: 156 unit + 15 e2e. Ждёт коммита.
+- ✅ **Бюджеты по категориям** (`73cc5fa`, запушено; дизайн `EXPERT_BUDGETS_DESIGN.md`): миграция v4 `budgets`,
+  редактор в `/settings`, бары «Бюджеты месяца» на `/dashboard`, `GET /api/budgets`, CLI `spendtrack budget`;
+  rename/delete мигрируют бюджет. Отклонено: rollover, месячные переопределения, уведомления.
+  **Ревью OpenRouter (nemotron-3-ultra-550b:free, $0): GO — приняты клэмп `max(0, spent)`, hardening clear_budget,
+  граничные тесты; часть P0/P1 отклонена фактами** (`EXPERT_REVIEW_BUDGETS_OR.md`).
+  **Прод-NSSM ещё на старом коде: перезапустить → применится v4.**
 - ✅ **Anti-freeze фикс (15.09):** `D:\dev\bootstrap\scripts\start-detached.ps1` — запуск долгоживущих процессов
   через WMI (`Win32_Process.Create`) ВНЕ job-объекта bash-тула: лаунчер возвращается за 1с (Start-Process висел
   до таймаута 60-120с). Правило обновлено в глобальном `AGENTS.md` + `ANTI_FREEZE_RUNBOOK.md`; проверено dummy-процессом.
@@ -74,7 +75,7 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (15.09): 156 unit + 15 e2e зелёные, ruff чист; `main = origin/main = 23ceeed`. WIP: бюджеты по категориям (ревью OpenRouter пройдено) — ждёт команды на коммит.** Ниже — исторические снимки; цифры в них не актуальны.
+> **АКТУАЛЬНО (16.09): 157 unit + 16 e2e зелёные, ruff чист; `main = origin/main = e934430`. WIP: фикс дашборда по визуальному смоуку (абсолютная навигация по месяцам, ось Y в рублях, канвас w-full/h-full — флейк 150/224 устранён; ревью OpenRouter GO — `EXPERT_REVIEW_DASHBOARD_OR.md`) — ждёт команды на коммит. Следующее: перезапуск прод-NSSM (v4), реальная выписка Сбера, smoke `/settings`, калибровка 0.9 при ≥20 решённых.** Ниже — исторические снимки; цифры в них не актуальны.
 > **✅ ФАЗА 2 /settings — ПРАВИЛА В UI (15.09):** `POST /settings/rules` (add в конец), `/delete`, `/move` (up/down swap),
 > `/preview` (live-превью дублей/перекрытия, debounce 400мс). Вся запись через общий `save()` — атомарно + `.bak` + аудит
 > (`add_rule|delete_rule|move_rule`) + конфликт-хэш. Диагностика `analyze_rules`: мёртвые = нет категории / дубль /
@@ -128,8 +129,11 @@
 6. ✅ Импорт банка (Work 2, `422a56f`) + circuit breaker/Playwright E2E (`833c48c`).
 7. ✅ Очередь подтверждения категоризации (Work 3, `0b746d6`) + e2e `/approve` (`511b630`).
    Единый фрагмент очереди `partials/review_rows.html`, все действия через `_rows_html`+OOB.
-8. ✅ Категории (`c9c42c4`), правила (Фаза 2, `973d280`), переименование категорий (Фаза 3, WIP) в UI.
-   Далее: визуальный smoke `/settings` в браузере юзера, калибровка порога 0.9, затем бюджеты (когда данные чистые).
+8. ✅ UI-блок закрыт: категории/правила/переименование (`c9c42c4`, `973d280`, `2e12d6c`) + бюджеты (`73cc5fa`).
+   Далее: ① перезапуск прод-NSSM (`nssm restart spendtrack`) — применит миграцию v4 + smoke бюджетов в проде;
+   ② **импорт реальной выписки Сбера** (temp-БД → фикстура → прод, канон `D:\data\finance\README.md`); ③ визуальный
+   smoke `/settings` в кодеспейсе (чек-лист выдан); ④ калибровка порога 0.9 при решённых ≥20; ⑤ FinOps §11 /
+   виртуализация — по триггеру.
 
 ## Мета
 - Возврат к работе: просто прочитай эти файлы: AGENTS.md (команды), CONTEXT.md (словарь),
