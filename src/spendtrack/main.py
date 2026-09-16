@@ -4,6 +4,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from spendtrack.config import ROOT, load_settings
@@ -66,6 +67,16 @@ def health():
     finally:
         if store is not None:
             store.close()
+
+
+@app.get("/health/data")
+def health_data():
+    """Целостность данных (doctor): JSON {status, checks[]}; 503 при critical."""
+    from spendtrack.doctor import run_checks
+
+    report = run_checks()
+    code = 503 if report["status"] == "critical" else 200
+    return JSONResponse(report, status_code=code)
 
 
 def main() -> None:

@@ -112,6 +112,19 @@ def cmd_budget(args) -> int:
     return 0
 
 
+def cmd_doctor(args) -> int:
+    from spendtrack.doctor import run_checks
+    report = run_checks()
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+    else:
+        print(f"doctor: {report['status'].upper()}")
+        for c in report["checks"]:
+            count = str(c["count"]) if c["count"] else "-"
+            print(f"  {c['severity'].upper():<8} {c['id']:<20} {count:>5}  {c['detail']}")
+    return 1 if report["status"] == "critical" else 0
+
+
 def cmd_confirm(args) -> int:
     store = make_store()
     ok = store.update_category(args.id, args.category, source="correction")
@@ -154,6 +167,10 @@ def main(argv: list[str] | None = None) -> int:
     a_bg = sub.add_parser("budget", help="прогресс по бюджетам категорий")
     a_bg.add_argument("--month", default=None)
     a_bg.set_defaults(fn=cmd_budget)
+
+    a_doc = sub.add_parser("doctor", help="проверка целостности данных")
+    a_doc.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    a_doc.set_defaults(fn=cmd_doctor)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):
