@@ -76,6 +76,17 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (16.09, ночь): рекурринги/подписки готовы и закоммичены `236525f` (волна 1 п.2; ждёт визуального смоука и push юзера).**
+> 209 unit + 17 e2e зелёные, ruff чист. Ядро `src/spendtrack/recurring.py` (read-only, вычисление на лету): кластеры сумм
+> ±5% бегущей медианы, ≥3 повторов, интервалы 27–34 дн (медиана 28–31), 1 пропуск месяца (56–62 дн), `active` ≤40 дн;
+> только расходы, без transfers; «цена» = медиана кластера (по всем списаниям), категория — самая частая; уникальные дни —
+> для интервалов и счётчика. Вывод: CLI `spendtrack recurring [--json]` + карточка «Подписки / рекурринги» на `/dashboard`
+> (по всей истории, активные в итог). Ревью ×2 OpenRouter :free ($0, nemotron ultra/super — `EXPERT_REVIEW_RECURRING_OR.md`):
+> **P0 отклонены фактами** (cat_colors/fmt есть в контексте), принята правка «цена по всем списаниям кластера» +регресс-тест.
+> Live: прод-БД = 0 находок (демо-масштаб — норма); смоук-стенд `http://127.0.0.1:8767/dashboard` (temp-БД, синтетика
+> 4 мес: 4 находки / 3 активные, месячный итог −652.00) — ждёт визуальной проверки юзером; прод NSSM рестартнут,
+> `/health/data` ok. Доки: PIPELINE/CONTEXT/ARCHITECTURE/AGENTS. Детали смоука: temp\opencode\recurring_smoke\.
+> Ниже — предыдущий статус (doctor) и исторические снимки.
 > **АКТУАЛЬНО (16.09, вечер): 191 unit + 16 e2e зелёные, ruff чист; doctor закоммичен и запушен** (`0ad83f2` + `a20dcc8` + `1bd36bf`; **origin/main синхронен**), **прод рестартнут — live `/health/data` = 200 `status: ok` (9/9 чеков ok, backup свежий)**. **Фикс CLI-кодировки `2e4c93a` (+ доки `60d9e16`) запушены — origin/main синхронен** (`fix(cli): UTF-8 stdout` — кириллица в Git Bash/пайпах + символ «≠» в warn-деталях не роняют печать; ревью `EXPERT_REVIEW_CLI_UTF8_OR.md`, GO с правками; 3 теста; **сервер не задет — cli сервером не импортируется, рестарт не требуется**). Состав коммитов: `src/spendtrack/doctor.py` + `tests/test_doctor.py` (25 тестов), правки `cli.py`/`main.py` (`GET /health/data`), доки PIPELINE/CONTEXT/continue.md. Ревью OpenRouter (`EXPERT_REVIEW_DOCTOR_OR.md`, $0, 337с): **GO с правками** — приняты `OR category IS NULL` для budgets (SQLite-квирк TEXT PRIMARY KEY; факт-проверено), detail quick_check (все строки ошибок), +5 тестов (db_open/taxonomy_config/precedence/NULL-budget/путь с пробелом); P0 про NULL в NOT NULL-колонках отклонены фактами (IntegrityError), кэш `/health/data` — YAGNI. Doctor: 9 проверок (quick_check/fingerprint_dupes/user_version/categories_invalid — critical; category_llm_invalid/refs_invalid/pending_source — warn; empty_batches — info; backup — info/warn/critical), CLI `uv run spendtrack doctor [--json]` (exit 1 только critical), API `GET /health/data` (503 при critical; `/health` не тронут). Живые смоуки: CLI на прод-БД (WARN только backup), dev-uvicorn `/health/data` 200 UTF-8 (остановлен). **Doctor нашёл и помог починить реальную проблему:** задача `spendtrack-backup` не срабатывала (LastTaskResult 0x800710E0; Principal Interactive + `DisallowStartIfOnBatteries=True` + `StartWhenAvailable=False`) — 16.09 17:58 включены догон пропусков, запуск на батарее, `ExecutionTimeLimit=PT1H` (XML-снимок до правки: `temp\spendtrack-backup.before.xml`); прогон задачи → `LastTaskResult=0` + свежий `spend-20260916-145810.db`, doctor = ok (см. `spec/PIPELINE.md` §Doctor). **Пуш и рестарт сделаны юзером 16.09 (вечер): origin/main = `1bd36bf`, live `/health/data` 200 `ok`.**
 **Второе ревью** (другая модель, `EXPERT_REVIEW_DOCTOR2_OR.md`, $0): GO с правками — приняты `_guarded` ловит и `OSError`,
 детерминированная сортировка бэкапов, +3 теста; попутно закрыт найденный нами пробел: **снимок 0 байт проходил
@@ -142,10 +153,11 @@ NULL в `rules.category` (NOT NULL). **Правки doctor.py после рев�
    DoD выполнен; property-тесты `parse_amount` добавлены 16.09); ③ ✅ smoke `/settings` пройден юзером (все чеки);
    ④ калибровка порога 0.9 — при решённых ≥20 (сейчас 2/20); ⑤ FinOps §11 / виртуализация — по триггеру;
    ⑥ ✅ CI e2e-джоб (`e5b13ac`); few-shot-фикс `approve-all` и сортировка очереди запушены (`35064ba`, `ce85a32`).
-   ⑦ **Волна 1 (решение юзера 16.09):** ① ✅ **`doctor`/health целостности данных** — CLI + `GET /health/data`,
-   9 проверок, тесты `tests/test_doctor.py`; НЕ закоммичен (ждёт команды; дизайн — `D:\dev\docs\machine\BRAINSTORM_SPENDTRACKER_NEXT.md`,
-   «Волна 1, шаг 1», уточнения `EXPERT_REVIEW_EXTRA_OR.md`); ② следующее — **детекция рекуррингов/подписок** (М),
-   затем `suggest-rules` из corrections (М). Брейншторм-синтез: тот же файл.
+   ⑦ **Волна 1 (решение юзера 16.09):** ① ✅ **`doctor`/health целостности данных** — закоммичен/запушен (`0ad83f2`+`a20dcc8`, ревью ×3,
+   `EXPERT_REVIEW_DOCTOR*.md`); ② ✅ **детекция рекуррингов/подписок** — `recurring.py` + CLI + карточка `/dashboard`, 18 unit
+   в `tests/test_recurring.py` + e2e; коммит `236525f` (ревью `EXPERT_REVIEW_RECURRING_OR.md`; ждёт визуального смоука и push);
+   ③ следующее — **`suggest-rules` из corrections** (М, data-gated), затем волна 2 (дайджест недели + аномалии).
+   Брейншторм-синтез: тот же файл.
 
 ## Мета
 - Возврат к работе: просто прочитай эти файлы: AGENTS.md (команды), CONTEXT.md (словарь),
