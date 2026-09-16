@@ -160,6 +160,76 @@ def test_approve_queue_approve_as_proposed(page: Page, live_server, db_path):
     expect(page.locator("#toast")).to_contain_text("Одобрено")
 
 
+def test_dashboard_month_nav_and_chart_scale(page: Page, live_server, db_path):
+    """Стрелки — абсолютный переход по месяцам; ось Y в рублях; график не «утекает» при перерисовке."""
+    conn = sqlite3.connect(str(db_path))
+    for fp_date, desc, kop in [
+        ("2026-08-10", "ЛЕНТА АВГ", -7000),    # -70.00 ₽
+        ("2026-09-10", "ЛЕНТА СЕН", -15000),   # -150.00 ₽
+    ]:
+        conn.execute(
+            "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+            " confidence, created, updated) VALUES(?,?,?, 'groceries', 'rule', 1.0,"
+            " datetime('now'), datetime('now'))", (fp_date, desc, kop))
+    conn.commit()
+    conn.close()
+
+    errors: list[str] = []
+    page.on("pageerror", lambda e: errors.append(str(e)))
+
+    page.goto(f"{live_server}/dashboard")
+    expect(page.locator("#dash-month")).to_have_text("2026-09")
+    # стрелки ведут на АБСОЛЮТНЫЙ месяц — можно листать вглубь истории
+    expect(page.locator('a[href="/dashboard?month=2026-08"]')).to_have_count(1)
+    expect(page.locator('a[href="/dashboard?month=2026-10"]')).to_have_count(1)
+
+    def chart_probe() -> dict:
+        page.wait_for_function(
+            "() => { const c = window.Chart && Chart.getChart(document.getElementById('dailyChart'));"
+            " return c && c.data.datasets[0].data.length > 0; }",
+            timeout=8_000)
+        return page.evaluate(
+            """() => {
+                 const el = document.getElementById('dailyChart');
+                 const c = Chart.getChart(el);
+                 const cats = window.Chart.getChart(document.getElementById('catsChart'));
+                 return { data: c.data.datasets[0].data,
+                          tick: c.options.scales.y.ticks.callback(-70),
+                          h: Math.round(el.getBoundingClientRect().height),
+                          cats: cats ? cats.data.datasets[0].data : null };
+               }""")
+
+    sep = chart_probe()
+    assert sep["data"] == [-150.0]        # сентябрь: -150 ₽ (не -1.50 и не -15000)
+    assert sep["tick"] == "-70.00 ₽"      # ось в рублях, без двойного деления на 100
+    assert sep["cats"] == [150.0]         # doughnut: расходы положительные, тоже в рублях
+
+    page.click('a[href="/dashboard?month=2026-08"]')
+    _wait_htmx(page, "#dash-month")
+    expect(page.locator("#dash-month")).to_have_text("2026-08")
+    aug = chart_probe()
+    assert aug["data"] == [-70.0] and aug["cats"] == [70.0]
+    assert abs(aug["h"] - sep["h"]) <= 8  # канвас заполняет контейнер h-56 и не «утекает»
+
+    page.click('a[href="/dashboard?month=2026-09"]')
+    _wait_htmx(page, "#dash-month")
+    expect(page.locator("#dash-month")).to_have_text("2026-09")
+
+    # пустой месяц: чартов нет, но страница/навигация живут
+    page.click('a[href="/dashboard?month=2026-10"]')
+    _wait_htmx(page, "#dash-month")
+    expect(page.locator("#dash-month")).to_have_text("2026-10")
+    assert page.evaluate(
+        "() => { const el = document.getElementById('dailyChart');"
+        " return !!(el && window.Chart && Chart.getChart(el)); }") is False
+    expect(page.locator('a[href="/dashboard?month=2026-09"]')).to_have_count(1)
+    assert not errors, errors
+
+    # индекс: те же стрелки — тоже абсолютные (тот же баг-класс)
+    page.goto(f"{live_server}/")
+    expect(page.locator('a[href="/?month=2026-08"]')).to_have_count(1)
+
+
 def test_dashboard_charts_render_via_boost(page: Page, live_server, db_path):
     """Графики /dashboard рендерятся и при переходе через hx-boost (не только прямым заходом)."""
     _seed_pending(str(db_path), [

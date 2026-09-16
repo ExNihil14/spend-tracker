@@ -14,9 +14,9 @@
     <div class="text-lg font-semibold text-slate-100 mt-1">{{ fmt(report.balance_k) }}</div>
   </div>
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 flex items-center justify-between">
-    <a href="/?month_delta=-1{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
+    <a href="/?month={{ prev_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
     <div class="text-sm font-medium text-slate-300">{{ current }}</div>
-    <a href="/?month_delta=1{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
+    <a href="/?month={{ next_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
   </div>
 </div>
 
