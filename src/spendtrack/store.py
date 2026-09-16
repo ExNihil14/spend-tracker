@@ -299,7 +299,8 @@ class Store:
         if needs_review:
             sql += " AND review_status='pending'"
         if needs_review:
-            sql += " ORDER BY date ASC, amount_kopecks DESC, id ASC LIMIT ?"
+            # «крупные сверху»: по модулю суммы (доходы и расходы вместе), дата ASC, id — tie-break
+            sql += " ORDER BY date ASC, ABS(amount_kopecks) DESC, id ASC LIMIT ?"
         elif sort == "amount":
             # «Крупные сначала»: по модулю суммы, свежие — при равенстве
             sql += " ORDER BY ABS(amount_kopecks) DESC, date DESC, id DESC LIMIT ?"
