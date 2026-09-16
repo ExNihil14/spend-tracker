@@ -60,6 +60,8 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
             "report": report,
             "totals": totals,
             "current": current,
+            "prev_month": _shift_month(current, -1),
+            "next_month": _shift_month(current, 1),
             "cat_colors": cats,
             "all_categories": [c.name for c in taxonomy.categories],
             "category": category or "",
@@ -104,6 +106,8 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
             "daily": daily,
             "budgets": budgets,
             "current": current,
+            "prev_month": _shift_month(current, -1),
+            "next_month": _shift_month(current, 1),
             "pending": store.queued_for_review(),
             "fmt": fmt_amount,
             "cat_colors": cats,
@@ -150,6 +154,12 @@ def more_rows(request: Request, month: str | None = None, category: str | None =
          "has_more": has_more,
          "more_url": _more_url(month, category, q, sort, next_after, days)},
     )
+
+
+def _shift_month(month: str, delta: int) -> str:
+    """YYYY-MM ± delta (абсолютные ссылки навигации, а не относительные)."""
+    idx = int(month[:4]) * 12 + int(month[5:7]) - 1 + delta
+    return f"{idx // 12}-{idx % 12 + 1:02d}"
 
 
 def _resolve_month(store: Store, month: str | None, delta: int) -> str:

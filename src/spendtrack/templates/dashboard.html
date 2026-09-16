@@ -14,9 +14,9 @@
     <div class="text-lg font-semibold text-slate-100 mt-1">{{ fmt(report.balance_k) }}</div>
   </div>
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 flex items-center justify-between">
-    <a href="/dashboard?month_delta=-1" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
-    <div class="text-sm font-medium text-slate-300">{{ current }}</div>
-    <a href="/dashboard?month_delta=1" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
+    <a href="/dashboard?month={{ prev_month }}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
+    <div id="dash-month" class="text-sm font-medium text-slate-300">{{ current }}</div>
+    <a href="/dashboard?month={{ next_month }}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
   </div>
 </div>
 
@@ -44,11 +44,11 @@
 <div class="grid md:grid-cols-2 gap-6 mb-8">
   <div class="bg-slate-900 rounded-xl p-5 border border-slate-800">
     <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Расходы по дням</h2>
-    <div class="relative h-56"><canvas id="dailyChart"></canvas></div>
+    <div class="relative h-56"><canvas id="dailyChart" class="w-full h-full"></canvas></div>
   </div>
   <div class="bg-slate-900 rounded-xl p-5 border border-slate-800">
     <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">По категориям</h2>
-    <div class="relative h-56"><canvas id="catsChart"></canvas></div>
+    <div class="relative h-56"><canvas id="catsChart" class="w-full h-full"></canvas></div>
   </div>
 </div>
 
@@ -93,7 +93,7 @@
     var daily = {{ daily_json | tojson }};
     var cats = {{ categories_json | tojson }};
     var catColorMap = {{ cat_colors | tojson }};
-    var tick = function (v) { return (v / 100).toFixed(2) + ' ₽'; };
+    var tick = function (v) { return v.toFixed(2) + ' ₽'; };  // в datasets уже рубли (total_k/100 применён выше)
 
     if (daily.length) {
       new Chart(dailyEl, {
@@ -109,6 +109,8 @@
           }]
         },
         options: {
+          responsive: true,
+          maintainAspectRatio: false,  // иначе чарт перерастает контейнер h-56 при перерисовке
           plugins: { legend: { display: false } },
           scales: { y: { ticks: { callback: tick, color: '#94a3b8' } },
                     x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
@@ -133,14 +135,27 @@
         options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
       });
     }
+
   }
 
-  if (window.htmx) { htmx.onLoad(initCharts); }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCharts);
-  } else {
-    initCharts();
+  // Обработчики регистрируем один раз на JS-контекст (boost-свапы перезапускают скрипт),
+  // старые Chart-инстансы уничтожаем перед свапом — иначе утечка и «пляшущие» графики.
+  if (!window.__spendtrackChartHooks) {
+    window.__spendtrackChartHooks = true;
+    if (window.htmx) {
+      htmx.onLoad(initCharts);
+      document.body.addEventListener('htmx:beforeSwap', function () {
+        ['dailyChart', 'catsChart'].forEach(function (id) {
+          var el = document.getElementById(id);
+          var c = el && window.Chart && window.Chart.getChart(el);
+          if (c) c.destroy();
+        });
+      });
+    }
   }
+  // rAF: при boost-свопе скрипт исполняется до завершения раскладки — иначе Chart.js
+  // замеряет контейнер как 0 и оставляет канвас дефолтной высоты (150px вместо h-56).
+  requestAnimationFrame(initCharts);
 })();
 </script>
 {% endblock %}
