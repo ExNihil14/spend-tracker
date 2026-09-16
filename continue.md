@@ -136,7 +136,10 @@
    ② ✅ **реальная выписка — закрыто:** недоступна, контур синтетический (`D:\dev\docs\machine\TEST_DATA_STRATEGY.md`,
    DoD выполнен; property-тесты `parse_amount` добавлены 16.09); ③ ✅ smoke `/settings` пройден юзером (все чеки);
    ④ калибровка порога 0.9 — при решённых ≥20 (сейчас 2/20); ⑤ FinOps §11 / виртуализация — по триггеру;
-   ⑥ ✅ CI e2e-джоб (`e5b13ac`), в WIP — few-shot-фикс `approve-all` (засевает merchant_cache).
+   ⑥ ✅ CI e2e-джоб (`e5b13ac`); few-shot-фикс `approve-all` и сортировка очереди запушены (`35064ba`, `ce85a32`).
+   ⑦ **Следующая итерация (решение юзера 16.09): волна 1** — 1-й deliverable: **`doctor`/health целостности данных**
+   (CLI + `GET /health/data`; дизайн-скетч — `D:\dev\docs\machine\BRAINSTORM_SPENDTRACKER_NEXT.md`, раздел «Волна 1, шаг 1»);
+   затем recurring-детекция и `suggest-rules`. Брейншторм-синтез: тот же файл.
 
 ## Мета
 - Возврат к работе: просто прочитай эти файлы: AGENTS.md (команды), CONTEXT.md (словарь),
