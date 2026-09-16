@@ -17,5 +17,7 @@ if [ ! -x "$UV" ]; then
   exit 1
 fi
 "$UV" sync >> "$LOG" 2>&1 || echo "[$(ts)] WARN: uv sync failed (пробуем запуститься)" >> "$LOG"
-setsid nohup "$UV" run uvicorn spendtrack.main:app --host 0.0.0.0 --port 8766 >> "$LOG" 2>&1 < /dev/null &
+# --reload: синк workspace в Codespaces может обновить код при живом сервере (start идемпотентен по /health);
+# без reload Python остаётся старым, а Jinja-шаблоны горячие → рассинхрон контекста (500 на /dashboard).
+setsid nohup "$UV" run uvicorn spendtrack.main:app --host 0.0.0.0 --port 8766 --reload >> "$LOG" 2>&1 < /dev/null &
 echo "[$(ts)] uvicorn started (log: $LOG)" >> "$LOG"
