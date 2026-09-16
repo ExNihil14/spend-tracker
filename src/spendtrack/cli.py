@@ -133,7 +133,19 @@ def cmd_confirm(args) -> int:
     return 0 if ok else 1
 
 
+def _utf8_stdout() -> None:
+    """Пайп/Git Bash на RU-Windows даёт cp1251: кириллица мазалась, а «≠» ронял печать.
+
+    Реальная консоль Windows уже UTF-8 (PEP 528) — там no-op; pytest-capture тоже UTF-8.
+    """
+    out = sys.stdout
+    enc = (getattr(out, "encoding", "") or "").lower()
+    if enc not in ("utf-8", "utf8") and hasattr(out, "reconfigure"):
+        out.reconfigure(encoding="utf-8", errors="replace")
+
+
 def main(argv: list[str] | None = None) -> int:
+    _utf8_stdout()
     p = argparse.ArgumentParser(prog="spendtrack", description="Трекер расходов")
     sub = p.add_subparsers(dest="cmd")
 
