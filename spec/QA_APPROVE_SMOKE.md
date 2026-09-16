@@ -46,7 +46,8 @@ uv run python scripts/review_demo.py clean
 [LLM conf<0.9] --(create/import)--> pending
 pending --approve(категория)--> approved   (category := выбранная, source := 'rule', merchant_cache := запись)
 pending --skip-->              skipped     (категория НЕ меняется)
-pending --approve-all-->       approved    (category := COALESCE(category_llm, category, 'other'), source := 'rule')
+pending --approve-all-->       approved    (category := COALESCE(category_llm, category, 'other'), source := 'rule',
+                                            merchant_cache := запись для строк с мерчантом; 16.09)
 approved/skipped --approve/skip--> 409 «запись не в очереди» (терминальные)
 ```
 
@@ -115,7 +116,7 @@ approved/skipped --approve/skip--> 409 «запись не в очереди» (
 - Шаги: одобрить строку «ДЕМО КОФЕЙНЯ …» с категорией `restaurants`; затем на `/` добавить новую трату с тем же описанием/мерчантом.
 - Ожидаемо: новая трата получает `restaurants` **из кэша мерчанта**, `source='rule'`, в очередь НЕ попадает.
 - Критерий: `merchant_cache` содержит запись; повторная классификация не идёт в LLM.
-- Важно: для одиночного approve кэш засевается; для **approve-all** — НЕ засевается (см. §5).
+- Важно: с 16.09 кэш засевается и для одиночного approve, и для **approve-all** (few-shot-цикл единый; см. §5).
 
 ### TC-12 (P3) Негатив: неизвестный id
 - Шаги: `curl -X POST http://localhost:8766/api/reviews/999999/approve -d "category=food"`.
@@ -147,7 +148,7 @@ approved/skipped --approve/skip--> 409 «запись не в очереди» (
 | # | Severity | Описание | Статус |
 |---|---|---|---|
 | 1 | Minor | `/dashboard` рендерил бейдж `#pending-count` = 0 (в контекст не передавался `pending`); `base.html` использует `pending|default([])|length`. | **Исправлено** в этом прогоне (+ тест `test_dashboard_badge_shows_pending`) |
-| 2 | Info/Design | `approve-all` **не** вызывает `seed_merchant_cache` (в отличие от одиночного `approve`), поэтому массовое принятие LLM-догадок НЕ пополняет few-shot кэш. Это осознанный компромисс (не «обучать» кэш угадыванием), но отличается от TC-11 для одиночного approve. | Зафиксировано, требует решения продукта |
+| 2 | Info/Design | `approve-all` **не** вызывает `seed_merchant_cache` (в отличие от одиночного `approve`), поэтому массовое принятие LLM-догадок НЕ пополняет few-shot кэш. | **Исправлено 16.09:** пачка засевает кэш для строк с мерчантом (единый few-shot-цикл; + тест `test_approve_all_seeds_merchant_cache`) |
 | 3 | Minor | Очередь в UI ограничена `LIMIT 500` (`list_transactions` default), при этом `approve-all` обрабатывает все pending. При >500 записей отобразятся не все. | Известное ограничение |
 | 4 | Minor | Кнопка «Одобрить все» активна и при 0 записей (диалог «…0 записей?» → no-op). | Косметика |
 | 5 | Info | Эндпоинты `GET /api/reviews` и `GET /api/reviews/count` не используются шаблонами (кандидаты на удаление либо на подключение live-обновления). | Косметика |
