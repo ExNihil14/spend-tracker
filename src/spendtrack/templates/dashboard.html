@@ -41,6 +41,30 @@
 </div>
 {% endif %}
 
+{% if recurring.subscriptions %}
+<div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
+  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+    <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Подписки / рекурринги</h2>
+    <span class="text-xs text-slate-500">по всей истории · активных {{ recurring.active_count }}, {{ fmt(-recurring.monthly_total_k) }} ₽ / мес</span>
+  </div>
+  <div class="space-y-2">
+    {% for s in recurring.subscriptions %}
+    <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
+      <span class="flex items-center gap-2 min-w-0">
+        <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background:{{ cat_colors.get(s.category, '#9ca3af') }}"></span>
+        <span class="{{ 'text-slate-200' if s.active else 'text-slate-500' }}">{{ s.merchant }}</span>
+        <span class="text-xs text-slate-500">{{ s.category }}</span>
+        {% if s.skipped_months %}<span class="text-xs text-amber-500">пропуск месяца</span>{% endif %}
+      </span>
+      <span class="{{ 'text-slate-300' if s.active else 'text-slate-500' }} whitespace-nowrap">
+        {{ fmt(-s.price_k) }} ₽ / мес · n={{ s.occurrences }}{% if not s.active %} · нет списаний {{ s.days_since_last }} дн{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 <div class="grid md:grid-cols-2 gap-6 mb-8">
   <div class="bg-slate-900 rounded-xl p-5 border border-slate-800">
     <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Расходы по дням</h2>

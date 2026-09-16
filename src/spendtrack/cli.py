@@ -112,6 +112,24 @@ def cmd_budget(args) -> int:
     return 0
 
 
+def cmd_recurring(args) -> int:
+    from spendtrack.recurring import recurring_summary
+    store = make_store()
+    summary = recurring_summary(store)
+    if args.json:
+        print(json.dumps(summary, ensure_ascii=False, indent=2))
+        return 0
+    items = summary["subscriptions"]
+    print(f"== Рекурринги/подписки: найдено {len(items)}, активных {summary['active_count']}, "
+          f"месячный итог {fmt_amount(-summary['monthly_total_k'])}")
+    for s in items:
+        status = "активна" if s["active"] else f"нет списаний {s['days_since_last']} дн"
+        skipped = f", пропуск {s['skipped_months']}" if s["skipped_months"] else ""
+        print(f"  {s['merchant']:<20} {fmt_amount(-s['price_k']):>10} / мес  n={s['occurrences']}"
+              f"  {s['first_date']}→{s['last_date']}  ~{s['median_gap_days']} дн{skipped}  [{status}]")
+    return 0
+
+
 def cmd_doctor(args) -> int:
     from spendtrack.doctor import run_checks
     report = run_checks()
@@ -183,6 +201,10 @@ def main(argv: list[str] | None = None) -> int:
     a_doc = sub.add_parser("doctor", help="проверка целостности данных")
     a_doc.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
     a_doc.set_defaults(fn=cmd_doctor)
+
+    a_rec = sub.add_parser("recurring", help="детекция рекуррингов/подписок")
+    a_rec.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    a_rec.set_defaults(fn=cmd_recurring)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):
