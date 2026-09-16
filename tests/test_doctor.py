@@ -132,6 +132,7 @@ def test_category_llm_invalid_warn_and_pending_exempt(db_path):
     _insert(store, category_llm="марсианская", category_source="llm")
     _insert(store, category_llm="марсианская", category_source="llm_pending_review",
             review_status="pending")
+    _insert(store, category_llm="", category_source="llm")  # пустая строка = нет предложения
     store.close()
 
     report = run_checks(db_path)
@@ -226,6 +227,37 @@ def test_backup_stale_warn(db_path):
     check = _check(report, "backup")
     assert report["status"] == "warn"
     assert check["severity"] == "warn" and "48ч" in check["detail"]
+
+
+def test_backup_empty_dir_info(db_path):
+    """Папка есть, но копий нет — тот же info, что и при отсутствии папки."""
+    _backup_dir(db_path).mkdir(parents=True)
+
+    check = _check(run_checks(db_path), "backup")
+    assert check["severity"] == "info" and check["count"] == 0 and "бэкапов нет" in check["detail"]
+
+
+def test_backup_zero_byte_snapshot_critical(db_path):
+    """Файл 0 байт прошёл бы quick_check как пустая БД — ловим отсутствие таблицы transactions."""
+    _backup_dir(db_path).mkdir(parents=True)
+    (_backup_dir(db_path) / "spend-20260916-130000.db").write_bytes(b"")
+
+    report = run_checks(db_path)
+    check = _check(report, "backup")
+    assert report["status"] == "critical"
+    assert check["severity"] == "critical" and "transactions" in check["detail"]
+
+
+def test_guarded_oserror_becomes_critical(db_path, monkeypatch):
+    """Нет доступа к файлам бэкапа — doctor не падает, чек становится critical."""
+    def _boom(path):
+        raise PermissionError("нет доступа")
+
+    monkeypatch.setattr("spendtrack.doctor.check_backup", _boom)
+    report = run_checks(db_path)
+    check = _check(report, "backup")
+    assert report["status"] == "critical" and check["severity"] == "critical"
+    assert "нет доступа" in check["detail"]
 
 
 def test_backup_corrupt_critical(db_path):
