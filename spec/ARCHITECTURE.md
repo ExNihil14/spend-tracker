@@ -31,7 +31,7 @@
 
 ## Ключевые решения (зафиксировано)
 - Авто-приём при confidence >= 0.9, иначе `llm_pending_review`.
-- Сортировка списка: `?sort=recent` (date DESC, внутри дня `COALESCE(statement_order,id)` DESC) | `?sort=amount` (ABS(amount) DESC); очередь — date ASC, amount DESC, id ASC.
+- Сортировка списка: `?sort=recent` (date DESC, внутри дня `COALESCE(statement_order,id)` DESC) | `?sort=amount` (ABS(amount) DESC); очередь — date ASC, **ABS(amount) DESC**, id ASC (крупные по модулю выше).
 - Правка юзера → merchant_cache (выигрывает над LLM) + few-shot пример.
 - Лог бакетов confidence для калибровки порога.
 - Бюджеты: `budgets` (SQLite, не TOML), одна месячная константа без rollover; расход = знаковая сумма месяца
