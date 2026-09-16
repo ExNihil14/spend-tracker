@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import sqlite3
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -13,7 +14,7 @@ pytestmark = pytest.mark.e2e
 def _seed_pending(conn_str: str, rows: list[tuple]) -> None:
     """Засеять pending-транзакции напрямую в БД (обход LLM): (fp, date, desc, sum, conf, llm_cat)."""
     conn = sqlite3.connect(conn_str)
-    for fp, date, desc, amount_kopecks, conf, llm_cat in rows:
+    for fp, day, desc, amount_kopecks, conf, llm_cat in rows:
         conn.execute(
             """INSERT INTO transactions
                (fingerprint, date, description, amount_kopecks, category,
@@ -21,7 +22,7 @@ def _seed_pending(conn_str: str, rows: list[tuple]) -> None:
                 created, updated)
                VALUES (?, ?, ?, ?, 'other', 'llm_pending_review', ?, ?, 'pending',
                        datetime('now'), datetime('now'))""",
-            (fp, date, desc, amount_kopecks, conf, llm_cat),
+            (fp, day, desc, amount_kopecks, conf, llm_cat),
         )
     conn.commit()
     conn.close()
@@ -243,6 +244,31 @@ def test_dashboard_charts_render_via_boost(page: Page, live_server, db_path):
         "() => window.Chart && !!Chart.getChart(document.getElementById('dailyChart'))",
         timeout=10_000,
     )
+
+
+def test_dashboard_recurring_card(page: Page, live_server, db_path):
+    """Карточка «Подписки»: синтетика 4×30 дней → мерчант, цена, месячный итог (даты от today)."""
+    page.goto(f"{live_server}/dashboard")
+    expect(page.locator("body")).not_to_contain_text("Подписки / рекурринги")
+
+    today = datetime.now(UTC).date()
+    conn = sqlite3.connect(str(db_path))
+    for i in (3, 2, 1, 0):
+        day = (today - timedelta(days=30 * i)).isoformat()
+        conn.execute(
+            "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+            " confidence, merchant, created, updated)"
+            " VALUES(?, 'NETFLIX.COM', -19900, 'subscriptions', 'import', 1.0, 'NETFLIX',"
+            " datetime('now'), datetime('now'))", (day,))
+    conn.commit()
+    conn.close()
+
+    page.goto(f"{live_server}/dashboard")
+    expect(page.locator("body")).to_contain_text("Подписки / рекурринги")
+    expect(page.locator("body")).to_contain_text("NETFLIX")
+    expect(page.locator("body")).to_contain_text("199.00 ₽ / мес")
+    expect(page.locator("body")).to_contain_text("n=4")
+    expect(page.locator("body")).to_contain_text("активных 1")
 
 
 def test_approve_all_button(page: Page, live_server, db_path):
