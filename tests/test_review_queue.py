@@ -107,6 +107,48 @@ def test_approve_all_applies_llm_suggestion(pending_store):
         assert r["review_status"] == "approved"
 
 
+def test_approve_all_seeds_merchant_cache(tmp_path):
+    """Подтверждение пачки учит merchant_cache (few-shot), как одиночный approve (QA-замечание 2)."""
+    s = Store(db_path=tmp_path / "all.db")
+    s.add_transaction(date="2026-09-01", description="МАГНИТ 1", amount_kopecks=-100,
+                      category="other", category_source="llm_pending_review", confidence=0.5,
+                      category_llm="groceries", review_status="pending", merchant="МАГНИТ")
+    s.add_transaction(date="2026-09-02", description="АЗС 2", amount_kopecks=-200,
+                      category="other", category_source="llm_pending_review", confidence=0.4,
+                      category_llm="fuel", review_status="pending", merchant="АЗС ЛУКОЙЛ")
+    s.add_transaction(date="2026-09-03", description="БЕЗ МЕРЧАНТА", amount_kopecks=-300,
+                      category="other", category_source="llm_pending_review", confidence=0.4,
+                      category_llm=None, review_status="pending")
+    assert s.approve_all_reviews() == 3
+    assert s.merchant_cache_get("МАГНИТ") == "groceries"
+    assert s.merchant_cache_get("АЗС ЛУКОЙЛ") == "fuel"
+    s.close()
+
+
+def test_approve_all_does_not_overwrite_manual_cache(tmp_path):
+    """Ручная правка кэша не перетирается LLM-догадкой при approve-all (ревью P0)."""
+    s = Store(db_path=tmp_path / "cache.db")
+    s.merchant_cache_set("МАГНИТ", "groceries")  # человек уже учил этого мерчанта
+    s.add_transaction(date="2026-09-01", description="МАГНИТ 1", amount_kopecks=-100,
+                      category="other", category_source="llm_pending_review", confidence=0.5,
+                      category_llm="fuel", review_status="pending", merchant="МАГНИТ")
+    assert s.approve_all_reviews() == 1
+    assert s.merchant_cache_get("МАГНИТ") == "groceries"  # не перетёрлось
+    s.close()
+
+
+def test_approve_all_idempotent_and_empty(tmp_path):
+    s = Store(db_path=tmp_path / "idem.db")
+    assert s.approve_all_reviews() == 0  # пустая очередь — no-op
+    s.add_transaction(date="2026-09-01", description="A", amount_kopecks=-100,
+                      category="other", category_source="llm_pending_review", confidence=0.5,
+                      category_llm="food", review_status="pending", merchant="A")
+    assert s.approve_all_reviews() == 1
+    assert s.approve_all_reviews() == 0  # повторный вызов ничего не делает
+    assert s.merchant_cache_get("A") == "food"
+    s.close()
+
+
 # ---- E2E-уровень: эндпоинты очереди ----
 from fastapi.testclient import TestClient
 

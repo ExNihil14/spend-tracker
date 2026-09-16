@@ -251,11 +251,28 @@ class Store:
         return cur.rowcount > 0
 
     def approve_all_reviews(self) -> int:
+        """Одобрить всю очередь одной транзакцией; few-shot-кэш учим только «неизвестными» мерчантами.
+
+        INSERT OR IGNORE (а не upsert): LLM-догадка из пачки не должна перетирать ручную правку
+        человека, уже лежащую в кэше (одиночный approve — осознанный выбор юзера, там upsert).
+        """
+        rows = self.conn.execute(
+            "SELECT merchant, COALESCE(category_llm, category, 'other') AS cat"
+            " FROM transactions WHERE review_status='pending'").fetchall()
+        now = _now_iso()
         cur = self.conn.execute(
             "UPDATE transactions SET category=COALESCE(category_llm, category, 'other'),"
             " category_source='rule', review_status='approved', updated=? WHERE review_status='pending'",
-            (_now_iso(),),
+            (now,),
         )
+        for r in rows:
+            if r["merchant"]:
+                key = hashlib.sha1(r["merchant"].upper().encode()).hexdigest()
+                self.conn.execute(
+                    "INSERT OR IGNORE INTO merchant_cache(key, merchant, category, updated)"
+                    " VALUES(?,?,?,?)",
+                    (key, r["merchant"], r["cat"], now),
+                )
         self.conn.commit()
         return cur.rowcount
 
