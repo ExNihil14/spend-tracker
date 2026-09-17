@@ -13,6 +13,7 @@ uv run spendtrack budget --month 2026-09         # прогресс по бюд�
 uv run spendtrack confidence                     # калибровка порога авто-приёма LLM
 uv run spendtrack doctor [--json]                # целостность данных (exit 1 только на critical)
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
+uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
 ```
 
 ## Doctor (целостность данных)
@@ -37,6 +38,18 @@ uv run spendtrack recurring [--json]             # детекция рекурр
 - `active` — последнее списание ≤40 дн от сегодня; месячный итог считает только активные.
 - Ничего не хранится (вычисление на лету), авто-действий нет; JSON-ключ `subscriptions` (не `items` — Jinja).
 - Тесты: `tests/test_recurring.py` (17 unit, оффлайн) + e2e карточки `test_dashboard_recurring_card`.
+
+## Suggest-rules (подсказки keyword-правил, read-only)
+- CLI `spendtrack suggest-rules [--json]`: кандидаты из решений человека — `category_source='correction'`,
+  переопределения LLM в **решённых** строках (`review_status='approved'` и `category != category_llm`; pending/skipped
+  не считаются), `examples`; плюс тип «merchant» (полное имя мерчанта). Паттерны — униграммы/биграммы
+  нормализованных описаний (UPPER, без цифр и токенов <3 символов).
+- Пороги по умолчанию: n≥3 подтверждений, чистота ≥80% (конфликты категорий показываются, не скрываются).
+  Статус сверяется с taxonomy.toml через `analyze_rules`: новое / дубль / будет мёртвым / пересечение.
+- Ничего не записывается (TOML/БД не трогаются). Тесты: `tests/test_suggestions.py` (9, оффлайн);
+  на проде без правок ожидаем «предложений нет» — data-gated норма.
+- Doctor-фикс 17.09 (найден стрессом флейка): `_guarded` переводит **любое** упавшее исключение чека в critical,
+  `quick_check` отдельно обрабатывает «PRAGMA упал» (malformed) — doctor не роняется на повреждённых данных.
 
 ## Тесты / анализ
 ```bash

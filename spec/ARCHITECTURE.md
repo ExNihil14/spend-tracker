@@ -18,6 +18,7 @@
 - `csv_import.py` — импорт CSV по банкам (BANKS-адаптеры), fingerprint-дедуп.
 - `reports.py` — агрегаты по периодам/категориям.
 - `recurring.py` — детекция рекуррингов/подписок (read-only эвристика; критерии — `spec/PIPELINE.md`).
+- `suggestions.py` — подсказки keyword-правил из правок (read-only: n-граммы+merchant, пороги n≥3/80%, статусы по taxonomy).
 - `llm.py` + `prompts.py` — инжектируемый LLM-слой и промпт-контракты (JSON-выхлоп).
 - `routers/api.py` — JSON API; `routers/frontend.py` — htmx-страницы.
 - `cli.py` — CLI add/report/import/count.
