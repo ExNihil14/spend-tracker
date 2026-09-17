@@ -130,6 +130,29 @@ def cmd_recurring(args) -> int:
     return 0
 
 
+def cmd_suggest_rules(args) -> int:
+    from spendtrack.suggestions import suggest_rules
+    store = make_store()
+    report = suggest_rules(store)
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
+    items = report["candidates"]
+    print(f"== Предложения правил: решённых строк {report['decided_rows']}, кандидатов {len(items)}"
+          f" (пороги: n>={report['min_confirmations']}, чистота>={report['min_purity']:.0%})")
+    for c in items:
+        conflict = ""
+        if c["purity"] < 1.0:
+            others = ", ".join(f"{cat} {n}" for cat, n in c["conflicts"].items())
+            conflict = f"  конфликт: {others}"
+        detail = f" — {c['status_detail']}" if c["status_detail"] else ""
+        print(f"  {c['pattern']:<28} {c['type']:<8} {c['category']:<14} n={c['confirmations']:<3}"
+              f" {c['purity'] * 100:>3.0f}%  {c['status']}{detail}{conflict}")
+    if not items:
+        print("  предложений нет: правок мало или всё покрыто правилами (read-only, ничего не меняем)")
+    return 0
+
+
 def cmd_doctor(args) -> int:
     from spendtrack.doctor import run_checks
     report = run_checks()
@@ -205,6 +228,10 @@ def main(argv: list[str] | None = None) -> int:
     a_rec = sub.add_parser("recurring", help="детекция рекуррингов/подписок")
     a_rec.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
     a_rec.set_defaults(fn=cmd_recurring)
+
+    a_sr = sub.add_parser("suggest-rules", help="подсказки keyword-правил из правок (read-only)")
+    a_sr.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    a_sr.set_defaults(fn=cmd_suggest_rules)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):
