@@ -76,14 +76,21 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (17.09): `suggest-rules` реализован (WIP, не закоммичен; волна 1 п.3).** Read-only подсказки keyword-правил:
-> источники — `correction`, переопределения LLM в решённых строках (`approved` + `category != category_llm`), `examples`,
-> тип «merchant»; униграммы/биграммы (UPPER, без цифр), пороги n≥3/чистота ≥80%, конфликты показываются, статусы по
+> **АКТУАЛЬНО (17.09, вечер): СЕССИЯ ЗАКРЫТА — всё запушено, CI зелёный, MCP-стек активен.**
+> `origin/main = 7da8cfe` (8 коммитов: doctor, recurring, suggest-rules, фиксы Codespaces/CI, doctor-hardening, доки);
+> CI на последних push: `e2e` + `lint-and-test` зелёные (фикс флейка превью подтверждён). Bootstrap: `9592aeb` (probe-mcp.py).
+> **MCP (после рестарта opencode) проверен живыми вызовами:** context7 (FastAPI IDs), memory (граф), **playwright —
+> открыл `/dashboard` стенда 8767, карточка «Подписки / рекурринги» найдена («активных 3, −652.00 ₽/мес»)**.
+> Бэклог-мелочь: `favicon.ico` 404 в консоли (добавить favicon в `static/` + link в `base.html`).
+> **Следующая сессия — волна 2: дайджест недели + флаги аномалий** (S+S; стартер обновлён в `SESSION_START_PROMPT.md`).
+> **`suggest-rules` (волна 1 п.3) реализован, отревьюен и закоммичен** (`1b953c4` + doctor-фикс `aa79fb9` + доки `7da8cfe`):
+> read-only кандидаты keyword-правил из решений человека (corrections, переопределения LLM в approved-строках, examples,
+> тип «merchant»); униграммы/биграммы (UPPER, без цифр, длина 2–64), пороги n≥3/чистота ≥80%, конфликты видны, статусы по
 > `analyze_rules` (новое/дубль/мёртвое/пересечение); CLI `spendtrack suggest-rules [--json]`, записей нет. **225 unit зелёные
 > (14 в test_suggestions), ruff чист**; live на прод-БД: «решённых строк 1, кандидатов 0» — data-gated норма.
 > Ревью :free $0 (ultra NO-GO / super обрезано): приняты — лимит длины паттерна 2–64, верный текст «пересечение»,
 > кириллица І/Ї/Ґ/Ў, тип исключения в `_guarded`, +5 тестов; ложный P0 super («двойной счёт при OR») отклонён фактом SQL;
-> артефакт `EXPERT_REVIEW_SUGGEST_RULES_OR.md`. **WIP: ждёт команды на коммит + push.**
+> артефакт `EXPERT_REVIEW_SUGGEST_RULES_OR.md`.
 > **Попутный doctor-фикс (найден стрессом флейка):** `_guarded` переводит любое исключение чека в critical,
 > `quick_check` корректно обрабатывает «PRAGMA упал» (malformed); тест порчи БД стал детерминированным (rootpage),
 > 15/15 в стрессе. Детали — в PIPELINE §Suggest-rules.
@@ -171,10 +178,11 @@ NULL в `rules.category` (NOT NULL). **Правки doctor.py после рев�
    DoD выполнен; property-тесты `parse_amount` добавлены 16.09); ③ ✅ smoke `/settings` пройден юзером (все чеки);
    ④ калибровка порога 0.9 — при решённых ≥20 (сейчас 2/20); ⑤ FinOps §11 / виртуализация — по триггеру;
    ⑥ ✅ CI e2e-джоб (`e5b13ac`); few-shot-фикс `approve-all` и сортировка очереди запушены (`35064ba`, `ce85a32`).
-   ⑦ **Волна 1 (решение юзера 16.09):** ① ✅ **`doctor`/health целостности данных** — закоммичен/запушен (`0ad83f2`+`a20dcc8`, ревью ×3,
-   `EXPERT_REVIEW_DOCTOR*.md`); ② ✅ **детекция рекуррингов/подписок** — `recurring.py` + CLI + карточка `/dashboard`, 18 unit
-   в `tests/test_recurring.py` + e2e; коммит `236525f` (ревью `EXPERT_REVIEW_RECURRING_OR.md`; ждёт визуального смоука и push);
-   ③ следующее — **`suggest-rules` из corrections** (М, data-gated), затем волна 2 (дайджест недели + аномалии).
+   ⑦ **Волна 1 (решение юзера 16.09) — ЗАКРЫТА (17.09, всё запушено):** ① ✅ **`doctor`/health целостности** (`0ad83f2`+`a20dcc8`,
+   ревью ×3 + hardening `aa79fb9` — guard ловит любое исключение чека); ② ✅ **рекурринги/подписки** (`236525f`, ревью ×2;
+   визуальный смоук выполнен агентом через playwright MCP — карточка «Подписки» на `/dashboard` найдена); ③ ✅ **`suggest-rules`**
+   (`1b953c4`, ревью `EXPERT_REVIEW_SUGGEST_RULES_OR.md`, 14 unit). **Следующее — волна 2: дайджест недели + флаги аномалий**
+   (S+S; стартер `SESSION_START_PROMPT.md` обновлён). Калибровка 0.9 — по мере накопления решённых (сейчас 2/20).
    Брейншторм-синтез: тот же файл.
 
 ## Мета
