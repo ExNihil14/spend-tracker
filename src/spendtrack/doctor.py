@@ -43,7 +43,12 @@ def _summary(rows: list[sqlite3.Row], key: str) -> str:
 
 # ---- 1. целостность страниц ----
 def check_quick_check(conn: sqlite3.Connection) -> dict:
-    rows = conn.execute("PRAGMA quick_check").fetchall()
+    try:
+        rows = conn.execute("PRAGMA quick_check").fetchall()
+    except sqlite3.Error as e:
+        # Структурная порча часто роняет сам PRAGMA («database disk image is malformed»),
+        # а не отдаёт строки-ошибки — это тот же critical, но с другим текстом.
+        return _check("quick_check", CRITICAL, 1, f"quick_check не выполнился: {e}")
     problems = [str(r[0]) for r in rows if str(r[0]) != "ok"]
     if not problems:
         return _check("quick_check", OK, 0, "база целостна")
@@ -183,14 +188,15 @@ def _snapshot_quick_check(path: Path) -> str | None:
 
 
 def _guarded(check_id: str, fn) -> dict:
-    """Битая БД/нет доступа к файлам — не должны ронять весь doctor: чек становится critical.
+    """Битая БД/нет доступа/неожиданная ошибка чтения — чек становится critical, прогон не падает.
 
-    OSError ловим наравне с sqlite3.Error: чтение бэкапов (glob/stat) — файловая система.
+    Ловим и не-sqlite исключения (Exception): на повреждённых данных SQLite может отдать
+    None/мусор, и конкретная проверка падает TypeError'ом (найдено стрессом 17.09).
     """
     try:
         return fn()
-    except (sqlite3.Error, OSError) as e:
-        return _check(check_id, CRITICAL, 1, f"не удалось выполнить проверку: {e}")
+    except Exception as e:  # noqa: BLE001 — контракт: упавший чек = critical, doctor не роняем
+        return _check(check_id, CRITICAL, 1, f"не удалось выполнить проверку: {type(e).__name__}: {e}")
 
 
 def overall_status(checks: list[dict]) -> str:

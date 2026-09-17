@@ -66,17 +66,64 @@ def test_quick_check_critical_on_corrupt(db_path):
           1.0, f"fp{i}", NOW, NOW) for i in range(300)])
     store.conn.commit()
     store.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    # Порча строго корневой страницы transactions (детерминированно, а не фиксированный offset):
+    # структурная порча роняет PRAGMA quick_check («malformed») — флейк с TypeError устранён.
+    page_size = int(store.conn.execute("PRAGMA page_size").fetchone()[0])
+    root = int(store.conn.execute(
+        "SELECT rootpage FROM sqlite_master WHERE name='transactions'").fetchone()[0])
     store.close()
 
-    with db_path.open("r+b") as f:  # портим страницу дерева transactions
-        f.seek(4096 * 2 + 100)
-        f.write(b"\xff" * 300)
+    with db_path.open("r+b") as f:  # заливаем корневую страницу целиком (ячейки — в конце страницы)
+        f.seek((root - 1) * page_size)
+        f.write(b"\xff" * page_size)
 
     report = run_checks(db_path)
     check = _check(report, "quick_check")
     assert report["status"] == "critical"
     assert check["severity"] == "critical"
-    assert "page" in check["detail"]  # детали всех строк ошибок, не только заголовок
+    detail = check["detail"].lower()
+    # структурная порча либо даёт строки page-ошибок, либо роняет PRAGMA («malformed»)
+    assert "page" in detail or "malformed" in detail
+
+
+def test_quick_check_reports_problem_lines_and_hard_error():
+    """Обе ветки quick_check: строки-ошибки со всеми деталями и «PRAGMA упал» → critical."""
+    from spendtrack import doctor
+
+    class _FakeConn:
+        def __init__(self, outcome):
+            self._outcome = outcome
+
+        def execute(self, _sql):
+            if isinstance(self._outcome, Exception):
+                raise self._outcome
+            return self
+
+        def fetchall(self):
+            return self._outcome
+
+    rows = [("*** in database main ***\nPage 2: btreeInitPage() returns error code 11",)]
+    check = doctor.check_quick_check(_FakeConn(rows))
+    assert check["severity"] == "critical"
+    assert "Page 2" in check["detail"]
+
+    check = doctor.check_quick_check(_FakeConn(sqlite3.DatabaseError("database disk image is malformed")))
+    assert check["severity"] == "critical"
+    assert "malformed" in check["detail"]
+
+    assert doctor.check_quick_check(_FakeConn([("ok",)]))["severity"] == "ok"
+
+
+def test_guarded_turns_unexpected_error_into_critical():
+    """Контракт guard: любая упавшая проверка = critical, прогон не падает (TypeError на мусоре)."""
+    from spendtrack import doctor
+
+    def boom() -> dict:
+        raise TypeError("'NoneType' object is not subscriptable")
+
+    check = doctor._guarded("fingerprint_dupes", boom)
+    assert check["severity"] == "critical"
+    assert "не удалось выполнить проверку" in check["detail"]
 
 
 # ---- ② дубли fingerprint ----
