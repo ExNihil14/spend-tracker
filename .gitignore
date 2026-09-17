@@ -34,3 +34,4 @@ test-results/
 blob-report/
 playwright-report/
 .playwright/
+.playwright-mcp/
