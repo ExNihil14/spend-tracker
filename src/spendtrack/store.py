@@ -123,6 +123,10 @@ class Store:
         self.conn = sqlite3.connect(self.path)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=5000")  # ждать чужую блокировку до 5с, а не падать сразу
+        # WAL + synchronous=NORMAL — рекомендованный SQLite режим для WAL: fsync на checkpoint,
+        # целостность БД гарантирована, теряется лишь последний коммит при крахе ОС (не процесса).
+        self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.executescript(SCHEMA)
         self._migrate()

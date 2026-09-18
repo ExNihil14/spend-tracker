@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import math
 
 from spendtrack.config import load_settings
 from spendtrack.llm import call_llm, parse_llm_json
@@ -9,6 +10,17 @@ from spendtrack.store import Store
 from spendtrack.taxonomy import Taxonomy
 
 logger = logging.getLogger(__name__)
+
+
+def _clamp_confidence(value: object) -> float:
+    """LLM может вернуть None/строку/NaN/выход за [0,1] — приводим к валидному float."""
+    try:
+        conf = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return 0.0
+    if math.isnan(conf):
+        return 0.0
+    return min(1.0, max(0.0, conf))
 
 
 def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | None:
@@ -38,7 +50,7 @@ def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
         return {"category": "other", "confidence": 0.0, "merchant": tx.get("merchant"),
                 "reason": "llm_parse_failed", "source": "llm"}
 
-    confidence = float(parsed.get("confidence", 0.0))
+    confidence = _clamp_confidence(parsed.get("confidence", 0.0))
     merchant_norm = parsed.get("merchant", "").upper().strip() or tx.get("merchant")
     return {
         "category": parsed["category"],
@@ -64,7 +76,8 @@ def classify_with_injectable(
                 "category_llm": None, "review_status": "approved"}
 
     llm_result = llm_getter(tx, store, taxonomy)
-    conf = float(llm_result.get("confidence", 0.0))
+    conf = _clamp_confidence(llm_result.get("confidence", 0.0))
+    llm_result["confidence"] = conf
     cat = llm_result.get("category", "")
     bucket = f"{int(conf * 10) / 10:.1f}"
     logger.info("llm_decision: conf=%.3f bucket=%s accepted=%s desc=%s",

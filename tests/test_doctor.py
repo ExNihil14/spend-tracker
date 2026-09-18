@@ -390,7 +390,7 @@ def test_cli_doctor_json_ok(db_path, monkeypatch, capsys):
     report = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert report["status"] == "ok"
-    assert len(report["checks"]) == 9
+    assert len(report["checks"]) == 10
 
 
 def test_cli_doctor_critical_exit1(db_path, monkeypatch, capsys):

@@ -7,6 +7,7 @@ warn — данные вне очереди/таксономии, старый �
 """
 from __future__ import annotations
 
+import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -23,6 +24,7 @@ OK = "ok"
 
 _DETAIL_ITEMS = 5
 _BACKUP_STALE = timedelta(hours=48)
+_RESTORE_STALE = timedelta(days=30)
 
 
 def _check(check_id: str, severity: str, count: int = 0, detail: str = "") -> dict[str, Any]:
@@ -187,6 +189,29 @@ def _snapshot_quick_check(path: Path) -> str | None:
     return None
 
 
+# ---- 8. restore-drill бэкапа (scripts/restore_drill.py → backup/last_restore_drill.json) ----
+def check_restore_drill(db_path: Path) -> dict:
+    marker = db_path.parent / "backup" / "last_restore_drill.json"
+    if not marker.exists():
+        return _check("restore_drill", INFO, 0, f"restore-drill не проводился ({marker})")
+    try:
+        data = json.loads(marker.read_text(encoding="utf-8"))
+        when = datetime.fromisoformat(str(data["time"]))
+        when = when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        return _check("restore_drill", CRITICAL, 1, f"маркер restore-drill повреждён: {e}")
+    if data.get("status") != "ok":
+        return _check("restore_drill", CRITICAL, 1,
+                      f"последний restore-drill failed: {data.get('file')} ({data.get('reason', '')})")
+    age = datetime.now(UTC) - when
+    if age > _RESTORE_STALE:
+        return _check("restore_drill", WARN, 1,
+                      f"restore-drill старше 30 дней ({age.total_seconds() / 86400:.0f} дн,"
+                      f" {data.get('file')})")
+    return _check("restore_drill", OK, 0,
+                  f"restore-drill ok ({age.total_seconds() / 86400:.0f} дн назад, {data.get('file')})")
+
+
 def _guarded(check_id: str, fn) -> dict:
     """Битая БД/нет доступа/неожиданная ошибка чтения — чек становится critical, прогон не падает.
 
@@ -235,6 +260,7 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
             _guarded("pending_source", lambda: check_pending_source(conn)),
             _guarded("empty_batches", lambda: check_empty_batches(conn)),
             _guarded("backup", lambda: check_backup(path)),
+            _guarded("restore_drill", lambda: check_restore_drill(path)),
         ]
     finally:
         store.close()

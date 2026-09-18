@@ -8,6 +8,12 @@ CATEGORY_LIST = (
     "clothing, household, transfers, income, taxes, travel, other"
 )
 
+_DESCRIPTION_LIMIT = 300
+
+
+def _truncate(text: str, limit: int = _DESCRIPTION_LIMIT) -> str:
+    return text if len(text) <= limit else text[:limit] + "…"
+
 
 def _examples_block(examples: list[dict]) -> str:
     if not examples:
@@ -22,7 +28,7 @@ def _examples_block(examples: list[dict]) -> str:
         amt = fmt_amount(ex["amount_kopecks"])
         m = ex["description"].upper()[:20] or "UNKNOWN"
         lines.append(
-            f"- {ex['description']} | {amt} → "
+            f"- {_truncate(ex['description'])} | {amt} → "
             f"{{{{\"category\":\"{ex['category']}\",\"confidence\":0.98,\"merchant\":\"{m}\",\"reason\":\"пример\"}}}}"
         )
     return "\n".join(lines)
@@ -46,7 +52,7 @@ def build_system_prompt(examples: list[dict]) -> str:
 def build_user_prompt(tx: dict) -> str:
     amount = fmt_amount(tx["amount_kopecks"])
     return (
-        f'description: "{tx["description"]}"\n'
+        f'description: "{_truncate(tx["description"])}"\n'
         f'amount: {amount}\n'
         f'account: "{tx.get("account_anon") or ""}"\n'
         f'date: "{tx["date"]}"'

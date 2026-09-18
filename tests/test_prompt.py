@@ -28,6 +28,34 @@ def test_user_prompt_contains_tx():
     assert "-23.45" in prompt
 
 
+def test_user_prompt_truncates_long_description():
+    long_desc = "X" * 400
+    prompt = build_user_prompt({
+        "description": long_desc, "amount_kopecks": parse_amount("-1"),
+        "account_anon": None, "date": "2026-09-12",
+    })
+    assert "X" * 300 in prompt
+    assert "X" * 301 not in prompt
+    assert "…" in prompt
+
+
+def test_user_prompt_keeps_short_description():
+    prompt = build_user_prompt({
+        "description": "ЛЕНТА", "amount_kopecks": parse_amount("-1"),
+        "account_anon": None, "date": "2026-09-12",
+    })
+    assert "ЛЕНТА" in prompt
+    assert "…" not in prompt
+
+
+def test_system_prompt_truncates_long_example():
+    prompt = build_system_prompt([
+        {"description": "Y" * 400, "amount_kopecks": parse_amount("-100"), "category": "other"}
+    ])
+    assert "Y" * 300 in prompt
+    assert "Y" * 301 not in prompt
+
+
 def test_parse_json_clean():
     assert parse_llm_json('{"category":"groceries","confidence":0.9}')["category"] == "groceries"
 
