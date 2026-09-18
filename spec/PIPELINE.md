@@ -14,6 +14,7 @@ uv run spendtrack confidence                     # калибровка поро
 uv run spendtrack doctor [--json]                # целостность данных (exit 1 только на critical)
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
 uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
+uv run spendtrack digest [--days N] [--json]     # дайджест недели + флаги аномалий (read-only)
 ```
 
 ## Doctor (целостность данных)
@@ -51,9 +52,20 @@ uv run spendtrack suggest-rules [--json]         # подсказки keyword-п
 - Doctor-фикс 17.09 (найден стрессом флейка): `_guarded` переводит **любое** упавшее исключение чека в critical,
   `quick_check` отдельно обрабатывает «PRAGMA упал» (malformed) — doctor не роняется на повреждённых данных.
 
+## Дайджест недели + аномалии (read-only)
+- CLI `spendtrack digest [--days N] [--json]` + карточка «Дайджест недели» на `/dashboard`; ничего не хранится,
+  вычисление на лету (модуль `src/spendtrack/digest.py`).
+- Окно rolling [today-days+1..today] (дефолт 7), сравнение с предыдущим окном той же длины; `transfers` исключены
+  везде, доход — только в итогах. Топ-5 категорий расхода с дельтами, самый дорогой день, средний расход/день,
+  очередь pending, ближайшие ожидаемые списания рекуррингов (`next_expected` <=14 дн).
+- Аномалии (топ-10 по score): `large_expense` (>=3x медианы |расходов| категории за 90 дней, в категории >=10
+  наблюдений, пол 1000 ₽), `price_jump` (первое отклоняющееся >=10% списание после активного рекурринг-кластера),
+  `near_duplicate` (date+merchant+|amount|, >=2 строк — fingerprint не склеил). Только пометки, без алертов/ML/записей.
+- Тесты: `tests/test_digest.py` (27 unit, оффлайн) + e2e карточки `test_dashboard_digest_card`.
+
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 180 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
+uv run pytest -q                # 252 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):
