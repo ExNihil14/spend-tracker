@@ -41,6 +41,60 @@
 </div>
 {% endif %}
 
+{% if digest %}
+<div id="digest-card" class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
+  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+    <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Дайджест недели</h2>
+    <span class="text-xs text-slate-500">{{ digest.period.from }} → {{ digest.period.to }} · {{ digest.period.days }} дн · к прошлому окну</span>
+  </div>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">Доход</div>
+      <div class="text-emerald-400">{{ fmt(digest.income_k) }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">Расход</div>
+      <div class="text-rose-400">{{ fmt(digest.expense_k) }}
+        <span class="text-xs {{ 'text-rose-400' if digest.expense_delta_k < 0 else 'text-emerald-400' }}">Δ {{ fmt(digest.expense_delta_k) }}</span>
+      </div>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">Баланс</div>
+      <div class="text-slate-100">{{ fmt(digest.balance_k) }}</div>
+    </div>
+    <div>
+      <div class="text-xs uppercase tracking-wide text-slate-500">Средний/день</div>
+      <div class="text-slate-300">{{ fmt(digest.avg_per_day_k) }}</div>
+    </div>
+  </div>
+  {% if digest.top_categories %}
+  <div class="flex flex-wrap gap-2 text-xs mb-3">
+    {% for c in digest.top_categories %}
+    <span class="inline-flex items-center gap-1.5 bg-slate-800/60 rounded-full px-2.5 py-1">
+      <span class="inline-block w-2 h-2 rounded-full" style="background:{{ cat_colors.get(c.category, '#9ca3af') }}"></span>
+      <span class="text-slate-300">{{ c.category }}</span>
+      <span class="text-slate-400">{{ fmt(c.total_k) }}</span>
+      <span class="{{ 'text-rose-400' if c.delta_k < 0 else 'text-emerald-400' }}">Δ {{ fmt(c.delta_k) }}</span>
+    </span>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if digest.anomalies %}
+  <div class="text-xs space-y-1">
+    <div class="uppercase tracking-wide text-slate-500">Аномалии ({{ digest.anomalies | length }})</div>
+    {% for a in digest.anomalies %}
+    <div class="flex flex-wrap items-baseline gap-2">
+      <span class="text-amber-500">{{ a.label }}</span>
+      <span class="text-amber-400">{{ a.date }}</span>
+      <span class="text-slate-300">{{ a.merchant }}</span>
+      <span class="text-slate-400">{{ a.detail }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
 {% if recurring.subscriptions %}
 <div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
