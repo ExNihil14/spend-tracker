@@ -153,6 +153,38 @@ def cmd_suggest_rules(args) -> int:
     return 0
 
 
+def cmd_digest(args) -> int:
+    from spendtrack.digest import DEFAULT_DAYS, build_digest
+    store = make_store()
+    days = args.days if args.days is not None else DEFAULT_DAYS
+    digest = build_digest(store, days=days)
+    if args.json:
+        print(json.dumps(digest, ensure_ascii=False, indent=2))
+        return 0
+    p = digest["period"]
+    print(f"== Дайджест {p['from']} → {p['to']} ({p['days']} дн)")
+    print(f"  Доход   {fmt_amount(digest['income_k']):>12}  (было {fmt_amount(digest['prev']['income_k'])})")
+    print(f"  Расход  {fmt_amount(digest['expense_k']):>12}  (Δ {fmt_amount(digest['expense_delta_k'])})")
+    print(f"  Баланс  {fmt_amount(digest['balance_k']):>12}")
+    print(f"  Средний расход/день: {fmt_amount(digest['avg_per_day_k'])}")
+    if digest["top_day"]:
+        d = digest["top_day"]
+        print(f"  Самый дорогой день: {d['date']} ({fmt_amount(d['total_k'])})")
+    for c in digest["top_categories"]:
+        print(f"    {c['category']:<16} {fmt_amount(c['total_k']):>12}"
+              f"  Δ {fmt_amount(c['delta_k']):>10}  n={c['count']}")
+    print(f"  Очередь на подтверждение: {digest['pending_count']}")
+    for u in digest["upcoming"]:
+        when = (f"через {u['days_until']} дн" if u["days_until"] >= 0
+                else f"просрочено на {-u['days_until']} дн")
+        print(f"  Ожидается: {u['merchant']:<20} {fmt_amount(-u['price_k']):>10} ₽"
+              f"  {u['next_expected']} ({when})")
+    print(f"  Аномалии: {len(digest['anomalies'])}")
+    for a in digest["anomalies"]:
+        print(f"    [{a['label']}] {a['date']} {a['merchant']}: {a['detail']}")
+    return 0
+
+
 def cmd_doctor(args) -> int:
     from spendtrack.doctor import run_checks
     report = run_checks()
@@ -232,6 +264,11 @@ def main(argv: list[str] | None = None) -> int:
     a_sr = sub.add_parser("suggest-rules", help="подсказки keyword-правил из правок (read-only)")
     a_sr.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
     a_sr.set_defaults(fn=cmd_suggest_rules)
+
+    a_dg = sub.add_parser("digest", help="дайджест недели + флаги аномалий (read-only)")
+    a_dg.add_argument("--days", type=int, default=None, help="размер окна в днях (по умолчанию 7)")
+    a_dg.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    a_dg.set_defaults(fn=cmd_digest)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):

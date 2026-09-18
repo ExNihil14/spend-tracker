@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from spendtrack.config import ROOT
+from spendtrack.digest import build_digest
 from spendtrack.recurring import recurring_summary
 from spendtrack.reports import (
     budgets_progress,
@@ -101,6 +102,7 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
     colors = [cats.get(c["category"], "#9ca3af") for c in report["categories"]]
     budgets = budgets_progress(store, current, known=set(cats))
     recurring = recurring_summary(store)
+    digest = build_digest(store)
     return templates.TemplateResponse(
         request, "dashboard.html",
         {
@@ -108,6 +110,7 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
             "daily": daily,
             "budgets": budgets,
             "recurring": recurring,
+            "digest": digest,
             "current": current,
             "prev_month": _shift_month(current, -1),
             "next_month": _shift_month(current, 1),

@@ -271,6 +271,38 @@ def test_dashboard_recurring_card(page: Page, live_server, db_path):
     expect(page.locator("body")).to_contain_text("активных 1")
 
 
+def test_dashboard_digest_card(page: Page, live_server, db_path):
+    """Карточка «Дайджест недели»: итоги окна, топ-категория, near-дубль (даты от today)."""
+    today = datetime.now(UTC).date()
+    conn = sqlite3.connect(str(db_path))
+    for offset, desc, kop, cat in [
+        (1, "ЛЕНТА ВЧЕРА", -15000, "groceries"),
+        (2, "ЛЕНТА ПОЗАВЧЕРА", -12000, "groceries"),
+    ]:
+        conn.execute(
+            "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+            " confidence, created, updated) VALUES(?,?,?,?, 'import', 1.0,"
+            " datetime('now'), datetime('now'))",
+            ((today - timedelta(days=offset)).isoformat(), desc, kop, cat))
+    for desc in ("КОФЕ", "КОФЕ УГЛОВОЕ"):
+        conn.execute(
+            "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+            " confidence, merchant, created, updated) VALUES(?,?,?, 'restaurants', 'import', 1.0,"
+            " 'КОФЕ', datetime('now'), datetime('now'))",
+            (today.isoformat(), desc, -30000))
+    conn.commit()
+    conn.close()
+
+    page.goto(f"{live_server}/dashboard")
+    card = page.locator("#digest-card")
+    expect(card).to_contain_text("Дайджест недели")
+    expect(card).to_contain_text("7 дн")
+    expect(card).to_contain_text("-270.00")   # расход окна: -150 -120
+    expect(card).to_contain_text("groceries")
+    expect(card).to_contain_text("near-дубль")
+    expect(card).to_contain_text("КОФЕ")
+
+
 def test_approve_all_button(page: Page, live_server, db_path):
     """Кнопка «Одобрить все» убирает все pending-строки."""
     _seed_pending(str(db_path), [
