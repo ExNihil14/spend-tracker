@@ -15,6 +15,7 @@ uv run spendtrack doctor [--json]                # целостность дан
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
 uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
 uv run spendtrack digest [--days N] [--json]     # дайджест недели + флаги аномалий (read-only)
+uv run python -m scripts.restore_drill           # restore-drill последнего бэкапа → маркер для doctor
 ```
 
 ## Doctor (целостность данных)
@@ -24,7 +25,8 @@ uv run spendtrack digest [--days N] [--json]     # дайджест недели
 - Проверки: quick_check (critical) · дубли fingerprint (critical) · `user_version==SCHEMA_VERSION` (critical) ·
   категории вне таксономии (`transactions.category` critical; `category_llm` warn только при
   `source != 'llm_pending_review'`; rules/budgets/merchant_cache/examples warn) · pending с чужим source (warn) ·
-  пустые import_batches (info) · бэкап `data/backup/spend-*.db` (папки нет → info, >48ч → warn, quick_check → critical).
+  пустые import_batches (info) · бэкап `data/backup/spend-*.db` (папки нет → info, >48ч → warn, quick_check → critical) ·
+  restore-drill `data/backup/last_restore_drill.json` (маркера нет → info, >30 дней → warn, последний прогон failed → critical).
   Битая БД не роняет прогон: упавший чек становится critical (`db_open`/`не удалось выполнить проверку`).
 - Авторемонта нет (read-only; Store на входе до-мигрирует старую схему — это норма).
 - История (16.09): doctor нашёл, что задача `spendtrack-backup` не срабатывает (0x800710E0: Principal Interactive +

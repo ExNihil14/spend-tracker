@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from spendtrack.categorize import classify_with_injectable
+from spendtrack.categorize import _clamp_confidence, classify_with_injectable
 from spendtrack.store import parse_amount
 
 
@@ -44,3 +44,40 @@ def test_rule_takes_priority_over_llm(store, taxonomy, sample_txs):
     )
     assert result["source"] == "rule"
     assert result["category"] == "groceries"
+
+
+def _stub_conf(value):
+    return lambda t, s, tax: {
+        "category": "groceries", "confidence": value, "merchant": "X", "reason": "r", "source": "llm"
+    }
+
+
+def test_confidence_above_one_is_clamped(store, taxonomy):
+    result = classify_with_injectable(_tx(), taxonomy, store, _stub_conf(1.5), 0.9)
+    assert result["confidence"] == 1.0
+    assert result["source"] == "llm"
+
+
+def test_confidence_below_zero_is_clamped(store, taxonomy):
+    result = classify_with_injectable(_tx(), taxonomy, store, _stub_conf(-0.2), 0.9)
+    assert result["confidence"] == 0.0
+    assert result["source"] == "llm_pending_review"
+
+
+def test_confidence_none_goes_queue(store, taxonomy):
+    result = classify_with_injectable(_tx(), taxonomy, store, _stub_conf(None), 0.9)
+    assert result["confidence"] == 0.0
+    assert result["source"] == "llm_pending_review"
+
+
+def test_confidence_non_numeric_goes_queue(store, taxonomy):
+    result = classify_with_injectable(_tx(), taxonomy, store, _stub_conf("high"), 0.9)
+    assert result["confidence"] == 0.0
+    assert result["source"] == "llm_pending_review"
+
+
+def test_clamp_confidence_edge_cases():
+    assert _clamp_confidence(0.9) == 0.9
+    assert _clamp_confidence("0.5") == 0.5
+    assert _clamp_confidence(float("nan")) == 0.0
+    assert _clamp_confidence(object()) == 0.0
