@@ -76,6 +76,18 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (19.09, сессия 2 — план E, всё запушено `fec01fb`):** ① **экспорт Abacus: 506 диалогов (54 МБ)**
+> + просмотрщик (`D:\data\notes\abacus-export\2026-09-19\viewer\index.html`; CLI-поиск `abacus_search.py`) —
+> скрипты `abacus_web_export.py`/`abacus_render.py`, эндпоинты сняты через playwright; ② **второй мастер-план канала**
+> (`out_analysis/MASTER_PLAN_AI_SHEMSEDINOV_ROUND2.md`: 15 видео/429 записей, Opus 5 ≈$0.65); ③ **слепой аудит Fable 5.1**
+> (`EXPERT_AUDIT_SPENDTRACKER_FABLE.md` ≈$0.5) → **волна 3 пересобрана: BYO-LLM → экспорт → установка → лендинг →
+> PWA после 10 внешних**, hosted убран; ④ **фаза 0 в коде:** офлайн-гейт LLM (без ключей — ноль сетевых вызовов),
+> лимиты импорта (байты/413/HTMX), `PRIVACY.md`/`SECURITY.md`, тест «нулевой сети»; попутно закрыт реальный баг:
+> импорт не ставил `pending`/терял `category_llm`; ⑤ `fix(codespaces)`: сервер обслуживает демо-БД (было demo.db ≠ spend.db).
+> **299 unit + 18 e2e**, contract ok, ревью $0 (`EXPERT_REVIEW_PHASE0_OR.md`). Коммиты: `9fe3697`,`8a609c1`,`58de1d2`,`c1d3d6c`,`fec01fb`.
+> **Открыто (user env):** Codespace-порт 8766 отдаёт GitHub-404 при `curl localhost:8766/health`=200 — диагноз/шаги
+> в `SESSION_START_PROMPT.md` (сверить `$CODESPACE_NAME`, пере-форвардинг, Stop/Start, Simple Browser как обход).
+> **Дальше:** ③ SSE-батчи (0 кред.) / ④ UI-агент по рынку / волна 3 шаг 1 = BYO-LLM.
 > **АКТУАЛЬНО (19.09, вечер-2): автоматизация + демо-режим + стратегия рынка + AGPLv3.** ① Автогейт контракт-дельты
 > (`scripts/contract_delta.py`, CI-шаг) и one-command ревью (`scripts/review.py`) — **289 unit**, коммиты `a3f1871`/`d0e5c83`;
 > ② **демо-режим** (`scripts/demo_data.py`: 350 tx, 6 подписок, 3 типа аномалий, 6 pending, 5 бюджетов; Codespaces-автосид,
