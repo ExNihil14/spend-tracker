@@ -18,7 +18,19 @@ uv run spendtrack digest [--days N] [--json]     # дайджест недели
 uv run python -m scripts.restore_drill           # restore-drill последнего бэкапа → маркер для doctor
 uv run python scripts/contract_delta.py check    # контракт-дельта: API+схема+роуты vs baseline (exit 1 при дрейфе)
 uv run python scripts/contract_delta.py snapshot # обновить baseline после осознанного изменения контракта
+uv run python scripts/demo_data.py seed          # демо-витрина в data/demo.db (реальная БД не трогается)
 ```
+
+## Демо-данные (витрина)
+- `scripts/demo_data.py`: `seed [--if-empty] [--force] [--db PATH]` / `status` / `clean` — детерминированный
+  синтетический профиль (~5 месяцев): подписки (включая скачок цены), крупная сумма и near-дубль (аномалии),
+  6 pending, 5 бюджетов (перерасход/80%), corrections/examples → кандидаты `suggest-rules`, партия импорта.
+- По умолчанию — `data/demo.db`; guard: `spend.db` и непустые БД требуют `--force` (осознанно).
+  `seed --date YYYY-MM-DD` — воспроизводимые скриншоты/тесты (фиксированная дата). `clean` удаляет строго по манифесту
+  (`data/demo.db.demo_manifest.json`). `seed` заканчивается `verify` — все витринные фичи обязаны быть на месте.
+- Codespaces: `start-app.sh` вызывает `seed --if-empty` — свежий стенд сразу показательный.
+- Стенд: `SPENDTRACK_DB_PATH=data/demo.db uv run uvicorn spendtrack.main:app --port 8767`.
+- Тесты: `tests/test_demo_data.py` (4, оффлайн; фиксированная дата → детерминированные окна дайджеста).
 
 ## Doctor (целостность данных)
 - CLI `spendtrack doctor` — таблица чеков; `--json` — машинный JSON; exit 0 = ok/warn, 1 = critical.
