@@ -40,8 +40,12 @@ def cmd_add(args) -> int:
 def cmd_import(args) -> int:
     store = make_store()
     raw = Path(args.file).read_text(encoding="utf-8-sig", errors="replace")
-    from spendtrack.csv_import import import_csv
-    result = import_csv(raw, store, bank=args.bank)
+    from spendtrack.csv_import import ImportLimitError, import_csv
+    try:
+        result = import_csv(raw, store, bank=args.bank)
+    except ImportLimitError as e:  # лимиты импорта — понятный код 1
+        print(f"ошибка импорта: {e}", file=sys.stderr)
+        return 1
     print(json.dumps(result, ensure_ascii=False))
     return 0
 

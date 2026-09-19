@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from spendtrack.csv_import import import_csv, sniff_bank
+import pytest
+
+from spendtrack.csv_import import MAX_CSV_BYTES, import_csv, sniff_bank
 from spendtrack.store import parse_amount
 
 SBER_CSV = """Номер документа;Дата операции;Дата платежа;Номер карты;Статус;Сумма операции;Валюта операции;Сумма платежа;Валюта платежа;Категория;Описание
@@ -195,3 +197,32 @@ def test_sber_rejected_status_skipped(store):
     res = import_csv(csv_text, store, classify=_stub_classify())
     assert res["added"] == 2
     assert all("АШАН" not in t["description"] for t in store.list_transactions())
+
+def test_csv_size_limit_rejected(store):
+    """Файл больше лимита — явная ошибка, а не OOM/тихий парсинг."""
+    with pytest.raises(ValueError):
+        import_csv("x" * (MAX_CSV_BYTES + 1), store)
+
+
+def test_absurd_amount_marked_invalid(store):
+    """Мусорная сумма (≈100 млрд руб) — в отчёт invalid, в БД не попадает."""
+    csv_text = (
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
+        "1;01.09.2026 10:00;1234;Выполнено;99999999999,99;RUB;Продукты;АНТИКВАРИАТ\n"
+        "2;01.09.2026 11:00;1234;Выполнено;-100,00;RUB;Продукты;ЛЕНТА\n")
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["invalid"] == 1
+    assert res["added"] == 1
+    assert all("АНТИКВАРИАТ" not in t["description"] for t in store.list_transactions())
+
+
+def test_no_invalid_key_on_clean_import(store):
+    res = import_csv(SBER_CSV, store, classify=_stub_classify())
+    assert res["invalid"] == 0
+
+
+def test_size_limit_counts_bytes_not_chars(store):
+    """Кириллица = 2 байта/символ: лимит обязан считаться в байтах (P0 ревью 19.09)."""
+    cyrillic = "ф" * (MAX_CSV_BYTES // 2 + 1)  # символов ~5 М, байт >10 М
+    with pytest.raises(ValueError):
+        import_csv(cyrillic, store)

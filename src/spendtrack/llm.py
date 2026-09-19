@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 from openai import OpenAI
@@ -35,6 +37,15 @@ def get_client(endpoint: str | None = None) -> tuple[OpenAI, str, str]:
     return OpenAI(base_url=base, api_key=key, timeout=REQUEST_TIMEOUT_S), base, cfg.llm.primary.model
 
 
+def _is_local(url: str) -> bool:
+    return (urlparse(url).hostname or "").lower() in {"127.0.0.1", "localhost", "::1"}
+
+
+def _allow_local_llm() -> bool:
+    """Локальные эндпоинты (shim) — только явный opt-in: они тоже проксируют наружу."""
+    return os.environ.get("SPENDTRACK_ALLOW_LOCAL_LLM", "").strip().lower() in ("1", "true", "yes")
+
+
 def call_llm(
     system_prompt: str,
     user_prompt: str,
@@ -43,17 +54,30 @@ def call_llm(
     endpoint_override: str | None = None,
     model_override: str | None = None,
 ) -> dict[str, Any]:
-    """Вызов LLM с фолбэком. Возвращает {'content': str, 'model': str, 'source': str}."""
+    """Вызов LLM с фолбэком. Возвращает {'content': str, 'model': str, 'source': str}.
+
+    Offline-first: провайдер участвует только если для него есть ключ (или это локальный
+    эндпоинт с явным SPENDTRACK_ALLOW_LOCAL_LLM=1). Без ключей сеть не трогается вообще —
+    неизвестные операции уходят в очередь подтверждения, данные никуда не отправляются.
+    """
     cfg = load_settings()
 
-    attempts = [
-        (cfg.llm.primary.base_url, cfg.llm.primary.model, cfg.freel_llm_api_key or "no-key", "primary"),
-        (cfg.llm.fallback.base_url, cfg.llm.fallback.model, cfg.openrouter_api_key or "no-key", "fallback"),
-        (cfg.llm.deepseek.base_url, cfg.llm.deepseek.model, "no-key", "deepseek"),
+    candidates = [
+        (cfg.llm.primary.base_url, cfg.llm.primary.model, cfg.freel_llm_api_key, "primary"),
+        (cfg.llm.fallback.base_url, cfg.llm.fallback.model, cfg.openrouter_api_key, "fallback"),
+        (cfg.llm.deepseek.base_url, cfg.llm.deepseek.model, "", "deepseek"),
     ]
     if endpoint_override:
-        attempts = [(endpoint_override, model_override or cfg.llm.primary.model,
-                      cfg.freel_llm_api_key or "no-key", "override")] + attempts
+        candidates.insert(0, (endpoint_override, model_override or cfg.llm.primary.model,
+                              cfg.freel_llm_api_key, "override"))
+    attempts = [
+        (base_url, model, key or "no-key", source)
+        for base_url, model, key, source in candidates
+        if key or (_is_local(base_url) and _allow_local_llm())
+    ]
+    if not attempts:
+        log.info("llm: провайдеры не настроены — офлайн-режим (сеть не трогаем)")
+        return {"content": "", "model": "none", "source": "offline"}
 
     for base_url, model, api_key, source in attempts:
         br = _breaker(source)

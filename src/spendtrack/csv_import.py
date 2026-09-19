@@ -13,6 +13,13 @@ from spendtrack.taxonomy import Taxonomy
 _DATE_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
 _DATE_DDMMYYYY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})")
 
+MAX_CSV_BYTES = 10 * 1024 * 1024          # 10 МБ: даже многолетняя выписка меньше; защита от OOM
+MAX_AMOUNT_KOPECKS = 100_000_000_000      # 1 млрд руб на операцию — санитарный предел (защита от мусорных строк)
+
+
+class ImportLimitError(ValueError):
+    """Превышен лимит импорта (размер и т.п.) — API отдаёт 413, CLI код 1, остальное 500/баг."""
+
 
 def _cell(row: dict, *keys: str) -> str:
     for k in keys:
@@ -116,6 +123,11 @@ def import_csv(
 ) -> dict:
     """Импорт CSV. classify — инжектируемый (tx, store, taxonomy) -> dict с категоризацией.
     По умолчанию — боевой categorize_transaction (может ходить в LLM)."""
+    raw_bytes = raw if isinstance(raw, bytes) else raw.encode("utf-8")
+    if len(raw_bytes) > MAX_CSV_BYTES:  # лимит в БАЙТАХ (кириллица = 2 байта/символ), проверка первой
+        raise ImportLimitError(
+            f"CSV превышает лимит {MAX_CSV_BYTES // (1024 * 1024)} МБ ({len(raw_bytes)} байт) — "
+            "разделите выписку по периодам")
     if taxonomy is None:
         from spendtrack.config import ROOT
         from spendtrack.taxonomy import load_taxonomy
@@ -146,9 +158,12 @@ def import_csv(
     sha = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     batch_id = store.add_batch("unknown.csv", sha, len(reader_all))
 
-    added, dupes = 0, 0
+    added, dupes, invalid = 0, 0, 0
     seen: dict[str, int] = {}
     for rownum, tx in enumerate(adaptor.parse(iter(reader_all))):
+        if abs(tx["amount_kopecks"]) > MAX_AMOUNT_KOPECKS:
+            invalid += 1  # мусорная строка (битый экспорт) — в отчёт, не в БД
+            continue
         tx["statement_order"] = rownum
         account_anon = store.pseudonymize(tx.pop("account", None))
         tx["account_anon"] = account_anon
@@ -163,9 +178,14 @@ def import_csv(
         tx["category_source"] = classification["source"]
         tx["confidence"] = classification["confidence"]
         tx["merchant"] = classification["merchant"] or None
+        # Низкая уверенность LLM → очередь подтверждения (иначе все импортные строки «approved»
+        # и категория-предложение LLM терялись — найден офлайн-тестом, 19.09).
+        tx["review_status"] = classification.get("review_status", "approved")
+        tx["category_llm"] = classification.get("category_llm")
         if store.add_transaction(import_batch=batch_id, **tx):
             added += 1
         else:
             dupes += 1
 
-    return {"status": "ok", "bank": bank_name, "added": added, "dupes": dupes, "rows": len(reader_all)}
+    return {"status": "ok", "bank": bank_name, "added": added, "dupes": dupes,
+            "invalid": invalid, "rows": len(reader_all)}
