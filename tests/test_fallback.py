@@ -15,8 +15,15 @@ def test_deepseek_endpoint_configured():
     assert "deepseek" in cfg.llm.deepseek.model.lower()
 
 
+def _enable_all_providers(monkeypatch):
+    monkeypatch.setenv("SPENDTRACK_FREEL_LLM_API_KEY", "k-primary")
+    monkeypatch.setenv("SPENDTRACK_OPENROUTER_API_KEY", "k-fallback")
+    monkeypatch.setenv("SPENDTRACK_ALLOW_LOCAL_LLM", "1")
+
+
 def test_fallback_order_primary_fallback_deepseek(monkeypatch):
     """Порядок фолбэков: primary → fallback → deepseek (source=deepseek)."""
+    _enable_all_providers(monkeypatch)
     cfg = load_settings()
     call_order: list[str] = []
 
@@ -45,8 +52,25 @@ def test_fallback_order_primary_fallback_deepseek(monkeypatch):
     ]
 
 
+def test_offline_without_keys_never_touches_network(monkeypatch):
+    """Offline-first: без ключей и local-opt-in ни один провайдер не вызывается."""
+    for var in ("SPENDTRACK_FREEL_LLM_API_KEY", "SPENDTRACK_OPENROUTER_API_KEY",
+                "SPENDTRACK_ALLOW_LOCAL_LLM"):
+        monkeypatch.delenv(var, raising=False)
+    llm_mod._breakers.clear()
+
+    def explode(*args, **kwargs):
+        raise AssertionError("OpenAI-клиент не должен создаваться в офлайн-режиме")
+
+    with patch.object(llm_mod, "OpenAI", explode):
+        res = call_llm("sys", "usr", max_tokens=10)
+
+    assert res == {"content": "", "model": "none", "source": "offline"}
+
+
 def test_circuit_breaker_skips_dead_primary(monkeypatch):
     """3 фейла primary → breaker открыт → primary пропускается без вызова."""
+    _enable_all_providers(monkeypatch)
     cfg = load_settings()
     llm_mod._breakers.clear()
     called: list[str] = []

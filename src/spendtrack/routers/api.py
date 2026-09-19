@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from spendtrack.categorize import categorize_transaction
 from spendtrack.config import ROOT
-from spendtrack.csv_import import import_csv
+from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv
 from spendtrack.reports import budgets_progress
 from spendtrack.store import Store, fmt_amount, parse_amount
 from spendtrack.taxonomy import load_taxonomy
@@ -233,7 +233,9 @@ async def do_import(request: Request):
     if "application/json" in ct:
         body = ImportIn(**await request.json())
     else:
-        form = await request.form()
+        # framework-дефолт 1 МБ резал форму раньше наших лимитов: поднимаем до 2×лимита,
+        # чтобы превышение обрабатывал наш код (понятные 413/HTMX-сообщение)
+        form = await request.form(max_part_size=2 * MAX_CSV_BYTES)
         bank = form.get("bank")
         csv = form.get("csv")
         body = ImportIn(bank=str(bank) if bank is not None else "auto",
@@ -241,6 +243,10 @@ async def do_import(request: Request):
     is_hx = request.headers.get("hx-request", "").lower() == "true"
     try:
         result = import_csv(body.csv, store, bank=body.bank, taxonomy=taxonomy)
+    except ImportLimitError as e:  # лимиты импорта — понятный 413; прочие ValueError остаются багами (500)
+        if is_hx:
+            return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')
+        raise HTTPException(413, detail=str(e)) from None
     except Exception as e:
         if is_hx:
             return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')

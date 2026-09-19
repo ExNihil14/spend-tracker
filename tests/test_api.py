@@ -148,3 +148,19 @@ def test_import_json_client_gets_json(client):
     assert isinstance(r.json(), dict)
     assert r.json()["added"] >= 1
     assert "<p" not in r.text
+
+def test_import_limit_json_413(client):
+    """Файл больше лимита → 413 с понятным текстом (а не 500)."""
+    cyrillic = "ф" * (10 * 1024 * 1024 // 2 + 10)  # >10 МБ в байтах
+    r = client.post("/api/import", json={"bank": "sber", "csv": cyrillic})
+    assert r.status_code == 413
+    assert "лимит" in r.json()["detail"]
+
+
+def test_import_limit_htmx_shows_error(client):
+    """HTMX-ветка: лимит показывается красным текстом, без 500 (ASCII: 1 байт/символ)."""
+    big = "x" * (10 * 1024 * 1024 + 10)
+    r = client.post("/api/import", data={"bank": "sber", "csv": big},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert "Ошибка импорта" in r.text
