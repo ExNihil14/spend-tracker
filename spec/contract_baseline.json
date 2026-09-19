@@ -1,0 +1,605 @@
+{
+ "api": {
+  "spendtrack.categorize:categorize_llm": {
+   "args": "tx: dict, store: Store, taxonomy: Taxonomy",
+   "returns": "dict"
+  },
+  "spendtrack.categorize:categorize_rules_only": {
+   "args": "tx: dict, taxonomy: Taxonomy, store: Store",
+   "returns": "str | None"
+  },
+  "spendtrack.categorize:categorize_transaction": {
+   "args": "tx: dict, taxonomy: Taxonomy, store: Store",
+   "returns": "dict"
+  },
+  "spendtrack.categorize:classify_with_injectable": {
+   "args": "tx: dict, taxonomy: Taxonomy, store: Store, llm_getter, acceptance: float",
+   "returns": "dict"
+  },
+  "spendtrack.cli:cmd_add": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_budget": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_confidence": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_confirm": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_count": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_digest": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_doctor": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_import": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_recurring": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_report": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_suggest_rules": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:main": {
+   "args": "argv: list[str] | None=None",
+   "returns": "int"
+  },
+  "spendtrack.cli:make_store": {
+   "args": "",
+   "returns": "Store"
+  },
+  "spendtrack.config:load_settings": {
+   "args": "config_dir: Path | None=None",
+   "returns": "Settings"
+  },
+  "spendtrack.config:settings": {
+   "args": "",
+   "returns": "Settings"
+  },
+  "spendtrack.csv_import:SberAdaptor.parse": {
+   "args": "self, rows: Iterator[dict]",
+   "returns": "Iterator[dict]"
+  },
+  "spendtrack.csv_import:TinkoffAdaptor.parse": {
+   "args": "self, rows: Iterator[dict]",
+   "returns": "Iterator[dict]"
+  },
+  "spendtrack.csv_import:YandexMoneyAdaptor.parse": {
+   "args": "self, rows: Iterator[dict]",
+   "returns": "Iterator[dict]"
+  },
+  "spendtrack.csv_import:import_csv": {
+   "args": "raw: str | bytes, store: Store, bank: str='auto', taxonomy: Taxonomy | None=None, classify=None",
+   "returns": "dict"
+  },
+  "spendtrack.csv_import:sniff_bank": {
+   "args": "rows: list[dict]",
+   "returns": "str | None"
+  },
+  "spendtrack.digest:build_digest": {
+   "args": "store: Store, days: int=DEFAULT_DAYS, today: date | None=None",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_backup": {
+   "args": "db_path: Path",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_categories_invalid": {
+   "args": "conn: sqlite3.Connection, names: list[str], ph: str",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_category_llm_invalid": {
+   "args": "conn: sqlite3.Connection, names: list[str], ph: str",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_empty_batches": {
+   "args": "conn: sqlite3.Connection",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_fingerprint_dupes": {
+   "args": "conn: sqlite3.Connection",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_pending_source": {
+   "args": "conn: sqlite3.Connection",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_quick_check": {
+   "args": "conn: sqlite3.Connection",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_refs_invalid": {
+   "args": "conn: sqlite3.Connection, names: list[str], ph: str",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_restore_drill": {
+   "args": "db_path: Path",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_schema_version": {
+   "args": "conn: sqlite3.Connection",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:overall_status": {
+   "args": "checks: list[dict]",
+   "returns": "str"
+  },
+  "spendtrack.doctor:run_checks": {
+   "args": "db_path: Path | str | None=None, taxonomy: Taxonomy | None=None",
+   "returns": "dict[str, Any]"
+  },
+  "spendtrack.llm:call_llm": {
+   "args": "system_prompt: str, user_prompt: str, max_tokens: int=400, temperature: float=0.1, endpoint_override: str | None=None, model_override: str | None=None",
+   "returns": "dict[str, Any]"
+  },
+  "spendtrack.llm:get_client": {
+   "args": "endpoint: str | None=None",
+   "returns": "tuple[OpenAI, str, str]"
+  },
+  "spendtrack.llm:parse_llm_json": {
+   "args": "raw: str",
+   "returns": "dict | None"
+  },
+  "spendtrack.main:health": {
+   "args": "",
+   "returns": ""
+  },
+  "spendtrack.main:health_data": {
+   "args": "",
+   "returns": ""
+  },
+  "spendtrack.main:main": {
+   "args": "",
+   "returns": "None"
+  },
+  "spendtrack.prompts:build_system_prompt": {
+   "args": "examples: list[dict]",
+   "returns": "str"
+  },
+  "spendtrack.prompts:build_user_prompt": {
+   "args": "tx: dict",
+   "returns": "str"
+  },
+  "spendtrack.recurring:detect_recurring": {
+   "args": "store: Store, today: date | None=None",
+   "returns": "list[dict]"
+  },
+  "spendtrack.recurring:recurring_summary": {
+   "args": "store: Store, today: date | None=None",
+   "returns": "dict"
+  },
+  "spendtrack.reports:budgets_progress": {
+   "args": "store: Store, month: str, known: set[str] | None=None",
+   "returns": "list[dict]"
+  },
+  "spendtrack.reports:categories_with_totals": {
+   "args": "store: Store, month: str | None=None",
+   "returns": "list[dict]"
+  },
+  "spendtrack.reports:confidence_calibration": {
+   "args": "store: Store, current_threshold: float=0.9, candidates: tuple[float, ...]=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9)",
+   "returns": "dict"
+  },
+  "spendtrack.reports:report_daily": {
+   "args": "store: Store, month: str",
+   "returns": "list[dict]"
+  },
+  "spendtrack.reports:report_month": {
+   "args": "store: Store, month: str",
+   "returns": "dict"
+  },
+  "spendtrack.resilience:CircuitBreaker.allowed": {
+   "args": "self",
+   "returns": "bool"
+  },
+  "spendtrack.resilience:CircuitBreaker.report_failure": {
+   "args": "self",
+   "returns": "None"
+  },
+  "spendtrack.resilience:CircuitBreaker.report_success": {
+   "args": "self",
+   "returns": "None"
+  },
+  "spendtrack.routers.api:approve_all": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.api:approve_review": {
+   "args": "request: Request, tx_id: int",
+   "returns": ""
+  },
+  "spendtrack.routers.api:budgets": {
+   "args": "month: str | None=None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:confirm": {
+   "args": "tx_id: int, body: ConfirmIn",
+   "returns": ""
+  },
+  "spendtrack.routers.api:create": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.api:do_import": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.api:get_one": {
+   "args": "tx_id: int",
+   "returns": ""
+  },
+  "spendtrack.routers.api:list_reviews": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.api:pending_count": {
+   "args": "",
+   "returns": ""
+  },
+  "spendtrack.routers.api:reviews_count": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.api:skip_review": {
+   "args": "request: Request, tx_id: int",
+   "returns": ""
+  },
+  "spendtrack.routers.frontend:approve": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.frontend:dashboard": {
+   "args": "request: Request, month: str | None=None, month_delta: int=0",
+   "returns": ""
+  },
+  "spendtrack.routers.frontend:index": {
+   "args": "request: Request, month: str | None=None, month_delta: int=0, category: str | None=None, q: str | None=None, sort: str | None=None",
+   "returns": ""
+  },
+  "spendtrack.routers.frontend:more_rows": {
+   "args": "request: Request, month: str | None=None, category: str | None=None, q: str | None=None, sort: str='recent', after: str | None=None, days: int=PAGE_DAYS",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:add_category": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:add_rule": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:delete_category": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:delete_rule": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:move_rule": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:preview_rule": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:rename_category": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:rename_preview": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:set_budget": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:set_color": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:settings": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.routers.settings:tester": {
+   "args": "request: Request",
+   "returns": ""
+  },
+  "spendtrack.store:Store.add_batch": {
+   "args": "self, filename: str, sha: str, nrows: int",
+   "returns": "str"
+  },
+  "spendtrack.store:Store.add_example": {
+   "args": "self, description: str, amount_kopecks: int, category: str",
+   "returns": "None"
+  },
+  "spendtrack.store:Store.add_transaction": {
+   "args": "self, date: str, description: str, amount_kopecks: int, category: str, category_source: str, confidence: float=1.0, merchant: str | None=None, account_anon: str | None=None, import_batch: str | None=None, export_rowid: str='', category_llm: str | None=None, review_status: str='approved', statement_order: int | None=None",
+   "returns": "int | None"
+  },
+  "spendtrack.store:Store.approve_all_reviews": {
+   "args": "self",
+   "returns": "int"
+  },
+  "spendtrack.store:Store.approve_review": {
+   "args": "self, tx_id: int, category: str",
+   "returns": "bool"
+  },
+  "spendtrack.store:Store.budget_map": {
+   "args": "self",
+   "returns": "dict[str, int]"
+  },
+  "spendtrack.store:Store.clear_budget": {
+   "args": "self, category: str",
+   "returns": "None"
+  },
+  "spendtrack.store:Store.close": {
+   "args": "self",
+   "returns": "None"
+  },
+  "spendtrack.store:Store.counts": {
+   "args": "self",
+   "returns": "dict"
+  },
+  "spendtrack.store:Store.get_transaction": {
+   "args": "self, tx_id: int",
+   "returns": "dict | None"
+  },
+  "spendtrack.store:Store.list_examples": {
+   "args": "self, limit: int=8",
+   "returns": "list[dict]"
+  },
+  "spendtrack.store:Store.list_transactions": {
+   "args": "self, month: str | None=None, category: str | None=None, needs_review: bool=False, limit: int=500, search: str | None=None, sort: str='recent'",
+   "returns": "list[dict]"
+  },
+  "spendtrack.store:Store.list_transactions_days": {
+   "args": "self, month: str | None=None, category: str | None=None, search: str | None=None, days: int=31, after_date: str | None=None",
+   "returns": "tuple[list[dict], str | None, bool]"
+  },
+  "spendtrack.store:Store.merchant_cache_get": {
+   "args": "self, merchant: str",
+   "returns": "str | None"
+  },
+  "spendtrack.store:Store.merchant_cache_set": {
+   "args": "self, merchant: str, category: str",
+   "returns": "None"
+  },
+  "spendtrack.store:Store.pending_count": {
+   "args": "self",
+   "returns": "int"
+  },
+  "spendtrack.store:Store.pseudonymize": {
+   "args": "self, original: str | None",
+   "returns": "str | None"
+  },
+  "spendtrack.store:Store.queued_for_review": {
+   "args": "self",
+   "returns": "list[dict]"
+  },
+  "spendtrack.store:Store.seed_merchant_cache": {
+   "args": "self, tx_id: int",
+   "returns": "None"
+  },
+  "spendtrack.store:Store.set_budget": {
+   "args": "self, category: str, amount_kopecks: int",
+   "returns": "None"
+  },
+  "spendtrack.store:Store.skip_review": {
+   "args": "self, tx_id: int",
+   "returns": "bool"
+  },
+  "spendtrack.store:Store.update_category": {
+   "args": "self, tx_id: int, category: str, source: str='correction'",
+   "returns": "bool"
+  },
+  "spendtrack.store:Store.update_merchant": {
+   "args": "self, tx_id: int, merchant: str | None",
+   "returns": "None"
+  },
+  "spendtrack.store:fingerprint": {
+   "args": "date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str",
+   "returns": "str"
+  },
+  "spendtrack.store:fmt_amount": {
+   "args": "kopecks: int",
+   "returns": "str"
+  },
+  "spendtrack.store:parse_amount": {
+   "args": "value: str | float",
+   "returns": "int"
+  },
+  "spendtrack.suggestions:suggest_rules": {
+   "args": "store: Store, min_confirmations: int=MIN_CONFIRMATIONS, min_purity: float=MIN_PURITY",
+   "returns": "dict"
+  },
+  "spendtrack.taxonomy:Taxonomy.is_valid": {
+   "args": "self, name: str",
+   "returns": "bool"
+  },
+  "spendtrack.taxonomy:load_taxonomy": {
+   "args": "config_dir: Path | None=None",
+   "returns": "Taxonomy"
+  },
+  "spendtrack.taxonomy_repo:add_category": {
+   "args": "name: str, color: str, expected_hash: str | None",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:add_rule": {
+   "args": "pattern: str, category: str, expected_hash: str | None",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:analyze_rules": {
+   "args": "data: dict | None=None",
+   "returns": "list[dict]"
+  },
+  "spendtrack.taxonomy_repo:delete_category": {
+   "args": "name: str, store: Store, expected_hash: str | None",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:delete_rule": {
+   "args": "index: int, expected_hash: str | None",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:file_hash": {
+   "args": "",
+   "returns": "str"
+  },
+  "spendtrack.taxonomy_repo:load_raw": {
+   "args": "",
+   "returns": "dict"
+  },
+  "spendtrack.taxonomy_repo:move_rule": {
+   "args": "index: int, direction: str, expected_hash: str | None",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:preview_rule": {
+   "args": "pattern: str, category: str",
+   "returns": "dict"
+  },
+  "spendtrack.taxonomy_repo:rename_category": {
+   "args": "old_name: str, new_name: str, store: Store, expected_hash: str | None",
+   "returns": "dict"
+  },
+  "spendtrack.taxonomy_repo:rename_counts": {
+   "args": "old: str, data: dict, store: Store",
+   "returns": "dict"
+  },
+  "spendtrack.taxonomy_repo:rename_preview": {
+   "args": "old_name: str, new_name: str, store: Store, expected_hash: str | None=None",
+   "returns": "dict"
+  },
+  "spendtrack.taxonomy_repo:save": {
+   "args": "data: dict, expected_hash: str | None, action: str, key: str, old=None, new=None",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:set_budget": {
+   "args": "category: str, amount: str, store: Store",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:set_color": {
+   "args": "name: str, color: str, expected_hash: str | None",
+   "returns": "None"
+  },
+  "spendtrack.taxonomy_repo:test_description": {
+   "args": "description: str, store: Store",
+   "returns": "dict"
+  },
+  "spendtrack.taxonomy_repo:usage_counts": {
+   "args": "store: Store",
+   "returns": "dict[str, int]"
+  },
+  "spendtrack.taxonomy_repo:validate_color": {
+   "args": "color: str",
+   "returns": "str"
+  },
+  "spendtrack.taxonomy_repo:validate_name": {
+   "args": "name: str",
+   "returns": "str"
+  },
+  "spendtrack.taxonomy_repo:validate_pattern": {
+   "args": "pattern: str",
+   "returns": "str"
+  }
+ },
+ "routes": {
+  "GET /": "",
+  "GET /api/budgets": "",
+  "GET /api/pending-count": "",
+  "GET /api/reviews": "",
+  "GET /api/reviews/count": "",
+  "GET /api/transactions/{tx_id}": "",
+  "GET /approve": "",
+  "GET /dashboard": "",
+  "GET /health": "",
+  "GET /health/data": "",
+  "GET /settings": "",
+  "GET /transactions/more": "",
+  "PATCH /api/transactions/{tx_id}": "",
+  "POST /api/import": "",
+  "POST /api/reviews/approve-all": "",
+  "POST /api/reviews/{tx_id}/approve": "",
+  "POST /api/reviews/{tx_id}/skip": "",
+  "POST /api/transactions": "",
+  "POST /settings/budgets": "",
+  "POST /settings/categories": "",
+  "POST /settings/categories/color": "",
+  "POST /settings/categories/delete": "",
+  "POST /settings/categories/rename": "",
+  "POST /settings/categories/rename/preview": "",
+  "POST /settings/rules": "",
+  "POST /settings/rules/delete": "",
+  "POST /settings/rules/move": "",
+  "POST /settings/rules/preview": "",
+  "POST /settings/test": ""
+ },
+ "schema": {
+  "account_pseudonyms.original": "TEXT|notnull=0|pk=1",
+  "account_pseudonyms.pseudonym": "TEXT|notnull=1|pk=0",
+  "budgets.amount_kopecks": "INTEGER|notnull=1|pk=0",
+  "budgets.category": "TEXT|notnull=0|pk=1",
+  "budgets.updated": "TEXT|notnull=1|pk=0",
+  "categories.color": "TEXT|notnull=1|pk=0",
+  "categories.name": "TEXT|notnull=0|pk=1",
+  "examples.amount_kopecks": "INTEGER|notnull=1|pk=0",
+  "examples.category": "TEXT|notnull=1|pk=0",
+  "examples.description": "TEXT|notnull=1|pk=0",
+  "examples.id": "INTEGER|notnull=0|pk=1",
+  "import_batches.created": "TEXT|notnull=1|pk=0",
+  "import_batches.filename": "TEXT|notnull=1|pk=0",
+  "import_batches.id": "TEXT|notnull=0|pk=1",
+  "import_batches.nrows": "INTEGER|notnull=1|pk=0",
+  "import_batches.sha": "TEXT|notnull=1|pk=0",
+  "import_batches.status": "TEXT|notnull=1|pk=0",
+  "merchant_cache.category": "TEXT|notnull=1|pk=0",
+  "merchant_cache.confidence": "REAL|notnull=1|pk=0",
+  "merchant_cache.key": "TEXT|notnull=0|pk=1",
+  "merchant_cache.merchant": "TEXT|notnull=1|pk=0",
+  "merchant_cache.updated": "TEXT|notnull=1|pk=0",
+  "rules.category": "TEXT|notnull=1|pk=0",
+  "rules.id": "INTEGER|notnull=0|pk=1",
+  "rules.pattern": "TEXT|notnull=1|pk=0",
+  "schema_migrations.applied_at": "TEXT|notnull=1|pk=0",
+  "schema_migrations.version": "INTEGER|notnull=0|pk=1",
+  "transactions.account_anon": "TEXT|notnull=0|pk=0",
+  "transactions.amount_kopecks": "INTEGER|notnull=1|pk=0",
+  "transactions.category": "TEXT|notnull=1|pk=0",
+  "transactions.category_llm": "TEXT|notnull=0|pk=0",
+  "transactions.category_source": "TEXT|notnull=1|pk=0",
+  "transactions.confidence": "REAL|notnull=1|pk=0",
+  "transactions.created": "TEXT|notnull=1|pk=0",
+  "transactions.date": "TEXT|notnull=1|pk=0",
+  "transactions.description": "TEXT|notnull=1|pk=0",
+  "transactions.fingerprint": "TEXT|notnull=0|pk=0",
+  "transactions.id": "INTEGER|notnull=0|pk=1",
+  "transactions.import_batch": "TEXT|notnull=0|pk=0",
+  "transactions.merchant": "TEXT|notnull=0|pk=0",
+  "transactions.review_status": "TEXT|notnull=1|pk=0",
+  "transactions.statement_order": "INTEGER|notnull=0|pk=0",
+  "transactions.updated": "TEXT|notnull=1|pk=0",
+  "user_version": "4"
+ }
+}
