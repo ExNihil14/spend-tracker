@@ -64,7 +64,8 @@ uv run python scripts/demo_data.py clean    # убрать демо по ман�
 SPENDTRACK_DB_PATH=data/demo.db uv run uvicorn spendtrack.main:app --port 8767
 ```
 
-В Codespaces демо-данные засеиваются автоматически при первом старте (пустая БД).
+В Codespaces демо-данные засеиваются автоматически при первом старте в `data/demo.db`, и сервер обслуживает
+именно её (подписки, дайджест с аномалиями, бюджеты и очередь видны сразу).
 
 ## Тестирование в GitHub Codespaces
 
@@ -73,7 +74,8 @@ SPENDTRACK_DB_PATH=data/demo.db uv run uvicorn spendtrack.main:app --port 8767
 после входа в GitHub (в приложении нет своей авторизации). Данные — **только синтетические**:
 
 ```bash
-uv run python scripts/review_demo.py seed   # демо-строки для проверки очереди /approve
+# демо-строки для проверки очереди /approve — в ту же БД, что обслуживает сервер:
+SPENDTRACK_DB_PATH=data/demo.db uv run python scripts/review_demo.py seed
 ```
 
 Открыть приложение: вкладка **PORTS** → порт 8766 → значок «Open in Browser».
@@ -112,6 +114,17 @@ uv run spendtrack confidence                  # калибровка порог�
 - LLM не обязателен: без ключей категоризация работает на правилах, спорные строки ждут подтверждения.
 
 ![Настройки](assets/screenshot-settings.png)
+
+## Приватность и безопасность
+
+- **Офлайн по умолчанию:** без ключей LLM приложение не делает сетевых вызовов (проверяется тестом
+  `tests/test_offline.py` в CI); сервер слушает только `127.0.0.1`, телеметрии нет.
+- **Что уходит при включённом LLM** (описание ≤300 симв., сумма, псевдоним счёта, дата и few-shot примеры) —
+  подробно в [`PRIVACY.md`](PRIVACY.md); модель угроз и лимиты — [`SECURITY.md`](SECURITY.md).
+- Лимиты импорта: CSV ≤ 10 МБ; абсурдные суммы отбрасываются в отчёт (`invalid`), а низкоуверенные строки
+  уходят в очередь «Подтвердить».
+- Данные — ваш файл SQLite (`data/spend.db`); бэкап с проверкой восстановления: `uv run python scripts/backup.py`.
+- Не финансовый/налоговый совет; ПО поставляется «как есть» (AGPLv3).
 
 ## Разработка
 
