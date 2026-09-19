@@ -42,6 +42,21 @@ uv run uvicorn spendtrack.main:app --host 127.0.0.1 --port 8766
 
 Приложение: <http://127.0.0.1:8766> — БД создастся сама в `data/spend.db`.
 
+## Демо-режим (витрина за минуту)
+
+Синтетические данные (~5 месяцев): все фичи видны сразу — подписки, дайджест с аномалиями, бюджеты
+(перерасход и ~80%), очередь подтверждения, правки/примеры и кандидаты правил.
+
+```bash
+uv run python scripts/demo_data.py seed     # data/demo.db (реальная БД не трогается)
+uv run python scripts/demo_data.py status   # что засеяно + счётчики фич
+uv run python scripts/demo_data.py clean    # убрать демо по манифесту
+# стенд на отдельной БД:
+SPENDTRACK_DB_PATH=data/demo.db uv run uvicorn spendtrack.main:app --port 8767
+```
+
+В Codespaces демо-данные засеиваются автоматически при первом старте (пустая БД).
+
 ## Тестирование в GitHub Codespaces
 
 Прямая ссылка: [создать codespace](https://codespaces.new/ExNihil14/spend-tracker) (квота GitHub Free: 120 core-часов/мес).
