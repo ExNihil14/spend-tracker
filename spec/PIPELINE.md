@@ -16,6 +16,8 @@ uv run spendtrack recurring [--json]             # детекция рекурр
 uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
 uv run spendtrack digest [--days N] [--json]     # дайджест недели + флаги аномалий (read-only)
 uv run python -m scripts.restore_drill           # restore-drill последнего бэкапа → маркер для doctor
+uv run python scripts/contract_delta.py check    # контракт-дельта: API+схема+роуты vs baseline (exit 1 при дрейфе)
+uv run python scripts/contract_delta.py snapshot # обновить baseline после осознанного изменения контракта
 ```
 
 ## Doctor (целостность данных)
@@ -54,6 +56,14 @@ uv run python -m scripts.restore_drill           # restore-drill последн�
 - Doctor-фикс 17.09 (найден стрессом флейка): `_guarded` переводит **любое** упавшее исключение чека в critical,
   `quick_check` отдельно обрабатывает «PRAGMA упал» (malformed) — doctor не роняется на повреждённых данных.
 
+## Контракт-дельта (авто-гейт)
+- `scripts/contract_delta.py` — снапшот публичных контрактов: схема БД (user_version + колонки из tmp-БД Store),
+  публичные сигнатуры `src/spendtrack` (AST, без импорта), HTTP-роуты (OpenAPI). Baseline: `spec/contract_baseline.json`.
+- Команды: `snapshot` (обновить baseline), `check` (exit 1 при дрейфе). CI-шаг «Contract delta» в `lint-and-test`.
+- Поток при осознанном изменении контракта: изменить код → `snapshot` → baseline в том же коммите. При AI-рефакторинге
+  расхождение check = блокер (LLM молча выкидывают функциональность; happy-path тесты это не ловят).
+- Тесты: `tests/test_contract_delta.py` (6, оффлайн, герметичные — tmp-пакеты/файлы baseline).
+
 ## Дайджест недели + аномалии (read-only)
 - CLI `spendtrack digest [--days N] [--json]` + карточка «Дайджест недели» на `/dashboard`; ничего не хранится,
   вычисление на лету (модуль `src/spendtrack/digest.py`).
@@ -79,6 +89,9 @@ uv run ruff check               # lint, чистый
   галочки исполнителя проходят независимую верификацию. Скилл агента-исполнителя — `data-discipline` (после рестарта opencode).
 - Брифы субагентам — по шаблону `D:\dev\docs\machine\TASK_BRIEF_TEMPLATE.md` (чек-лист задачи внутри:
   контракт-дельта, миграции, usage-first тесты, дисциплина данных, гейт, доки).
+- Ревью WIP автоматизировано: `uv run python scripts/review.py --title "..." [--notes facts.md] [--out review.md]`
+  — сам собирает чек-лист + план-формат + `git diff` (+untracked) и вызывает OpenRouter :free ($0);
+  для длинных прогонов запускать через `start-detached.ps1`. Прогресс/готовность — по файлу `--out`.
 
 ## Миграции
 - Аддитивные: новый путь рядом со старым, переключение ПОСЛЕ подтверждённой работы,
