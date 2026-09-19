@@ -76,6 +76,14 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (19.09, вечер-2): автоматизация + демо-режим + стратегия рынка + AGPLv3.** ① Автогейт контракт-дельты
+> (`scripts/contract_delta.py`, CI-шаг) и one-command ревью (`scripts/review.py`) — **289 unit**, коммиты `a3f1871`/`d0e5c83`;
+> ② **демо-режим** (`scripts/demo_data.py`: 350 tx, 6 подписок, 3 типа аномалий, 6 pending, 5 бюджетов; Codespaces-автосид,
+> стенд 8767) — `0f80e5c`/`d81c369`; ③ **рынок**: `RESEARCH_SPENDTRACKER_MARKET.md` (46 источников) + `EXPERT_STRATEGY_...`;
+> решения — **AGPLv3**, **RU-first**, валидация «10 CSV» → лендинг-запуск, Boosty (11.7%); ④ **волна 3 расширена рыночными
+> S-задачами:** экспорт CSV/Excel, one-command установка (Docker/uvx), лендинг + демо-кнопка (Codespaces), BYO-LLM/Ollama;
+> ⑤ i18n/локализация/юр/a11y — `D:\dev\docs\machine\DESIGN_I18N_LEGAL_A11Y.md`. **Ждут коммита: LICENSE (AGPLv3) + README
+> (Для кого/EN/поддержка) + continue.md.** Push — юзера (ahead: см. git status).
 > **АКТУАЛЬНО (19.09): тяжёлый one-shot экспертный анализ проекта + роадмапа выполнен (Abacus, claude-opus-5).**
 > Артефакт: `D:\dev\docs\machine\EXPERT_ANALYSIS_SPENDTRACKER_ABACUS.md` (протокол отбора модели + факт-чек P0 + полный отчёт).
 > Прогон: 1 запрос, 110 с, 2990 in / 5910 out ≈ $0.175 ≈ 0.9% месячного лимита Abacus; рекурсии нет. Ключевые выводы:
@@ -216,9 +224,14 @@ NULL в `rules.category` (NOT NULL). **Правки doctor.py после рев�
    визуальный смоук выполнен агентом через playwright MCP — карточка «Подписки» на `/dashboard` найдена); ③ ✅ **`suggest-rules`**
    (`1b953c4`, ревью `EXPERT_REVIEW_SUGGEST_RULES_OR.md`, 14 unit). Калибровка 0.9 — по мере накопления решённых (2/20).
    ⑧ **Волна 2 — ЗАКРЫТА (18.09):** ✅ **дайджест недели + флаги аномалий** (`digest.py`, CLI `digest [--days N] [--json]`,
-   карточка на `/dashboard`; 27 unit + e2e; ревью ×2 OpenRouter :free $0 — `EXPERT_REVIEW_DIGEST_OR.md`). Ждёт смоука/коммита юзера.
-   **Следующее — волна 3 по выбору:** Telegram quick-capture (M, приватность) / слияние категорий (S) / цели-net worth.
-   Брейншторм-синтез: тот же файл.
+   карточка на `/dashboard`; 27 unit + e2e; ревью ×2 OpenRouter :free $0 — `EXPERT_REVIEW_DIGEST_OR.md`). Запушено.
+   ⑨ **Волна 3 (по рынку, решение 19.09) — канал данных PWA + рыночные S-задачи + фаза 0 локализации/a11y:** ① PWA-быстрый
+   ввод (офлайн-очередь, синк `last known ID`/LWW, идемпотентность client-uuid, e2e без сети); ② экспорт CSV/Excel;
+   ③ one-command установка (Docker/uvx), ④ лендинг + демо-кнопка (Codespaces) + Sponsors/Boosty-якорь; ⑤ BYO-LLM/Ollama
+   (air-gap); **⑥ фаза 0 (S, `DESIGN_I18N_LEGAL_A11Y.md`): a11y-победы (accessible-имена полей, `:focus-visible`, контраст
+   мелкого текста, 3 e2e-ассерта) + `PRIVACY.md`/`DISCLAIMER`/`SECURITY.md` + docs «как добавить банк-адаптер» (путь СНГ);
+   рельсы: пользовательские строки/форматы — через хелперы (в будущем `t()`, каталоги `config/locales/`).**
+   Валидация: «10 CSV» (0₽) до PWA; Telegram — только после теста «vs PWA». Стратегия: `EXPERT_STRATEGY_SPENDTRACKER_MARKET.md`.
 
 ## Мета
 - Возврат к работе: просто прочитай эти файлы: AGENTS.md (команды), CONTEXT.md (словарь),
