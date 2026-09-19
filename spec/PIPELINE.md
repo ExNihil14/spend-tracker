@@ -76,6 +76,16 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
   расхождение check = блокер (LLM молча выкидывают функциональность; happy-path тесты это не ловят).
 - Тесты: `tests/test_contract_delta.py` (6, оффлайн, герметичные — tmp-пакеты/файлы baseline).
 
+## Офлайн-first, лимиты импорта, очередь (фаза 0 аудита 19.09)
+- LLM по умолчанию **выключен**: без ключей (`SPENDTRACK_OPENROUTER_API_KEY`/`SPENDTRACK_FREEL_LLM_API_KEY`)
+  ни один провайдер не вызывается, сеть не трогается; локальные шимы (3001/3201) — только с
+  `SPENDTRACK_ALLOW_LOCAL_LLM=1` (они тоже проксируют наружу). Доказательство: `tests/test_offline.py` в CI.
+- Лимиты импорта: CSV ≤ 10 МБ (`MAX_CSV_BYTES`), |сумма| > 1 млрд ₽ → строка в отчёт `invalid` (`MAX_AMOUNT_KOPECKS`);
+  API отдаёт 413 c понятным текстом, CLI — код 1.
+- Фикс 19.09: `import_csv` переносит `review_status`/`category_llm` из классификатора — низкоуверенные импортные
+  строки теперь реально попадают в очередь (раньше были «approved» без предложения LLM).
+- Приватность/угрозы: `PRIVACY.md`, `SECURITY.md` в корне.
+
 ## Дайджест недели + аномалии (read-only)
 - CLI `spendtrack digest [--days N] [--json]` + карточка «Дайджест недели» на `/dashboard`; ничего не хранится,
   вычисление на лету (модуль `src/spendtrack/digest.py`).
