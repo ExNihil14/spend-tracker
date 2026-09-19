@@ -17,7 +17,9 @@ if [ ! -x "$UV" ]; then
   exit 1
 fi
 "$UV" sync >> "$LOG" 2>&1 || echo "[$(ts)] WARN: uv sync failed (пробуем запуститься)" >> "$LOG"
-# Демо-витрина: на свежем codespace (пустая data/demo.db) сеем синтетику; существующие данные не трогаем
+# Витрина Codespaces живет в data/demo.db — и сид, и сервер работают с ОДНОЙ базой
+# (иначе демо сеялось в demo.db, а сервер показывал пустой spend.db — баг найден 19.09).
+export SPENDTRACK_DB_PATH="$PWD/data/demo.db"
 "$UV" run python scripts/demo_data.py seed --if-empty >> "$LOG" 2>&1 \
   || echo "[$(ts)] WARN: demo seed failed (стенд стартует без демо-данных)" >> "$LOG"
 # --reload: синк workspace в Codespaces может обновить код при живом сервере (start идемпотентен по /health);
