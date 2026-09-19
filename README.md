@@ -1,7 +1,7 @@
 # Spendtrack
 
 [![CI](https://github.com/ExNihil14/spend-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/ExNihil14/spend-tracker/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License: AGPL v3](https://img.shields.io/badge/license-AGPLv3-blue.svg)](LICENSE)
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ExNihil14/spend-tracker)
 
 Трекер личных расходов с LLM-категоризацией: детерминированное ядро (правила) закрывает большую часть транзакций,
@@ -9,6 +9,15 @@ LLM подключается только для остатка, спорное 
 offline-first: без ключей и сети работает на правилах.
 
 ![Список транзакций](assets/screenshot-transactions.png)
+
+## Для кого
+
+Локальный трекер для тех, кто **не отдаёт банковские данные в облако** и готов раз в месяц закинуть CSV-выписку:
+
+- **Подходит:** пользователи выписок Сбер/Тинькофф/Яндекс; privacy-минималисты и self-hosted-аудитория; те, кому нужны
+  бюджеты, автодетект подписок и недельный отчёт об аномалиях — без подписки и bank-API.
+- **Не подходит:** тем, кто ждёт автоматический bank sync и приложение из App Store; семьям с общим бюджетом
+  (мультиюзера нет); учёту инвестиций и мультивалютным портфелям (в планах нет).
 
 ## Возможности
 
@@ -122,6 +131,18 @@ uv run ruff check src tests
 uv run python scripts/backup.py --keep 14   # VACUUM INTO, безопасно при WAL
 ```
 
-## Лицензия
+## English
 
-MIT — см. [`LICENSE`](LICENSE).
+Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (Sber/Tinkoff/Yandex formats),
+deterministic rule-based categorization with an optional LLM fallback for the rest, human review queue, budgets,
+subscription detection and a weekly anomaly digest — all on your machine, no cloud, no bank APIs.
+Quick start: `uv sync && uv run uvicorn spendtrack.main:app --port 8766`; demo with synthetic data:
+`uv run python scripts/demo_data.py seed`. UI is Russian for now (English localization is on the roadmap).
+
+## Лицензия и поддержка
+
+**AGPLv3** — см. [`LICENSE`](LICENSE). Почему: продукт про приватность и локальные данные — сетевой копилефт не даёт
+превратить код в закрытый облачный сервис, при этом self-host, форки и вклад остаются свободными (без CLA).
+
+Проект бесплатный. С релизом планируется модель «Supporter»: разовая лицензия (~$25 / 1900 ₽) за готовые сборки,
+автообновление и managed-LLM-прокси (ядро не кастрируется). Каналы поддержки появятся здесь же (Boosty).
