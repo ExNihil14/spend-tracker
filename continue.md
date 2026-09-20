@@ -76,7 +76,7 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (20.09, вечер-2, сессия 4): ✅ one-command установка (волна 3, шаг 3) реализована — ждёт коммита/пуша.**
+> **АКТУАЛЬНО (20.09, вечер-2, сессия 4): ✅ one-command установка (волна 3, шаг 3) реализована и закоммичена (`ce4cd3b`, `6af46d1`).**
 > Формат: `uv tool`/uvx + bootstrap-скрипты (Windows/Unix) + Docker; DoD «до первого дайджеста ≤10 минут».
 > ① **Пути/режимы:** `config.py` — `PKG_DIR`/`DEFAULTS_DIR`, `repo_mode()` (по `config/settings.toml` рядом),
 > приоритет env `SPENDTRACK_CONFIG_DIR`/`SPENDTRACK_DATA_DIR` → repo (`config/`,`data/` — прод NSSM не изменён) →
@@ -98,8 +98,8 @@
 > на уровне модуля, а он был только в dev-группе → wheel-установка падала `ModuleNotFoundError`; `httpx` добавлен
 > в runtime-зависимости. **Тесты:** 344 unit + 19 e2e, ruff, contract ok (baseline +9 символов, аддитивно; схема/роуты
 > не менялись). **Прод:** NSSM рестартнут → `/health` 8 tx, `/health/data` 200, `paths` = repo-режим (`data/spend.db`),
-> doctor 10/10. **Гит:** предыдущее (BYO+export) уже в origin/main (44adca4 и др.); этот дифф — в рабочем дереве,
-> коммит/пуш по команде юзера. **Ревью $0 (super-120b, 166 с): P0 нет; единственный P1 принят** —
+> doctor 10/10. **Гит:** сессия 4 закоммичена по команде юзера — `ce4cd3b` (fix packaging: httpx) + `6af46d1`
+> (feat install, 25 файлов); `main` ahead 2, push — по отдельной команде. **Ревью $0 (super-120b, 166 с): P0 нет; единственный P1 принят** —
 > `ensure_config_dir()`: атомарное копирование дефолтов (`_atomic_copy`: tmp + `os.replace`) + понятная ошибка
 > в `serve` (exit 1 с подсказкой `SPENDTRACK_CONFIG_DIR`) + тест (первый прогон ultra-550b — пустые `choices`,
 > ретрай) → `EXPERT_REVIEW_INSTALL_OR.md`; **344 unit**. **Открыто:** favicon 404, Docker Desktop оставлен
@@ -131,7 +131,7 @@
 > Прод NSSM рестартнут: `/health` ok, `/health/data` ok; прод-`.env` без ключей → режим LLM = off. Ревью $0:
 > **GO без P0** (`D:\dev\docs\machine\EXPERT_REVIEW_BYO_LLM_OR.md`; 5 P1 — 3 приняты/внесены, 2 отклонены фактами).
 > **Дальше по волне 3:** ② экспорт CSV/Excel → ③ one-command установка → ④ лендинг/демо → ⑤ PWA после 10 внешних.
-> **АКТУАЛЬНО (20.09, шаг 2 волны 3): ✅ экспорт CSV/XLSX реализован (ждёт коммита/пуша).**
+> **АКТУАЛЬНО (20.09, шаг 2 волны 3): ✅ экспорт CSV/XLSX реализован (закоммичен `44adca4`, запушен).**
 > `Store.export_transactions()` (tuple, без лимита страницы 500) + `export.py` (CSV: utf-8-sig/«;»/CRLF/ASCII-минус;
 > XLSX: openpyxl — нативные типы, автофильтр, freeze; защита от formula-инъекций `'` в текстовых полях) + CLI
 > `spendtrack export [--format csv|xlsx] [--month|--from/--to] [--out]` + веб `GET /export.csv|.xlsx` (текущий фильтр)
