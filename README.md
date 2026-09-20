@@ -129,6 +129,19 @@ uv run python scripts/demo_data.py clean    # убрать демо
 контейнер сам всё поставит, запустит приложение и засеет демо-данные (квота GitHub Free: 120 core-часов/мес).
 Порт приватный: приложение увидите только вы.
 
+<details>
+<summary><strong>Codespaces: если что-то не так</strong></summary>
+
+- **Приложение не открылось:** вкладка **PORTS** → порт `8766` → «Open in Browser». Сервер стартует автоматически
+  при подключении к codespace; лог — `tail -f /tmp/spendtrack.log`, ручной запуск — `bash .devcontainer/start-app.sh`.
+- **После обновления кода страница отдаёт 500:** работает старый процесс (шаблоны Jinja горячие, Python — нет):
+  `pkill -f "uvicorn spendtrack" && bash .devcontainer/start-app.sh` или Stop/Start codespace.
+- **Страница порта отдаёт GitHub 404:** проверьте, что codespace запущен и вы вошли в GitHub (порт приватный);
+  после Rebuild Container порт мог «переехать» — Stop → Start и откройте порт заново; обходной путь — Simple Browser
+  внутри VS Code вместо прямого URL.
+</details>
+
+
 ## Настройка
 
 - `config/settings.toml` — порт, порог авто-приёма категорий, адреса LLM-серверов.
