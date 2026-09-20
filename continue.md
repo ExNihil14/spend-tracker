@@ -95,8 +95,11 @@
 > `ALLOW_LOCAL_LLM=1`). Код: `llm.py` (`resolve_providers()`/`llm_status()`, frozen `LLMProvider`), `cli.py`
 > (`spendtrack llm-status [--json]`), `config.py` (поля `llm_*`); попутно фикс маппинга ключ↔URL после swap `c90e43e`.
 > Тесты **314 unit** (+15: `tests/test_llm_byo.py`, BYO-тест в `test_offline.py`), ruff, contract ok (baseline обновлён).
-> Live: BYO через локальную OpenAI-заглушку (127.0.0.1:11500) → `ЖИВОЙ ТЕСТ BYO МЕРЧАНТ` → `groceries`,
-> `category_source='llm'`; Ollama жив (11434, моделей нет — для реального прогона нужен `ollama pull qwen2.5-coder:3b`).
+> Live: BYO через локальную заглушку (11500) → `groceries`/`source=llm`; **реальный прогон на локальном Ollama**
+> (`qwen2.5-coder:3b` скачан, outbound заблокирован кроме loopback): `ДОДО ПИЦЦА МОСКВА` → `restaurants` conf 0.98
+> (принято), неизвестный мерчант → `other` conf 0.5 → **очередь (`pending`, `category_llm`)**. Прогон выявил и
+> закрыл реальный баг: CLI `add` терял `category_llm`/`review_status`/`confidence` — фикс + `tests/test_cli_add.py`
+> (**317 unit**); те же гарантии, что phase-0 фикс импорта.
 > Прод NSSM рестартнут: `/health` ok, `/health/data` ok; прод-`.env` без ключей → режим LLM = off. Ревью $0:
 > **GO без P0** (`D:\dev\docs\machine\EXPERT_REVIEW_BYO_LLM_OR.md`; 5 P1 — 3 приняты/внесены, 2 отклонены фактами).
 > **Дальше по волне 3:** ② экспорт CSV/Excel → ③ one-command установка → ④ лендинг/демо → ⑤ PWA после 10 внешних.
