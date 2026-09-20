@@ -172,6 +172,12 @@ uv run ruff check               # lint, чистый
 - Ревью WIP автоматизировано: `uv run python scripts/review.py --title "..." [--notes facts.md] [--out review.md]`
   — сам собирает чек-лист + план-формат + `git diff` (+untracked) и вызывает OpenRouter :free ($0);
   для длинных прогонов запускать через `start-detached.ps1`. Прогресс/готовность — по файлу `--out`.
+- e2e + htmx: после AJAX-swap НЕЛЬЗЯ ждать `.htmx-request` как признак готовности — он снимается до settle,
+  а новый контент получает обработчики htmx только через `defaultSettleDelay=20ms` (`makeAjaxLoadTask` → `processNode`).
+  Маркер незрелого контента — `.htmx-added` (снимается в том же settle). Без этого `fill` попадает в инпут без
+  слушателей и baseline `changed` фиксируется на введённом значении: превью-запрос не уходит вовсе
+  (флейк CI 20.09, 4 пуша подряд; хелпер `_wait_single` в `tests/e2e/test_settings_e2e.py`,
+  регресс-тест `tests/e2e/test_htmx_settle.py`).
 
 ## Миграции
 - Аддитивные: новый путь рядом со старым, переключение ПОСЛЕ подтверждённой работы,
