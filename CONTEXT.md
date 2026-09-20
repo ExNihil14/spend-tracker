@@ -33,6 +33,9 @@
   или локальный пресет `SPENDTRACK_LLM_PROVIDER=ollama` (air-gap). При заданном BYO free-цепочка не используется
   вообще (без тихих фолбэков). Статус: `spendtrack llm-status [--json]`; резолв — `resolve_providers()` в `llm.py`.
   Локальные шимы free-цепочки (`localhost:3001/3201`) — только с `SPENDTRACK_ALLOW_LOCAL_LLM=1`.
+- **Помощь (/help)** — страница справки в приложении: быстрый старт, how-to, глоссарий, легенда источников
+  категории/статусов/цветов, FAQ (нативные `<details>`), приватность, «Почему так?». Ссылка — в nav на всех
+  страницах; структура — по `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` (Diátaxis + WCAG 2.2).
 - **Лендинг** — статическая страница `landing/` (GitHub Pages, workflow `pages.yml`; URL `exnihil14.github.io/spend-tracker`):
   оффер, скриншоты витрины, демо-кнопка Codespaces, Supporter ($25/1900₽, mailto + issue) и Boosty (заглушка `REPLACE_ME`),
   опрос Telegram-vs-PWA через issue-формы; внешних ресурсов и аналитики нет.

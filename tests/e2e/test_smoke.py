@@ -342,3 +342,13 @@ def test_export_csv_link_downloads(page: Page, live_server, db_path):
     data = download.path().read_bytes()
     assert data.startswith(b"\xef\xbb\xbf")
     assert "ЛЕНТА ЭКСПОРТ" in data.decode("utf-8-sig")
+
+
+def test_help_page_nav_and_faq(page: Page, live_server):
+    """Помощь: ссылка в меню ведёт на /help, FAQ-вопрос раскрывается (нативные details)."""
+    page.goto(live_server)
+    page.click('nav a[href="/help"]')
+    expect(page.locator("h1")).to_have_text("Помощь")
+    expect(page.locator("#quick-start")).to_be_visible()
+    page.locator("#faq-import-duplicates summary").click()
+    expect(page.locator("#faq-import-duplicates")).to_contain_text("повторный импорт")
