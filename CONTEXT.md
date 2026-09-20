@@ -19,6 +19,10 @@
 - **Restore-drill** — `scripts/restore_drill.py` (CLI `python -m scripts.restore_drill`): копирует последний `data/backup/spend-*.db` во временную папку, проверяет `PRAGMA integrity_check` + `transactions` + `user_version`, сверяет COUNT/SUM с живой БД информативно, пишет маркер `data/backup/last_restore_drill.json`.
 - **Рекурринг/подписка** — повторяющееся списание: ≥3 расхода мерчанта с суммами в ±5% медианы кластера и интервалами 27–34 дн (медиана 28–31; допускается 1 пропуск месяца: разрыв 56–62 дн). «Цена» = медиана кластера, `active` = последнее списание ≤40 дн назад. Считается на лету, не хранится: CLI `spendtrack recurring [--json]`, карточка на `/dashboard` (`recurring_summary`, JSON-ключ `subscriptions` — не `items`, т.к. в Jinja `dict.items` — метод).
 - **Suggest-rules (подсказки правил)** — read-only кандидаты keyword-паттернов из решений человека: явные правки (`category_source='correction'`), переопределения LLM в решённых строках (`review_status='approved'` и `category != category_llm`; pending/skipped игнорируются), `examples`, плюс тип «merchant». Пороги n≥3 / чистота ≥80%, конфликты показываются; статус сверяется с taxonomy.toml (`analyze_rules`): новое/дубль/будет мёртвым/пересечение. CLI `spendtrack suggest-rules [--json]`; записи нет.
+- **Экспорт** — выгрузка транзакций без потерь: CLI `spendtrack export [--format csv|xlsx]` (по умолчанию все),
+  веб `GET /export.csv|/export.xlsx?month=&category=&q=` (кнопка на главной). CSV — utf-8-sig/«;»/ASCII-минус
+  (открывается в Excel), XLSX — openpyxl (нативные типы). `Store.export_transactions()` — `tuple`, без лимита
+  страницы; внутренние поля (fingerprint/import_batch) не выгружаются.
 - **BYO-LLM/Ollama** — режим «свой LLM»: любой OpenAI-совместимый сервер через `SPENDTRACK_LLM_BASE_URL/MODEL/API_KEY`
   или локальный пресет `SPENDTRACK_LLM_PROVIDER=ollama` (air-gap). При заданном BYO free-цепочка не используется
   вообще (без тихих фолбэков). Статус: `spendtrack llm-status [--json]`; резолв — `resolve_providers()` в `llm.py`.

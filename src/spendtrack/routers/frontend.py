@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import io
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from spendtrack.config import ROOT
 from spendtrack.digest import build_digest
+from spendtrack.export import csv_bytes, export_filename, write_xlsx
 from spendtrack.recurring import recurring_summary
 from spendtrack.reports import (
     budgets_progress,
@@ -75,6 +77,35 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
             "more_url": _more_url(current, category, q, sort, next_after, PAGE_DAYS) if has_more else None,
             "fmt": fmt_amount,
         },
+    )
+
+
+@router.get("/export.csv")
+def export_csv(month: str | None = None, category: str | None = None, q: str | None = None):
+    """Выгрузка текущего фильтра списка в CSV (utf-8-sig, «;») — «выход без потерь».
+
+    Произвольный диапазон дат (`--from/--to`) доступен только в CLI.
+    """
+    txs = _store().export_transactions(month=month or None, category=category or None,
+                                       search=q or None)
+    return Response(
+        csv_bytes(txs),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{export_filename("csv")}"'},
+    )
+
+
+@router.get("/export.xlsx")
+def export_xlsx(month: str | None = None, category: str | None = None, q: str | None = None):
+    """Та же выгрузка в XLSX (нативные дата/число, автофильтр)."""
+    txs = _store().export_transactions(month=month or None, category=category or None,
+                                       search=q or None)
+    buf = io.BytesIO()
+    write_xlsx(txs, buf)
+    return Response(
+        buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{export_filename("xlsx")}"'},
     )
 
 

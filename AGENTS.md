@@ -15,13 +15,13 @@
 - Тест: `uv run pytest`
 - Линт: `uv run ruff check src tests`
 - Запуск: `uv run uvicorn spendtrack.main:app --port 8766` (или `.\run.ps1`)
-- CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии) / `llm-status` (режим LLM: off/byo/ollama/free)
+- CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии) / `llm-status` (режим LLM: off/byo/ollama/free) / `export` (CSV/XLSX)
 - Верификация (правило из MASTER_PLAN.md): после изменений проверять факт (diff/запуск/UI в браузере), а не только отчёт
 
 ## Layout
 - `config/settings.toml` — порт, LLM-эндпоинты (primary/fallback/offline), авто-приём confidence (0.9)
 - `config/taxonomy.toml` — 18 категорий + keyword-правила (править БЕЗ кода)
-- `src/spendtrack/` — `store.py` (SQLite, копейки INTEGER), `categorize.py` (rule→llm→validation→queue), `csv_import.py` (BANKS-адаптеры), `reports.py`, `llm.py`+`prompts.py`, `routers/`, `cli.py`
+- `src/spendtrack/` — `store.py` (SQLite, копейки INTEGER), `categorize.py` (rule→llm→validation→queue), `csv_import.py` (BANKS-адаптеры), `reports.py`, `export.py` (CSV/XLSX), `llm.py`+`prompts.py`, `routers/`, `cli.py`
 - `data/spend.db` — автосоздаётся (WAL)
 - `tests/` — все оффлайн, LLM стабится (injectable classify/llm_getter), не трогать контракты тестов без причины
 

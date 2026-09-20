@@ -12,7 +12,7 @@
   очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`), /settings Фазы 1-3 (категории `c9c42c4`,
   правила `973d280`, переименование `2e12d6c`), README/фиксы (`6d01458`), Codespaces (`1c684e4`), пикеры (`efe7cc7`),
   калибровка (`7f2ed66`), бюджеты (`73cc5fa`), фикс дашборда (`3076473`), CI e2e-джоб (`e5b13ac`).
-  **314 unit + 18 e2e зелёные** (см. «АКТУАЛЬНО»).
+  **331 unit + 19 e2e зелёные** (см. «АКТУАЛЬНО»).
 - ✅ **README под практики 2026 + фиксы** (`2872bae`, `c58dcf0`, `6d01458`, запушены): структура-«шлюз», 3 скриншота
   `assets/`, `.env` теперь читается (`env_file` в `config.py` + `tests/test_config.py`), бейдж «Подтвердить» на
   `/settings` (был 0), `LICENSE` (MIT). Ресёрч-дайджест: `D:\dev\docs\machine\README_BEST_PRACTICES_2026.md`.
@@ -103,6 +103,17 @@
 > Прод NSSM рестартнут: `/health` ok, `/health/data` ok; прод-`.env` без ключей → режим LLM = off. Ревью $0:
 > **GO без P0** (`D:\dev\docs\machine\EXPERT_REVIEW_BYO_LLM_OR.md`; 5 P1 — 3 приняты/внесены, 2 отклонены фактами).
 > **Дальше по волне 3:** ② экспорт CSV/Excel → ③ one-command установка → ④ лендинг/демо → ⑤ PWA после 10 внешних.
+> **АКТУАЛЬНО (20.09, шаг 2 волны 3): ✅ экспорт CSV/XLSX реализован (ждёт коммита/пуша).**
+> `Store.export_transactions()` (tuple, без лимита страницы 500) + `export.py` (CSV: utf-8-sig/«;»/CRLF/ASCII-минус;
+> XLSX: openpyxl — нативные типы, автофильтр, freeze; защита от formula-инъекций `'` в текстовых полях) + CLI
+> `spendtrack export [--format csv|xlsx] [--month|--from/--to] [--out]` + веб `GET /export.csv|.xlsx` (текущий фильтр)
+> и кнопка «Экспорт CSV» на главной. **E2E поймал реальный баг:** `hx-boost` на `<body>` перехватывал клик и
+> скачивание не происходило → фикс `hx-boost="false"`. Тесты **331 unit + 19 e2e**, ruff, contract ok (baseline
+> +9 символов/+2 роута; новая зависимость openpyxl). Live: прод NSSM рестартнут; `/export.csv` 200 (BOM, 8 строк),
+> `/export.xlsx` 200 (PK, 6 КБ), кнопка видна (playwright MCP). **Ревью $0: NO-GO → после адъюдикации** — исправлен
+> реальный UX-баг (невалидные `--from/--to/--month` давали тихий пустой файл: теперь argparse-ошибка), приняты
+> docstring-ограничения памяти и одноразовой итерации XLSX, добавлены тесты пустого XLSX/инъекций/фильтров;
+> 2 P1 отклонены фактами (`EXPERT_REVIEW_EXPORT_OR.md`). Дальше: one-command установка.
 > **АКТУАЛЬНО (19.09, вечер-2): автоматизация + демо-режим + стратегия рынка + AGPLv3.** ① Автогейт контракт-дельты
 > (`scripts/contract_delta.py`, CI-шаг) и one-command ревью (`scripts/review.py`) — **289 unit**, коммиты `a3f1871`/`d0e5c83`;
 > ② **демо-режим** (`scripts/demo_data.py`: 350 tx, 6 подписок, 3 типа аномалий, 6 pending, 5 бюджетов; Codespaces-автосид,
