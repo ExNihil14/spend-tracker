@@ -56,11 +56,19 @@
    "args": "args",
    "returns": "int"
   },
+  "spendtrack.cli:cmd_paths": {
+   "args": "args",
+   "returns": "int"
+  },
   "spendtrack.cli:cmd_recurring": {
    "args": "args",
    "returns": "int"
   },
   "spendtrack.cli:cmd_report": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_serve": {
    "args": "args",
    "returns": "int"
   },
@@ -76,13 +84,41 @@
    "args": "",
    "returns": "Store"
   },
+  "spendtrack.config:ensure_config_dir": {
+   "args": "",
+   "returns": "Path"
+  },
   "spendtrack.config:load_settings": {
    "args": "config_dir: Path | None=None",
    "returns": "Settings"
   },
+  "spendtrack.config:paths_info": {
+   "args": "",
+   "returns": "dict"
+  },
+  "spendtrack.config:repo_mode": {
+   "args": "",
+   "returns": "bool"
+  },
+  "spendtrack.config:resolve_config_dir": {
+   "args": "",
+   "returns": "Path"
+  },
+  "spendtrack.config:resolve_data_dir": {
+   "args": "",
+   "returns": "Path"
+  },
   "spendtrack.config:settings": {
    "args": "",
    "returns": "Settings"
+  },
+  "spendtrack.config:user_config_dir": {
+   "args": "",
+   "returns": "Path"
+  },
+  "spendtrack.config:user_data_dir": {
+   "args": "",
+   "returns": "Path"
   },
   "spendtrack.csv_import:SberAdaptor.parse": {
    "args": "self, rows: Iterator[dict]",

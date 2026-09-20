@@ -76,6 +76,34 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (20.09, вечер-2, сессия 4): ✅ one-command установка (волна 3, шаг 3) реализована — ждёт коммита/пуша.**
+> Формат: `uv tool`/uvx + bootstrap-скрипты (Windows/Unix) + Docker; DoD «до первого дайджеста ≤10 минут».
+> ① **Пути/режимы:** `config.py` — `PKG_DIR`/`DEFAULTS_DIR`, `repo_mode()` (по `config/settings.toml` рядом),
+> приоритет env `SPENDTRACK_CONFIG_DIR`/`SPENDTRACK_DATA_DIR` → repo (`config/`,`data/` — прод NSSM не изменён) →
+> user-dir (Win `%APPDATA%`/`%LOCALAPPDATA%\spendtrack`; Unix XDG). Дефолты `settings.toml`/`taxonomy.toml` лежат
+> в пакете (`src/spendtrack/defaults/`, входят в wheel) и идемпотентно материализуются в user-config при первом
+> `serve`/правке таксономии. Потребители переведены: store/doctor (БД), taxonomy/taxonomy_repo/csv_import (конфиг),
+> main (static/logs), роутеры (templates). ② **CLI:** `spendtrack serve [--host/--port/--open]` и
+> `spendtrack paths [--json]`. ③ **Bootstrap:** `install.ps1` (UTF-8 BOM) / `install.sh` — проверяют uv
+> (нет → официальный installer astral.sh; uv сам поставит Python 3.13), `uv tool install git+https://...`,
+> `serve --open`; флаги `-NoServe/--no-serve`, `-Source` (wheel/путь — для проверок). ④ **Docker (опция):**
+> `Dockerfile` (`ghcr.io/astral-sh/uv:python3.13-bookworm-slim`, `uv sync --frozen --no-dev`, том `/data`,
+> данные+конфиг в нём) — собран и проверен запуском.
+> **Live-верификация (факты):** wheel-установка в чистый tool-env → `paths` (mode installed), `add` (ПЯТЕРОЧКА →
+> groceries), `digest`, `doctor`; `serve --port 8790` → `/health`, `/`, `/static/htmx.min.js`, `/dashboard`,
+> `/approve`, `/settings` — все 200, транзакция рендерится, конфиг в `%APPDATA%\spendtrack`. `uv tool run --from .`
+> (uvx-путь) → installed-режим. Docker: build + run с volume → 200, в томе `spend.db`/`config/`/`logs/`;
+> контейнер/том/образ удалены после проверки. `install.ps1 -NoServe` с wheel — ок; `install.sh` — синтаксис
+> (полный git-путь — после push). **Live-проверка нашла реальный packaging-баг:** `llm.py` импортирует `httpx`
+> на уровне модуля, а он был только в dev-группе → wheel-установка падала `ModuleNotFoundError`; `httpx` добавлен
+> в runtime-зависимости. **Тесты:** 344 unit + 19 e2e, ruff, contract ok (baseline +9 символов, аддитивно; схема/роуты
+> не менялись). **Прод:** NSSM рестартнут → `/health` 8 tx, `/health/data` 200, `paths` = repo-режим (`data/spend.db`),
+> doctor 10/10. **Гит:** предыдущее (BYO+export) уже в origin/main (44adca4 и др.); этот дифф — в рабочем дереве,
+> коммит/пуш по команде юзера. **Ревью $0 (super-120b, 166 с): P0 нет; единственный P1 принят** —
+> `ensure_config_dir()`: атомарное копирование дефолтов (`_atomic_copy`: tmp + `os.replace`) + понятная ошибка
+> в `serve` (exit 1 с подсказкой `SPENDTRACK_CONFIG_DIR`) + тест (первый прогон ultra-550b — пустые `choices`,
+> ретрай) → `EXPERT_REVIEW_INSTALL_OR.md`; **344 unit**. **Открыто:** favicon 404, Docker Desktop оставлен
+> запущенным (можно закрыть), дальше — волна 3 шаг 4 (лендинг/демо-кнопка) или план E (SSE/UI-агент).
 > **АКТУАЛЬНО (19.09, сессия 2 — план E, всё запушено `fec01fb`):** ① **экспорт Abacus: 506 диалогов (54 МБ)**
 > + просмотрщик (`D:\data\notes\abacus-export\2026-09-19\viewer\index.html`; CLI-поиск `abacus_search.py`) —
 > скрипты `abacus_web_export.py`/`abacus_render.py`, эндпоинты сняты через playwright; ② **второй мастер-план канала**

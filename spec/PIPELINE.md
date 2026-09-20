@@ -12,6 +12,8 @@ uv run spendtrack count                          # счётчики
 uv run spendtrack budget --month 2026-09         # прогресс по бюджетам категорий
 uv run spendtrack confidence                     # калибровка порога авто-приёма LLM
 uv run spendtrack llm-status [--json]            # режим LLM: off/byo/ollama/free (без сети и ключей)
+uv run spendtrack serve [--host 127.0.0.1] [--port 8766] [--open]  # веб-интерфейс (uvicorn)
+uv run spendtrack paths [--json]                 # раскладка конфиг/данные/БД + режим (repo/installed)
 uv run spendtrack export [--format csv|xlsx] [--month YYYY-MM] [--out FILE]  # выгрузка транзакций
 uv run spendtrack doctor [--json]                # целостность данных (exit 1 только на critical)
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
@@ -117,6 +119,25 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
   наблюдений, пол 1000 ₽), `price_jump` (первое отклоняющееся >=10% списание после активного рекурринг-кластера),
   `near_duplicate` (date+merchant+|amount|, >=2 строк — fingerprint не склеил). Только пометки, без алертов/ML/записей.
 - Тесты: `tests/test_digest.py` (27 unit, оффлайн) + e2e карточки `test_dashboard_digest_card`.
+
+## One-command установка (волна 3, шаг 3)
+- Bootstrap: `install.ps1` (Windows) / `install.sh` (Unix/WSL) — проверяют uv (при отсутствии ставят
+  официальным установщиком astral.sh; uv сам поставит Python 3.13), затем `uv tool install git+https://github.com/ExNihil14/spend-tracker`
+  и `spendtrack serve --open`. Флаги: `-NoServe`/`--no-serve`, `-Source`/позиционный аргумент (локальный wheel/путь — для проверок).
+- Установленный режим (uv tool/uvx): пакет в venv инструмента, конфиг/данные — в пользовательских папках
+  (Windows: `%APPDATA%\spendtrack`, `%LOCALAPPDATA%\spendtrack`; Unix: `~/.config/spendtrack`, `~/.local/share/spendtrack`).
+  `SPENDTRACK_CONFIG_DIR`/`SPENDTRACK_DATA_DIR` переопределяют оба корня. При первом `serve`/правке таксономии
+  дефолты (`src/spendtrack/defaults/{settings,taxonomy}.toml`, входят в wheel) копируются в config-каталог
+  (существующие файлы не перезаписываются).
+- Repo-режим (clone + `uv sync`, прод NSSM): определяется по `config/settings.toml` рядом с репозиторием — пути
+  остаются прежними (`data/`, `config/`), поведение прода не меняется.
+- Проверки/разработка: `uv tool install --force ./dist/spendtrack-<ver>-py3-none-any.whl`,
+  `uv tool run --from . spendtrack paths` (сборка из рабочего дерева без публикации).
+- Docker (опционально): `Dockerfile` (образ `ghcr.io/astral-sh/uv:python3.13-bookworm-slim`, `uv sync --frozen --no-dev`,
+  `SPENDTRACK_DATA_DIR=/data`, `SPENDTRACK_CONFIG_DIR=/data/config`); запуск:
+  `docker run --rm -p 127.0.0.1:8766:8766 -v spendtrack-data:/data spendtrack`.
+- Исторический фикс 20.09: `httpx` был только в dev-группе, а `llm.py` импортирует его на уровне модуля —
+  wheel-установка падала на `ModuleNotFoundError`; теперь `httpx` в runtime-зависимостях.
 
 ## Тесты / анализ
 ```bash

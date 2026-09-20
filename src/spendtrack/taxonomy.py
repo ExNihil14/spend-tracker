@@ -3,7 +3,7 @@ from __future__ import annotations
 import tomllib
 from pathlib import Path
 
-from spendtrack.config import CONFIG_DIR
+from spendtrack.config import DEFAULTS_DIR, resolve_config_dir
 
 
 class Category:
@@ -29,8 +29,11 @@ class Taxonomy:
 
 
 def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
-    config_dir = config_dir or CONFIG_DIR
-    with open(config_dir / "taxonomy.toml", "rb") as f:
+    base = Path(config_dir) if config_dir else resolve_config_dir()
+    path = base / "taxonomy.toml"
+    if not path.is_file():
+        path = DEFAULTS_DIR / "taxonomy.toml"  # установленный режим: дефолт из пакета
+    with open(path, "rb") as f:
         data = tomllib.load(f)
     categories = [Category(c["name"], c["color"]) for c in data["categories"]]
     rules = [Rule(r["pattern"], r["category"]) for r in data["rules"]]

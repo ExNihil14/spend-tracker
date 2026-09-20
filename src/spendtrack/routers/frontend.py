@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from spendtrack.config import ROOT
+from spendtrack.config import PKG_DIR
 from spendtrack.digest import build_digest
 from spendtrack.export import csv_bytes, export_filename, write_xlsx
 from spendtrack.recurring import recurring_summary
@@ -21,7 +21,7 @@ from spendtrack.store import Store, fmt_amount
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
-templates = Jinja2Templates(directory=ROOT / "src" / "spendtrack" / "templates")
+templates = Jinja2Templates(directory=PKG_DIR / "templates")
 
 PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)
 

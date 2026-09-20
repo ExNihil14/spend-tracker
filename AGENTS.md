@@ -14,7 +14,7 @@
 ## Команды
 - Тест: `uv run pytest`
 - Линт: `uv run ruff check src tests`
-- Запуск: `uv run uvicorn spendtrack.main:app --port 8766` (или `.\run.ps1`)
+- Запуск: `uv run spendtrack serve` / `uv run uvicorn spendtrack.main:app --port 8766` (или `.\run.ps1`)
 - CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии) / `llm-status` (режим LLM: off/byo/ollama/free) / `export` (CSV/XLSX)
 - Верификация (правило из MASTER_PLAN.md): после изменений проверять факт (diff/запуск/UI в браузере), а не только отчёт
 
