@@ -30,9 +30,18 @@ def _preview(page: Page, pattern: str) -> str:
 
 
 def _wait_single(page: Page, selector: str, timeout: int = 15_000) -> None:
-    """Ждём, пока htmx завершит swap (settling) и останется ровно один элемент."""
+    """Ждём, пока htmx завершит swap ЦЕЛИКОМ: запрос + settle (processNode).
+
+    Ловушка (флейк CI 16.09→20.09): `.htmx-request` снимается в onload ДО settle,
+    а новый контент получает обработчики htmx только в settle (`defaultSettleDelay=20ms`,
+    `makeAjaxLoadTask` → `processNode`). Маркер незрелого контента — класс `htmx-added`
+    (навешивается при вставке, снимается вместе с processNode). Без этой проверки
+    `fill` попадал в инпут без слушателей и без baseline `changed`: превью-запрос
+    не уходил вовсе (0 htmx:trigger), и следующий одинаковый fill считался «не changed».
+    """
     page.wait_for_function(
         "(sel) => window.htmx && !document.querySelector('.htmx-request')"
+        " && !document.querySelector('.htmx-added')"
         " && document.querySelectorAll(sel).length === 1",
         arg=selector,
         timeout=timeout,
