@@ -76,6 +76,27 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (20.09, вечер-3, сессия 5): ✅ лендинг + демо-кнопка (Codespaces) + Supporter/Boosty (волна 3, шаг 4) — реализовано, ждёт коммита/push юзера.**
+> `landing/` — статический лендинг (RU + EN-блок): оффер «Бюджет и подписки без облака», 3 скриншота витрины
+> (дашборд с бюджетами/дайджестом, дайджест с 5 аномалиями, очередь с LLM-предложениями — сняты со стенда
+> синтетики `data/demo.db`, НЕ с прод-БД), «10 минут от установки до дайджеста» (обе команды установщика),
+> демо-кнопка `codespaces.new/ExNihil14/spend-tracker`, Supporter ($25/1900₽: mailto + issue-форма),
+> Boosty (заглушка `REPLACE_ME` — **заменить перед запуском: `landing/index.html`, `README.md`, `.github/FUNDING.yml`**),
+> опрос Telegram-vs-PWA (issue-формы), FAQ, приватность, footer. Внешних ресурсов и аналитики нет by design
+> (закреплено тестом); favicon — data-URI.
+> **Инфра: GitHub Pages включён** (`gh api repos/.../pages -X POST -f build_type=workflow`) → деплой по `.github/workflows/pages.yml`
+> (paths `landing/**`) при push в main; URL **https://exnihil14.github.io/spend-tracker/**. Issue-формы
+> `{poll-pwa,poll-telegram,supporter,bug-report}.yml` + лейблы `poll`/`supporter` созданы; `FUNDING.yml` ведёт на Boosty.
+> **Тесты: 351 unit** (+7 `tests/test_landing.py` — внешних ресурсов нет, локальные ссылки/якоря существуют,
+> механики на месте, workflow/FUNDING целы), ruff чист, contract ok (схема/API/роуты не менялись).
+> **Live: http.server 8788** — `/`, `style.css`, 3 PNG = 200; playwright-смоук: 0 ошибок консоли, копирование команд
+> в clipboard работает, skip-link `:focus-visible` 2px, desktop 1280 + mobile 390 просмотрены.
+> **Ревью $0** (nemotron-3-ultra-550b:free, 172 с): **GO, P0 нет**; P1.1 (install-ссылки «сломаны на Pages») отклонён
+> фактом — URL абсолютные raw.githubusercontent, не Pages-относительные (закреплено ассертом); **P1.2 принят** —
+> тест теперь валидирует якоря `<a href="#...">`; артефакт `D:\dev\docs\machine\EXPERT_REVIEW_LANDING_OR.md`.
+> **Открыто:** коммит/push (по команде), после push — проверить деплой Pages живым URL; хвосты (favicon 404 приложения,
+> Codespace-404 user env) — отдельно; дальше по волне 3 — **PWA только после 10 внешних с ≥2 импортами**
+> (мягкая проверка: запуск лендинга = landing-тест; метрики-прокси без счётчиков).
 > **АКТУАЛЬНО (20.09, вечер-2, сессия 4): ✅ one-command установка (волна 3, шаг 3) реализована и закоммичена (`ce4cd3b`, `6af46d1`).**
 > Формат: `uv tool`/uvx + bootstrap-скрипты (Windows/Unix) + Docker; DoD «до первого дайджеста ≤10 минут».
 > ① **Пути/режимы:** `config.py` — `PKG_DIR`/`DEFAULTS_DIR`, `repo_mode()` (по `config/settings.toml` рядом),
