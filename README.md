@@ -4,78 +4,56 @@
 [![License: AGPL v3](https://img.shields.io/badge/license-AGPLv3-blue.svg)](LICENSE)
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/ExNihil14/spend-tracker)
 
-Трекер личных расходов с LLM-категоризацией: детерминированное ядро (правила) закрывает большую часть транзакций,
-LLM подключается только для остатка, спорное уходит в очередь ручного подтверждения. FastAPI + SQLite + htmx,
-offline-first: без ключей и сети работает на правилах.
-
-**Лендинг с демо: <https://exnihil14.github.io/spend-tracker/>** — оффер, скриншоты, демо-кнопка (Codespaces) и поддержка.
+**Трекер личных расходов, который живёт на вашем компьютере.** Закиньте выписку из банка — получите
+категории, бюджеты, список подписок и короткий отчёт о необычных тратах. Без облака, без подписки,
+без передачи данных третьим лицам.
 
 ![Список транзакций](assets/screenshot-transactions.png)
 
-## Для кого
+Сайт с демо: **<https://exnihil14.github.io/spend-tracker/>**
 
-Локальный трекер для тех, кто **не отдаёт банковские данные в облако** и готов раз в месяц закинуть CSV-выписку:
+## Что умеет
 
-- **Подходит:** пользователи выписок Сбер/Тинькофф/Яндекс; privacy-минималисты и self-hosted-аудитория; те, кому нужны
-  бюджеты, автодетект подписок и недельный отчёт об аномалиях — без подписки и bank-API.
-- **Не подходит:** тем, кто ждёт автоматический bank sync и приложение из App Store; семьям с общим бюджетом
-  (мультиюзера нет); учёту инвестиций и мультивалютным портфелям (в планах нет).
+- **Импорт выписок** Сбера, Тинькофф и Яндекса: формат определяется автоматически, повторный импорт того же файла
+  не создаёт дубликатов.
+- **Категории почти без ручной работы:** сначала срабатывают ваши правила и «память» о магазинах, затем — ИИ
+  (если подключите), а спорные операции попадают в очередь «Подтвердить». Одобренная правка запоминается.
+- **Бюджеты по категориям** — месячные лимиты и прогресс: видно, где ещё есть запас, а где перерасход.
+- **Подписки** — приложение само находит регулярные списания и предупреждает, если цена выросла.
+- **Дайджест недели** — расходы и доходы, топ-категории, самые дорогие дни и аномалии (крупные суммы,
+  возможные дубликаты, скачки цен).
+- **Экспорт без потерь** — все операции выгружаются в CSV или Excel одной кнопкой; данные всегда можно забрать с собой.
+- **Проверка данных** — встроенный `doctor` проверяет целостность базы и состояние бэкапов.
 
-## Возможности
+## Кому подойдёт
 
-- **Импорт выписок** Сбера, Тинькофф и Яндекса с автоопределением формата; дедуп по fingerprint — повторный импорт ничего не добавляет.
-- **Каскад категоризации:** кэш мерчантов → keyword-правила (first-match) → LLM → офлайн-правила. Автоприём при `confidence ≥ 0.9`, остальное — в очередь «Подтвердить».
-- **Очередь подтверждения** с diff «предложение LLM / ваша категория»; одобренная правка учит кэш мерчантов и few-shot.
-- **Управление таксономией в UI** (`/settings`): категории, правила с приоритетом (↑/↓), диагностика «мёртвых» и дублирующих правил, переименование категории с миграцией данных, тестер описаний.
-- **Дашборд**: расходы по дням и категориям; фильтры и сортировки живут в URL.
-- **Экспорт CSV/Excel**: выгрузка всех транзакций или текущего фильтра — данные всегда можно забрать с собой
-  (CSV открывается в Excel, XLSX — с нативными датами/числами).
-- **CLI** для быстрых операций и калибровки порога авто-приёма по фактическим исходам.
+- Тем, кто **не хочет отдавать банковские данные в облако** и готов раз в месяц загрузить CSV-выписку.
+- Тем, кому нужны бюджеты, подписки и отчёт об аномалиях **без подписки и bank-API**.
+- Пользователям Windows, macOS и Linux — приложение работает локально, интернет не обязателен.
 
-## Быстрый старт
+**Не подойдёт:** тем, кто ждёт автоматическую синхронизацию с банком или мобильное приложение из магазина;
+семьям с общим бюджетом (приложение на одного пользователя); учёту инвестиций и мультивалютным портфелям.
 
-### Одна команда (Windows)
+## Установка
+
+### Одна команда
+
+Windows (PowerShell):
 
 ```powershell
 powershell -c "irm https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.ps1 | iex"
 ```
 
-### Одна команда (macOS/Linux/WSL)
+macOS / Linux / WSL:
 
 ```bash
 curl -LsSf https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.sh | sh
 ```
 
-Скрипты сами поставят [uv](https://docs.astral.sh/uv/) (при отсутствии — и Python 3.13), установят spendtrack
-и запустят интерфейс. Дальше: `spendtrack serve --open` (запуск), `spendtrack paths` (где конфиг и данные),
-`spendtrack --help` (все команды). В установленном режиме данные — в пользовательской папке
-(Windows: `%LOCALAPPDATA%\spendtrack`, конфиг `%APPDATA%\spendtrack`; Linux/macOS: `~/.local/share/spendtrack`
-и `~/.config/spendtrack`) — правки таксономии из UI сохраняются там же.
+Скрипт сам поставит всё необходимое (менеджер `uv` и Python) и запустит интерфейс. Дальше приложение
+открывается командой `spendtrack serve --open`, а `spendtrack paths` покажет, где лежат база и настройки.
 
-### Из исходников (для разработки)
-
-Нужны Python 3.13+ и [uv](https://docs.astral.sh/uv/).
-
-```bash
-git clone https://github.com/ExNihil14/spend-tracker.git
-cd spend-tracker
-uv sync
-cp .env.example .env      # необязательно: LLM — свой ключ/Ollama или free-каналы (см. «Настройка»)
-```
-
-Запуск:
-
-```powershell
-.\run.ps1                  # Windows: проверит порт и откроет браузер
-```
-
-```bash
-uv run spendtrack serve    # или: uv run uvicorn spendtrack.main:app --port 8766
-```
-
-Приложение: <http://127.0.0.1:8766> — в режиме из исходников БД создастся сама в `data/spend.db`.
-
-### Docker (опционально)
+### Docker (если так удобнее)
 
 ```bash
 docker build -t spendtrack .
@@ -84,121 +62,136 @@ docker run --rm -p 127.0.0.1:8766:8766 -v spendtrack-data:/data spendtrack
 
 Данные — в томе `spendtrack-data`; наружу публикуется только localhost.
 
-## Демо-режим (витрина за минуту)
-
-Синтетические данные (~5 месяцев): все фичи видны сразу — подписки, дайджест с аномалиями, бюджеты
-(перерасход и ~80%), очередь подтверждения, правки/примеры и кандидаты правил.
+### Из исходников (для разработки)
 
 ```bash
-uv run python scripts/demo_data.py seed     # data/demo.db (реальная БД не трогается)
-uv run python scripts/demo_data.py status   # что засеяно + счётчики фич
-uv run python scripts/demo_data.py clean    # убрать демо по манифесту
-# стенд на отдельной БД:
-SPENDTRACK_DB_PATH=data/demo.db uv run uvicorn spendtrack.main:app --port 8767
+git clone https://github.com/ExNihil14/spend-tracker.git
+cd spend-tracker
+uv sync
+uv run spendtrack serve      # или .\run.ps1 на Windows
 ```
 
-В Codespaces демо-данные засеиваются автоматически при первом старте в `data/demo.db`, и сервер обслуживает
-именно её (подписки, дайджест с аномалиями, бюджеты и очередь видны сразу).
+Приложение откроется на <http://127.0.0.1:8766>; база создастся сама.
 
-## Тестирование в GitHub Codespaces
+## Первые шаги
 
-Прямая ссылка: [создать codespace](https://codespaces.new/ExNihil14/spend-tracker) (квота GitHub Free: 120 core-часов/мес).
-Контейнер сам ставит `uv`, зависимости и запускает приложение на порту 8766; порт **приватный** — доступен только
-после входа в GitHub (в приложении нет своей авторизации). Данные — **только синтетические**:
+1. **Импортируйте выписку** — кнопка «Импорт» на главной, выберите CSV из банка.
+2. **Пройдите «Подтвердить»** — подтвердите или исправьте категории, в которых ИИ не был уверен.
+3. **Задайте бюджеты** — «Настройки» → «Бюджеты», по категориям.
+4. **Смотрите «Дашборд»** — бюджеты, подписки, дайджест недели и графики.
+
+Подробная справка со словарём терминов и легендой значков — на странице **«Помощь»** внутри приложения
+(меню → Помощь).
+
+## Частые вопросы
+
+<details>
+<summary><strong>Нужен ли API-ключ или интернет?</strong></summary>
+Нет. По умолчанию ИИ выключен, и приложение работает полностью офлайн — на правилах и ваших правках.
+</details>
+
+<details>
+<summary><strong>Как импортировать выписку и что с дубликатами?</strong></summary>
+«Импорт» на главной → выберите CSV; формат банка определяется автоматически. У каждой операции есть
+невидимый отпечаток, поэтому повторная загрузка того же файла ничего не добавляет.
+</details>
+
+<details>
+<summary><strong>Почему операции попадают в «Подтвердить»?</strong></summary>
+Это строки, в категории которых ИИ не был уверен (уверенность ниже порога). Вы подтверждаете или меняете
+категорию — приложение запоминает выбор для этого магазина.
+</details>
+
+<details>
+<summary><strong>Куда уходят мои данные?</strong></summary>
+Никуда, пока вы сами не подключите ИИ. Сервер слушает только `127.0.0.1`, телеметрии нет. Что именно уходит
+при включённом ИИ — в [PRIVACY.md](PRIVACY.md); модель угроз — в [SECURITY.md](SECURITY.md).
+</details>
+
+<details>
+<summary><strong>Как сделать бэкап или забрать данные?</strong></summary>
+Экспорт CSV/Excel — кнопкой на главной; бэкап базы — `uv run python scripts/backup.py`; путь к базе —
+`spendtrack paths`. `spendtrack doctor` подскажет, всё ли в порядке.
+</details>
+
+## Демо без своих данных
+
+Синтетическая витрина (~5 месяцев): подписки со скачком цены, аномалии, бюджеты с перерасходом, очередь
+подтверждения. Реальная база не затрагивается.
 
 ```bash
-# демо-строки для проверки очереди /approve — в ту же БД, что обслуживает сервер:
-SPENDTRACK_DB_PATH=data/demo.db uv run python scripts/review_demo.py seed
+uv run python scripts/demo_data.py seed     # данные в data/demo.db
+uv run python scripts/demo_data.py status   # что засеяно
+uv run python scripts/demo_data.py clean    # убрать демо
 ```
 
-Открыть приложение: вкладка **PORTS** → порт 8766 → значок «Open in Browser».
-Сервер стартует автоматически при подключении к codespace (`.devcontainer/start-app.sh`); если не поднялся —
-`bash .devcontainer/start-app.sh`, состояние в `tail -f /tmp/spendtrack.log`.
-Если после обновления кода страница отдаёт 500, а код уже новый — работает старый процесс
-(шаблоны Jinja горячие, Python — нет): `pkill -f "uvicorn spendtrack" && bash .devcontainer/start-app.sh`
-(или Codespaces: Stop/Start). Дальше сервер сам подхватывает изменения (`--reload`).
-Кнопка e2e-тестов в облаке (опционально): `uv run playwright install --with-deps chromium`.
-
-## Использование
-
-- `/` — транзакции: импорт CSV, добавление, поиск, фильтры по месяцу и категории, сортировки, дневные итоги.
-- `/dashboard` — графики и итоги по категориям.
-- `/approve` — очередь подтверждения категорий.
-- `/settings` — категории, правила, тестер описаний.
-
-![Дашборд](assets/screenshot-dashboard.png)
-
-### CLI
-
-```bash
-uv run spendtrack add -23.45 "milk"           # добавить расход (категория — из каскада правил/LLM)
-uv run spendtrack import statement.csv --bank auto
-uv run spendtrack report --month 2026-09
-uv run spendtrack count
-uv run spendtrack confidence                  # калибровка порога авто-приёма (бакеты, покрытие, ошибки)
-uv run spendtrack llm-status                  # режим LLM: off/byo/ollama/free (без сети и ключей)
-uv run spendtrack export --format csv         # выгрузка транзакций (csv|xlsx, --month/--from/--to, --out)
-```
+**Посмотреть в браузере без установки:** [создать Codespace](https://codespaces.new/ExNihil14/spend-tracker) —
+контейнер сам всё поставит, запустит приложение и засеет демо-данные (квота GitHub Free: 120 core-часов/мес).
+Порт приватный: приложение увидите только вы.
 
 ## Настройка
 
-- `config/settings.toml` — порт, эндпоинты free-цепочки, модель Ollama, порог авто-приёма (`acceptance.auto_accept_confidence`).
-- `config/taxonomy.toml` — категории и keyword-правила (правятся и через `/settings`).
-- **LLM не обязателен.** Три режима (проверить: `uv run spendtrack llm-status`):
-  1. **Выключен (по умолчанию)** — без настройки ни одного сетевого вызова; спорные строки ждут подтверждения.
-  2. **Свой LLM (BYO) / Ollama — рекомендуется.** Любой OpenAI-совместимый сервер: `SPENDTRACK_LLM_BASE_URL` +
-     `SPENDTRACK_LLM_MODEL` + `SPENDTRACK_LLM_API_KEY`; локальный Ollama — `SPENDTRACK_LLM_PROVIDER=ollama`
-     (модель по умолчанию `qwen2.5-coder:3b`, нужен `ollama pull`). Данные уходят только на указанный сервер.
-  3. **Free-каналы** — осознанный opt-in: `SPENDTRACK_OPENROUTER_API_KEY` и/или `SPENDTRACK_FREEL_LLM_API_KEY`
-     (+ `SPENDTRACK_ALLOW_LOCAL_LLM=1` для локальных шимов). Это чужие серверы — см. [`PRIVACY.md`](PRIVACY.md).
-- `SPENDTRACK_DB_PATH` — путь к БД (по умолчанию `data/spend.db`).
+- `config/settings.toml` — порт, порог авто-приёма категорий, адреса LLM-серверов.
+- `config/taxonomy.toml` — категории и правила (удобнее править через «Настройки» в интерфейсе).
+- `SPENDTRACK_DB_PATH` — путь к базе (по умолчанию `data/spend.db`).
+
+**ИИ — необязателен.** Три режима (проверить: `spendtrack llm-status`):
+
+1. **Выключен (по умолчанию).** Никаких сетевых вызовов; спорные операции ждут подтверждения.
+2. **Свой сервер или локальная модель (рекомендуется).** Любой OpenAI-совместимый сервер:
+   `SPENDTRACK_LLM_BASE_URL` + `SPENDTRACK_LLM_MODEL` + `SPENDTRACK_LLM_API_KEY`; локальный Ollama —
+   `SPENDTRACK_LLM_PROVIDER=ollama`. Данные уходят только на указанный вами сервер.
+3. **Бесплатные каналы** — осознанный выбор: ключи OpenRouter/FreeLLM (`SPENDTRACK_OPENROUTER_API_KEY`
+   и/или `SPENDTRACK_FREEL_LLM_API_KEY`). Это чужие серверы — см. [PRIVACY.md](PRIVACY.md).
 
 ![Настройки](assets/screenshot-settings.png)
 
-## Приватность и безопасность
+## Команды
 
-- **Офлайн по умолчанию:** без ключей LLM приложение не делает сетевых вызовов (проверяется тестом
-  `tests/test_offline.py` в CI); сервер слушает только `127.0.0.1`, телеметрии нет.
-- **Что уходит при включённом LLM** (описание ≤300 симв., сумма, псевдоним счёта, дата и few-shot примеры) —
-  подробно в [`PRIVACY.md`](PRIVACY.md); для полного контроля подключите свой ключ (BYO) или локальный Ollama
-  (см. «Настройка»). Модель угроз и лимиты — [`SECURITY.md`](SECURITY.md).
-- Лимиты импорта: CSV ≤ 10 МБ; абсурдные суммы отбрасываются в отчёт (`invalid`), а низкоуверенные строки
-  уходят в очередь «Подтвердить».
-- Данные — ваш файл SQLite (`data/spend.db`); бэкап с проверкой восстановления: `uv run python scripts/backup.py`.
-- Не финансовый/налоговый совет; ПО поставляется «как есть» (AGPLv3).
+| Команда | Что делает |
+|---|---|
+| `spendtrack serve [--port N] [--open]` | запускает интерфейс |
+| `spendtrack import file.csv --bank auto` | импорт выписки |
+| `spendtrack add -23.45 "milk"` | добавить расход вручную |
+| `spendtrack report --month 2026-09` | отчёт за месяц |
+| `spendtrack budget` | прогресс по бюджетам |
+| `spendtrack recurring` | найденные подписки |
+| `spendtrack digest` | дайджест недели и аномалии |
+| `spendtrack export --format csv` | выгрузка CSV/XLSX |
+| `spendtrack doctor` | проверка целостности данных |
+| `spendtrack paths` | где лежат база и настройки |
+| `spendtrack llm-status` | какой режим ИИ сейчас |
+| `spendtrack confidence` | калибровка порога авто-приёма |
+
+![Дашборд](assets/screenshot-dashboard.png)
 
 ## Разработка
 
 ```bash
-uv run pytest              # unit-тесты (LLM всегда стаб, сеть не нужна)
-uv run pytest -m e2e       # Playwright: реальный uvicorn на временном порту и временной БД
+uv run pytest              # unit-тесты (сеть не нужна, LLM подменяется)
+uv run pytest -m e2e       # браузерные тесты (Playwright)
 uv run ruff check src tests
 ```
 
-- Суммы хранятся в копейках (`INTEGER`), БД — SQLite в WAL, миграции — по `PRAGMA user_version`.
-- Архитектура и решения: [`spec/ARCHITECTURE.md`](spec/ARCHITECTURE.md) · контур верификации: [`spec/PIPELINE.md`](spec/PIPELINE.md) · стек и деплой: [`spec/stack.md`](spec/stack.md) · словарь: [`CONTEXT.md`](CONTEXT.md).
-- Изменения: [`CHANGELOG.md`](CHANGELOG.md).
-
-## Бэкап
-
-```bash
-uv run python scripts/backup.py --keep 14   # VACUUM INTO, безопасно при WAL
-```
+- Архитектура и решения: [spec/ARCHITECTURE.md](spec/ARCHITECTURE.md) · контур верификации:
+  [spec/PIPELINE.md](spec/PIPELINE.md) · стек: [spec/stack.md](spec/stack.md) · словарь: [CONTEXT.md](CONTEXT.md).
+- Изменения: [CHANGELOG.md](CHANGELOG.md).
 
 ## English
 
 Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (Sber/Tinkoff/Yandex formats),
 deterministic rule-based categorization with an optional LLM fallback for the rest (bring your own API key or a
-local Ollama model), human review queue, budgets, subscription detection and a weekly anomaly digest — all on
-your machine, no cloud, no bank APIs.
-Quick start: `uv sync && uv run uvicorn spendtrack.main:app --port 8766`; demo with synthetic data:
+local Ollama model), review queue, budgets, subscription detection and a weekly anomaly digest — all on your
+machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with synthetic data:
 `uv run python scripts/demo_data.py seed`. UI is Russian for now (English localization is on the roadmap).
 
 ## Лицензия и поддержка
 
-**AGPLv3** — см. [`LICENSE`](LICENSE). Почему: продукт про приватность и локальные данные — сетевой копилефт не даёт
-превратить код в закрытый облачный сервис, при этом self-host, форки и вклад остаются свободными (без CLA).
+**AGPLv3** — см. [LICENSE](LICENSE). Почему: продукт про приватность и локальные данные — сетевой копилефт
+не даёт превратить код в закрытый облачный сервис, при этом self-host, форки и вклад остаются свободными.
 
-Проект бесплатный. С релизом планируется модель «Supporter»: разовая лицензия (~$25 / 1900 ₽) за готовые сборки,
-автообновление и managed-LLM-прокси (ядро не кастрируется). Поддержать: [Boosty](https://boosty.to/REPLACE_ME)
+Проект бесплатный. Модель «Supporter» — разовая лицензия (~$25 / 1900 ₽) за готовые сборки, автообновление
+и managed-LLM-прокси (ядро не кастрируется). Поддержать: [Boosty](https://boosty.to/REPLACE_ME)
 (ссылка появится к запуску) · интерес к лицензии — [issue Supporter](https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml).
+
+Не финансовый и не налоговый совет; ПО поставляется «как есть».
