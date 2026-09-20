@@ -31,5 +31,5 @@
 4. offline: правила/кэш — ядро работает без сети (LLM недоступен → rule-only).
 
 ## Тесты
-- pytest, **310 unit + 18 e2e** (Playwright), все оффлайн (LLM через `classify_with_injectable`-стаб, сеть не ходит).
+- pytest, **317 unit + 18 e2e** (Playwright), все оффлайн (LLM через `classify_with_injectable`-стаб, сеть не ходит).
 - ruff (lint) чистый.

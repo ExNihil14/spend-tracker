@@ -20,18 +20,29 @@ def cmd_add(args) -> int:
     store = make_store()
     taxonomy = load_taxonomy()
     amount = parse_amount(args.amount)
-    category = args.category or categorize_transaction(
-        {"date": args.date, "description": args.description, "amount_kopecks": amount,
-         "merchant": args.description.upper()[:20], "account_anon": None},
-        taxonomy, store,
-    )["category"]
+    if args.category:
+        category, source = args.category, "manual"
+        confidence, category_llm, review_status = 1.0, None, "approved"
+    else:  # полный результат классификатора: очередь/предложение LLM не теряются
+        result = categorize_transaction(
+            {"date": args.date, "description": args.description, "amount_kopecks": amount,
+             "merchant": args.description.upper()[:20], "account_anon": None},
+            taxonomy, store,
+        )
+        category = result["category"]
+        source = result.get("source", "llm")
+        confidence = result.get("confidence", 1.0)
+        category_llm = result.get("category_llm")
+        review_status = result.get("review_status", "approved")
     tx_id = store.add_transaction(
         date=args.date, description=args.description, amount_kopecks=amount,
-        category=category, category_source="manual" if args.category else "llm",
+        category=category, category_source=source, confidence=confidence,
+        category_llm=category_llm, review_status=review_status,
         merchant=args.description.upper()[:20],
     )
     if tx_id:
-        print(f"OK id={tx_id} {fmt_amount(amount)} {args.description} -> {category}")
+        queue = " [в очередь]" if review_status == "pending" else ""
+        print(f"OK id={tx_id} {fmt_amount(amount)} {args.description} -> {category}{queue}")
         return 0
     print("dup (уже есть)")
     return 1

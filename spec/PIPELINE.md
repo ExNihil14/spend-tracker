@@ -87,6 +87,9 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
   API отдаёт 413 c понятным текстом, CLI — код 1.
 - Фикс 19.09: `import_csv` переносит `review_status`/`category_llm` из классификатора — низкоуверенные импортные
   строки теперь реально попадают в очередь (раньше были «approved» без предложения LLM).
+- Фикс 20.09 (найден live-прогоном BYO на Ollama): CLI `add` сохраняет результат классификатора целиком
+  (`category_source`/`confidence`/`category_llm`/`review_status`) — низкоуверенные строки из CLI тоже идут
+  в очередь и видны калибровке; тесты `tests/test_cli_add.py` (3).
 - Приватность/угрозы: `PRIVACY.md`, `SECURITY.md` в корне.
 
 ## Дайджест недели + аномалии (read-only)
@@ -102,7 +105,7 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
 
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 310 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
+uv run pytest -q                # 317 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):
