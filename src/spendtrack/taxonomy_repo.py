@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from decimal import InvalidOperation
 from pathlib import Path
 
-from spendtrack.config import CONFIG_DIR
+from spendtrack.config import ensure_config_dir
 from spendtrack.reports import BUDGET_EXCLUDED
 from spendtrack.store import Store, parse_amount
 
@@ -32,9 +32,15 @@ MAX_RULES = 500
 
 
 def _taxonomy_path() -> Path:
-    """Путь к taxonomy.toml (env SPENDTRACK_TAXONOMY — для тестов; по умолчанию config/)."""
+    """Путь к taxonomy.toml (env SPENDTRACK_TAXONOMY — для тестов; иначе config-каталог).
+
+    В установленном режиме каталог конфига создаётся из пакетных дефолтов при первом обращении
+    (UI-редактор пишет реальный файл).
+    """
     override = os.environ.get("SPENDTRACK_TAXONOMY")
-    return Path(override) if override else CONFIG_DIR / "taxonomy.toml"
+    if override:
+        return Path(override)
+    return ensure_config_dir() / "taxonomy.toml"
 
 
 def _audit_path() -> Path:

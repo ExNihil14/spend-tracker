@@ -1,0 +1,203 @@
+[[categories]]
+name = "groceries"
+color = "#22c55e"
+
+[[categories]]
+name = "restaurants"
+color = "#f97316"
+
+[[categories]]
+name = "transport"
+color = "#3b82f6"
+
+[[categories]]
+name = "fuel"
+color = "#ef4444"
+
+[[categories]]
+name = "housing"
+color = "#a855f7"
+
+[[categories]]
+name = "utilities"
+color = "#06b6d4"
+
+[[categories]]
+name = "internet-phone"
+color = "#8b5cf6"
+
+[[categories]]
+name = "subscriptions"
+color = "#ec4899"
+
+[[categories]]
+name = "health"
+color = "#14b8a6"
+
+[[categories]]
+name = "education"
+color = "#6366f1"
+
+[[categories]]
+name = "entertainment"
+color = "#f59e0b"
+
+[[categories]]
+name = "clothing"
+color = "#84cc16"
+
+[[categories]]
+name = "household"
+color = "#0ea5e9"
+
+[[categories]]
+name = "transfers"
+color = "#64748b"
+
+[[categories]]
+name = "income"
+color = "#10b981"
+
+[[categories]]
+name = "taxes"
+color = "#dc2626"
+
+[[categories]]
+name = "travel"
+color = "#0891b2"
+
+[[categories]]
+name = "other"
+color = "#9ca3af"
+
+[[rules]]
+pattern = "ЛЕНТА"
+category = "groceries"
+
+[[rules]]
+pattern = "ПЯТЁРОЧКА"
+category = "groceries"
+
+[[rules]]
+pattern = "ПЯТЕРОЧКА"
+category = "groceries"
+
+[[rules]]
+pattern = "МАГНИТ"
+category = "groceries"
+
+[[rules]]
+pattern = "АШАН"
+category = "groceries"
+
+[[rules]]
+pattern = "ВКУСВИЛЛ"
+category = "groceries"
+
+[[rules]]
+pattern = "ВКУС ВИЛЛ"
+category = "groceries"
+
+[[rules]]
+pattern = "ТАТНЕФТЬ"
+category = "fuel"
+
+[[rules]]
+pattern = "ЛУКОЙЛ"
+category = "fuel"
+
+[[rules]]
+pattern = "РОСНЕФТЬ"
+category = "fuel"
+
+[[rules]]
+pattern = "ГАЗПРОМНЕФТЬ"
+category = "fuel"
+
+[[rules]]
+pattern = "GAZPROMNEFT"
+category = "fuel"
+
+[[rules]]
+pattern = "МЕТРО"
+category = "transport"
+
+[[rules]]
+pattern = "UBER"
+category = "transport"
+
+[[rules]]
+pattern = "YANDEX GO"
+category = "transport"
+
+[[rules]]
+pattern = "ЯНДЕКС GO"
+category = "transport"
+
+[[rules]]
+pattern = "ЯНДЕКС ТАКСИ"
+category = "transport"
+
+[[rules]]
+pattern = "TRANSFER TO"
+category = "transfers"
+
+[[rules]]
+pattern = "TRANSFER FROM"
+category = "transfers"
+
+[[rules]]
+pattern = "ПЕРЕВОД"
+category = "transfers"
+
+[[rules]]
+pattern = "ВОЗВРАТ"
+category = "transfers"
+
+[[rules]]
+pattern = "ЗАРАБОТНАЯ"
+category = "income"
+
+[[rules]]
+pattern = "ЗАРПЛАТА"
+category = "income"
+
+[[rules]]
+pattern = "ЗАРАБОТНАЯ ПЛАТА"
+category = "income"
+
+[[rules]]
+pattern = "SALARY"
+category = "income"
+
+[[rules]]
+pattern = "NETFLIX"
+category = "subscriptions"
+
+[[rules]]
+pattern = "SPOTIFY"
+category = "subscriptions"
+
+[[rules]]
+pattern = "YOUTUBE PREMIUM"
+category = "subscriptions"
+
+[[rules]]
+pattern = "KINOPOISK"
+category = "subscriptions"
+
+[[rules]]
+pattern = "ИВИ"
+category = "subscriptions"
+
+[[rules]]
+pattern = "ОЗОН"
+category = "household"
+
+[[rules]]
+pattern = "WILDBERRIES"
+category = "household"
+
+[[rules]]
+pattern = "ВБ"
+category = "household"

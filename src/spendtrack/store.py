@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 
-from spendtrack.config import ROOT
+from spendtrack.config import resolve_data_dir
 from spendtrack.config import settings as load_settings
 
 
@@ -118,7 +118,7 @@ SCHEMA_VERSION = 4  # текущая версия схемы (см. Store._migra
 class Store:
     def __init__(self, db_path: Path | None = None):
         cfg = load_settings()
-        self.path = db_path or cfg.db_path or (ROOT / "data" / "spend.db")
+        self.path = db_path or cfg.db_path or (resolve_data_dir() / "spend.db")
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(self.path)
         self.conn.row_factory = sqlite3.Row

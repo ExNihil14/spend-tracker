@@ -129,9 +129,8 @@ def import_csv(
             f"CSV превышает лимит {MAX_CSV_BYTES // (1024 * 1024)} МБ ({len(raw_bytes)} байт) — "
             "разделите выписку по периодам")
     if taxonomy is None:
-        from spendtrack.config import ROOT
         from spendtrack.taxonomy import load_taxonomy
-        taxonomy = load_taxonomy(ROOT / "config")
+        taxonomy = load_taxonomy()
     if classify is None:
         classify = lambda tx, st, tax: categorize_transaction(tx, tax, st)
     if isinstance(raw, bytes):

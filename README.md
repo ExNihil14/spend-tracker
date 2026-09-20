@@ -32,6 +32,26 @@ offline-first: без ключей и сети работает на прави�
 
 ## Быстрый старт
 
+### Одна команда (Windows)
+
+```powershell
+powershell -c "irm https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.ps1 | iex"
+```
+
+### Одна команда (macOS/Linux/WSL)
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.sh | sh
+```
+
+Скрипты сами поставят [uv](https://docs.astral.sh/uv/) (при отсутствии — и Python 3.13), установят spendtrack
+и запустят интерфейс. Дальше: `spendtrack serve --open` (запуск), `spendtrack paths` (где конфиг и данные),
+`spendtrack --help` (все команды). В установленном режиме данные — в пользовательской папке
+(Windows: `%LOCALAPPDATA%\spendtrack`, конфиг `%APPDATA%\spendtrack`; Linux/macOS: `~/.local/share/spendtrack`
+и `~/.config/spendtrack`) — правки таксономии из UI сохраняются там же.
+
+### Из исходников (для разработки)
+
 Нужны Python 3.13+ и [uv](https://docs.astral.sh/uv/).
 
 ```bash
@@ -48,10 +68,19 @@ cp .env.example .env      # необязательно: LLM — свой клю�
 ```
 
 ```bash
-uv run uvicorn spendtrack.main:app --host 127.0.0.1 --port 8766
+uv run spendtrack serve    # или: uv run uvicorn spendtrack.main:app --port 8766
 ```
 
-Приложение: <http://127.0.0.1:8766> — БД создастся сама в `data/spend.db`.
+Приложение: <http://127.0.0.1:8766> — в режиме из исходников БД создастся сама в `data/spend.db`.
+
+### Docker (опционально)
+
+```bash
+docker build -t spendtrack .
+docker run --rm -p 127.0.0.1:8766:8766 -v spendtrack-data:/data spendtrack
+```
+
+Данные — в томе `spendtrack-data`; наружу публикуется только localhost.
 
 ## Демо-режим (витрина за минуту)
 

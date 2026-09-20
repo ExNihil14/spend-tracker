@@ -273,6 +273,45 @@ def cmd_doctor(args) -> int:
     return 1 if report["status"] == "critical" else 0
 
 
+def cmd_serve(args) -> int:
+    """Веб-интерфейс: `spendtrack serve` (+ `--open` для браузера)."""
+    from spendtrack.config import ensure_config_dir, load_settings
+
+    try:
+        ensure_config_dir()
+    except OSError as e:
+        print(f"не удалось создать каталог конфига: {e}", file=sys.stderr)
+        print("проверьте права на пользовательскую папку или задайте SPENDTRACK_CONFIG_DIR", file=sys.stderr)
+        return 1
+    cfg = load_settings()
+    host = args.host or "127.0.0.1"
+    port = int(args.port or cfg.port)
+    display_host = "127.0.0.1" if host == "0.0.0.0" else host
+    url = f"http://{display_host}:{port}"
+    if args.open:
+        import threading
+        import webbrowser
+        threading.Timer(1.0, lambda: webbrowser.open(url)).start()
+    print(f"Spendtrack: {url}  (Ctrl+C — остановить)")
+    sys.stdout.flush()
+    import uvicorn
+    uvicorn.run("spendtrack.main:app", host=host, port=port, log_config=None)
+    return 0
+
+
+def cmd_paths(args) -> int:
+    from spendtrack.config import paths_info
+    info = paths_info()
+    if args.json:
+        print(json.dumps(info, ensure_ascii=False, indent=2))
+        return 0
+    titles = {"mode": "режим", "package": "пакет", "config_dir": "конфиг",
+              "data_dir": "данные", "db_path": "БД"}
+    for key, value in info.items():
+        print(f"{titles.get(key, key):<8} {value}")
+    return 0
+
+
 def cmd_confirm(args) -> int:
     store = make_store()
     ok = store.update_category(args.id, args.category, source="correction")
@@ -359,6 +398,16 @@ def main(argv: list[str] | None = None) -> int:
     a_ex.add_argument("--to", dest="date_to", default=None, type=_date_arg, metavar="YYYY-MM-DD")
     a_ex.add_argument("--out", default=None, help="путь файла (по умолчанию spend-export-<дата>.<ext>)")
     a_ex.set_defaults(fn=cmd_export)
+
+    a_srv = sub.add_parser("serve", help="запустить веб-интерфейс (127.0.0.1)")
+    a_srv.add_argument("--host", default="127.0.0.1", help="по умолчанию только локально")
+    a_srv.add_argument("--port", type=int, default=None, help="по умолчанию — port из settings.toml")
+    a_srv.add_argument("--open", action="store_true", help="открыть браузер")
+    a_srv.set_defaults(fn=cmd_serve)
+
+    a_paths = sub.add_parser("paths", help="раскладка конфиг/данные/БД (диагностика)")
+    a_paths.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    a_paths.set_defaults(fn=cmd_paths)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):

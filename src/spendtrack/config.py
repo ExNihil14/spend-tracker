@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import os
+import shutil
+import sys
 import tomllib
 from pathlib import Path
 
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT = Path(__file__).resolve().parents[2]
-CONFIG_DIR = ROOT / "config"
+PKG_DIR = Path(__file__).resolve().parent
+DEFAULTS_DIR = PKG_DIR / "defaults"
+_REPO_ROOT = PKG_DIR.parents[1]  # checkout: src/spendtrack -> корень репо; wheel: .../Lib
+ROOT = _REPO_ROOT  # legacy-алиас: dev-скрипты и тесты (в установленном пакете не используется)
+_REPO_CONFIG_DIR = _REPO_ROOT / "config"
+CONFIG_DIR = _REPO_CONFIG_DIR  # legacy-алиас (repo-режим)
 
 
 class LLMEndpoint(BaseModel):
@@ -43,12 +50,103 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
 
 
+def _repo_config() -> Path:
+    return _REPO_CONFIG_DIR
+
+
+def repo_mode() -> bool:
+    """Repo-режим: рядом есть config/settings.toml (git clone + uv sync, прод NSSM).
+
+    В установленном пакете (uv tool/uvx) конфига в пакете нет — данные/конфиг идут в user-dir.
+    """
+    return (_repo_config() / "settings.toml").is_file()
+
+
+def user_config_dir() -> Path:
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming"
+        return Path(base) / "spendtrack"
+    base = os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config"
+    return Path(base) / "spendtrack"
+
+
+def user_data_dir() -> Path:
+    if sys.platform == "win32":
+        base = os.environ.get("LOCALAPPDATA") or Path.home() / "AppData" / "Local"
+        return Path(base) / "spendtrack"
+    base = os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share"
+    return Path(base) / "spendtrack"
+
+
+def resolve_config_dir() -> Path:
+    """Приоритет: SPENDTRACK_CONFIG_DIR → config/ репозитория → user-config (APPDATA/XDG)."""
+    env = os.environ.get("SPENDTRACK_CONFIG_DIR")
+    if env:
+        return Path(env).expanduser()
+    if repo_mode():
+        return _repo_config()
+    return user_config_dir()
+
+
+def resolve_data_dir() -> Path:
+    """Приоритет: SPENDTRACK_DATA_DIR → data/ репозитория → user-data (LOCALAPPDATA/XDG)."""
+    env = os.environ.get("SPENDTRACK_DATA_DIR")
+    if env:
+        return Path(env).expanduser()
+    if repo_mode():
+        return _REPO_ROOT / "data"
+    return user_data_dir()
+
+
+def _atomic_copy(src: Path, dest: Path) -> None:
+    """Копия через временный файл + replace: читатель не увидит недописанный файл."""
+    tmp = dest.with_name(dest.name + ".tmp")
+    try:
+        shutil.copyfile(src, tmp)
+        os.replace(tmp, dest)
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def ensure_config_dir() -> Path:
+    """Каталог конфига, готовый к записи; в не-repo режиме копирует пакетные дефолты.
+
+    Идемпотентно: существующие файлы не перезаписываются (правки пользователя важнее);
+    копирование атомарное (UI/сервер могут читать файл параллельно).
+    """
+    target = resolve_config_dir()
+    if target == _repo_config() and repo_mode():
+        return target
+    target.mkdir(parents=True, exist_ok=True)
+    for name in ("settings.toml", "taxonomy.toml"):
+        dest = target / name
+        if not dest.exists():
+            _atomic_copy(DEFAULTS_DIR / name, dest)
+    return target
+
+
 def load_settings(config_dir: Path | None = None) -> Settings:
-    config_dir = config_dir or CONFIG_DIR
-    with open(config_dir / "settings.toml", "rb") as f:
+    base = Path(config_dir) if config_dir else resolve_config_dir()
+    path = base / "settings.toml"
+    if not path.is_file():
+        path = DEFAULTS_DIR / "settings.toml"  # установленный режим: дефолт из пакета
+    with open(path, "rb") as f:
         data = tomllib.load(f)
     return Settings(**data)
 
 
 def settings() -> Settings:
     return load_settings()
+
+
+def paths_info() -> dict:
+    """Текущая раскладка (диагностика `spendtrack paths` и поддержка)."""
+    cfg = load_settings()
+    db = cfg.db_path or (resolve_data_dir() / "spend.db")
+    return {
+        "mode": "repo" if repo_mode() else "installed",
+        "package": str(PKG_DIR),
+        "config_dir": str(resolve_config_dir()),
+        "data_dir": str(resolve_data_dir()),
+        "db_path": str(db),
+    }

@@ -9,14 +9,14 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from spendtrack.categorize import categorize_transaction
-from spendtrack.config import ROOT
+from spendtrack.config import PKG_DIR
 from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv
 from spendtrack.reports import budgets_progress
 from spendtrack.store import Store, fmt_amount, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
-templates = Jinja2Templates(directory=ROOT / "src" / "spendtrack" / "templates")
+templates = Jinja2Templates(directory=PKG_DIR / "templates")
 
 
 def _store() -> Store:

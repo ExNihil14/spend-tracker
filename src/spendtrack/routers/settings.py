@@ -5,12 +5,12 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from spendtrack import taxonomy_repo as repo
-from spendtrack.config import ROOT
+from spendtrack.config import PKG_DIR
 from spendtrack.reports import BUDGET_EXCLUDED
 from spendtrack.store import Store, fmt_amount
 
 router = APIRouter()
-templates = Jinja2Templates(directory=ROOT / "src" / "spendtrack" / "templates")
+templates = Jinja2Templates(directory=PKG_DIR / "templates")
 
 
 def _store() -> Store:

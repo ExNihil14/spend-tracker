@@ -7,13 +7,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from spendtrack.config import ROOT, load_settings
+from spendtrack.config import PKG_DIR, ensure_config_dir, load_settings, resolve_data_dir
 from spendtrack.routers.api import router as api_router
 from spendtrack.routers.frontend import router as frontend_router
 from spendtrack.routers.settings import router as settings_router
 
 cfg = load_settings()
-LOG_DIR = ROOT / "logs"
+LOG_DIR = resolve_data_dir() / "logs"
 
 
 _LOGGING_DONE = False  # идемпотентность: при импорте + main() не плодить handler'ы
@@ -50,7 +50,7 @@ app.include_router(frontend_router)
 app.include_router(settings_router)
 app.include_router(api_router, prefix="/api")
 
-app.mount("/static", StaticFiles(directory=ROOT / "src" / "spendtrack" / "static"), name="static")
+app.mount("/static", StaticFiles(directory=PKG_DIR / "static"), name="static")
 
 
 @app.get("/health")
@@ -82,6 +82,7 @@ def health_data():
 def main() -> None:
     import uvicorn
 
+    ensure_config_dir()
     _setup_logging()
     uvicorn.run(app, host="127.0.0.1", port=cfg.port, log_config=None)
 

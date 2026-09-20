@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from spendtrack.config import ROOT, load_settings
+from spendtrack.config import load_settings, resolve_data_dir
 from spendtrack.store import SCHEMA_VERSION, Store
 from spendtrack.taxonomy import Taxonomy, load_taxonomy
 
@@ -236,7 +236,7 @@ def overall_status(checks: list[dict]) -> str:
 def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = None) -> dict[str, Any]:
     """Полный прогон; возвращает {status, checks:[{id, severity, count, detail}]}."""
     cfg = load_settings()
-    path = Path(db_path or cfg.db_path or ROOT / "data" / "spend.db").expanduser().resolve()
+    path = Path(db_path or cfg.db_path or resolve_data_dir() / "spend.db").expanduser().resolve()
     try:
         tax = taxonomy if taxonomy is not None else load_taxonomy()
     except Exception as e:  # noqa: BLE001 — битый taxonomy.toml = critical

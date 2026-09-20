@@ -1,0 +1,16 @@
+.git
+.venv
+.venv/
+data/
+reports/
+logs/
+dist/
+tests/
+.devcontainer/
+.vscode/
+.github/
+__pycache__/
+*.pyc
+.env
+*.sqlite
+*.db
