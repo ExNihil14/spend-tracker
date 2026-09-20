@@ -76,6 +76,17 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (20.09, вечер-6, хвостовая сессия): ✅ хвосты закрыты (③ из плана; ждёт коммита/push).**
+> ① **favicon-404 приложения закрыт:** `static/favicon.svg` + `<link rel="icon">` в base.html; live `/static/favicon.svg`
+> 200 (`image/svg+xml`), playwright после навигации — 0 ошибок консоли (404 исчез); тесты `tests/test_static_assets.py` (2).
+> ② **install-ревью P0-факт-чек:** незакрытых P0 нет; P1-фикс подтверждён в коде (`config.py:101 _atomic_copy`,
+> `cli.py:282 except OSError`, тест `test_serve_reports_unwritable_config`) — артефакт дополнен, хвост закрыт.
+> ③ **go-usage off-peak окно исправлено** (bootstrap-репо, не spend-tracker): пик 01:00–04:00/06:00–10:00 UTC пн–пт,
+> выходные off-peak, выводится «следующий пик»; 5 границ проверены `-Now`; MODEL_ROUTING §11.2/§12 — открытый вопрос закрыт.
+> ④ **Codespace-404 (user env):** на нашей стороне не чинится; в README восстановлен/дополнен troubleshooting
+> (PORTS → Open in Browser, Stop/Start после Rebuild, Simple Browser, проверка входа) + случай 500 после обновления кода.
+> **Тесты: 356 unit + 21 e2e**, ruff чист, contract ok. NSSM не трогали (Python не менялся). **Ревью $0 (ultra-550b, 64 с):
+> GO, P0/P1 нет** (`EXPERT_REVIEW_TAILS_OR.md`). Коммит/push (spend-tracker и bootstrap — отдельными командами) — за юзером.
 > **АКТУАЛЬНО (20.09, вечер-5, сессия 6): ✅ README + бизнес-план + /help (запрос юзера; ждёт коммита/push).**
 > ① **README переписан** для обычных пользователей: «что умеет / кому подойдёт / установка одной командой /
 > первые шаги / частые вопросы (`<details>`) / таблица команд»; факты и команды сохранены, ссылка на лендинг.
