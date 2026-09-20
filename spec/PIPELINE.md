@@ -155,6 +155,17 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
 - Тесты: `tests/test_landing.py` (оффлайн: отсутствие внешних ресурсов, существование локальных ссылок/ассетов,
   наличие демо-кнопки/почты/опросов, workflow и FUNDING на месте).
 
+## Помощь (/help)
+- Роут `/help` (`routers/frontend.py`) + шаблон `templates/help.html`: быстрый старт (4 шага), «Как сделать…»,
+  глоссарий (15 терминов), легенда источников категории/статусов/цветов, 22 FAQ на нативных `<details>` (без JS),
+  «Данные и приватность», «Почему так?», ссылки. Порог авто-приёма и число категорий берутся из конфига
+  (справка не расходится с поведением).
+- Структура и правила — по ресёрчу `D:\dev\docs\machine\RESEARCH_HELP_FAQ_BEST_PRACTICES.md` (Diátaxis-квадранты,
+  2 уровня progressive disclosure, WCAG 2.2: Consistent Help 3.2.6, Use of Color 1.4.1, нативные details/summary).
+- Ссылка «Помощь» в nav (`base.html`) — на всех страницах в фиксированной позиции (после «Подтвердить»).
+- Тесты: `tests/test_help.py` (3, оффлайн) + e2e `test_help_page_nav_and_faq`; FAQPage JSON-LD не внедряем
+  (Google снял rich results 07.05.2026).
+
 ## Тесты / анализ
 ```bash
 uv run pytest -q                # unit-тесты (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)

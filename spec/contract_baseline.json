@@ -356,6 +356,10 @@
    "args": "month: str | None=None, category: str | None=None, q: str | None=None",
    "returns": ""
   },
+  "spendtrack.routers.frontend:help_page": {
+   "args": "request: Request",
+   "returns": ""
+  },
   "spendtrack.routers.frontend:index": {
    "args": "request: Request, month: str | None=None, month_delta: int=0, category: str | None=None, q: str | None=None, sort: str | None=None",
    "returns": ""
@@ -626,6 +630,7 @@
   "GET /export.xlsx": "",
   "GET /health": "",
   "GET /health/data": "",
+  "GET /help": "",
   "GET /settings": "",
   "GET /transactions/more": "",
   "PATCH /api/transactions/{tx_id}": "",

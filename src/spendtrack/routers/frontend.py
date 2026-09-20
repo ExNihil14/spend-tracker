@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
-from spendtrack.config import PKG_DIR
+from spendtrack.config import PKG_DIR, load_settings
 from spendtrack.digest import build_digest
 from spendtrack.export import csv_bytes, export_filename, write_xlsx
 from spendtrack.recurring import recurring_summary
@@ -119,6 +119,25 @@ def approve(request: Request):
         request, "approve.html",
         {"pending": pending, "cat_colors": cats, "fmt": fmt_amount,
          "all_categories": [c.name for c in taxonomy.categories]},
+    )
+
+
+@router.get("/help", response_class=HTMLResponse)
+def help_page(request: Request):
+    """Помощь: быстрый старт, how-to, глоссарий, легенда, FAQ (структура — RESEARCH_HELP_FAQ_BEST_PRACTICES.md).
+
+    Контент статический, но порог авто-приёма и список категорий берём из конфига,
+    чтобы справка не расходилась с поведением приложения.
+    """
+    taxonomy = load_taxonomy()
+    settings = load_settings()
+    return templates.TemplateResponse(
+        request, "help.html",
+        {
+            "categories": [c.name for c in taxonomy.categories],
+            "threshold": settings.acceptance.auto_accept_confidence,
+            "pending": _store().queued_for_review(),
+        },
     )
 
 
