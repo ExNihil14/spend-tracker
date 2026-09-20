@@ -76,6 +76,25 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (20.09, вечер-5, сессия 6): ✅ README + бизнес-план + /help (запрос юзера; ждёт коммита/push).**
+> ① **README переписан** для обычных пользователей: «что умеет / кому подойдёт / установка одной командой /
+> первые шаги / частые вопросы (`<details>`) / таблица команд»; факты и команды сохранены, ссылка на лендинг.
+> ② **Ресёрч ×2** (free-субагенты): `RESEARCH_BUSINESS_PLAN_SPENDTRACKER.md` (дельта цен/бенчмарков/банков:
+> GitHub Sponsors для РФ недоступен; Boosty 11.7% + НПД ≈ 15–17% с оборота; Сбер для физлиц без CSV; PFM-рынок РФ
+> $8.7→9.7 млн; freemium fintech медиана 4.1%) и `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` (Diátaxis, WCAG 2.2, NN/g,
+> топ-20 FAQ, 15 терминов, легенда, a11y-чеклист; FAQPage JSON-LD не нужен — Google снял rich results 07.05.2026).
+> ③ **Бизнес-план для руководства**: `D:\dev\docs\machine\BUSINESS_PLAN_SPENDTRACKER.md` (exec summary + 14 секций +
+> слайд-скелет на 20 слайдов; честная рамка «project economics», TAM→SAM→SOM, unit-economics, риски, метрики 90 дней).
+> ④ **Страница `/help`** (роут `frontend.py` + `templates/help.html` + ссылка в nav после «Подтвердить»):
+> быстрый старт, how-to, глоссарий (15 терминов), легенда источников/статусов/цветов, 22 FAQ на нативных
+> `<details>`, приватность, «Почему так?», ссылки; порог 0.9 и число категорий — из конфига. Лендинг: +3 FAQ
+> (дубли/переводы/LLM-payload).
+> **Тесты: 354 unit + 21 e2e** (+3 `tests/test_help.py`, +1 e2e `test_help_page_nav_and_faq`), ruff чист,
+> contract ok (baseline +1 роут `/help`). Live: NSSM рестартнут, `/help` 200, `/health` 200; playwright desktop 1280 +
+> mobile 390 — ок (консоль: только favicon-404 — хвост приложения).
+> **Ревью $0** (ultra-550b, 153 с): NO-GO → адъюдикация: **P0 отклонён фактом** (`queued_for_review` возвращает свежий
+> `[dict(r) for r in rows]`, паттерн index/approve/dashboard), **P1 принят** (тест читает порог из `load_settings()`);
+> артефакт `EXPERT_REVIEW_HELP_OR.md`. Коммит/push — по команде юзера.
 > **АКТУАЛЬНО (20.09, вечер-4, доп. deliverable): ✅ e2e-флейк CI закрыт (ждёт коммита/push).**
 > Симптом: `test_rule_dead_badge_and_preview` падал на 4 пушах подряд (таймаут `_preview`), локально зелёный.
 > Корень (доказан): htmx 2.0.4 `defaultSettleDelay=20ms` — `.htmx-request` снимается ДО settle, новый контент
