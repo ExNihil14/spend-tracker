@@ -15,7 +15,7 @@
 - Тест: `uv run pytest`
 - Линт: `uv run ruff check src tests`
 - Запуск: `uv run uvicorn spendtrack.main:app --port 8766` (или `.\run.ps1`)
-- CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии)
+- CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии) / `llm-status` (режим LLM: off/byo/ollama/free)
 - Верификация (правило из MASTER_PLAN.md): после изменений проверять факт (diff/запуск/UI в браузере), а не только отчёт
 
 ## Layout
@@ -32,7 +32,7 @@
 - Авто-приём категории от LLM при confidence ≥ 0.9, иначе → очередь «на подтверждение» (`review_status='pending'`, `category_llm` = предложение LLM)
 - Правила детерминированные и тестируются на РЕАЛЬНЫХ описаниях (урок: «ЗАРПЛАТА» не ловит «ЗАРАБОТНАЯ»)
 - Правка юзера → merchant_cache (выигрывает над LLM) + пример в few-shot
-- LLM-фолбэк (канон — `spec/ARCHITECTURE.md` §LLM-маршрут): OpenRouter :free → FreeLLMAPI (резерв) → abacus-web shim (deepseek) → офлайн-правила (работают и без LLM вообще)
+- LLM-маршрут (канон — `spec/ARCHITECTURE.md` §LLM-маршрут): BYO/Ollama (явный выбор, без фолбэков) → free-цепочка (OpenRouter :free → FreeLLMAPI → abacus-web shim; шимы — `ALLOW_LOCAL_LLM=1`) → офлайн-правила (работают и без LLM вообще); статус — `spendtrack llm-status`
 
 ## Не делать
 - Не кидать сырые суммы REAL/DECIMAL в БД

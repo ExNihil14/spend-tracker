@@ -11,6 +11,7 @@ uv run spendtrack report --month 2026-09         # отчёт за месяц
 uv run spendtrack count                          # счётчики
 uv run spendtrack budget --month 2026-09         # прогресс по бюджетам категорий
 uv run spendtrack confidence                     # калибровка порога авто-приёма LLM
+uv run spendtrack llm-status [--json]            # режим LLM: off/byo/ollama/free (без сети и ключей)
 uv run spendtrack doctor [--json]                # целостность данных (exit 1 только на critical)
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
 uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
@@ -77,9 +78,11 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
 - Тесты: `tests/test_contract_delta.py` (6, оффлайн, герметичные — tmp-пакеты/файлы baseline).
 
 ## Офлайн-first, лимиты импорта, очередь (фаза 0 аудита 19.09)
-- LLM по умолчанию **выключен**: без ключей (`SPENDTRACK_OPENROUTER_API_KEY`/`SPENDTRACK_FREEL_LLM_API_KEY`)
-  ни один провайдер не вызывается, сеть не трогается; локальные шимы (3001/3201) — только с
-  `SPENDTRACK_ALLOW_LOCAL_LLM=1` (они тоже проксируют наружу). Доказательство: `tests/test_offline.py` в CI.
+- LLM по умолчанию **выключен**. Резолв — `resolve_providers()`; режимы: BYO (`SPENDTRACK_LLM_BASE_URL/MODEL/API_KEY`,
+  любой OpenAI-совместимый сервер), Ollama (`SPENDTRACK_LLM_PROVIDER=ollama`, air-gap), free-цепочка (ключи;
+  локальные шимы 3001/3201 — дополнительно `SPENDTRACK_ALLOW_LOCAL_LLM=1`, строго, даже при ключе). BYO вытесняет
+  free-цепочку и в неё не откатывается. Статус: `spendtrack llm-status [--json]`. Доказательство: `tests/test_offline.py`
+  (офлайн + BYO при заблокированной сети) и `tests/test_llm_byo.py` в CI.
 - Лимиты импорта: CSV ≤ 10 МБ (`MAX_CSV_BYTES`), |сумма| > 1 млрд ₽ → строка в отчёт `invalid` (`MAX_AMOUNT_KOPECKS`);
   API отдаёт 413 c понятным текстом, CLI — код 1.
 - Фикс 19.09: `import_csv` переносит `review_status`/`category_llm` из классификатора — низкоуверенные импортные
@@ -99,7 +102,7 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
 
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 252 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
+uv run pytest -q                # 310 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):
@@ -130,10 +133,13 @@ uv run ruff check               # lint, чистый
   живым запросом (не только 200), и для миграций — `PRAGMA user_version`.
 
 ## LLM-провайдеры (полный маршрут)
-1. OpenRouter :free (nemotron-super-120b) — primary (канон: `spec/ARCHITECTURE.md` §LLM-маршрут).
-2. OpenRouter :free (nemotron-3-super-120b) — fallback.
-3. abacus-web shim 127.0.0.1:3201 (deepseek-v4-1-flash) — deepseek, токен TTL 1ч.
+Резолв — `resolve_providers()` (`src/spendtrack/llm.py`); канон — `spec/ARCHITECTURE.md` §LLM-маршрут:
+1. BYO (`SPENDTRACK_LLM_BASE_URL/MODEL/API_KEY`) — свой OpenAI-совместимый сервер; единственный провайдер, без фолбэков.
+2. Ollama (`SPENDTRACK_LLM_PROVIDER=ollama`) — локально (air-gap), модель `llm.offline` (qwen2.5-coder:3b).
+3. free-цепочка (ключи; локальные шимы — дополнительно `SPENDTRACK_ALLOW_LOCAL_LLM=1`): OpenRouter :free →
+   FreeLLMAPI (localhost:3001) → abacus-web shim (127.0.0.1:3201, deepseek-v4-1-flash, токен TTL 1ч).
 4. Офлайн-правила/кэш — без сети.
+Ключ подбирается под URL (openrouter → OPENROUTER-ключ, иначе FreeLLM-ключ). Статус: `spendtrack llm-status`.
 
 ## Правило
 - Отчёт агента не принимается без проверки по логам/живому ответу (не «галлюцинировать готово»).

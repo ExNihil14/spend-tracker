@@ -36,7 +36,7 @@ offline-first: без ключей и сети работает на прави�
 git clone https://github.com/ExNihil14/spend-tracker.git
 cd spend-tracker
 uv sync
-cp .env.example .env      # необязательно: ключи LLM (бесплатные :free модели)
+cp .env.example .env      # необязательно: LLM — свой ключ/Ollama или free-каналы (см. «Настройка»)
 ```
 
 Запуск:
@@ -103,15 +103,21 @@ uv run spendtrack import statement.csv --bank auto
 uv run spendtrack report --month 2026-09
 uv run spendtrack count
 uv run spendtrack confidence                  # калибровка порога авто-приёма (бакеты, покрытие, ошибки)
+uv run spendtrack llm-status                  # режим LLM: off/byo/ollama/free (без сети и ключей)
 ```
 
 ## Настройка
 
-- `config/settings.toml` — порт, LLM-эндпоинты, порог авто-приёма (`acceptance.auto_accept_confidence`).
+- `config/settings.toml` — порт, эндпоинты free-цепочки, модель Ollama, порог авто-приёма (`acceptance.auto_accept_confidence`).
 - `config/taxonomy.toml` — категории и keyword-правила (правятся и через `/settings`).
-- Переменные окружения или `.env` в корне: `SPENDTRACK_OPENROUTER_API_KEY`, `SPENDTRACK_FREEL_LLM_API_KEY`, `SPENDTRACK_DB_PATH`
-  (порт и LLM-эндпоинты задаются в `settings.toml`; окружение их не переопределяет).
-- LLM не обязателен: без ключей категоризация работает на правилах, спорные строки ждут подтверждения.
+- **LLM не обязателен.** Три режима (проверить: `uv run spendtrack llm-status`):
+  1. **Выключен (по умолчанию)** — без настройки ни одного сетевого вызова; спорные строки ждут подтверждения.
+  2. **Свой LLM (BYO) / Ollama — рекомендуется.** Любой OpenAI-совместимый сервер: `SPENDTRACK_LLM_BASE_URL` +
+     `SPENDTRACK_LLM_MODEL` + `SPENDTRACK_LLM_API_KEY`; локальный Ollama — `SPENDTRACK_LLM_PROVIDER=ollama`
+     (модель по умолчанию `qwen2.5-coder:3b`, нужен `ollama pull`). Данные уходят только на указанный сервер.
+  3. **Free-каналы** — осознанный opt-in: `SPENDTRACK_OPENROUTER_API_KEY` и/или `SPENDTRACK_FREEL_LLM_API_KEY`
+     (+ `SPENDTRACK_ALLOW_LOCAL_LLM=1` для локальных шимов). Это чужие серверы — см. [`PRIVACY.md`](PRIVACY.md).
+- `SPENDTRACK_DB_PATH` — путь к БД (по умолчанию `data/spend.db`).
 
 ![Настройки](assets/screenshot-settings.png)
 
@@ -120,7 +126,8 @@ uv run spendtrack confidence                  # калибровка порог�
 - **Офлайн по умолчанию:** без ключей LLM приложение не делает сетевых вызовов (проверяется тестом
   `tests/test_offline.py` в CI); сервер слушает только `127.0.0.1`, телеметрии нет.
 - **Что уходит при включённом LLM** (описание ≤300 симв., сумма, псевдоним счёта, дата и few-shot примеры) —
-  подробно в [`PRIVACY.md`](PRIVACY.md); модель угроз и лимиты — [`SECURITY.md`](SECURITY.md).
+  подробно в [`PRIVACY.md`](PRIVACY.md); для полного контроля подключите свой ключ (BYO) или локальный Ollama
+  (см. «Настройка»). Модель угроз и лимиты — [`SECURITY.md`](SECURITY.md).
 - Лимиты импорта: CSV ≤ 10 МБ; абсурдные суммы отбрасываются в отчёт (`invalid`), а низкоуверенные строки
   уходят в очередь «Подтвердить».
 - Данные — ваш файл SQLite (`data/spend.db`); бэкап с проверкой восстановления: `uv run python scripts/backup.py`.
@@ -147,8 +154,9 @@ uv run python scripts/backup.py --keep 14   # VACUUM INTO, безопасно п
 ## English
 
 Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (Sber/Tinkoff/Yandex formats),
-deterministic rule-based categorization with an optional LLM fallback for the rest, human review queue, budgets,
-subscription detection and a weekly anomaly digest — all on your machine, no cloud, no bank APIs.
+deterministic rule-based categorization with an optional LLM fallback for the rest (bring your own API key or a
+local Ollama model), human review queue, budgets, subscription detection and a weekly anomaly digest — all on
+your machine, no cloud, no bank APIs.
 Quick start: `uv sync && uv run uvicorn spendtrack.main:app --port 8766`; demo with synthetic data:
 `uv run python scripts/demo_data.py seed`. UI is Russian for now (English localization is on the roadmap).
 

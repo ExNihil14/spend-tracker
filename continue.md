@@ -12,7 +12,7 @@
   очередь подтверждения (Work 3, `0b746d6` + e2e-хвост `511b630`), /settings Фазы 1-3 (категории `c9c42c4`,
   правила `973d280`, переименование `2e12d6c`), README/фиксы (`6d01458`), Codespaces (`1c684e4`), пикеры (`efe7cc7`),
   калибровка (`7f2ed66`), бюджеты (`73cc5fa`), фикс дашборда (`3076473`), CI e2e-джоб (`e5b13ac`).
-  **252 unit + 18 e2e зелёные** (см. «АКТУАЛЬНО»).
+  **314 unit + 18 e2e зелёные** (см. «АКТУАЛЬНО»).
 - ✅ **README под практики 2026 + фиксы** (`2872bae`, `c58dcf0`, `6d01458`, запушены): структура-«шлюз», 3 скриншота
   `assets/`, `.env` теперь читается (`env_file` в `config.py` + `tests/test_config.py`), бейдж «Подтвердить» на
   `/settings` (был 0), `LICENSE` (MIT). Ресёрч-дайджест: `D:\dev\docs\machine\README_BEST_PRACTICES_2026.md`.
@@ -88,6 +88,18 @@
 > **Открыто (user env):** Codespace-порт 8766 отдаёт GitHub-404 при `curl localhost:8766/health`=200 — диагноз/шаги
 > в `SESSION_START_PROMPT.md` (сверить `$CODESPACE_NAME`, пере-форвардинг, Stop/Start, Simple Browser как обход).
 > **Дальше:** ③ SSE-батчи (0 кред.) / ④ UI-агент по рынку / волна 3 шаг 1 = BYO-LLM.
+> **АКТУАЛЬНО (20.09): волна 3, шаг 1 — BYO-LLM/Ollama реализован (deliverable сессии; ждёт коммита по команде юзера).**
+> Закрыт P0 «нет облака vs free-LLM»: явный выбор провайдера без «тихих» фолбэков. Режимы (приоритет): off (дефолт —
+> ноль сети) → BYO (`SPENDTRACK_LLM_BASE_URL/MODEL/API_KEY`, любой OpenAI-совместимый сервер) → Ollama-пресет
+> (`SPENDTRACK_LLM_PROVIDER=ollama`, air-gap, модель `llm.offline`) → free-цепочка (ключи; локальные шимы — строго
+> `ALLOW_LOCAL_LLM=1`). Код: `llm.py` (`resolve_providers()`/`llm_status()`, frozen `LLMProvider`), `cli.py`
+> (`spendtrack llm-status [--json]`), `config.py` (поля `llm_*`); попутно фикс маппинга ключ↔URL после swap `c90e43e`.
+> Тесты **314 unit** (+15: `tests/test_llm_byo.py`, BYO-тест в `test_offline.py`), ruff, contract ok (baseline обновлён).
+> Live: BYO через локальную OpenAI-заглушку (127.0.0.1:11500) → `ЖИВОЙ ТЕСТ BYO МЕРЧАНТ` → `groceries`,
+> `category_source='llm'`; Ollama жив (11434, моделей нет — для реального прогона нужен `ollama pull qwen2.5-coder:3b`).
+> Прод NSSM рестартнут: `/health` ok, `/health/data` ok; прод-`.env` без ключей → режим LLM = off. Ревью $0:
+> **GO без P0** (`D:\dev\docs\machine\EXPERT_REVIEW_BYO_LLM_OR.md`; 5 P1 — 3 приняты/внесены, 2 отклонены фактами).
+> **Дальше по волне 3:** ② экспорт CSV/Excel → ③ one-command установка → ④ лендинг/демо → ⑤ PWA после 10 внешних.
 > **АКТУАЛЬНО (19.09, вечер-2): автоматизация + демо-режим + стратегия рынка + AGPLv3.** ① Автогейт контракт-дельты
 > (`scripts/contract_delta.py`, CI-шаг) и one-command ревью (`scripts/review.py`) — **289 unit**, коммиты `a3f1871`/`d0e5c83`;
 > ② **демо-режим** (`scripts/demo_data.py`: 350 tx, 6 подписок, 3 типа аномалий, 6 pending, 5 бюджетов; Codespaces-автосид,

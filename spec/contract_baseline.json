@@ -48,6 +48,10 @@
    "args": "args",
    "returns": "int"
   },
+  "spendtrack.cli:cmd_llm_status": {
+   "args": "args",
+   "returns": "int"
+  },
   "spendtrack.cli:cmd_recurring": {
    "args": "args",
    "returns": "int"
@@ -156,9 +160,17 @@
    "args": "endpoint: str | None=None",
    "returns": "tuple[OpenAI, str, str]"
   },
+  "spendtrack.llm:llm_status": {
+   "args": "cfg: Settings | None=None",
+   "returns": "dict[str, Any]"
+  },
   "spendtrack.llm:parse_llm_json": {
    "args": "raw: str",
    "returns": "dict | None"
+  },
+  "spendtrack.llm:resolve_providers": {
+   "args": "cfg: Settings | None=None",
+   "returns": "tuple[LLMProvider, ...]"
   },
   "spendtrack.main:health": {
    "args": "",
