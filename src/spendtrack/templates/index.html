@@ -84,6 +84,10 @@
              hx-trigger="input changed delay:400ms">
       {% if category or q %}<a href="/" class="text-blue-400 hover:text-blue-300 text-sm px-2 py-1">✕</a>{% endif %}
     </form>
+    <a href="/export.csv?month={{ current }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}"
+       hx-boost="false"
+       class="text-slate-300 hover:text-white text-sm px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
+       aria-label="Экспорт транзакций в CSV (открывается в Excel)" title="Экспорт CSV (Excel)">Экспорт CSV</a>
   </div>
   <div class="overflow-x-auto">
   <div id="tx-table" hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-trigger="refresh-list from:body">

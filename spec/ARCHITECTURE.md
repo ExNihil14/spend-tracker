@@ -17,6 +17,7 @@
 - `categorize.py` — конвейер категоризации (rule→llm→validation→queue), `classify_with_injectable`.
 - `csv_import.py` — импорт CSV по банкам (BANKS-адаптеры), fingerprint-дедуп.
 - `reports.py` — агрегаты по периодам/категориям.
+- `export.py` — выгрузка CSV (utf-8-sig/«;») и XLSX (openpyxl); read-only, принимает снимок строк.
 - `recurring.py` — детекция рекуррингов/подписок (read-only эвристика; критерии — `spec/PIPELINE.md`).
 - `suggestions.py` — подсказки keyword-правил из правок (read-only: n-граммы+merchant, пороги n≥3/80%, статусы по taxonomy).
 - `llm.py` + `prompts.py` — инжектируемый LLM-слой и промпт-контракты (JSON-выхлоп).

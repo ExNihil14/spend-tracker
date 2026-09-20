@@ -327,3 +327,18 @@ def test_approve_empty_queue(page: Page, live_server):
     page.goto(f"{live_server}/approve")
     _wait_htmx(page, "#review-rows")
     expect(page.locator("#review-rows")).to_contain_text("Все подтверждены")
+
+
+def test_export_csv_link_downloads(page: Page, live_server, db_path):
+    """Кнопка «Экспорт CSV» на главной скачивает файл: BOM + данные текущего фильтра."""
+    _seed_pending(str(db_path), [("fp-exp", "2026-09-12", "ЛЕНТА ЭКСПОРТ", -12345, 0.65, "groceries")])
+    page.goto(live_server)
+    link = page.locator('a[href^="/export.csv"]')
+    expect(link).to_have_attribute("aria-label", re.compile("Экспорт"))
+    with page.expect_download() as dl:
+        link.click()
+    download = dl.value
+    assert download.suggested_filename.startswith("spend-export-")
+    data = download.path().read_bytes()
+    assert data.startswith(b"\xef\xbb\xbf")
+    assert "ЛЕНТА ЭКСПОРТ" in data.decode("utf-8-sig")

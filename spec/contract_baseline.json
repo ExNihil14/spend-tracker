@@ -44,6 +44,10 @@
    "args": "args",
    "returns": "int"
   },
+  "spendtrack.cli:cmd_export": {
+   "args": "args",
+   "returns": "int"
+  },
   "spendtrack.cli:cmd_import": {
    "args": "args",
    "returns": "int"
@@ -151,6 +155,30 @@
   "spendtrack.doctor:run_checks": {
    "args": "db_path: Path | str | None=None, taxonomy: Taxonomy | None=None",
    "returns": "dict[str, Any]"
+  },
+  "spendtrack.export:csv_bytes": {
+   "args": "txs: Iterable[dict]",
+   "returns": "bytes"
+  },
+  "spendtrack.export:export_filename": {
+   "args": "ext: str",
+   "returns": "str"
+  },
+  "spendtrack.export:export_row": {
+   "args": "tx: dict",
+   "returns": "tuple[str, ...]"
+  },
+  "spendtrack.export:export_values": {
+   "args": "tx: dict",
+   "returns": "tuple"
+  },
+  "spendtrack.export:plain_amount": {
+   "args": "kopecks: int",
+   "returns": "str"
+  },
+  "spendtrack.export:write_xlsx": {
+   "args": "txs: Iterable[dict], path_or_stream: str | Path | io.BytesIO",
+   "returns": "int"
   },
   "spendtrack.llm:call_llm": {
    "args": "system_prompt: str, user_prompt: str, max_tokens: int=400, temperature: float=0.1, endpoint_override: str | None=None, model_override: str | None=None",
@@ -284,6 +312,14 @@
    "args": "request: Request, month: str | None=None, month_delta: int=0",
    "returns": ""
   },
+  "spendtrack.routers.frontend:export_csv": {
+   "args": "month: str | None=None, category: str | None=None, q: str | None=None",
+   "returns": ""
+  },
+  "spendtrack.routers.frontend:export_xlsx": {
+   "args": "month: str | None=None, category: str | None=None, q: str | None=None",
+   "returns": ""
+  },
   "spendtrack.routers.frontend:index": {
    "args": "request: Request, month: str | None=None, month_delta: int=0, category: str | None=None, q: str | None=None, sort: str | None=None",
    "returns": ""
@@ -375,6 +411,10 @@
   "spendtrack.store:Store.counts": {
    "args": "self",
    "returns": "dict"
+  },
+  "spendtrack.store:Store.export_transactions": {
+   "args": "self, month: str | None=None, category: str | None=None, search: str | None=None, date_from: str | None=None, date_to: str | None=None",
+   "returns": "tuple[dict, ...]"
   },
   "spendtrack.store:Store.get_transaction": {
    "args": "self, tx_id: int",
@@ -546,6 +586,8 @@
   "GET /api/transactions/{tx_id}": "",
   "GET /approve": "",
   "GET /dashboard": "",
+  "GET /export.csv": "",
+  "GET /export.xlsx": "",
   "GET /health": "",
   "GET /health/data": "",
   "GET /settings": "",

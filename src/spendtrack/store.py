@@ -315,6 +315,37 @@ class Store:
         rows = self.conn.execute(sql, params).fetchall()
         return [dict(r) for r in rows]
 
+    def export_transactions(self, month: str | None = None, category: str | None = None,
+                            search: str | None = None, date_from: str | None = None,
+                            date_to: str | None = None) -> tuple[dict, ...]:
+        """Все транзакции периода для экспорта: read-only, без лимита страницы списка.
+
+        Иммутабельная граница (tuple[dict]); порядок — хронологический (date ASC, id ASC).
+        Материализует выборку в память: для личного трекера (десятки тысяч строк) это норма;
+        стриминг под 100k+ — отдельная задача при появлении такого профиля.
+        """
+        sql = "SELECT * FROM transactions WHERE 1=1"
+        params: list[str] = []
+        if month:
+            sql += " AND substr(date,1,7)=?"
+            params.append(month)
+        if category:
+            sql += " AND category=?"
+            params.append(category)
+        if search:
+            sql += " AND (description LIKE ? OR merchant LIKE ?)"
+            like = f"%{search}%"
+            params.extend([like, like])
+        if date_from:
+            sql += " AND date>=?"
+            params.append(date_from)
+        if date_to:
+            sql += " AND date<=?"
+            params.append(date_to)
+        sql += " ORDER BY date ASC, id ASC"
+        rows = self.conn.execute(sql, params).fetchall()
+        return tuple(dict(r) for r in rows)
+
     def get_transaction(self, tx_id: int) -> dict | None:
         row = self.conn.execute("SELECT * FROM transactions WHERE id=?", (tx_id,)).fetchone()
         return dict(row) if row else None

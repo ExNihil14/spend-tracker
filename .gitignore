@@ -17,6 +17,8 @@ logs/
 *.db
 *.db-wal
 *.db-shm
+spend-export-*.csv
+spend-export-*.xlsx
 
 # Secrets
 .env

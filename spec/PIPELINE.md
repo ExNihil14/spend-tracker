@@ -12,6 +12,7 @@ uv run spendtrack count                          # счётчики
 uv run spendtrack budget --month 2026-09         # прогресс по бюджетам категорий
 uv run spendtrack confidence                     # калибровка порога авто-приёма LLM
 uv run spendtrack llm-status [--json]            # режим LLM: off/byo/ollama/free (без сети и ключей)
+uv run spendtrack export [--format csv|xlsx] [--month YYYY-MM] [--out FILE]  # выгрузка транзакций
 uv run spendtrack doctor [--json]                # целостность данных (exit 1 только на critical)
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
 uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
@@ -21,6 +22,20 @@ uv run python scripts/contract_delta.py check    # контракт-дельта
 uv run python scripts/contract_delta.py snapshot # обновить baseline после осознанного изменения контракта
 uv run python scripts/demo_data.py seed          # демо-витрина в data/demo.db (реальная БД не трогается)
 ```
+
+## Экспорт CSV/XLSX (read-only, «выход без потерь»)
+- CLI `spendtrack export [--format csv|xlsx] [--month YYYY-MM] [--category] [--search] [--from/--to] [--out FILE]`
+  — по умолчанию **все** транзакции; файл `spend-export-<дата>.<ext>`.
+- Веб: `GET /export.csv|/export.xlsx?month=&category=&q=` (кнопка «Экспорт CSV» на главной; на ссылке обязателен
+  `hx-boost="false"` — иначе `hx-boost` на `<body>` перехватывает клик и скачивание не происходит).
+- CSV: utf-8-sig (BOM — Excel видит кириллицу), разделитель «;», CRLF, суммы ASCII-минус/точка (`-123.45`);
+  поля: дата, описание, сумма, категория, источник, уверенность, мерчант, счёт, статус, предложение LLM
+  (внутренние fingerprint/import_batch не выгружаются).
+- Защита от CSV/formula-инъекций: текстовые поля с ведущими `= + - @` (tab/CR) получают префикс `'` —
+  Excel/Sheets не исполняют их как формулы; суммы не трогаются (строгий числовой формат).
+- XLSX (openpyxl): нативные дата/число (формат `#,##0.00`), жирная шапка, автофильтр, freeze panes.
+- Store: `export_transactions()` — `tuple[dict, ...]`, без лимита страницы списка (500). Тесты:
+  `tests/test_export.py` (14, оффлайн) + e2e скачивания (`test_export_csv_link_downloads`).
 
 ## Демо-данные (витрина)
 - `scripts/demo_data.py`: `seed [--if-empty] [--force] [--db PATH]` / `status` / `clean` — детерминированный
@@ -105,7 +120,7 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
 
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 317 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
+uv run pytest -q                # 331 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):

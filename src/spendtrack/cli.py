@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from spendtrack.categorize import categorize_transaction
@@ -200,6 +200,42 @@ def cmd_digest(args) -> int:
     return 0
 
 
+def _month_arg(value: str) -> str:
+    """Граница ввода: неверный формат не должен давать тихий пустой экспорт."""
+    try:
+        d = date.fromisoformat(value + "-01")
+        canonical = value == f"{d.year:04d}-{d.month:02d}"
+    except ValueError:
+        canonical = False
+    if not canonical:
+        raise argparse.ArgumentTypeError(f"месяц в формате YYYY-MM, получено {value!r}")
+    return value
+
+
+def _date_arg(value: str) -> str:
+    try:
+        canonical = date.fromisoformat(value).isoformat() == value
+    except ValueError:
+        canonical = False
+    if not canonical:
+        raise argparse.ArgumentTypeError(f"дата в формате YYYY-MM-DD, получено {value!r}")
+    return value
+
+
+def cmd_export(args) -> int:
+    from spendtrack.export import csv_bytes, export_filename, write_xlsx
+    store = make_store()
+    txs = store.export_transactions(month=args.month, category=args.category, search=args.search,
+                                    date_from=args.date_from, date_to=args.date_to)
+    out = Path(args.out) if args.out else Path(export_filename(args.format))
+    if args.format == "xlsx":
+        write_xlsx(txs, out)
+    else:
+        out.write_bytes(csv_bytes(txs))
+    print(f"OK {len(txs)} транзакций → {out}")
+    return 0
+
+
 def cmd_llm_status(args) -> int:
     from spendtrack.llm import llm_status
     status = llm_status()
@@ -312,6 +348,17 @@ def main(argv: list[str] | None = None) -> int:
     a_llm = sub.add_parser("llm-status", help="режим LLM: off/byo/ollama/free (без сети и ключей)")
     a_llm.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
     a_llm.set_defaults(fn=cmd_llm_status)
+
+    a_ex = sub.add_parser("export", help="экспорт транзакций в CSV/XLSX (Excel-совместимо)")
+    a_ex.add_argument("--format", choices=["csv", "xlsx"], default="csv")
+    a_ex.add_argument("--month", default=None, type=_month_arg,
+                      help="YYYY-MM (по умолчанию — все транзакции)")
+    a_ex.add_argument("--category", default=None)
+    a_ex.add_argument("--search", default=None, help="подстрока в описании/мерчанте")
+    a_ex.add_argument("--from", dest="date_from", default=None, type=_date_arg, metavar="YYYY-MM-DD")
+    a_ex.add_argument("--to", dest="date_to", default=None, type=_date_arg, metavar="YYYY-MM-DD")
+    a_ex.add_argument("--out", default=None, help="путь файла (по умолчанию spend-export-<дата>.<ext>)")
+    a_ex.set_defaults(fn=cmd_export)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):
