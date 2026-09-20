@@ -1,0 +1,17 @@
+name: PWA на телефоне
+description: Голос за мобильный ввод через PWA (веб-приложение на телефоне)
+title: "[PWA] Хочу PWA на телефоне"
+labels: ["poll"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за голос! Достаточно нажать **Submit new issue** — заполнять ничего не обязательно.
+        PWA — это веб-приложение на телефоне: без магазинов приложений, данные остаются на вашей машине.
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Что хотелось бы вводить с телефона? (необязательно)
+      description: Например, наличные траты, чеки, быстрый просмотр бюджета.
+    validations:
+      required: false

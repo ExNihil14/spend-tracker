@@ -8,6 +8,8 @@
 LLM подключается только для остатка, спорное уходит в очередь ручного подтверждения. FastAPI + SQLite + htmx,
 offline-first: без ключей и сети работает на правилах.
 
+**Лендинг с демо: <https://exnihil14.github.io/spend-tracker/>** — оффер, скриншоты, демо-кнопка (Codespaces) и поддержка.
+
 ![Список транзакций](assets/screenshot-transactions.png)
 
 ## Для кого
@@ -198,4 +200,5 @@ Quick start: `uv sync && uv run uvicorn spendtrack.main:app --port 8766`; demo w
 превратить код в закрытый облачный сервис, при этом self-host, форки и вклад остаются свободными (без CLA).
 
 Проект бесплатный. С релизом планируется модель «Supporter»: разовая лицензия (~$25 / 1900 ₽) за готовые сборки,
-автообновление и managed-LLM-прокси (ядро не кастрируется). Каналы поддержки появятся здесь же (Boosty).
+автообновление и managed-LLM-прокси (ядро не кастрируется). Поддержать: [Boosty](https://boosty.to/REPLACE_ME)
+(ссылка появится к запуску) · интерес к лицензии — [issue Supporter](https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml).
