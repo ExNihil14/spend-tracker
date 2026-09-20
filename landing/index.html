@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<!-- ЗАМЕНИТЬ ПЕРЕД ЗАПУСКОМ: URL Boosty (ссылки «Поддержать»). -->
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Spendtrack — бюджет и подписки без облака</title>
+<meta name="description" content="Локальный трекер расходов: импорт CSV Сбера, Тинькофф и Яндекса, категории без облака, бюджеты, автодетект подписок и недельный отчёт об аномалиях. Открытый код, бесплатно.">
+<meta property="og:title" content="Spendtrack — бюджет и подписки без облака">
+<meta property="og:description" content="Импорт выписок Сбер/Тинькофф/Яндекс, локальная категоризация, бюджеты и дайджест аномалий. Данные не покидают ваш компьютер.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://exnihil14.github.io/spend-tracker/">
+<meta property="og:image" content="https://exnihil14.github.io/spend-tracker/assets/shot-dashboard.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%233b82f6'/%3E%3Ctext x='32' y='44' font-size='36' text-anchor='middle' font-family='system-ui' font-weight='700' fill='%23fff'%3ES%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Перейти к содержанию</a>
+
+<header class="nav">
+  <div class="wrap nav-inner">
+    <span class="brand">Spendtrack</span>
+    <nav aria-label="Основная навигация">
+      <a href="#features">Возможности</a>
+      <a href="#demo">Демо</a>
+      <a href="#install">Установка</a>
+      <a href="#support">Поддержать</a>
+      <a href="https://github.com/ExNihil14/spend-tracker" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero wrap">
+    <div>
+      <span class="eyebrow">Локально · без облака · AGPLv3</span>
+      <h1>Бюджет и подписки без облака</h1>
+      <p class="lead">Закиньте выписку Сбера, Тинькофф или Яндекса — получите категории, бюджеты и недельный отчёт об аномалиях. Данные не покидают ваш компьютер, подписки нет.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#demo">Попробовать демо</a>
+        <a class="btn btn-ghost" href="#install">Установить за одну команду</a>
+      </div>
+      <p class="hint">Демо открывается в GitHub Codespaces с синтетическими данными — реальные выписки не нужны.</p>
+    </div>
+    <figure class="shot">
+      <img src="assets/shot-dashboard.png" width="1280" height="800" alt="Дашборд Spendtrack: бюджеты месяца с перерасходом и дайджест недели с аномалиями">
+      <figcaption>Бюджеты месяца и дайджест аномалий — синтетические данные демо-режима.</figcaption>
+    </figure>
+  </section>
+
+  <div class="facts">
+    <div class="wrap">
+      <div class="fact"><strong>Сбер · Тинькофф · Яндекс</strong>CSV-выписки с автоопределением формата</div>
+      <div class="fact"><strong>Повторный импорт = no-op</strong>дедуп по fingerprint, без двойного учёта</div>
+      <div class="fact"><strong>LLM — опция</strong>свой ключ (BYO) или локальный Ollama; по умолчанию выключен</div>
+      <div class="fact"><strong>Экспорт без потерь</strong>CSV/Excel в любой момент; база — ваш SQLite-файл</div>
+    </div>
+  </div>
+
+  <section id="install">
+    <div class="wrap">
+      <h2>От установки до дайджеста — за 10 минут</h2>
+      <p class="section-lead">Установщик сам поставит uv и Python 3.13. Никаких аккаунтов, ключей и облаков: приложение поднимается на <code>127.0.0.1</code>.</p>
+      <div class="steps">
+        <div class="step">
+          <h3>Установите одной командой</h3>
+          <p>Windows (PowerShell):</p>
+          <div class="cmd">
+            <pre><code>powershell -c "irm https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.ps1 | iex"</code></pre>
+            <button class="copy" type="button">Скопировать</button>
+          </div>
+          <p>macOS / Linux / WSL:</p>
+          <div class="cmd">
+            <pre><code>curl -LsSf https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.sh | sh</code></pre>
+            <button class="copy" type="button">Скопировать</button>
+          </div>
+        </div>
+        <div class="step">
+          <h3>Загрузите выписку</h3>
+          <p>Перетащите CSV в веб-интерфейс или в терминале:</p>
+          <div class="cmd">
+            <pre><code>spendtrack import statement.csv --bank auto</code></pre>
+            <button class="copy" type="button">Скопировать</button>
+          </div>
+          <p>Формат определится сам. Уже загруженные операции повторно не добавятся.</p>
+        </div>
+        <div class="step">
+          <h3>Смотрите дайджест</h3>
+          <p>Откройте <code>http://127.0.0.1:8766</code> — или в терминале:</p>
+          <div class="cmd">
+            <pre><code>spendtrack digest</code></pre>
+            <button class="copy" type="button">Скопировать</button>
+          </div>
+          <p>Категории, бюджеты, подписки и аномалии недели — без единого сетевого запроса.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="features">
+    <div class="wrap">
+      <h2>Что внутри</h2>
+      <p class="section-lead">Детерминированное ядро делает основную работу; LLM подключается только к остатку — и никогда по умолчанию.</p>
+      <div class="grid3">
+        <div class="card">
+          <h3>CSV трёх банков</h3>
+          <p>Сбер, Тинькофф, Яндекс: кодировки, разделители, десятичные запятые. Повторный импорт — no-op, пересекающиеся периоды не удваиваются.</p>
+        </div>
+        <div class="card">
+          <h3>Каскад категоризации</h3>
+          <p>Кэш мерчантов → keyword-правила → LLM → офлайн-правила. Авто-приём при уверенности ≥ 0.9, спорное — в очередь «Подтвердить».</p>
+        </div>
+        <div class="card">
+          <h3>Подписки и рекурринги</h3>
+          <p>Регулярные списания находятся автоматически: цена, история, пропуски, скачок цены (например, Netflix подорожал — увидите флаг).</p>
+        </div>
+        <div class="card">
+          <h3>Дайджест недели</h3>
+          <p>Расход/доход и дельты, топ категорий, самый дорогой день, крупные суммы и near-дубли — короткий отчёт вместо таблиц.</p>
+        </div>
+        <div class="card">
+          <h3>Бюджеты по категориям</h3>
+          <p>Месячные лимиты с прогрессом; перерасход виден сразу. Доходы и переводы в бюджеты не попадают.</p>
+        </div>
+        <div class="card">
+          <h3>Данные у вас</h3>
+          <p>Обычный файл SQLite на вашем диске, экспорт CSV/Excel одной кнопкой, бэкап с проверкой восстановления (<code>doctor</code>).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap split">
+      <figure class="shot">
+        <img src="assets/shot-approve.png" width="1280" height="800" alt="Очередь подтверждения: предложения LLM с уверенностью и выбор категории">
+        <figcaption>Очередь подтверждения: LLM предлагает — решение за вами.</figcaption>
+      </figure>
+      <div>
+        <h2>LLM предлагает, вы решаете</h2>
+        <ul class="proof-list">
+          <li><strong>Порог уверенности:</strong> выше 0.9 — категория принимается, ниже — уходит в очередь с предложением модели.</li>
+          <li><strong>Правка учит:</strong> ваше решение запоминается для мерчанта и попадает в примеры — LLM будет точнее в следующий раз.</li>
+          <li><strong>Подсказки правил:</strong> из ваших правок система предлагает keyword-правила, которые можно применить одним нажатием.</li>
+          <li><strong>Работает офлайн:</strong> без LLM очередь просто наполняется — приложение не делает ни одного сетевого вызова.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="demo" class="demo-band">
+    <div class="wrap">
+      <h2>Демо за 30 секунд — без установки</h2>
+      <p class="section-lead">Кнопка открывает ваш личный GitHub Codespace: приложение стартует само, внутри — синтетические данные за ~5 месяцев. Витринные фичи (подписки, аномалии, бюджеты, очередь) уже на месте.</p>
+      <div class="demo-actions">
+        <a class="btn btn-primary" href="https://codespaces.new/ExNihil14/spend-tracker" rel="noopener">Открыть демо в Codespaces</a>
+        <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/blob/main/README.md" rel="noopener">README и локальный демо-режим</a>
+      </div>
+      <p class="hint">Нужен аккаунт GitHub; порт приватный — приложение увидите только вы. GitHub Free даёт 120 core-часов в месяц, этого хватает на много запусков.</p>
+    </div>
+  </section>
+
+  <section id="support">
+    <div class="wrap">
+      <h2>Поддержать проект</h2>
+      <p class="section-lead">Ядро бесплатное и останется бесплатным: импорт, правила, бюджеты, дайджест, экспорт, BYO-LLM. Платное — только удобство.</p>
+      <div class="support-grid">
+        <div class="card">
+          <h3>Supporter — разовая лицензия</h3>
+          <div class="price">$25 <span>или 1900 ₽ · один раз</span></div>
+          <ul>
+            <li>готовые сборки и автообновление</li>
+            <li>приоритетные адаптеры новых банков</li>
+            <li>managed-LLM-прокси с квотой (для тех, кто не хочет свой ключ)</li>
+            <li>ядро не кастрируется — это тот же продукт, без возни</li>
+          </ul>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="mailto:pahan1488@mail.ru?subject=Supporter%3A%20%D1%85%D0%BE%D1%87%D1%83%20%D1%80%D0%B0%D0%B7%D0%BE%D0%B2%D1%83%D1%8E%20%D0%BB%D0%B8%D1%86%D0%B5%D0%BD%D0%B7%D0%B8%D1%8E">Оставить почту</a>
+            <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml" rel="noopener">Интересуюсь (issue)</a>
+          </div>
+          <p class="note">Почта — только для ответа о запуске Supporter; рассылок не будет.</p>
+        </div>
+        <div class="card">
+          <h3>Донат</h3>
+          <div class="price">Boosty <span>разово или ежемесячно</span></div>
+          <ul>
+            <li>поддержка разработки напрямую</li>
+            <li>доступ к заметкам о разработке</li>
+            <li>можно отменить в любой момент</li>
+          </ul>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://boosty.to/REPLACE_ME" rel="noopener">Поддержать на Boosty</a>
+          </div>
+          <p class="note">Страница Boosty появится к запуску — ссылка обновится здесь.</p>
+        </div>
+      </div>
+      <div class="card poll">
+        <h3>Что делать следующим: Telegram-бот или PWA?</h3>
+        <p>Ввод трат с телефона — следующий большой шаг. Выберите канал, который вам важнее: голос — открытый issue, достаточно нажать «Submit».</p>
+        <div class="poll-actions">
+          <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-telegram.yml" rel="noopener">Хочу Telegram-бот</a>
+          <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-pwa.yml" rel="noopener">Хочу PWA на телефоне</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="wrap">
+      <h2>Приватность — это не маркетинг, а поведение по умолчанию</h2>
+      <div class="grid3">
+        <div class="card">
+          <h3>Ноль сети без ключей</h3>
+          <p>LLM выключен: приложение не делает сетевых вызовов — это проверяется автотестом «нулевой сети» в CI при каждом коммите.</p>
+        </div>
+        <div class="card">
+          <h3>Сервер — только localhost</h3>
+          <p>По умолчанию слушает 127.0.0.1. Телеметрии, аналитики и «анонимной статистики» нет вообще.</p>
+        </div>
+        <div class="card">
+          <h3>Что уходит к LLM</h3>
+          <p>Только описание операции (≤300 символов), сумма и дата — и только если вы сами включили свой ключ или локальный Ollama.</p>
+        </div>
+      </div>
+      <p class="note">Честно: файл базы не шифруется — это ваш диск и ваша ответственность. Подробности: <a href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> и <a href="https://github.com/ExNihil14/spend-tracker/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a>.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <h2>Вопросы</h2>
+      <div class="faq">
+        <details>
+          <summary>Нужен ли API-ключ LLM?</summary>
+          <p>Нет. По умолчанию LLM выключен, и приложение работает на правилах и кэше. Хотите точнее — подключите свой OpenAI-совместимый сервер (BYO) или локальный Ollama; можно и бесплатные каналы, но это чужие серверы — включаются осознанно.</p>
+        </details>
+        <details>
+          <summary>Какие банки поддерживаются?</summary>
+          <p>Сбер, Тинькофф, Яндекс — CSV-выписки. Если формат вашего банка изменился или его нет — пришлите обезличенный образец в issue: адаптеры сообщества — самый быстрый путь к поддержке нового банка.</p>
+        </details>
+        <details>
+          <summary>Это замена YNAB, ZenMoney или Firefly III?</summary>
+          <p>Нет, и мы не делаем вид. Это узкий локальный инструмент под русские выписки: без bank sync, без мультиюзера и семейного бюджета, без мобильных приложений. Зато без облака, подписки и передачи данных на чужие серверы.</p>
+        </details>
+        <details>
+          <summary>Что с моими данными при обновлении или удалении?</summary>
+          <p>Данные лежат в пользовательской папке (Windows: <code>%LOCALAPPDATA%\spendtrack</code>, Linux/macOS: <code>~/.local/share/spendtrack</code>). Экспорт в CSV/Excel — в любой момент; <code>spendtrack doctor</code> проверит целостность и подскажет состояние бэкапов.</p>
+        </details>
+        <details>
+          <summary>Как сообщить о баге или предложить фичу?</summary>
+          <p>Через <a href="https://github.com/ExNihil14/spend-tracker/issues/new?template=bug-report.yml" rel="noopener">issue-шаблон</a>: он попросит вывод <code>spendtrack doctor</code> (без ваших транзакций) и шаги воспроизведения. Личных данных для этого не требуется.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <div class="en">
+    <div class="wrap" style="padding-top:40px;padding-bottom:40px">
+      <h2>English</h2>
+      <p>Local-first personal expense tracker (FastAPI + SQLite + htmx). Import Russian bank CSV statements (Sber, Tinkoff, Yandex): deterministic rule-based categorization with an optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest. Your data never leaves your machine, the core works fully offline, and there is no cloud or telemetry. AGPLv3. See the <a href="https://github.com/ExNihil14/spend-tracker#readme" rel="noopener">README</a> for quick start.</p>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <div class="wrap footer-inner">
+    <div>
+      <div>Spendtrack · AGPLv3 · не является финансовым или налоговым советом.</div>
+      <div>© 2026 · сделано на Python + SQLite + htmx.</div>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/ExNihil14/spend-tracker" rel="noopener">GitHub</a>
+      <a href="https://github.com/ExNihil14/spend-tracker/issues" rel="noopener">Issues</a>
+      <a href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">Privacy</a>
+      <a href="https://github.com/ExNihil14/spend-tracker/blob/main/LICENSE" rel="noopener">License</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll('.copy').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var code = btn.closest('.cmd').querySelector('code');
+      if (!code) return;
+      var done = function () {
+        btn.textContent = 'Скопировано';
+        btn.classList.add('done');
+        setTimeout(function () { btn.textContent = 'Скопировать'; btn.classList.remove('done'); }, 1500);
+      };
+      var select = function () {
+        var range = document.createRange();
+        range.selectNodeContents(code);
+        var sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.textContent = 'Ctrl+C';
+      };
+      if (!navigator.clipboard) { select(); return; }
+      navigator.clipboard.writeText(code.textContent.trim()).then(done, select);
+    });
+  });
+</script>
+</body>
+</html>

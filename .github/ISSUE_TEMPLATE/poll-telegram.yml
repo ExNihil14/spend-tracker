@@ -1,0 +1,17 @@
+name: Telegram-бот
+description: Голос за ввод трат через Telegram-бота
+title: "[Telegram] Хочу ввод через Telegram"
+labels: ["poll"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо за голос! Достаточно нажать **Submit new issue** — заполнять ничего не обязательно.
+        Учтите: сообщения в Telegram идут через серверы Telegram — это компромисс с приватностью.
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Что хотелось бы отправлять боту? (необязательно)
+      description: Например, «-450 кофе», голос, фото чека.
+    validations:
+      required: false

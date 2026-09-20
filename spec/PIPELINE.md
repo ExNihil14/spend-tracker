@@ -139,9 +139,25 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
 - Исторический фикс 20.09: `httpx` был только в dev-группе, а `llm.py` импортирует его на уровне модуля —
   wheel-установка падала на `ModuleNotFoundError`; теперь `httpx` в runtime-зависимостях.
 
+## Лендинг + демо-кнопка (GitHub Pages)
+- `landing/` — статический лендинг (RU + EN-блок): оффер, скриншоты демо-витрины (`assets/shot-*.png`),
+  «60 секунд»-путь установки, демо-кнопка Codespaces, Supporter-блок (mailto + issue), Boosty, опрос
+  Telegram-vs-PWA (issue-формы), FAQ и приватность. Внешних ресурсов нет (шрифты/CDN/аналитика) — без сети.
+- Деплой: `.github/workflows/pages.yml` при push в `main` с изменениями в `landing/**` (source — GitHub Actions;
+  Pages включён через `gh api repos/ExNihil14/spend-tracker/pages -X POST -f build_type=workflow`).
+  URL — <https://exnihil14.github.io/spend-tracker/>.
+- Локальный предпросмотр: `python -m http.server 8788 --directory landing` → <http://127.0.0.1:8788/>.
+- Скриншоты для лендинга снимаются со стенда демо-данных (`scripts/demo_data.py seed` + сервер 8767).
+- Перед запуском заменить заглушку Boosty в трёх местах: `landing/index.html`, `README.md`, `.github/FUNDING.yml`
+  (`https://boosty.to/REPLACE_ME`).
+- Механики: `mailto:pahan1488@mail.ru` (контакт автора из pyproject); опрос/Supporter/баги —
+  `.github/ISSUE_TEMPLATE/{poll-pwa,poll-telegram,supporter,bug-report}.yml` (лейблы `poll`, `supporter`).
+- Тесты: `tests/test_landing.py` (оффлайн: отсутствие внешних ресурсов, существование локальных ссылок/ассетов,
+  наличие демо-кнопки/почты/опросов, workflow и FUNDING на месте).
+
 ## Тесты / анализ
 ```bash
-uv run pytest -q                # 331 unit (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
+uv run pytest -q                # unit-тесты (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
 ```
 Правила Фазы 2 (контур верификации):

@@ -1,0 +1,17 @@
+name: Supporter ($25 / 1900 ₽)
+description: Отметьте интерес к разовой Supporter-лицензии — напишу при запуске
+title: "[Supporter] Интересуюсь разовой лицензией"
+labels: ["supporter"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Спасибо! Заполнять ничего не обязательно — я вернусь в этот issue при запуске продаж.
+        E-mail публиковать не нужно: ответ придёт уведомлением GitHub.
+  - type: textarea
+    id: wishes
+    attributes:
+      label: Что важно в Supporter-версии? (необязательно)
+      description: Готовые сборки, автообновление, managed-LLM, что-то ещё?
+    validations:
+      required: false

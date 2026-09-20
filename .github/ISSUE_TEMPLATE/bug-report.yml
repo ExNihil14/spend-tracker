@@ -1,0 +1,40 @@
+name: Баг
+description: Что-то сломалось — опишите шаги и приложите вывод spendtrack doctor
+title: "[Баг] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: Что произошло
+      description: Ожидаемое и фактическое поведение.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Шаги воспроизведения
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: ОС и версия
+      placeholder: Windows 11 / macOS 15 / Ubuntu 24.04; Python 3.13
+    validations:
+      required: false
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Вывод spendtrack doctor (без данных транзакций)
+      description: Запустите `spendtrack doctor` и вставьте результат — он не содержит ваших операций.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Приватность
+      options:
+        - label: Я не прикладывал(а) реальные выписки и персональные данные
+          required: true
