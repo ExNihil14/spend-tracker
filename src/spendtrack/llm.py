@@ -4,13 +4,14 @@ import json
 import logging
 import os
 import threading
+from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
 
 import httpx
 from openai import OpenAI
 
-from spendtrack.config import load_settings
+from spendtrack.config import Settings, load_settings
 from spendtrack.resilience import CircuitBreaker
 
 log = logging.getLogger("spendtrack")
@@ -21,6 +22,17 @@ _breakers: dict[str, CircuitBreaker] = {}
 _br_lock = threading.Lock()
 
 
+@dataclass(frozen=True)
+class LLMProvider:
+    """Неизменяемое описание провайдера: куда идти, что запрашивать и с каким ключом."""
+
+    base_url: str
+    model: str
+    api_key: str
+    source: str  # byo | ollama | primary | fallback | deepseek | override
+    local: bool = False
+
+
 def _breaker(source: str) -> CircuitBreaker:
     with _br_lock:
         if source not in _breakers:
@@ -28,12 +40,17 @@ def _breaker(source: str) -> CircuitBreaker:
         return _breakers[source]
 
 
+def _env_key_for(base_url: str, cfg: Settings) -> str:
+    """Ключ подбирается под эндпоинт (openrouter-URL → OPENROUTER key, иначе FreeLLM-ключ)."""
+    if "openrouter" in base_url:
+        return cfg.openrouter_api_key
+    return cfg.freel_llm_api_key
+
+
 def get_client(endpoint: str | None = None) -> tuple[OpenAI, str, str]:
     cfg = load_settings()
     base = endpoint or cfg.llm.primary.base_url
-    key = cfg.freel_llm_api_key or "no-key"
-    if "openrouter" in base:
-        key = cfg.openrouter_api_key or "no-key"
+    key = _env_key_for(base, cfg) or "no-key"
     return OpenAI(base_url=base, api_key=key, timeout=REQUEST_TIMEOUT_S), base, cfg.llm.primary.model
 
 
@@ -46,6 +63,77 @@ def _allow_local_llm() -> bool:
     return os.environ.get("SPENDTRACK_ALLOW_LOCAL_LLM", "").strip().lower() in ("1", "true", "yes")
 
 
+def resolve_providers(cfg: Settings | None = None) -> tuple[LLMProvider, ...]:
+    """Чистый резолв провайдеров без сети (тестируемый): BYO/Ollama → free-цепочка → ().
+
+    Приоритет: BYO-эндпоинт пользователя (SPENDTRACK_LLM_BASE_URL или пресет ollama)
+    полностью вытесняет free-цепочку — данные уходят ровно туда, куда указал пользователь,
+    без «тихих» фолбэков в чужое облако. Пустой результат = офлайн-режим.
+    """
+    cfg = cfg or load_settings()
+    provider = (cfg.llm_provider or "").strip().lower()
+    base = (cfg.llm_base_url or "").strip()
+    model = (cfg.llm_model or "").strip()
+    key = (cfg.llm_api_key or "").strip()
+
+    if provider == "ollama" and not base:  # локальный пресет: полностью на своей машине
+        base, model = cfg.llm.offline.base_url, model or cfg.llm.offline.model
+        return (LLMProvider(base, model, key or "no-key", "ollama", True),)
+
+    if provider and provider != "ollama" and not base:
+        log.warning("llm: неизвестный SPENDTRACK_LLM_PROVIDER=%r — игнорирую (ожидается 'ollama' "
+                    "или SPENDTRACK_LLM_BASE_URL для BYO)", provider)
+
+    if base:  # BYO: явное согласие пользователя, ALLOW_LOCAL_LLM не требуется
+        local = _is_local(base)
+        if not model:  # без явной модели берём осмысленный дефолт и предупреждаем
+            model = cfg.llm.offline.model if local else cfg.llm.primary.model
+            log.warning("llm: SPENDTRACK_LLM_MODEL не задан — использую %r (укажите модель вашего сервера)",
+                        model)
+        return (LLMProvider(base, model, key or "no-key", "byo", local),)
+
+    chain = (
+        (cfg.llm.primary.base_url, cfg.llm.primary.model,
+         _env_key_for(cfg.llm.primary.base_url, cfg), "primary"),
+        (cfg.llm.fallback.base_url, cfg.llm.fallback.model,
+         _env_key_for(cfg.llm.fallback.base_url, cfg), "fallback"),
+        (cfg.llm.deepseek.base_url, cfg.llm.deepseek.model, "", "deepseek"),
+    )
+    providers = []
+    for base_url, model_name, api_key, source in chain:
+        local = _is_local(base_url)
+        if local:  # шимы-прокси наружу — только явный opt-in (ключ сам по себе не согласие)
+            if _allow_local_llm():
+                # "no-key": локальные шимы (3001/3201) авторизацию не проверяют, а openai-SDK
+                # требует непустой api_key; так работало и до BYO (deepseek-шим без ключа).
+                providers.append(LLMProvider(base_url, model_name, api_key or "no-key", source, True))
+        elif api_key:
+            providers.append(LLMProvider(base_url, model_name, api_key, source, False))
+    return tuple(providers)
+
+
+def llm_status(cfg: Settings | None = None) -> dict[str, Any]:
+    """Текущий режим LLM без сети и без секретов (для CLI/диагностики).
+
+    Возвращает новый dict на каждый вызов; внутреннее состояние модуля не шарится (значение-снимок).
+    """
+    cfg = cfg or load_settings()
+    providers = resolve_providers(cfg)
+    if not providers:
+        return {"mode": "off", "providers": [],
+                "note": "LLM выключен: данные не покидают машину, спорные строки — в очередь"}
+    first = providers[0]
+    mode = first.source if first.source in ("byo", "ollama") else "free"
+    return {
+        "mode": mode,
+        "providers": [
+            {"source": p.source, "base_url": p.base_url, "model": p.model,
+             "local": p.local, "has_key": p.api_key != "no-key"}
+            for p in providers
+        ],
+    }
+
+
 def call_llm(
     system_prompt: str,
     user_prompt: str,
@@ -54,40 +142,41 @@ def call_llm(
     endpoint_override: str | None = None,
     model_override: str | None = None,
 ) -> dict[str, Any]:
-    """Вызов LLM с фолбэком. Возвращает {'content': str, 'model': str, 'source': str}.
+    """Вызов LLM. Возвращает {'content': str, 'model': str, 'source': str}.
 
-    Offline-first: провайдер участвует только если для него есть ключ (или это локальный
-    эндпоинт с явным SPENDTRACK_ALLOW_LOCAL_LLM=1). Без ключей сеть не трогается вообще —
-    неизвестные операции уходят в очередь подтверждения, данные никуда не отправляются.
+    Offline-first: провайдер участвует только если он задан явно — BYO (SPENDTRACK_LLM_BASE_URL /
+    пресет ollama — свой ключ/сервер пользователя) или free-канал с ключом (локальные шимы — с
+    SPENDTRACK_ALLOW_LOCAL_LLM=1). Без этого сеть не трогается вообще — неизвестные операции
+    уходят в очередь подтверждения. BYO вытесняет free-цепочку и в неё не откатывается.
+
+    `endpoint_override` — внутренний механизм (тесты/диагностика): ключ подбирается по URL, локальный
+    хост требует ALLOW_LOCAL_LLM=1 (в отличие от BYO-конфига пользователя, где согласие уже явное).
     """
     cfg = load_settings()
+    providers = list(resolve_providers(cfg))
 
-    candidates = [
-        (cfg.llm.primary.base_url, cfg.llm.primary.model, cfg.freel_llm_api_key, "primary"),
-        (cfg.llm.fallback.base_url, cfg.llm.fallback.model, cfg.openrouter_api_key, "fallback"),
-        (cfg.llm.deepseek.base_url, cfg.llm.deepseek.model, "", "deepseek"),
-    ]
     if endpoint_override:
-        candidates.insert(0, (endpoint_override, model_override or cfg.llm.primary.model,
-                              cfg.freel_llm_api_key, "override"))
-    attempts = [
-        (base_url, model, key or "no-key", source)
-        for base_url, model, key, source in candidates
-        if key or (_is_local(base_url) and _allow_local_llm())
-    ]
-    if not attempts:
+        key = _env_key_for(endpoint_override, cfg)
+        local = _is_local(endpoint_override)
+        if (local and _allow_local_llm()) or (not local and key):
+            providers.insert(0, LLMProvider(
+                endpoint_override, model_override or cfg.llm.primary.model,
+                key or "no-key", "override", local,
+            ))
+    if not providers:
         log.info("llm: провайдеры не настроены — офлайн-режим (сеть не трогаем)")
         return {"content": "", "model": "none", "source": "offline"}
 
-    for base_url, model, api_key, source in attempts:
-        br = _breaker(source)
+    for provider in providers:
+        br = _breaker(provider.source)
         if not br.allowed():
-            log.info("llm[%s]: circuit open — пропуск без вызова", source)
+            log.info("llm[%s]: circuit open — пропуск без вызова", provider.source)
             continue
         try:
-            client = OpenAI(base_url=base_url, api_key=api_key, timeout=REQUEST_TIMEOUT_S)
+            client = OpenAI(base_url=provider.base_url, api_key=provider.api_key,
+                            timeout=REQUEST_TIMEOUT_S)
             resp = client.chat.completions.create(
-                model=model,
+                model=provider.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt},
@@ -97,7 +186,7 @@ def call_llm(
             )
             content = resp.choices[0].message.content or ""
             br.report_success()
-            return {"content": content, "model": model, "source": source}
+            return {"content": content, "model": provider.model, "source": provider.source}
         except Exception:  # noqa: BLE001
             br.report_failure()
             continue

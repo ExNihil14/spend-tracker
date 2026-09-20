@@ -189,6 +189,30 @@ def cmd_digest(args) -> int:
     return 0
 
 
+def cmd_llm_status(args) -> int:
+    from spendtrack.llm import llm_status
+    status = llm_status()
+    if args.json:
+        print(json.dumps(status, ensure_ascii=False, indent=2))
+        return 0
+    titles = {
+        "off": "выключен",
+        "byo": "свой сервер (BYO)",
+        "ollama": "локальный Ollama — данные не покидают машину",
+        "free": "бесплатные каналы (free) — чужие серверы",
+    }
+    print(f"== LLM: {titles.get(status['mode'], status['mode'])}")
+    if not status["providers"]:
+        print("   данные не покидают машину, спорные строки → очередь")
+        return 0
+    for p in status["providers"]:
+        key = "установлен" if p["has_key"] else "не нужен"
+        print(f"   {p['source']:<9} {p['base_url']}  model={p['model']}  ключ: {key}")
+    if status["mode"] == "free":
+        print("   полный контроль над данными: BYO-ключ или Ollama (см. README/PRIVACY.md)")
+    return 0
+
+
 def cmd_doctor(args) -> int:
     from spendtrack.doctor import run_checks
     report = run_checks()
@@ -273,6 +297,10 @@ def main(argv: list[str] | None = None) -> int:
     a_dg.add_argument("--days", type=int, default=None, help="размер окна в днях (по умолчанию 7)")
     a_dg.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
     a_dg.set_defaults(fn=cmd_digest)
+
+    a_llm = sub.add_parser("llm-status", help="режим LLM: off/byo/ollama/free (без сети и ключей)")
+    a_llm.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    a_llm.set_defaults(fn=cmd_llm_status)
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):

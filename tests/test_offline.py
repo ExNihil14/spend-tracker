@@ -18,11 +18,18 @@ UNKNOWN_MERCHANT_CSV = (
 _LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 
 
-def _block_network(monkeypatch, block_dns: bool = True):
-    """Запрет outbound: любые соединения, кроме loopback (его использует asyncio self-pipe)."""
+def _block_network(monkeypatch, block_dns: bool = True) -> list[str]:
+    """Запрет outbound: любые соединения, кроме loopback (его использует asyncio self-pipe).
+
+    Возвращает список попыток (host) — для проверки, что приложение ходит только туда,
+    куда разрешено конфигом.
+    """
+    attempts: list[str] = []
+
     def guard(orig):
         def wrapper(sock, address, *args, **kwargs):
             host = address[0] if isinstance(address, tuple) else address
+            attempts.append(str(host))
             if host not in _LOOPBACK:
                 raise AssertionError(f"outbound-сеть запрещена: {host}")
             return orig(sock, address, *args, **kwargs)
@@ -34,6 +41,7 @@ def _block_network(monkeypatch, block_dns: bool = True):
         orig_gai = socket.getaddrinfo
 
         def gai_guard(host, *args, **kwargs):
+            attempts.append(str(host))
             if host not in _LOOPBACK and host not in (None, ""):
                 raise AssertionError(f"DNS-резолв запрещён: {host}")
             return orig_gai(host, *args, **kwargs)
@@ -42,6 +50,7 @@ def _block_network(monkeypatch, block_dns: bool = True):
     for var in ("SPENDTRACK_FREEL_LLM_API_KEY", "SPENDTRACK_OPENROUTER_API_KEY",
                 "SPENDTRACK_ALLOW_LOCAL_LLM"):
         monkeypatch.delenv(var, raising=False)
+    return attempts
 
 
 def test_import_without_llm_goes_to_queue_not_network(monkeypatch, tmp_path):
@@ -77,6 +86,23 @@ def test_reports_and_doctor_offline(monkeypatch, tmp_path):
 
     report = run_checks(db)
     assert report["status"] in ("ok", "warn", "info")
+
+
+def test_byo_cloud_with_dead_network_goes_to_queue(monkeypatch, tmp_path):
+    """BYO-провайдер недоступен → строка в очередь; попытки только к BYO-хосту, не к free-каналам."""
+    attempts = _block_network(monkeypatch)
+    monkeypatch.setenv("SPENDTRACK_LLM_BASE_URL", "https://llm.example.test/v1")
+    monkeypatch.setenv("SPENDTRACK_LLM_MODEL", "byo-model")
+    monkeypatch.setenv("SPENDTRACK_LLM_API_KEY", "sk-test")
+    store = Store(db_path=tmp_path / "byo.db")
+    try:
+        res = import_csv(UNKNOWN_MERCHANT_CSV, store)
+        assert res["added"] == 1
+        assert store.pending_count() == 1
+    finally:
+        store.close()
+    assert attempts, "ожидалась попытка соединения с BYO-эндпоинтом"
+    assert all("llm.example.test" in host for host in attempts)
 
 
 def test_dashboard_renders_offline(monkeypatch, tmp_path):

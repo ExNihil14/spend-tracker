@@ -36,6 +36,11 @@ class Settings(BaseSettings):
     db_path: Path | None = None
     freel_llm_api_key: str = ""
     openrouter_api_key: str = ""
+    # BYO-LLM: свой OpenAI-совместимый сервер (ключ/эндпоинт задаёт пользователь).
+    llm_provider: str = ""
+    llm_base_url: str = ""
+    llm_model: str = ""
+    llm_api_key: str = ""
 
 
 def load_settings(config_dir: Path | None = None) -> Settings:

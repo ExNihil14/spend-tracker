@@ -25,10 +25,14 @@
 - `config/settings.toml` — порт, LLM-эндпоинты (primary/fallback/offline), авто-приём conf.
 - `config/taxonomy.toml` — 18 категорий + keyword-правила (без кода).
 
-## LLM-маршрут (порядок попыток в llm.py)
-1. primary: живой free-канал — сейчас OpenRouter :free (nemotron-3-super-120b).
-2. fallback: FreeLLMAPI (localhost:3001, Z.AI glm-4.5-flash; резерв, WSL на паузе).
-3. deepseek: abacus-web shim (127.0.0.1:3201, deepseek-v4-1-flash, 0 кредитов, 1M ctx; пауза до 20.09).
+## LLM-маршрут (llm.py; резолв — resolve_providers(), статус — `spendtrack llm-status`)
+LLM выключен по умолчанию (без конфига сеть не трогается). Приоритет явного выбора:
+1. BYO (SPENDTRACK_LLM_BASE_URL + MODEL + API_KEY) — свой OpenAI-совместимый сервер; единственный
+   провайдер, без фолбэков в free-каналы; локальный BYO не требует ALLOW_LOCAL_LLM.
+2. Ollama-пресет (SPENDTRACK_LLM_PROVIDER=ollama) — полностью локально (air-gap), модель из `llm.offline`.
+3. free-цепочка (осознанный opt-in — ключи; локальные шимы — ещё и SPENDTRACK_ALLOW_LOCAL_LLM=1):
+   OpenRouter :free (primary) → FreeLLMAPI (localhost:3001, fallback) → abacus-web shim (127.0.0.1:3201, deepseek).
+   Ключ подбирается под URL (openrouter → OPENROUTER-ключ, иначе FreeLLM-ключ).
 4. offline: правила/кэш — ядро работает без сети (LLM недоступен → rule-only).
 
 ## Ключевые решения (зафиксировано)
