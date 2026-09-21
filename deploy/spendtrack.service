@@ -1,0 +1,12 @@
+[Unit]
+Description=Spendtrack — локальный трекер расходов (127.0.0.1)
+Documentation=https://github.com/ExNihil14/spend-tracker
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/spendtrack serve
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
