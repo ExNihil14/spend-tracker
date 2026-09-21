@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+from datetime import UTC, datetime
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
@@ -11,7 +12,7 @@ from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR, load_settings
 from spendtrack.digest import build_digest
 from spendtrack.export import csv_bytes, export_filename, write_xlsx
-from spendtrack.recurring import recurring_summary
+from spendtrack.recurring import detect_recurring, recurring_summary
 from spendtrack.reports import (
     budgets_progress,
     categories_with_totals,
@@ -58,7 +59,7 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
     report = report_month(store, current)
     totals = categories_with_totals(store, current)
     cats = {c.name: c.color for c in taxonomy.categories}
-    has_any = sum(store.counts().values()) > 0  # один вызов на страницу
+    has_any = store.has_transactions()  # EXISTS вместо GROUP BY (замеры bench.py)
 
     return templates.TemplateResponse(
         request, "index.html",
@@ -159,8 +160,10 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
     cats = {c.name: c.color for c in taxonomy.categories}
     colors = [cats.get(c["category"], "#9ca3af") for c in report["categories"]]
     budgets = budgets_progress(store, current, known=set(cats))
-    recurring = recurring_summary(store)
-    digest = build_digest(store)
+    today = datetime.now(UTC).date()  # одна опорная дата на страницу: рекурринги и дайджест согласованы
+    subscriptions = detect_recurring(store, today)
+    recurring = recurring_summary(store, today, subscriptions=subscriptions)
+    digest = build_digest(store, subscriptions=subscriptions, today=today)
     return templates.TemplateResponse(
         request, "dashboard.html",
         {
@@ -175,7 +178,7 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
             "pending": store.queued_for_review(),
             "fmt": fmt_amount,
             "cat_colors": cats,
-            "has_data": sum(store.counts().values()) > 0,
+            "has_data": store.has_transactions(),
             "categories_json": [dict(c) for c in report["categories"]],
             "daily_json": daily,
             "colors_json": colors,

@@ -242,8 +242,13 @@ def _upcoming(subscriptions: list[dict], ref: date) -> list[dict]:
     return items[:MAX_UPCOMING]
 
 
-def build_digest(store: Store, days: int = DEFAULT_DAYS, today: date | None = None) -> dict:
-    """Сводка за скользящее окно + аномалии; ничего не пишет в БД."""
+def build_digest(store: Store, days: int = DEFAULT_DAYS, today: date | None = None,
+                 subscriptions: list[dict] | None = None) -> dict:
+    """Сводка за скользящее окно + аномалии; ничего не пишет в БД.
+
+    `subscriptions` — уже найденные рекурринги (дашборд переиспользует один расчёт
+    на страницу; иначе `detect_recurring` выполняется дважды — замеры bench.py).
+    """
     days = max(1, int(days))
     ref = today or datetime.now(UTC).date()
     start = ref - timedelta(days=days - 1)
@@ -255,7 +260,8 @@ def build_digest(store: Store, days: int = DEFAULT_DAYS, today: date | None = No
 
     totals = _totals(store, start_s, end_s)
     prev = _totals(store, prev_start_s, prev_end_s)
-    subscriptions = detect_recurring(store, ref)
+    if subscriptions is None:
+        subscriptions = detect_recurring(store, ref)
 
     anomalies = (
         _large_expenses(store, start_s, end_s, median_start.isoformat())

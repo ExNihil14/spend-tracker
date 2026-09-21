@@ -92,6 +92,16 @@ def _norm_desc(desc: str) -> str:
     return " ".join(desc.upper().split())
 
 
+def month_bounds(month: str) -> tuple[str, str]:
+    """Границы месяца для индексного фильтра: («2026-09-01», «2026-10-01»).
+
+    `substr(date,1,7)=?` не использует индекс по `date`; диапазон — использует (замеры: bench.py).
+    """
+    y, m = int(month[:4]), int(month[5:7])
+    ny, nm = (y + 1, 1) if m == 12 else (y, m + 1)
+    return f"{y:04d}-{m:02d}-01", f"{ny:04d}-{nm:02d}-01"
+
+
 def fingerprint(date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str,
                 currency: str = "RUB") -> str:
     """sha1; export_rowid НЕ обязателен — дедуп без него работает.
@@ -245,6 +255,11 @@ class Store:
                 # Страховка для экзотических сборок SQLite, где DEFAULT не виден старым строкам.
                 self.conn.execute("UPDATE transactions SET currency='RUB' WHERE currency IS NULL")
             self._mark_migration(5)
+        # partial-индекс очереди: колонка review_status появляется только в миграции 2,
+        # поэтому индекс создаётся после миграций (идемпотентно), а не в SCHEMA.
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_tx_pending ON transactions(review_status)"
+            " WHERE review_status='pending'")
 
     def close(self) -> None:
         self.conn.close()
@@ -279,10 +294,15 @@ class Store:
         review_status: str = "approved",
         statement_order: int | None = None,
         currency: str = "RUB",
+        commit: bool = True,
     ) -> int | None:
         """Precondition: `currency` — ISO 4217 (или алиас); невалидный код → ValueError.
 
         Границы (CLI/API/импорт) валидируют и нормализуют код до вызова Store.
+        `commit=False` — для массовых вставок (импорт): одна транзакция на партию вместо
+        commit на строку (замеры bench.py: рост скорости импорта в разы). Вызывающий **обязан**
+        завершить транзакцию: `conn.commit()` при успехе и `conn.rollback()` при исключении
+        (см. `import_csv`); иначе соединение остаётся с открытой транзакцией.
         """
         code = normalize_currency(currency)
         if code is None:
@@ -301,7 +321,8 @@ class Store:
              merchant, account_anon, import_batch, fp, now, now, category_llm, review_status,
              statement_order),
         )
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return cur.lastrowid
 
     def update_category(self, tx_id: int, category: str, source: str = "correction") -> bool:
@@ -374,8 +395,8 @@ class Store:
         sql = "SELECT * FROM transactions WHERE 1=1"
         params: list[str] = []
         if month:
-            sql += " AND substr(date,1,7)=?"
-            params.append(month)
+            sql += " AND date >= ? AND date < ?"
+            params.extend(month_bounds(month))
         if category:
             sql += " AND category=?"
             params.append(category)
@@ -410,8 +431,8 @@ class Store:
         sql = "SELECT * FROM transactions WHERE 1=1"
         params: list[str] = []
         if month:
-            sql += " AND substr(date,1,7)=?"
-            params.append(month)
+            sql += " AND date >= ? AND date < ?"
+            params.extend(month_bounds(month))
         if category:
             sql += " AND category=?"
             params.append(category)
@@ -451,8 +472,8 @@ class Store:
         """
         where, params = [], []
         if month:
-            where.append("substr(date,1,7)=?")
-            params.append(month)
+            where.append("date >= ? AND date < ?")
+            params.extend(month_bounds(month))
         if category:
             where.append("category=?")
             params.append(category)
@@ -557,6 +578,10 @@ class Store:
             "SELECT category_source, COUNT(*) c FROM transactions GROUP BY category_source"
         ).fetchall()
         return {r["category_source"]: r["c"] for r in rows}
+
+    def has_transactions(self) -> bool:
+        """Быстрая проверка «есть ли данные» для страниц: EXISTS вместо GROUP BY (замеры bench.py)."""
+        return bool(self.conn.execute("SELECT EXISTS(SELECT 1 FROM transactions)").fetchone()[0])
 
     def batch_count(self) -> int:
         """Число партий импорта (read-only; для онбординга «первый запуск»)."""

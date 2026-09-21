@@ -5,6 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from spendtrack import cli
 from spendtrack.digest import build_digest
+from spendtrack.recurring import detect_recurring
 
 TODAY = date(2026, 6, 15)
 
@@ -357,3 +358,19 @@ def test_cli_digest_days_flag(monkeypatch, capsys, store):
 
     assert cli.main(["digest", "--days", "30", "--json"]) == 0
     assert json.loads(capsys.readouterr().out)["expense_k"] == -99000
+
+
+def test_build_digest_reuses_precomputed_subscriptions(store, monkeypatch):
+    """Дашборд вызывает detect_recurring один раз на страницу (perf-pass)."""
+    for day in (_day(-65), _day(-35), _day(-5)):
+        _add(store, day, -19900, category="subscriptions", merchant="NETFLIX", row=day)
+    expected = build_digest(store, days=7, today=TODAY)
+    subs = detect_recurring(store, TODAY)
+    assert subs  # синтетика должна давать хотя бы одну подписку
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("detect_recurring должен переиспользоваться")
+
+    monkeypatch.setattr("spendtrack.digest.detect_recurring", _boom)
+    assert build_digest(store, days=7, today=TODAY, subscriptions=subs) == expected
+

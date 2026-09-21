@@ -169,7 +169,7 @@
    "returns": "str"
   },
   "spendtrack.digest:build_digest": {
-   "args": "store: Store, days: int=DEFAULT_DAYS, today: date | None=None",
+   "args": "store: Store, days: int=DEFAULT_DAYS, today: date | None=None, subscriptions: list[dict] | None=None",
    "returns": "dict"
   },
   "spendtrack.doctor:build_usage_summary": {
@@ -301,7 +301,7 @@
    "returns": "list[dict]"
   },
   "spendtrack.recurring:recurring_summary": {
-   "args": "store: Store, today: date | None=None",
+   "args": "store: Store, today: date | None=None, subscriptions: list[dict] | None=None",
    "returns": "dict"
   },
   "spendtrack.reports:budgets_progress": {
@@ -469,7 +469,7 @@
    "returns": "None"
   },
   "spendtrack.store:Store.add_transaction": {
-   "args": "self, date: str, description: str, amount_kopecks: int, category: str, category_source: str, confidence: float=1.0, merchant: str | None=None, account_anon: str | None=None, import_batch: str | None=None, export_rowid: str='', category_llm: str | None=None, review_status: str='approved', statement_order: int | None=None, currency: str='RUB'",
+   "args": "self, date: str, description: str, amount_kopecks: int, category: str, category_source: str, confidence: float=1.0, merchant: str | None=None, account_anon: str | None=None, import_batch: str | None=None, export_rowid: str='', category_llm: str | None=None, review_status: str='approved', statement_order: int | None=None, currency: str='RUB', commit: bool=True",
    "returns": "int | None"
   },
   "spendtrack.store:Store.approve_all_reviews": {
@@ -507,6 +507,10 @@
   "spendtrack.store:Store.get_transaction": {
    "args": "self, tx_id: int",
    "returns": "dict | None"
+  },
+  "spendtrack.store:Store.has_transactions": {
+   "args": "self",
+   "returns": "bool"
   },
   "spendtrack.store:Store.list_examples": {
    "args": "self, limit: int=8",
@@ -571,6 +575,10 @@
   "spendtrack.store:fmt_amount_signed": {
    "args": "kopecks: int",
    "returns": "str"
+  },
+  "spendtrack.store:month_bounds": {
+   "args": "month: str",
+   "returns": "tuple[str, str]"
   },
   "spendtrack.store:normalize_currency": {
    "args": "value: str | None",

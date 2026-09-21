@@ -209,3 +209,16 @@ def test_cli_recurring_empty(monkeypatch, capsys, store):
 
     assert cli.main(["recurring"]) == 0
     assert "найдено 0" in capsys.readouterr().out
+
+
+def test_recurring_summary_reuses_precomputed_subscriptions(store, monkeypatch):
+    _monthly(store, "NETFLIX", -19900, ["2026-01-05", "2026-02-04", "2026-03-06", "2026-04-05"])
+    expected = recurring_summary(store, today=TODAY)
+    subs = detect_recurring(store, today=TODAY)
+
+    def _boom(*args, **kwargs):
+        raise AssertionError("detect_recurring должен переиспользоваться")
+
+    monkeypatch.setattr("spendtrack.recurring.detect_recurring", _boom)
+    assert recurring_summary(store, today=TODAY, subscriptions=subs) == expected
+
