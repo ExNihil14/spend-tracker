@@ -557,3 +557,7 @@ class Store:
             "SELECT category_source, COUNT(*) c FROM transactions GROUP BY category_source"
         ).fetchall()
         return {r["category_source"]: r["c"] for r in rows}
+
+    def batch_count(self) -> int:
+        """Число партий импорта (read-only; для онбординга «первый запуск»)."""
+        return int(self.conn.execute("SELECT COUNT(*) c FROM import_batches").fetchone()["c"])

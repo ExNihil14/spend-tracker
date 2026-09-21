@@ -476,6 +476,10 @@
    "args": "self, tx_id: int, category: str",
    "returns": "bool"
   },
+  "spendtrack.store:Store.batch_count": {
+   "args": "self",
+   "returns": "int"
+  },
   "spendtrack.store:Store.budget_map": {
    "args": "self",
    "returns": "dict[str, int]"

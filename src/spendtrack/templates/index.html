@@ -20,6 +20,8 @@
   </div>
 </div>
 
+{% if first_run %}{% include "partials/start_checklist.html" %}{% endif %}
+
 <div id="import" class="bg-slate-900 rounded-xl p-5 border border-slate-800 mb-8">
   <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Импорт CSV</h2>
   <form hx-post="/api/import" hx-target="#importmsg" hx-swap="innerHTML"
