@@ -506,9 +506,6 @@ class Store:
         return [dict(r) for r in rows], dates[-1], has_more
 
     # ---- category cache by merchant ----
-    class MerchantCacheEntry:
-        pass
-
     def merchant_cache_get(self, merchant: str) -> str | None:
         if not merchant:
             return None

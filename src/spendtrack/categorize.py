@@ -33,7 +33,7 @@ def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | N
     desc_upper = tx["description"].upper()
     for rule in taxonomy.rules:
         if rule.pattern in desc_upper and taxonomy.is_valid(rule.category):
-                return rule.category
+            return rule.category
     return None
 
 
