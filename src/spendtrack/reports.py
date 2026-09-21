@@ -1,6 +1,29 @@
 from __future__ import annotations
 
+import math
+
 from spendtrack.store import Store
+
+CALIBRATION_TARGET_ERROR = 0.10   # допустимая доля ошибок среди авто-принятых (верхняя граница Wilson)
+CALIBRATION_MIN_SAMPLE = 20       # минимум принятых решений, чтобы оценка порога была осмысленной
+
+
+def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, float]:
+    """Доверительный интервал Wilson (95% при z=1.96) для доли successes/n.
+
+    Устойчив к малым n и крайностям (0/n, n/n), в отличие от нормального приближения;
+    n=0 → (0.0, 1.0) — «данных нет, максимальная неопределённость». Невалидные счётчики → ValueError.
+    """
+    if n < 0 or successes < 0 or successes > n:
+        raise ValueError(f"невалидные счётчики: successes={successes}, n={n}")
+    if n == 0:
+        return 0.0, 1.0
+    p = successes / n
+    z2 = z * z
+    denom = 1 + z2 / n
+    center = (p + z2 / (2 * n)) / denom
+    half = z * math.sqrt(p * (1 - p) / n + z2 / (4 * n * n)) / denom
+    return max(0.0, center - half), min(1.0, center + half)
 
 
 def report_month(store: Store, month: str) -> dict:
@@ -82,7 +105,9 @@ def budgets_progress(store: Store, month: str, known: set[str] | None = None) ->
 
 
 def confidence_calibration(store: Store, current_threshold: float = 0.9,
-                           candidates: tuple[float, ...] = (0.4, 0.5, 0.6, 0.7, 0.8, 0.9)) -> dict:
+                           candidates: tuple[float, ...] = (0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+                           target_error: float = CALIBRATION_TARGET_ERROR,
+                           min_sample: int = CALIBRATION_MIN_SAMPLE) -> dict:
     """Калибровка порога авто-приёма по фактам: где LLM ошибался (человек исправил категорию).
 
     Берутся строки с предложением LLM (`category_llm`). «Решено» = review_status != 'pending';
@@ -120,7 +145,40 @@ def confidence_calibration(store: Store, current_threshold: float = 0.9,
             "corrected": wrong,
             "coverage": len(accepted) / len(resolved) if resolved else 0.0,
             "wrong_rate": wrong / len(accepted) if accepted else 0.0,
+            # верхняя граница Wilson для доли ошибок: честная оценка «худшего случая» при малых n
+            "wrong_high": wilson_interval(wrong, len(accepted))[1],
         })
+
+    recommendation: dict = {
+        "status": "low_data",
+        "threshold": None,
+        "target_error": target_error,
+        "min_sample": min_sample,
+        "reason": "",
+    }
+    if not resolved:
+        recommendation["reason"] = "решённых LLM-предложений пока нет — калибровать нечего"
+    else:
+        enough = [t for t in thresholds if t["accepted"] >= min_sample]
+        if not enough:
+            recommendation["reason"] = (f"набрано меньше {min_sample} принятых решений — "
+                                        "оценка порога статистически ненадёжна")
+        else:
+            safe = [t for t in enough if t["wrong_high"] <= target_error]
+            if safe:
+                best = min(safe, key=lambda t: t["threshold"])  # максимальное покрытие при надёжности
+                recommendation.update(
+                    status="ok",
+                    threshold=best["threshold"],
+                    reason=(f"ошибок ≤ {target_error:.0%} с 95% уверенностью "
+                            f"(принято {best['accepted']}, ошибочных {best['corrected']})"),
+                )
+            else:
+                recommendation.update(
+                    status="no_candidate",
+                    reason=(f"ни один порог не даёт ошибок ≤ {target_error:.0%} "
+                            f"с 95% уверенностью при ≥{min_sample} принятых"),
+                )
 
     return {
         "total": len(rows),
@@ -130,5 +188,6 @@ def confidence_calibration(store: Store, current_threshold: float = 0.9,
         "low_data": len(resolved) < 20,
         "buckets": sorted(buckets.values(), key=lambda b: float(b["bucket"]), reverse=True),
         "thresholds": thresholds,
+        "recommendation": recommendation,
         "current_threshold": float(current_threshold),
     }

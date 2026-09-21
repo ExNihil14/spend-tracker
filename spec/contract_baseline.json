@@ -313,7 +313,7 @@
    "returns": "list[dict]"
   },
   "spendtrack.reports:confidence_calibration": {
-   "args": "store: Store, current_threshold: float=0.9, candidates: tuple[float, ...]=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9)",
+   "args": "store: Store, current_threshold: float=0.9, candidates: tuple[float, ...]=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9), target_error: float=CALIBRATION_TARGET_ERROR, min_sample: int=CALIBRATION_MIN_SAMPLE",
    "returns": "dict"
   },
   "spendtrack.reports:report_daily": {
@@ -323,6 +323,10 @@
   "spendtrack.reports:report_month": {
    "args": "store: Store, month: str",
    "returns": "dict"
+  },
+  "spendtrack.reports:wilson_interval": {
+   "args": "successes: int, n: int, z: float=1.96",
+   "returns": "tuple[float, float]"
   },
   "spendtrack.resilience:CircuitBreaker.allowed": {
    "args": "self",

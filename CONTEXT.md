@@ -63,6 +63,9 @@
   или локальный пресет `SPENDTRACK_LLM_PROVIDER=ollama` (air-gap). При заданном BYO free-цепочка не используется
   вообще (без тихих фолбэков). Статус: `spendtrack llm-status [--json]`; резолв — `resolve_providers()` в `llm.py`.
   Локальные шимы free-цепочки (`localhost:3001/3201`) — только с `SPENDTRACK_ALLOW_LOCAL_LLM=1`.
+- **Калибровка порога** — `spendtrack confidence` (`reports.confidence_calibration`): бакеты conf решённых
+  LLM-предложений + кандидатные пороги с покрытием/долей ошибок; `wilson_interval()` даёт верхнюю границу
+  ошибок (95%), рекомендация — минимальный порог с ошибками ≤10% при ≥20 принятых (data-gated).
 - **Помощь (/help)** — страница справки в приложении: быстрый старт, how-to, глоссарий, легенда источников
   категории/статусов/цветов, FAQ (нативные `<details>`), приватность, «Почему так?». Ссылка — в nav на всех
   страницах; структура — по `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` (Diátaxis + WCAG 2.2).

@@ -117,7 +117,13 @@ def cmd_confidence(args) -> int:
         print("  если авто-принимать с conf >= t:")
         for t in rep["thresholds"]:
             print(f"    t={t['threshold']:.1f}: принято {t['accepted']} ({t['coverage'] * 100:.0f}%), "
-                  f"ошибочных {t['corrected']} ({t['wrong_rate'] * 100:.1f}%)")
+                  f"ошибочных {t['corrected']} ({t['wrong_rate'] * 100:.1f}%, "
+                  f"верхняя граница {t['wrong_high'] * 100:.1f}%)")
+    rec = rep.get("recommendation") or {}
+    if rec.get("status") == "ok":
+        print(f"  рекомендация: авто-приём с conf >= {rec['threshold']:.1f} — {rec['reason']}")
+    elif rec.get("reason"):
+        print(f"  рекомендация: {rec['reason']}")
     print(f"Текущий порог (config/settings.toml): {rep['current_threshold']}")
     return 0
 
