@@ -76,7 +76,19 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (21.09, сессия perf-pass — замеры «до/после»; ждёт команды на коммит).**
+> **АКТУАЛЬНО (21.09, сессия P1 #6 «Doctor P2» — два чека; ждёт команды на коммит).**
+> По POLISH_PLAN P1 #6 (S, P2-ценность): ① `doctor.check_examples_dupes` — дубли `examples` по
+> (description, amount, category), **info**, count = «лишние» строки; ② `doctor.check_merchant_cache_dead` —
+> записи кэша, чей мерчант не встречается в транзакциях (**info**); сверка через Python `.upper()`,
+> потому что SQLite `UPPER()` не берёт кириллицу — вариант на SQL давал ложные «мёртвые» для русских
+> мерчантов (пойман тестом). Оба чека в `run_checks` (теперь **13**), PIPELINE обновлён.
+> Контур: **466 unit (+5)**, ruff чист, contract ok (baseline аддитивно: +2 функции). Live:
+> `spendtrack doctor` = OK 13/13; NSSM рестартнут, `/health/data` = ok (13 чеков). Ревью $0
+> (nemotron-ultra:free, 169 с): **GO**; единственный P1 (NULL/пустой merchant) отклонён фактом
+> (NOT NULL-схема; пустая строка действительно мёртвая) и закреплён тестом —
+> `EXPERT_REVIEW_DOCTOR_P2_6_OR.md` (+raw). Коммит/push — по явной команде юзера. Дальше:
+> #15 «10-мин сценарий» (процесс автора) / #4 Сбер-XLS (data-gated) / монетизация — по решению юзера.
+> **АКТУАЛЬНО (21.09, сессия perf-pass — замеры «до/после»; закоммичено `2dc5ddb`, запушено).**
 > Deliverable: бенч-инструмент + точечные оптимизации по фактам (монетизация — пауза по решению юзера).
 > ① `scripts/bench.py` — синтетика 36 мес в temp-БД (seed), median×3, HTTP через TestClient, JSON
 > `reports/bench.json` (+ `bench_after.json`); артефакт — `D:\dev\docs\machine\PERF_BENCH_SPENDTRACKER.md`.

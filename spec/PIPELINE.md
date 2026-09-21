@@ -56,9 +56,11 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - CLI `spendtrack doctor` — таблица чеков; `--json` — машинный JSON; exit 0 = ok/warn, 1 = critical.
 - API `GET /health/data` → `{status, checks:[{id, severity, count, detail}]}`; 503 при critical.
   `GET /health` (liveness) — отдельный эндпоинт, не трогать.
-- Проверки (11): quick_check (critical) · дубли fingerprint (critical) · `user_version==SCHEMA_VERSION` (critical) ·
+- Проверки (13): quick_check (critical) · дубли fingerprint (critical) · `user_version==SCHEMA_VERSION` (critical) ·
   категории вне таксономии (`transactions.category` critical; `category_llm` warn только при
-  `source != 'llm_pending_review'`; rules/budgets/merchant_cache/examples warn) · pending с чужим source (warn) ·
+  `source != 'llm_pending_review'`; rules/budgets/merchant_cache/examples warn) · дубли `examples`
+  (info; P1 #6) · мёртвый `merchant_cache` — мерчант без операций, сверка Python `.upper()`,
+  кириллица не в SQLite-UPPER (info; P1 #6) · pending с чужим source (warn) ·
   пустые import_batches (info) · бэкап `data/backup/spend-*.db` (папки нет → info, >48ч → warn, quick_check → critical) ·
   restore-drill `data/backup/last_restore_drill.json` (маркера нет → info, >30 дней → warn, последний прогон failed → critical) ·
   offsite-копия `data/backup/last_offsite_copy.json` (маркера нет → info; файл не найден/старше 7 дней/битый маркер →

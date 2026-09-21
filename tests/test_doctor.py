@@ -219,6 +219,68 @@ def test_refs_invalid_null_budget_category(db_path):
     assert check["severity"] == "warn" and check["count"] == 1 and "budgets=1" in check["detail"]
 
 
+# ---- ④a дубли примеров + мёртвый merchant_cache (P1 #6) ----
+def test_examples_dupes_info(db_path):
+    store = Store(db_path)
+    store.add_example("ЛЕНТА", -100, "groceries")
+    store.add_example("ЛЕНТА", -100, "groceries")
+    store.add_example("МАГНИТ", -200, "groceries")
+    store.close()
+
+    report = run_checks(db_path)
+    check = _check(report, "examples_dupes")
+    assert report["status"] == "ok"  # info не эскалирует
+    assert check["severity"] == "info" and check["count"] == 1
+    assert "ЛЕНТА" in check["detail"]
+
+
+def test_examples_dupes_ok_when_unique(db_path):
+    store = Store(db_path)
+    store.add_example("ЛЕНТА", -100, "groceries")
+    store.add_example("ЛЕНТА", -101, "groceries")  # сумма отличается — не дубль
+    store.close()
+    check = _check(run_checks(db_path), "examples_dupes")
+    assert check["severity"] == "ok" and check["count"] == 0
+
+
+def _add_tx_with_merchant(store: Store, merchant: str) -> None:
+    store.add_transaction(date="2026-09-10", description="ТЕСТ", amount_kopecks=-100,
+                          category="other", category_source="manual", merchant=merchant)
+
+
+def test_merchant_cache_dead_info(db_path):
+    store = Store(db_path)
+    _add_tx_with_merchant(store, "ЛЕНТА")
+    store.merchant_cache_set("ЛЕНТА", "groceries")   # живой: мерчант есть в операциях
+    store.merchant_cache_set("СТАРЫЙ", "groceries")  # мёртвый: операций нет
+    store.close()
+
+    report = run_checks(db_path)
+    check = _check(report, "merchant_cache_dead")
+    assert report["status"] == "ok"
+    assert check["severity"] == "info" and check["count"] == 1
+    assert "СТАРЫЙ" in check["detail"]
+
+
+def test_merchant_cache_dead_case_insensitive(db_path):
+    """Сверка — как в merchant_cache_get: UPPER(merchant)."""
+    store = Store(db_path)
+    _add_tx_with_merchant(store, "лента")
+    store.merchant_cache_set("ЛЕНТА", "groceries")
+    store.close()
+    assert _check(run_checks(db_path), "merchant_cache_dead")["severity"] == "ok"
+
+
+def test_merchant_cache_dead_empty_merchant_is_dead(db_path):
+    """Пустой мерчант — осознанно мёртвая запись (`merchant_cache_get('')` всегда None);
+    NULL в таблице невозможен (merchant TEXT NOT NULL)."""
+    store = Store(db_path)
+    store.merchant_cache_set("", "groceries")
+    store.close()
+    check = _check(run_checks(db_path), "merchant_cache_dead")
+    assert check["severity"] == "info" and check["count"] == 1
+
+
 # ---- ⑤ pending с чужим источником ----
 def test_pending_source_warn(db_path):
     store = Store(db_path)
@@ -453,7 +515,7 @@ def test_cli_doctor_json_ok(db_path, monkeypatch, capsys):
     report = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert report["status"] == "ok"
-    assert len(report["checks"]) == 11
+    assert len(report["checks"]) == 13
 
 
 def test_cli_doctor_critical_exit1(db_path, monkeypatch, capsys):

@@ -3,7 +3,8 @@
 CLI: `uv run spendtrack doctor [--json]`; API: `GET /health/data`.
 Правила (дизайн 16.09): critical — битая БД/схема/категории транзакций;
 warn — данные вне очереди/таксономии, старый бэкап; info — пустые партии,
-отсутствие папки бэкапов. Никакого авторемонта и записи (кроме миграций Store).
+отсутствие папки бэкапов, дубли примеров, мёртвый кэш мерчантов.
+Никакого авторемонта и записи (кроме миграций Store).
 """
 from __future__ import annotations
 
@@ -128,7 +129,45 @@ def check_refs_invalid(conn: sqlite3.Connection, names: list[str], ph: str) -> d
     return _check("refs_invalid", OK, 0, "rules/budgets/merchant_cache/examples согласованы")
 
 
-# ---- 5. pending с чужим источником ----
+# ---- 5. дубли примеров few-shot (P1 #6) ----
+def check_examples_dupes(conn: sqlite3.Connection) -> dict:
+    """Повторяющиеся (description, amount, category) в examples: шум в few-shot, не ошибка."""
+    rows = conn.execute(
+        "SELECT description, amount_kopecks, category, COUNT(*) n FROM examples"
+        " GROUP BY description, amount_kopecks, category HAVING COUNT(*) > 1"
+        " ORDER BY n DESC, description").fetchall()
+    if not rows:
+        return _check("examples_dupes", OK, 0, "дублей примеров нет")
+    total = sum(r["n"] - 1 for r in rows)
+    items = [f"{rows[i]['description'][:30]}×{rows[i]['n']}"
+             for i in range(min(len(rows), _DETAIL_ITEMS))]
+    if len(rows) > _DETAIL_ITEMS:
+        items.append("…")
+    return _check("examples_dupes", INFO, total, "дубли примеров: " + ", ".join(items))
+
+
+# ---- 6. мёртвый merchant_cache (P1 #6) ----
+def check_merchant_cache_dead(conn: sqlite3.Connection) -> dict:
+    """Записи кэша, чей мерчант больше не встречается в транзакциях (переименование/удаление).
+
+    Ключ кэша не зависит от категории; сверка — по `str.upper()` в Python, как в
+    `merchant_cache_get` (SQLite `UPPER()` не трогает кириллицу).
+    """
+    live = {str(r[0]).upper() for r in conn.execute(
+        "SELECT DISTINCT merchant FROM transactions"
+        " WHERE merchant IS NOT NULL AND merchant != ''")}
+    rows = conn.execute("SELECT merchant FROM merchant_cache ORDER BY merchant").fetchall()
+    dead = [str(r["merchant"]) for r in rows if str(r["merchant"]).upper() not in live]
+    if not dead:
+        return _check("merchant_cache_dead", OK, 0, "все записи кэша соответствуют операциям")
+    items = [m[:30] for m in dead[:min(len(dead), _DETAIL_ITEMS)]]
+    if len(dead) > _DETAIL_ITEMS:
+        items.append("…")
+    return _check("merchant_cache_dead", INFO, len(dead),
+                  "мерчанты без операций: " + ", ".join(items))
+
+
+# ---- 7. pending с чужим источником ----
 def check_pending_source(conn: sqlite3.Connection) -> dict:
     rows = conn.execute(
         "SELECT id, category_source FROM transactions"
@@ -142,7 +181,7 @@ def check_pending_source(conn: sqlite3.Connection) -> dict:
                   f"pending с источником ≠ llm_pending_review: {sample}")
 
 
-# ---- 6. пустые партии импорта ----
+# ---- 8. пустые партии импорта ----
 def check_empty_batches(conn: sqlite3.Connection) -> dict:
     rows = conn.execute(
         "SELECT b.id FROM import_batches b"
@@ -154,7 +193,7 @@ def check_empty_batches(conn: sqlite3.Connection) -> dict:
     return _check("empty_batches", INFO, len(rows), f"партии без транзакций: {sample}")
 
 
-# ---- 7. бэкапы (scripts/backup.py → data/backup/spend-*.db) ----
+# ---- 9. бэкапы (scripts/backup.py → data/backup/spend-*.db) ----
 def check_backup(db_path: Path) -> dict:
     backup_dir = db_path.parent / "backup"
     files = sorted(backup_dir.glob("spend-*.db"), key=lambda p: (p.stat().st_mtime, p.name))
@@ -195,7 +234,7 @@ def _snapshot_quick_check(path: Path) -> str | None:
     return None
 
 
-# ---- 8. restore-drill бэкапа (scripts/restore_drill.py → backup/last_restore_drill.json) ----
+# ---- 10. restore-drill бэкапа (scripts/restore_drill.py → backup/last_restore_drill.json) ----
 def check_restore_drill(db_path: Path) -> dict:
     marker = db_path.parent / "backup" / "last_restore_drill.json"
     if not marker.exists():
@@ -218,7 +257,7 @@ def check_restore_drill(db_path: Path) -> dict:
                   f"restore-drill ok ({age.total_seconds() / 86400:.0f} дн назад, {data.get('file')})")
 
 
-# ---- 9. внешняя копия бэкапа (scripts/backup.py --copy-to → backup/last_offsite_copy.json) ----
+# ---- 11. внешняя копия бэкапа (scripts/backup.py --copy-to → backup/last_offsite_copy.json) ----
 def check_offsite_backup(db_path: Path) -> dict:
     """Offsite-копия: маркер + файл по пути из маркера + sha256.
 
@@ -297,6 +336,8 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
             _guarded("categories_invalid", lambda: check_categories_invalid(conn, names, ph)),
             _guarded("category_llm_invalid", lambda: check_category_llm_invalid(conn, names, ph)),
             _guarded("refs_invalid", lambda: check_refs_invalid(conn, names, ph)),
+            _guarded("examples_dupes", lambda: check_examples_dupes(conn)),
+            _guarded("merchant_cache_dead", lambda: check_merchant_cache_dead(conn)),
             _guarded("pending_source", lambda: check_pending_source(conn)),
             _guarded("empty_batches", lambda: check_empty_batches(conn)),
             _guarded("backup", lambda: check_backup(path)),
