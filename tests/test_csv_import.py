@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from spendtrack.csv_import import MAX_CSV_BYTES, import_csv, sniff_bank
+from spendtrack.csv_import import MAX_CSV_BYTES, import_csv, missing_columns, sniff_bank, summarize
 from spendtrack.store import parse_amount
 
 SBER_CSV = """Номер документа;Дата операции;Дата платежа;Номер карты;Статус;Сумма операции;Валюта операции;Сумма платежа;Валюта платежа;Категория;Описание
@@ -226,3 +226,144 @@ def test_size_limit_counts_bytes_not_chars(store):
     cyrillic = "ф" * (MAX_CSV_BYTES // 2 + 1)  # символов ~5 М, байт >10 М
     with pytest.raises(ValueError):
         import_csv(cyrillic, store)
+
+
+# ── Дрейф формата (P1 #1): явный отчёт вместо тихого мисс-парсинга ───────────
+
+def test_renamed_date_column_reports_format_error(store):
+    """Банк переименовал колонку → format_error с просьбой прислать образец, не «0 добавлено»."""
+    csv_text = SBER_CSV.replace("Дата операции", "Дата проводки")
+    res = import_csv(csv_text, store)
+    assert res["status"] == "format_error"
+    assert "Дата операции" in res["missing_columns"]
+    assert "образец" in res["message"]
+    assert res["added"] == 0 and store.list_transactions() == []
+
+
+def test_removed_amount_column_reports_format_error(store):
+    csv_text = ("Номер документа;Дата операции;Номер карты;Статус;Валюта операции;Описание\n"
+                "1;01.09.2026 10:00;1234;Выполнено;RUB;ЛЕНТА\n")
+    res = import_csv(csv_text, store)
+    assert res["status"] == "format_error"
+    assert "Сумма операции" in res["missing_columns"]
+
+
+def test_unknown_headers_auto_reports_format_error(store):
+    """Ни один банк не опознан — явная ошибка, а не молчаливый дефолт на sber."""
+    csv_text = "Дата проводки;Назначение;Сумма\n01.09.2026;ЛЕНТА;100\n"
+    res = import_csv(csv_text, store)
+    assert res["status"] == "format_error"
+    assert res["bank"] is None
+    assert "found_columns" in res and "Дата проводки" in res["found_columns"]
+    assert "образец" in res["message"]
+
+
+def test_explicit_wrong_bank_reports_format_error(store):
+    res = import_csv(SBER_CSV, store, bank="tinkoff")
+    assert res["status"] == "format_error"
+    assert res["bank"] == "tinkoff"
+
+
+def test_unknown_bank_name_reports_format_error(store):
+    res = import_csv(SBER_CSV, store, bank="sber2")
+    assert res["status"] == "format_error"
+    assert "Неизвестный банк" in res["message"]
+
+
+def test_ambiguous_column_set_imports_without_format_error(store):
+    """Колонки без уникальных маркеров подходят нескольким банкам — это не дрейф, импорт работает."""
+    csv_text = "Дата;Сумма;Описание\n01.09.2026;-100,00;ЛЕНТА\n"
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["status"] == "ok"
+    assert res["added"] == 1
+
+
+def test_amount_limit_boundary(store):
+    """Ровно лимит — импортируется; лимит+1 копейка — в отчёт amount_limit."""
+    csv_text = (
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
+        "1;01.09.2026 10:00;1234;Выполнено;1000000000.00;RUB;Прочее;ЛИМИТ\n"
+        "2;01.09.2026 11:00;1234;Выполнено;1000000000.01;RUB;Прочее;СВЕРХ\n")
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["added"] == 1
+    assert res["invalid"] == 1
+    assert res["reasons"] == {"amount_limit": 1}
+
+
+def test_missing_columns_helper():
+    assert missing_columns("sber", ["Дата операции", "Описание", "Сумма операции"]) == []
+    assert missing_columns("sber", ["Дата", "Категория", "Сумма"]) == []
+    assert missing_columns("sber", ["Дата операции", "Описание"]) == ["Сумма операции"]
+
+
+# ── Отчёт импорта «добавлено / пропущено / подозрительно» (P1 #2) ────────────
+
+def test_report_counts_skipped_and_suspicious(store):
+    csv_text = (
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
+        "1;01.09.2026 10:00;1234;Выполнено;-100,00;RUB;Продукты;ЛЕНТА\n"            # added
+        "2;02.09.2026 10:00;1234;В обработке;-200,00;RUB;Продукты;МАГНИТ\n"        # status
+        "3;03.09.2026 10:00;1234;Выполнено;;RUB;Продукты;ПЯТЁРОЧКА\n"              # missing_fields
+        "4;04.09.2026 10:00;1234;Выполнено;abc;RUB;Продукты;АШАН\n"                # amount_unparsed
+        "5;2026/09/05;1234;Выполнено;-300,00;RUB;Продукты;ОЗОН\n")                 # date_unrecognized
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["status"] == "ok"
+    assert res["added"] == 2            # ЛЕНТА + ОЗОН (нераспознанная дата импортируется с пометкой)
+    assert res["skipped"] == 3
+    assert res["suspicious"] == 1
+    assert res["reasons"] == {"status": 1, "missing_fields": 1, "amount_unparsed": 1}
+    assert res["suspicious_reasons"] == {"date_unrecognized": 1}
+
+
+def test_summarize_mentions_three_numbers(store):
+    csv_text = (
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
+        "1;01.09.2026 10:00;1234;Выполнено;-100,00;RUB;Продукты;ЛЕНТА\n"
+        "2;02.09.2026 10:00;1234;В обработке;-200,00;RUB;Продукты;МАГНИТ\n"
+        "3;2026/09/05;1234;Выполнено;-300,00;RUB;Продукты;ОЗОН\n")
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    text = summarize(res)
+    assert "+2 добавлено" in text          # ЛЕНТА + ОЗОН (нераспознанная дата — с пометкой)
+    assert "1 пропущено" in text and "не проведены банком" in text
+    assert "1 подозрительно" in text and "нераспознанная дата" in text
+    assert "банк=sber" in text
+
+
+def test_summarize_format_error_returns_message(store):
+    res = import_csv(SBER_CSV.replace("Сумма операции", "Итог"), store)
+    assert res["status"] == "format_error"
+    assert summarize(res) == res["message"]
+
+
+def test_summarize_empty():
+    assert summarize({"status": "empty"}) == "Пустой файл"
+
+
+# ── CLI-ветка отчёта ─────────────────────────────────────────────────────────
+
+def test_cli_import_json_format_error(tmp_path, monkeypatch, capsys):
+    import json
+
+    bad = tmp_path / "bad.csv"
+    bad.write_text("Дата проводки;Назначение;Сумма\n01.09.2026;ЛЕНТА;100\n", encoding="utf-8")
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "cli.db"))
+    from spendtrack import cli
+
+    assert cli.main(["import", str(bad), "--json"]) == 1
+    body = json.loads(capsys.readouterr().out)
+    assert body["status"] == "format_error"
+
+    assert cli.main(["import", str(bad)]) == 1
+    assert "образец" in capsys.readouterr().err
+
+
+def test_cli_import_reports_summary(tmp_path, monkeypatch, capsys):
+    good = tmp_path / "good.csv"
+    good.write_text("Дата;Сумма операции;Категория;Описание;Счёт\n"
+                    "02.09.2026;-1200,00;Транспорт;UBER MUNCHEN;4081781\n", encoding="utf-8")
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "cli.db"))
+    from spendtrack import cli
+
+    assert cli.main(["import", str(good)]) == 0
+    out = capsys.readouterr().out
+    assert "Импорт:" in out and "добавлено" in out and "банк=tinkoff" in out

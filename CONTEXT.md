@@ -16,6 +16,15 @@
 - **Мерчант** — нормализованное имя (UPPER). `merchant_cache` → связанная категория (выигрывает над правилами/LLM).
 - **Fingerprint** = sha1(date|kopecks|norm(desc)|account_anon|export_rowid). Дедуп импорта: повторный импорт = no-op. norm = UPPER + collapse пробелов.
 - **Партия импорта (import_batch)** — один загруженный CSV, id `b_hex`, sha256 содержимого, статус.
+- **Дрейф формата / отчёт импорта** — перед разбором проверяются обязательные колонки банка (`REQUIRED_COLUMNS`,
+  синонимы с допуском пробелов/регистра). Смена формата → `status="format_error"` (`missing_columns`/
+  `found_columns` + `message` с просьбой прислать обезличенный образец), БД не трогается. Отчёт об успехе:
+  `added` / `skipped` (`reasons`: duplicate, status, missing_fields, amount_unparsed, amount_limit) /
+  `suspicious` (`date_unrecognized`); человекочитаемо — `summarize()`; совместимые ключи `dupes`/`invalid`
+  сохранены. CLI `spendtrack import … [--json]`.
+- **Anonymizer** — `scripts/anonymize.py`: обезличивает выписку для отправки образца (описания/мерчанты →
+  `ОПЕРАЦИЯ_0001`, карты → `КАРТА_0001`, номера документов → порядковый), сохраняя формат (шапка/даты/суммы/
+  разделитель) — образец остаётся валидной фикстурой.
 - **Псевдоним счёта (account_anon)** — `acc_hex8`; сырой номер карты НЕ хранится (`account_pseudonyms`).
 - **Примеры (examples)** — few-shot для LLM (правки юзера навсегда).
 - **Бюджет** — месячный лимит категории в `budgets(category, amount_kopecks)` (SQLite, не TOML). Одна константа на все месяцы, без rollover. Считаются расходы месяца (знаковая сумма: возвраты уменьшают). Доход/переводы (`BUDGET_EXCLUDED`) не бюджетируются. Пусто/0 = снят. Редактор — `/settings`, прогресс — `/dashboard`, CLI `spendtrack budget`.

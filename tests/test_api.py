@@ -164,3 +164,51 @@ def test_import_limit_htmx_shows_error(client):
                     headers={"hx-request": "true"})
     assert r.status_code == 200
     assert "Ошибка импорта" in r.text
+
+
+def test_import_hx_format_drift_shows_error_with_hint(client):
+    """HTMX-ветка: дрейф формата → красный текст с просьбой прислать образец, БД не тронута."""
+    csv_data = "Дата проводки;Назначение;Сумма\n01.09.2026;ЛЕНТА;100\n"
+    r = client.post("/api/import", data={"bank": "auto", "csv": csv_data},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert "Ошибка импорта" in r.text
+    assert "образец" in r.text
+    assert client.get("/health").json()["transactions"] == 0
+
+
+def test_import_invalid_json_body_gives_400(client):
+    """Битое/не-UTF-8 тело: 400 с понятным текстом, а не 500 (live-смоук 21.09)."""
+    r = client.post("/api/import", content=b'{"bank":"auto","csv":"\xff\xfe"}',
+                    headers={"content-type": "application/json"})
+    assert r.status_code == 400
+    assert "UTF-8" in r.json()["detail"]
+
+
+def test_transactions_missing_fields_gives_422(client):
+    """Неполный JSON → 422 (валидация), а не 500."""
+    r = client.post("/api/transactions", json={"date": "2026-09-12"})
+    assert r.status_code == 422
+
+
+def test_import_json_format_error_status(client):
+    """Не-HTML клиент получает JSON со статусом format_error и найденными колонками."""
+    csv_data = "Дата проводки;Назначение;Сумма\n01.09.2026;ЛЕНТА;100\n"
+    r = client.post("/api/import", json={"bank": "auto", "csv": csv_data})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "format_error"
+    assert body["missing_columns"] == []  # банк не определён — конкретной нехватки нет
+    assert "Дата проводки" in body["found_columns"]
+    assert "образец" in body["message"]
+
+
+def test_import_hx_report_shows_skipped_and_suspicious(client):
+    """HTMX-отчёт: «+N добавлено · пропущено · подозрительно» с причинами."""
+    csv_data = ("Дата;Сумма операции;Категория;Описание;Счёт\n"
+                "02.09.2026;-1200,00;Транспорт;UBER MUNCHEN;4081781\n")
+    r = client.post("/api/import", data={"bank": "auto", "csv": csv_data},
+                    headers={"hx-request": "true"})
+    assert "Импортировано" in r.text
+    assert "+1 добавлено" in r.text
+    assert "банк=tinkoff" in r.text

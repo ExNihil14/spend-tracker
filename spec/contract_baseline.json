@@ -152,9 +152,17 @@
    "args": "raw: str | bytes, store: Store, bank: str='auto', taxonomy: Taxonomy | None=None, classify=None",
    "returns": "dict"
   },
+  "spendtrack.csv_import:missing_columns": {
+   "args": "bank: str, fieldnames: list[str]",
+   "returns": "list[str]"
+  },
   "spendtrack.csv_import:sniff_bank": {
    "args": "rows: list[dict]",
    "returns": "str | None"
+  },
+  "spendtrack.csv_import:summarize": {
+   "args": "result: dict",
+   "returns": "str"
   },
   "spendtrack.digest:build_digest": {
    "args": "store: Store, days: int=DEFAULT_DAYS, today: date | None=None",

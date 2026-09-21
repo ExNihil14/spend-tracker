@@ -6,7 +6,7 @@
 ```bash
 uv run uvicorn spendtrack.main:app --port 8766   # dev-сервер (FastAPI)
 uv run spendtrack add -23.45 "MILK"              # CLI: добавить трату с категоризацией
-uv run spendtrack import file.csv --bank sber    # импорт CSV (BANKS-адаптер)
+uv run spendtrack import file.csv --bank sber [--json]  # импорт CSV (BANKS-адаптер; отчёт-строка или JSON)
 uv run spendtrack report --month 2026-09         # отчёт за месяц
 uv run spendtrack count                          # счётчики
 uv run spendtrack budget --month 2026-09         # прогресс по бюджетам категорий
@@ -23,6 +23,7 @@ uv run python -m scripts.restore_drill           # restore-drill последн�
 uv run python scripts/contract_delta.py check    # контракт-дельта: API+схема+роуты vs baseline (exit 1 при дрейфе)
 uv run python scripts/contract_delta.py snapshot # обновить baseline после осознанного изменения контракта
 uv run python scripts/demo_data.py seed          # демо-витрина в data/demo.db (реальная БД не трогается)
+uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"]  # обезличить образец выписки
 ```
 
 ## Экспорт CSV/XLSX (read-only, «выход без потерь»)
@@ -108,6 +109,31 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
   (`category_source`/`confidence`/`category_llm`/`review_status`) — низкоуверенные строки из CLI тоже идут
   в очередь и видны калибровке; тесты `tests/test_cli_add.py` (3).
 - Приватность/угрозы: `PRIVACY.md`, `SECURITY.md` в корне.
+
+## Импорт: дрейф формата и отчёт «добавлено / пропущено / подозрительно» (P1 #1–#2)
+- **Дрейф формата.** Перед разбором проверяются обязательные колонки банка (`REQUIRED_COLUMNS`, синонимы;
+  пробелы/регистр в заголовках терпимы). Неопознанный банк в `auto` или пропавшие/переименованные колонки →
+  `status="format_error"` с `missing_columns`/`found_columns` и просьбой прислать обезличенный образец
+  (ссылка на issue; `FORMAT_HINT`). БД и партия импорта не трогаются; CLI — exit 1, UI — красное сообщение.
+  Тихий мисс-парсинг («0 добавлено, status ok») исключён. `sniff_bank` узнаёт Сбера и по «Дата платежа»
+  (устойчиво при переименовании «Дата операции»).
+- **Отчёт** (`csv_import.summarize` — единый текст для CLI и UI): `+N добавлено · S пропущено (причины) ·
+  K подозрительно (причины) · банк=…`. Пропущено: `duplicate`, `status` (не проведены банком),
+  `missing_fields`, `amount_unparsed`, `amount_limit`; подозрительно: `date_unrecognized` (дата не
+  распознана — строка импортируется с пометкой, а не молча). Совместимые ключи `dupes`/`invalid` сохранены,
+  добавлены `skipped`/`suspicious`/`reasons`/`suspicious_reasons`.
+- CLI: `spendtrack import file.csv [--bank …] [--json]` (по умолчанию человекочитаемая строка).
+  Тесты: `tests/test_csv_import.py`, `tests/test_synth_import.py` (переименование и удаление колонки на синтетике).
+- Битый JSON-конверт: не-JSON/не-UTF-8 тело → 400, неполные поля → 422 (`_json_payload` в `api.py`;
+  live-смоук 21.09 вскрыл 500 на кривой кодировке) — и `/api/import`, и `/api/transactions`.
+
+## Anonymizer выписок (P1 #3)
+- `python scripts/anonymize.py выписка.csv [-o out.csv] [--anon-column "ФИО"]`: описания/мерчанты →
+  `ОПЕРАЦИЯ_0001`, карты/счета → `КАРТА_0001`, номера документов → порядковый номер; шапка, порядок строк,
+  даты, суммы, статусы и разделитель сохраняются — образец остаётся валидной фикстурой для адаптеров.
+  Колонки определяются по синонимам (`DESC_ALIASES`/`ACCOUNT_ALIASES`/`DOC_ALIASES`); нераспознанные
+  не трогаются и перечисляются в отчёте («проверьте, нет ли личных данных»). Вход utf-8/cp1251, выход utf-8.
+  Тесты: `tests/test_anonymize.py` (в т.ч. «обезличенный образец импортируется с теми же датами/суммами»).
 
 ## Дайджест недели + аномалии (read-only)
 - CLI `spendtrack digest [--days N] [--json]` + карточка «Дайджест недели» на `/dashboard`; ничего не хранится,

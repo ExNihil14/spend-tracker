@@ -51,14 +51,19 @@ def cmd_add(args) -> int:
 def cmd_import(args) -> int:
     store = make_store()
     raw = Path(args.file).read_text(encoding="utf-8-sig", errors="replace")
-    from spendtrack.csv_import import ImportLimitError, import_csv
+    from spendtrack.csv_import import ImportLimitError, import_csv, summarize
     try:
         result = import_csv(raw, store, bank=args.bank)
     except ImportLimitError as e:  # лимиты импорта — понятный код 1
         print(f"ошибка импорта: {e}", file=sys.stderr)
         return 1
-    print(json.dumps(result, ensure_ascii=False))
-    return 0
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False))
+    elif result["status"] == "format_error":
+        print(f"ошибка импорта: {result['message']}", file=sys.stderr)
+    else:
+        print(f"Импорт: {summarize(result)}")
+    return 1 if result["status"] == "format_error" else 0
 
 
 def cmd_report(args) -> int:
@@ -346,6 +351,7 @@ def main(argv: list[str] | None = None) -> int:
     a_im = sub.add_parser("import")
     a_im.add_argument("file")
     a_im.add_argument("--bank", default="auto", choices=["auto", "sber", "tinkoff", "yandex"])
+    a_im.add_argument("--json", action="store_true", help="машинный JSON вместо строки отчёта")
     a_im.set_defaults(fn=cmd_import)
 
     a_rp = sub.add_parser("report")

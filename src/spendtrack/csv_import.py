@@ -4,6 +4,7 @@ import csv
 import hashlib
 import re
 from collections.abc import Iterator
+from decimal import InvalidOperation
 from io import StringIO
 
 from spendtrack.categorize import categorize_transaction
@@ -16,15 +17,51 @@ _DATE_DDMMYYYY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})")
 MAX_CSV_BYTES = 10 * 1024 * 1024          # 10 МБ: даже многолетняя выписка меньше; защита от OOM
 MAX_AMOUNT_KOPECKS = 100_000_000_000      # 1 млрд руб на операцию — санитарный предел (защита от мусорных строк)
 
+# Дрейф формата (POLISH_PLAN P1 #1): вместо тихого мисс-парсинга — отчёт `format_error`
+# с недостающими колонками и просьбой прислать обезличенный образец (scripts/anonymize.py).
+FORMAT_HINT = (
+    "Похоже, банк изменил формат выписки. Пришлите, пожалуйста, обезличенный образец "
+    "(первые строки; обезличить: `python scripts/anonymize.py файл.csv`) в issue — "
+    "https://github.com/ExNihil14/spend-tracker/issues/new"
+)
+
+# Логические поля → колонки-синонимы: хотя бы одна должна найтись (стирание пробелов/регистра — норма).
+REQUIRED_COLUMNS: dict[str, tuple[tuple[str, ...], ...]] = {
+    "sber": (("Дата операции", "Дата"), ("Описание", "Категория"), ("Сумма операции", "Сумма")),
+    "tinkoff": (("Дата", "Date"), ("Описание", "Description"), ("Сумма операции", "Сумма", "Amount")),
+    "yandex": (("datetime", "date", "Дата"), ("description", "title", "Описание"), ("amount", "Сумма")),
+}
+
+# Отчёт импорта (#2): пропущено (с причинами) и подозрительно (импортировано, но с признаками).
+SKIP_REASONS = ("duplicate", "status", "missing_fields", "amount_unparsed", "amount_limit")
+SUSPICIOUS_REASONS = ("date_unrecognized",)
+REASON_LABELS = {
+    "duplicate": "дубли",
+    "status": "не проведены банком",
+    "missing_fields": "пустые обязательные поля",
+    "amount_unparsed": "не разобрана сумма",
+    "amount_limit": "сумма сверх лимита",
+}
+SUSPICIOUS_LABELS = {"date_unrecognized": "нераспознанная дата"}
+
 
 class ImportLimitError(ValueError):
     """Превышен лимит импорта (размер и т.п.) — API отдаёт 413, CLI код 1, остальное 500/баг."""
 
 
 def _cell(row: dict, *keys: str) -> str:
+    """Значение по синонимам колонок (приоритет — порядок аргументов).
+
+    Пробелы/регистр в заголовках не ломают поиск: банк может добавить « » или сменить регистр.
+    """
+    by_norm: dict[str, object] = {}
+    for key, value in row.items():
+        if key:
+            by_norm.setdefault(key.strip().lower(), value)
     for k in keys:
-        if k in row and row[k] not in (None, ""):
-            return str(row[k]).strip()
+        value = by_norm.get(k.strip().lower())
+        if value not in (None, ""):
+            return str(value).strip()
     return ""
 
 
@@ -41,8 +78,39 @@ def _iso_date(value: str) -> str:
     return v[:10]
 
 
+def _date_recognized(value: str) -> bool:
+    v = value.strip()
+    return bool(_DATE_ISO.match(v) or _DATE_DDMMYYYY.match(v))
+
+
 def _guess_sep(header: str) -> str:
     return ";" if header.count(";") >= header.count(",") else ","
+
+
+def missing_columns(bank: str, fieldnames: list[str]) -> list[str]:
+    """Логические поля банка, для которых в файле нет ни одной колонки-синонима."""
+    names = {f.strip().lower() for f in fieldnames if f}
+    return [group[0] for group in REQUIRED_COLUMNS.get(bank, ())
+            if not any(alias.lower() in names for alias in group)]
+
+
+def _row_tx(date: str, desc: str, amount: str, account: str) -> dict:
+    """Строка выписки → tx или маркер пропуска `_skip` (общая сборка для всех адаптеров).
+
+    Непарсящаяся сумма/пустые обязательные поля не роняют импорт и не теряются молча —
+    попадают в отчёт причинами. Нераспознанная дата импортируется с пометкой `_suspicious`.
+    """
+    if not date or not desc or not amount:
+        return {"_skip": "missing_fields"}
+    try:
+        kopecks = parse_amount(amount)
+    except (InvalidOperation, ValueError, OverflowError):
+        return {"_skip": "amount_unparsed"}
+    tx = {"date": _iso_date(date), "description": desc, "amount_kopecks": kopecks,
+          "account": account or None, "export_rowid": ""}
+    if not _date_recognized(date):
+        tx["_suspicious"] = "date_unrecognized"
+    return tx
 
 
 class SberAdaptor:
@@ -52,15 +120,10 @@ class SberAdaptor:
         for r in rows:
             status = _cell(r, "Статус", "Status").lower()
             if status in ("в обработке", "отклонено", "отменено", "ошибка"):
+                yield {"_skip": "status"}
                 continue
-            date = _cell(r, "Дата операции", "Дата")
-            desc = _cell(r, "Описание", "Категория")
-            amount = _cell(r, "Сумма операции", "Сумма")
-            account = _cell(r, "Номер карты")
-            if not date or not desc or not amount:
-                continue
-            yield {"date": _iso_date(date), "description": desc, "amount_kopecks": parse_amount(amount),
-                   "account": account or None, "export_rowid": ""}
+            yield _row_tx(_cell(r, "Дата операции", "Дата"), _cell(r, "Описание", "Категория"),
+                          _cell(r, "Сумма операции", "Сумма"), _cell(r, "Номер карты"))
 
 
 class TinkoffAdaptor:
@@ -68,14 +131,8 @@ class TinkoffAdaptor:
 
     def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
         for r in rows:
-            date = _cell(r, "Дата", "Date")
-            desc = _cell(r, "Описание", "Description")
-            amount = _cell(r, "Сумма операции", "Сумма", "Amount")
-            account = _cell(r, "Счёт", "Account")
-            if not date or not desc or not amount:
-                continue
-            yield {"date": _iso_date(date), "description": desc, "amount_kopecks": parse_amount(amount),
-                   "account": account or None, "export_rowid": ""}
+            yield _row_tx(_cell(r, "Дата", "Date"), _cell(r, "Описание", "Description"),
+                          _cell(r, "Сумма операции", "Сумма", "Amount"), _cell(r, "Счёт", "Account"))
 
 
 class YandexMoneyAdaptor:
@@ -83,14 +140,9 @@ class YandexMoneyAdaptor:
 
     def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
         for r in rows:
-            date = _cell(r, "datetime", "date", "Дата")
-            desc = _cell(r, "description", "title", "Описание")
-            amount = _cell(r, "amount", "Сумма")
-            account = _cell(r, "account", "Счёт")
-            if not date or not desc or not amount:
-                continue
-            yield {"date": _iso_date(date), "description": desc, "amount_kopecks": parse_amount(amount),
-                   "account": account or None, "export_rowid": ""}
+            yield _row_tx(_cell(r, "datetime", "date", "Дата"),
+                          _cell(r, "description", "title", "Описание"),
+                          _cell(r, "amount", "Сумма"), _cell(r, "account", "Счёт"))
 
 
 BANKS = {
@@ -104,14 +156,30 @@ BANKS = {
 def sniff_bank(rows: list[dict]) -> str | None:
     if not rows:
         return None
-    keys = set(rows[0].keys())
-    if "Дата операции" in keys:
+    keys = {k.strip().lower() for k in rows[0] if k}
+    # «Дата платежа» — устойчивый признак Сбера: остаётся при переименовании «Дата операции»
+    # (иначе дрейф колонки Сбера ошибочно опознавался бы как tinkoff по «Сумма операции+Описание»).
+    if "дата операции" in keys or "дата платежа" in keys:
         return "sber"
-    if "Счёт" in keys or ("Сумма операции" in keys and "Описание" in keys):
+    if "счёт" in keys or ("сумма операции" in keys and "описание" in keys):
         return "tinkoff"
     if "datetime" in keys:
         return "yandex"
     return None
+
+
+def _empty_result(rows: int = 0) -> dict:
+    return {"status": "empty", "added": 0, "dupes": 0, "invalid": 0,
+            "skipped": 0, "suspicious": 0, "reasons": {}, "suspicious_reasons": {}, "rows": rows}
+
+
+def _format_error(bank: str | None, fieldnames: list[str], rows: int, message: str,
+                  missing: list[str] | None = None) -> dict:
+    """Отчёт о дрейфе формата: данные не менялись, пользователю — причина и следующий шаг."""
+    return {"status": "format_error", "bank": bank, "added": 0, "dupes": 0, "invalid": 0,
+            "skipped": rows, "suspicious": 0, "reasons": {}, "suspicious_reasons": {},
+            "missing_columns": missing or [], "found_columns": fieldnames,
+            "rows": rows, "message": message}
 
 
 def import_csv(
@@ -142,28 +210,59 @@ def import_csv(
 
     lines = raw.splitlines()
     if not lines:
-        return {"status": "empty", "added": 0, "dupes": 0, "rows": 0}
+        return _empty_result()
 
-    reader_all = [dict(r) for r in csv.DictReader(StringIO(raw), delimiter=_guess_sep(lines[0]))]
+    reader = csv.DictReader(StringIO(raw), delimiter=_guess_sep(lines[0]))
+    fieldnames = [f for f in (reader.fieldnames or []) if f]
+    reader_all = [dict(r) for r in reader]
     if not reader_all:
-        return {"status": "empty", "added": 0, "dupes": 0, "rows": 0}
+        return _empty_result()
 
     bank_name = bank
     if bank_name == "auto":
         sniffed = sniff_bank(reader_all)
-        bank_name = sniffed or "sber"
-    adaptor = BANKS[bank_name]
+        if sniffed is None or missing_columns(sniffed, fieldnames):
+            # колонки могли частично переименовать — пробуем остальные банки по обязательным полям
+            candidates = [name for name in ("sber", "tinkoff", "yandex")
+                          if not missing_columns(name, fieldnames)]
+            if candidates and (len(candidates) == 1 or sniffed is None):
+                # несколько банков подходят под обязательные колонки (например, без уникальных
+                # маркеров) — дрейфа нет, берём первый по историческому приоритету (sber)
+                sniffed = candidates[0]
+        if sniffed is None:
+            return _format_error(None, fieldnames, len(reader_all),
+                                 message="Не удалось определить банк по колонкам. " + FORMAT_HINT)
+        bank_name = sniffed
+    adaptor = BANKS.get(bank_name)
+    if adaptor is None:
+        return _format_error(bank_name, fieldnames, len(reader_all),
+                             message=f"Неизвестный банк: {bank_name!r} (доступны: sber, tinkoff, yandex).")
+    missing = missing_columns(bank_name, fieldnames)
+    if missing:
+        return _format_error(bank_name, fieldnames, len(reader_all), missing=missing,
+                             message=(f"В файле нет ожидаемых колонок ({bank_name}): "
+                                      + ", ".join(missing) + ". " + FORMAT_HINT))
 
     sha = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     batch_id = store.add_batch("unknown.csv", sha, len(reader_all))
 
-    added, dupes, invalid = 0, 0, 0
+    added = 0
+    seq = 0
     seen: dict[str, int] = {}
-    for rownum, tx in enumerate(adaptor.parse(iter(reader_all))):
-        if abs(tx["amount_kopecks"]) > MAX_AMOUNT_KOPECKS:
-            invalid += 1  # мусорная строка (битый экспорт) — в отчёт, не в БД
+    reasons = dict.fromkeys(SKIP_REASONS, 0)
+    suspicious = dict.fromkeys(SUSPICIOUS_REASONS, 0)
+    for tx in adaptor.parse(iter(reader_all)):
+        if "_skip" in tx:
+            reasons[tx["_skip"]] += 1
             continue
-        tx["statement_order"] = rownum
+        if abs(tx["amount_kopecks"]) > MAX_AMOUNT_KOPECKS:
+            reasons["amount_limit"] += 1  # мусорная строка (битый экспорт) — в отчёт, не в БД
+            continue
+        mark = tx.pop("_suspicious", None)
+        if mark:
+            suspicious[mark] += 1
+        tx["statement_order"] = seq
+        seq += 1
         account_anon = store.pseudonymize(tx.pop("account", None))
         tx["account_anon"] = account_anon
         # export_rowid = индекс ПОВТОРЯЕМОСТИ (0,1,2...) одинаковых операций, а не позиция строки:
@@ -184,7 +283,32 @@ def import_csv(
         if store.add_transaction(import_batch=batch_id, **tx):
             added += 1
         else:
-            dupes += 1
+            reasons["duplicate"] += 1
 
-    return {"status": "ok", "bank": bank_name, "added": added, "dupes": dupes,
-            "invalid": invalid, "rows": len(reader_all)}
+    return {"status": "ok", "bank": bank_name, "added": added,
+            "dupes": reasons["duplicate"], "invalid": reasons["amount_limit"],
+            "skipped": sum(reasons.values()), "suspicious": sum(suspicious.values()),
+            "reasons": {k: v for k, v in reasons.items() if v},
+            "suspicious_reasons": {k: v for k, v in suspicious.items() if v},
+            "rows": len(reader_all)}
+
+
+def summarize(result: dict) -> str:
+    """Человекочитаемый отчёт импорта — единый текст для CLI и UI (#2 POLISH_PLAN)."""
+    status = result.get("status")
+    if status == "format_error":
+        return str(result.get("message", "Ошибка формата выписки"))
+    if status == "empty":
+        return "Пустой файл"
+    parts = [f"+{result.get('added', 0)} добавлено"]
+    reasons = result.get("reasons") or {}
+    if result.get("skipped"):
+        detail = ", ".join(f"{REASON_LABELS.get(k, k)}: {v}" for k, v in reasons.items())
+        parts.append(f"{result['skipped']} пропущено" + (f" ({detail})" if detail else ""))
+    suspicious = result.get("suspicious_reasons") or {}
+    if result.get("suspicious"):
+        detail = ", ".join(f"{SUSPICIOUS_LABELS.get(k, k)}: {v}" for k, v in suspicious.items())
+        parts.append(f"{result['suspicious']} подозрительно" + (f" ({detail})" if detail else ""))
+    if result.get("bank"):
+        parts.append(f"банк={result['bank']}")
+    return " · ".join(parts)
