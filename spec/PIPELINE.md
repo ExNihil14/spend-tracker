@@ -194,6 +194,25 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - Исторический фикс 20.09: `httpx` был только в dev-группе, а `llm.py` импортирует его на уровне модуля —
   wheel-установка падала на `ModuleNotFoundError`; теперь `httpx` в runtime-зависимостях.
 
+## Запуск как сервис (P3 #14)
+- Шаблоны: `deploy/spendtrack.service` (systemd --user; `ExecStart=%h/.local/bin/spendtrack serve`,
+  `Restart=on-failure`, `WantedBy=default.target`) и `deploy/com.spendtrack.serve.plist` (launchd LaunchAgent;
+  `/bin/sh -c 'exec "$HOME/.local/bin/spendtrack" serve'`, `RunAtLoad`+`KeepAlive`, логи `/tmp/spendtrack.{out,err}.log`).
+- README §«Работа в фоне (автозапуск)»: Windows — Планировщик заданий (AtLogOn, без администратора) и NSSM
+  (служба до входа в систему; под LocalSystem данные/конфиг задаются явно `SPENDTRACK_CONFIG_DIR`/
+  `SPENDTRACK_DATA_DIR`); macOS — `launchctl bootstrap gui/$(id -u)`; Linux — `systemctl --user enable --now`
+  (+ `loginctl enable-linger` — запуск без входа). Ключи LLM — в окружении сервиса (юнит/`EnvironmentVariables`/
+  `AppEnvironmentExtra`); шаблоны секретов не содержат.
+- Установленный режим (`uv tool`): шим `~/.local/bin/spendtrack` (Windows `%USERPROFILE%\.local\bin\spendtrack.exe`),
+  конфиг/данные — user-dir из `spendtrack paths`, поэтому юниты не задают WorkingDirectory.
+- Windows-проверка (live 21.09; прод `spendtrack` не трогали): ① NSSM-служба `spendtrack-svc-check` (шим под
+  LocalSystem, порт 8799, temp-данные через env) — `start` → `/health` 200 (0 tx) → `restart` → 200 →
+  `stop` (порт свободен) → `remove` (служба исчезла; в temp-данных `spend.db`/`logs` — user-dir сработал).
+  ② Планировщик: задача AtLogOn `spendtrack-svc-check` — `Start` → `/health` 200 → `Stop`/`Unregister`
+  (задача удалена, слушателя не осталось). Прод 8766 — `/health` 200 (8 tx).
+- Тесты: `tests/test_deploy_templates.py` (4, оффлайн: структура юнита/plist через `plistlib`, отсутствие
+  заглушек/секретов, README ссылается на шаблоны и все три ОС).
+
 ## Лендинг + демо-кнопка (GitHub Pages)
 - `landing/` — статический лендинг (RU + EN-блок): оффер, скриншоты демо-витрины (`assets/shot-*.png`),
   «60 секунд»-путь установки, демо-кнопка Codespaces, Supporter-блок (mailto + issue), Boosty, опрос

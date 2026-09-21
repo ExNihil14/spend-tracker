@@ -174,6 +174,71 @@ uv run python scripts/demo_data.py clean    # убрать демо
 
 ![Настройки](assets/screenshot-settings.png)
 
+## Работа в фоне (автозапуск)
+
+Приложение можно запускать автоматически — при входе в систему или загрузке компьютера. Сервер в любом случае
+слушает только `127.0.0.1`; где лежат база и настройки — покажет `spendtrack paths`. Путь к `spendtrack.exe`
+в примерах ниже — стандартный для установки одной командой (`uv tool`); если ставили иначе, подставьте свой.
+
+### Windows — Планировщик заданий
+
+Проще всего и не требует прав администратора; запуск при входе в систему (PowerShell):
+
+```powershell
+$exe = "$env:USERPROFILE\.local\bin\spendtrack.exe"
+Register-ScheduledTask -TaskName spendtrack -Force `
+  -Action  (New-ScheduledTaskAction -Execute $exe -Argument "serve") `
+  -Trigger (New-ScheduledTaskTrigger -AtLogOn)
+Start-ScheduledTask spendtrack
+```
+
+Остановить/убрать: `Stop-ScheduledTask spendtrack` / `Unregister-ScheduledTask spendtrack -Confirm:$false`.
+Проверка: <http://127.0.0.1:8766/health>.
+
+### Windows — NSSM (служба, работает до входа в систему)
+
+Нужны права администратора. Один раз поставьте [NSSM](https://nssm.cc/) (`winget install nssm`), затем:
+
+```powershell
+nssm install spendtrack "$env:USERPROFILE\.local\bin\spendtrack.exe" serve
+nssm set spendtrack AppEnvironmentExtra "SPENDTRACK_CONFIG_DIR=$env:APPDATA\spendtrack" "SPENDTRACK_DATA_DIR=$env:LOCALAPPDATA\spendtrack"
+nssm set spendtrack Start SERVICE_AUTO_START
+nssm start spendtrack
+```
+
+Служба работает от системной учётной записи, поэтому папки данных и настроек передаются ей явно (те же, что
+показывает `spendtrack paths`). Управление: `nssm restart spendtrack`, `nssm stop spendtrack`,
+`nssm remove spendtrack confirm`.
+
+### macOS — launchd
+
+```bash
+curl -LsSf https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/deploy/com.spendtrack.serve.plist \
+  -o ~/Library/LaunchAgents/com.spendtrack.serve.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.spendtrack.serve.plist
+```
+
+Перезапуск — `launchctl kickstart -k gui/$(id -u)/com.spendtrack.serve`, убрать —
+`launchctl bootout gui/$(id -u)/com.spendtrack.serve`. Логи: `/tmp/spendtrack.out.log` (временные; свой путь
+задаётся в plist — `StandardOutPath`).
+
+### Linux — systemd (пользовательская служба, без root)
+
+```bash
+mkdir -p ~/.config/systemd/user
+curl -LsSf https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/deploy/spendtrack.service \
+  -o ~/.config/systemd/user/spendtrack.service
+systemctl --user daemon-reload
+systemctl --user enable --now spendtrack
+loginctl enable-linger $USER    # запускать, даже когда вы не в системе (по желанию)
+```
+
+Статус и логи: `systemctl --user status spendtrack`, `journalctl --user -u spendtrack -f`.
+
+**Ключи LLM для сервиса** (если включили BYO): переменные `SPENDTRACK_LLM_*` должны быть видны процессу —
+допишите их в юнит (`systemctl --user edit spendtrack`), в `EnvironmentVariables` plist или в
+`nssm set spendtrack AppEnvironmentExtra …`. Сами ключи в `deploy/` не хранятся.
+
 ## Команды
 
 | Команда | Что делает |
@@ -212,7 +277,9 @@ Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV 
 deterministic rule-based categorization with an optional LLM fallback for the rest (bring your own API key or a
 local Ollama model), review queue, budgets, subscription detection and a weekly anomaly digest — all on your
 machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with synthetic data:
-`uv run python scripts/demo_data.py seed`. UI is Russian for now (English localization is on the roadmap).
+`uv run python scripts/demo_data.py seed`. Runs as a background service too (Windows Task Scheduler/NSSM,
+macOS launchd, Linux systemd — templates in `deploy/`; see the «Работа в фоне» section). UI is Russian for now
+(English localization is on the roadmap).
 
 ## Лицензия и поддержка
 

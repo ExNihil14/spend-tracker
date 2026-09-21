@@ -35,6 +35,9 @@
   (clone + `uv sync`, прод NSSM) определяется по `config/settings.toml` рядом и сохраняет пути `data/`/`config/`.
   Раскладка — `spendtrack paths [--json]`; запуск — `spendtrack serve [--open]`; переопределение —
   `SPENDTRACK_CONFIG_DIR`/`SPENDTRACK_DATA_DIR`. Bootstrap: `install.ps1`/`install.sh`.
+- **Сервис (автозапуск)** — приложение как фоновая служба: шаблоны `deploy/` (systemd --user, launchd) + README
+  §«Работа в фоне» (Windows: Планировщик заданий / NSSM). Всегда слушает `127.0.0.1`; конфиг/данные — user-dir
+  (`spendtrack paths`), под LocalSystem пути передаются явно через `SPENDTRACK_CONFIG_DIR`/`SPENDTRACK_DATA_DIR`.
 - **Doctor** — проверка целостности данных: CLI `spendtrack doctor [--json]`, API `GET /health/data`. Severities: `critical` (битая БД/схема, категории транзакций вне таксономии, последний restore-drill failed), `warn` (данные вне очереди/таксономии, бэкап >48ч, restore-drill >30 дней), `info` (пустые партии, нет папки бэкапов, нет маркера restore-drill), `ok`. Exit 1 — только при critical; API 503 — при critical. Авторемонта нет.
 - **Restore-drill** — `scripts/restore_drill.py` (CLI `python -m scripts.restore_drill`): копирует последний `data/backup/spend-*.db` во временную папку, проверяет `PRAGMA integrity_check` + `transactions` + `user_version`, сверяет COUNT/SUM с живой БД информативно, пишет маркер `data/backup/last_restore_drill.json`.
 - **Offsite-копия (внешний бэкап)** — копия свежего снимка на другом томе: `scripts/backup.py --copy-to <папка/USB>`
