@@ -268,10 +268,6 @@
    "args": "system_prompt: str, user_prompt: str, max_tokens: int=400, temperature: float=0.1, endpoint_override: str | None=None, model_override: str | None=None",
    "returns": "dict[str, Any]"
   },
-  "spendtrack.llm:get_client": {
-   "args": "endpoint: str | None=None",
-   "returns": "tuple[OpenAI, str, str]"
-  },
   "spendtrack.llm:llm_status": {
    "args": "cfg: Settings | None=None",
    "returns": "dict[str, Any]"

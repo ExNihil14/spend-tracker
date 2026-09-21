@@ -105,6 +105,26 @@ def test_pages_workflow_deploys_landing() -> None:
     assert "workflow_dispatch" in workflow
 
 
+def test_no_misleading_supporter_claims() -> None:
+    """Гигиена публичных текстов (тяжёлое ревью 21.09): без managed-прокси и «разовой лицензии»,
+    у Сбера — честная оговорка про CSV; проверяем и README/issue-форму, чтобы дрейф не повторился."""
+    html, _ = _parse_index()
+    lowered = html.lower()
+    assert "managed-llm" not in lowered
+    assert "разовая лицензия" not in lowered
+    assert "разовая поддержка" in lowered
+    assert "xls-импорт в планах" in lowered
+
+    readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
+    assert "managed-llm" not in readme
+    assert "разовая лицензия" not in readme
+    assert "xls-импорт" in readme
+
+    supporter = (ISSUE_TEMPLATES / "supporter.yml").read_text(encoding="utf-8").lower()
+    assert "managed" not in supporter
+    assert "лицензи" not in supporter
+
+
 def test_funding_points_to_boosty() -> None:
     funding = (ROOT / ".github" / "FUNDING.yml").read_text(encoding="utf-8")
     assert "boosty.to" in funding

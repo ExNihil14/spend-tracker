@@ -47,13 +47,6 @@ def _env_key_for(base_url: str, cfg: Settings) -> str:
     return cfg.freel_llm_api_key
 
 
-def get_client(endpoint: str | None = None) -> tuple[OpenAI, str, str]:
-    cfg = load_settings()
-    base = endpoint or cfg.llm.primary.base_url
-    key = _env_key_for(base, cfg) or "no-key"
-    return OpenAI(base_url=base, api_key=key, timeout=REQUEST_TIMEOUT_S), base, cfg.llm.primary.model
-
-
 def _is_local(url: str) -> bool:
     return (urlparse(url).hostname or "").lower() in {"127.0.0.1", "localhost", "::1"}
 

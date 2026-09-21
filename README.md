@@ -14,7 +14,8 @@
 
 ## Что умеет
 
-- **Импорт выписок** Сбера, Тинькофф и Яндекса: формат определяется автоматически, повторный импорт того же файла
+- **Импорт выписок** Тинькофф, Яндекса и Сбера (там, где у вас есть CSV-экспорт; у физлиц Сбер чаще даёт
+  PDF/XLS — XLS-импорт в планах): формат определяется автоматически, повторный импорт того же файла
   не создаёт дубликатов.
 - **Категории почти без ручной работы:** сначала срабатывают ваши правила и «память» о магазинах, затем — ИИ
   (если подключите), а спорные операции попадают в очередь «Подтвердить». Одобренная правка запоминается.
@@ -274,21 +275,25 @@ uv run ruff check src tests
 
 ## English
 
-Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (Sber/Tinkoff/Yandex formats),
-deterministic rule-based categorization with an optional LLM fallback for the rest (bring your own API key or a
-local Ollama model), review queue, budgets, subscription detection and a weekly anomaly digest — all on your
-machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with synthetic data:
-`uv run python scripts/demo_data.py seed`. Runs as a background service too (Windows Task Scheduler/NSSM,
-macOS launchd, Linux systemd — templates in `deploy/`; see the «Работа в фоне» section). UI is Russian for now
-(English localization is on the roadmap).
+Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (Tinkoff, Yandex, and Sber
+where CSV export is available; Sber XLS import is planned), deterministic rule-based categorization with an
+optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest
+— all on your machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with
+synthetic data: `uv run python scripts/demo_data.py seed`. Runs as a background service too (Windows Task
+Scheduler/NSSM, macOS launchd, Linux systemd — templates in `deploy/`; see the «Работа в фоне» section).
+UI is Russian for now (English localization is on the roadmap). Support the project once (Supporter: $25 /
+1900 ₽ — your name in the thanks list or anonymous, priority attention to your issues, early access to new
+builds) via Boosty.
 
 ## Лицензия и поддержка
 
 **AGPLv3** — см. [LICENSE](LICENSE). Почему: продукт про приватность и локальные данные — сетевой копилефт
 не даёт превратить код в закрытый облачный сервис, при этом self-host, форки и вклад остаются свободными.
 
-Проект бесплатный. Модель «Supporter» — разовая лицензия (~$25 / 1900 ₽) за готовые сборки, автообновление
-и managed-LLM-прокси (ядро не кастрируется). Поддержать: [Boosty](https://boosty.to/REPLACE_ME)
-(ссылка появится к запуску) · интерес к лицензии — [issue Supporter](https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml).
+Проект бесплатный. **Supporter** — разовая поддержка разработки (~$25 / 1900 ₽): спасибо в списке
+поддержавших (или анонимно), приоритет внимания к вашим issue и предложениям, ранний доступ к новым
+сборкам и адаптерам. Ядро не кастрируется — это тот же продукт.
+Поддержать: [Boosty](https://boosty.to/REPLACE_ME) (ссылка появится к запуску) ·
+интерес — [issue Supporter](https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml).
 
 Не финансовый и не налоговый совет; ПО поставляется «как есть».

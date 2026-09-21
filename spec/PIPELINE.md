@@ -247,6 +247,9 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - `landing/` — статический лендинг (RU + EN-блок): оффер, скриншоты демо-витрины (`assets/shot-*.png`),
   «60 секунд»-путь установки, демо-кнопка Codespaces, Supporter-блок (mailto + issue), Boosty, опрос
   Telegram-vs-PWA (issue-формы), FAQ и приватность. Внешних ресурсов нет (шрифты/CDN/аналитика) — без сети.
+- Фрейм платного блока — **«разовая поддержка разработки»** (тяжёлое ревью 21.09): managed-LLM-прокси и
+  «разовая лицензия» убраны из landing/README/FUNDING-окрестностей как несуществующие/противоречащие AGPLv3;
+  у Сбера — оговорка про CSV (у физлиц чаще PDF/XLS, XLS-импорт в планах). Юр-природа — услуги (оферта).
 - Деплой: `.github/workflows/pages.yml` при push в `main` с изменениями в `landing/**` (source — GitHub Actions;
   Pages включён через `gh api repos/ExNihil14/spend-tracker/pages -X POST -f build_type=workflow`).
   URL — <https://exnihil14.github.io/spend-tracker/>.
