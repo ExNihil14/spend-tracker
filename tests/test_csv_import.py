@@ -367,3 +367,29 @@ def test_cli_import_reports_summary(tmp_path, monkeypatch, capsys):
     assert cli.main(["import", str(good)]) == 0
     out = capsys.readouterr().out
     assert "Импорт:" in out and "добавлено" in out and "банк=tinkoff" in out
+
+
+def test_import_commits_batch_transaction(store):
+    """Импорт — одна транзакция на партию: после импорта открытых транзакций нет."""
+    res = import_csv(SBER_CSV, store, classify=_stub_classify())
+    assert res["added"] == 2
+    assert store.conn.in_transaction is False
+
+
+def test_import_rolls_back_on_classify_error(store):
+    """Сбой в середине партии: половина строк не оседает в БД, транзакция закрыта."""
+    calls = {"n": 0}
+
+    def failing(tx, st, taxonomy):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("сбой классификатора")
+        return {"category": "other", "source": "rule", "confidence": 1.0,
+                "merchant": None, "review_status": "approved", "category_llm": None}
+
+    with pytest.raises(RuntimeError):
+        import_csv(SBER_CSV, store, classify=failing)
+
+    assert store.conn.in_transaction is False
+    assert store.conn.execute("SELECT COUNT(*) c FROM transactions").fetchone()["c"] == 0
+

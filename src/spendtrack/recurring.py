@@ -36,13 +36,29 @@ def _parse_iso(value: str | None) -> date | None:
         return None
 
 
+def _cluster_median(cluster: list[sqlite3.Row]) -> float:
+    """Медиана кластера за O(1): строки добавляются в порядке возрастания суммы.
+
+    Инвариант «кластер отсортирован по amount_kopecks» обеспечивает `_amount_clusters`
+    (обход rows идёт по возрастанию, append в конец). Guard ниже ловит нарушение инварианта
+    при будущем рефакторинге (стоит O(1), не O(k)).
+    """
+    n = len(cluster)
+    assert n == 1 or cluster[-1]["amount_kopecks"] >= cluster[-2]["amount_kopecks"], (
+        "нарушен инвариант сортировки кластера — пересмотреть _cluster_median")
+    mid = n // 2
+    if n % 2:
+        return float(cluster[mid]["amount_kopecks"])
+    return (cluster[mid - 1]["amount_kopecks"] + cluster[mid]["amount_kopecks"]) / 2
+
+
 def _amount_clusters(rows: list[sqlite3.Row]) -> list[list[sqlite3.Row]]:
     """Жадная кластеризация сумм мерчанта: ±AMOUNT_TOLERANCE от бегущей медианы."""
     clusters: list[list[sqlite3.Row]] = []
     for row in sorted(rows, key=lambda r: r["amount_kopecks"]):
         amount = row["amount_kopecks"]
         for cluster in clusters:
-            median = statistics.median([r["amount_kopecks"] for r in cluster])
+            median = _cluster_median(cluster)
             if abs(amount - median) <= abs(median) * AMOUNT_TOLERANCE:
                 cluster.append(row)
                 break
@@ -119,12 +135,15 @@ def detect_recurring(store: Store, today: date | None = None) -> list[dict]:
     return items
 
 
-def recurring_summary(store: Store, today: date | None = None) -> dict:
+def recurring_summary(store: Store, today: date | None = None,
+                      subscriptions: list[dict] | None = None) -> dict:
     """Список + агрегаты: активные считаются в месячный итог, stale — нет.
 
+    `subscriptions` — уже найденные рекурринги (дашборд считает `detect_recurring` один раз
+    на страницу; иначе тяжёлый проход по истории выполняется дважды).
     Ключ `subscriptions` (не `items`): в Jinja `dict.items` — метод, а не ключ.
     """
-    items = detect_recurring(store, today)
+    items = subscriptions if subscriptions is not None else detect_recurring(store, today)
     active = [s for s in items if s["active"]]
     return {
         "subscriptions": items,

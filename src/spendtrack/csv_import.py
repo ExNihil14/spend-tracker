@@ -256,40 +256,46 @@ def import_csv(
     seen: dict[str, int] = {}
     reasons = dict.fromkeys(SKIP_REASONS, 0)
     suspicious = dict.fromkeys(SUSPICIOUS_REASONS, 0)
-    for tx in adaptor.parse(iter(reader_all)):
-        if "_skip" in tx:
-            reasons[tx["_skip"]] += 1
-            continue
-        if abs(tx["amount_kopecks"]) > MAX_AMOUNT_KOPECKS:
-            reasons["amount_limit"] += 1  # мусорная строка (битый экспорт) — в отчёт, не в БД
-            continue
-        mark = tx.pop("_suspicious", None)
-        if mark:
-            suspicious[mark] += 1
-        tx["statement_order"] = seq
-        seq += 1
-        account_anon = store.pseudonymize(tx.pop("account", None))
-        tx["account_anon"] = account_anon
-        # export_rowid = индекс ПОВТОРЯЕМОСТИ (0,1,2...) одинаковых операций, а не позиция строки:
-        # реэкспорт со сдвигом строк не создаёт дублей, а легитимные одинаковые покупки в один
-        # день различаются (fable-review 12.09 + фикс сдвига реэкспорта 15.09).
-        base = fingerprint(tx["date"], tx["amount_kopecks"], tx["description"], account_anon or "", "",
-                           tx.get("currency", "RUB"))
-        tx["export_rowid"] = str(seen.get(base, 0))
-        seen[base] = seen.get(base, 0) + 1
-        classification = classify(tx, store, taxonomy)
-        tx["category"] = classification["category"]
-        tx["category_source"] = classification["source"]
-        tx["confidence"] = classification["confidence"]
-        tx["merchant"] = classification["merchant"] or None
-        # Низкая уверенность LLM → очередь подтверждения (иначе все импортные строки «approved»
-        # и категория-предложение LLM терялись — найден офлайн-тестом, 19.09).
-        tx["review_status"] = classification.get("review_status", "approved")
-        tx["category_llm"] = classification.get("category_llm")
-        if store.add_transaction(import_batch=batch_id, **tx):
-            added += 1
-        else:
-            reasons["duplicate"] += 1
+    try:
+        for tx in adaptor.parse(iter(reader_all)):
+            if "_skip" in tx:
+                reasons[tx["_skip"]] += 1
+                continue
+            if abs(tx["amount_kopecks"]) > MAX_AMOUNT_KOPECKS:
+                reasons["amount_limit"] += 1  # мусорная строка (битый экспорт) — в отчёт, не в БД
+                continue
+            mark = tx.pop("_suspicious", None)
+            if mark:
+                suspicious[mark] += 1
+            tx["statement_order"] = seq
+            seq += 1
+            account_anon = store.pseudonymize(tx.pop("account", None))
+            tx["account_anon"] = account_anon
+            # export_rowid = индекс ПОВТОРЯЕМОСТИ (0,1,2...) одинаковых операций, а не позиция строки:
+            # реэкспорт со сдвигом строк не создаёт дублей, а легитимные одинаковые покупки в один
+            # день различаются (fable-review 12.09 + фикс сдвига реэкспорта 15.09).
+            base = fingerprint(tx["date"], tx["amount_kopecks"], tx["description"], account_anon or "", "",
+                               tx.get("currency", "RUB"))
+            tx["export_rowid"] = str(seen.get(base, 0))
+            seen[base] = seen.get(base, 0) + 1
+            classification = classify(tx, store, taxonomy)
+            tx["category"] = classification["category"]
+            tx["category_source"] = classification["source"]
+            tx["confidence"] = classification["confidence"]
+            tx["merchant"] = classification["merchant"] or None
+            # Низкая уверенность LLM → очередь подтверждения (иначе все импортные строки «approved»
+            # и категория-предложение LLM терялись — найден офлайн-тестом, 19.09).
+            tx["review_status"] = classification.get("review_status", "approved")
+            tx["category_llm"] = classification.get("category_llm")
+            if store.add_transaction(commit=False, import_batch=batch_id, **tx):
+                added += 1
+            else:
+                reasons["duplicate"] += 1
+    except Exception:
+        # Партия атомарна: сбой в середине не оставляет половину строк и не держит транзакцию открытой.
+        store.conn.rollback()
+        raise
+    store.conn.commit()  # одна транзакция на партию, а не commit на строку (замеры bench.py)
 
     return {"status": "ok", "bank": bank_name, "added": added,
             "dupes": reasons["duplicate"], "invalid": reasons["amount_limit"],

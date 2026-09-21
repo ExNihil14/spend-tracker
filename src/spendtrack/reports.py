@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 
-from spendtrack.store import Store
+from spendtrack.store import Store, month_bounds
 
 CALIBRATION_TARGET_ERROR = 0.10   # допустимая доля ошибок среди авто-принятых (верхняя граница Wilson)
 CALIBRATION_MIN_SAMPLE = 20       # минимум принятых решений, чтобы оценка порога была осмысленной
@@ -27,10 +27,12 @@ def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, flo
 
 
 def report_month(store: Store, month: str) -> dict:
+    start, end = month_bounds(month)
     rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS total_k, COUNT(*) AS n"
-        " FROM transactions WHERE substr(date,1,7)=? AND currency='RUB' GROUP BY category ORDER BY total_k",
-        (month,),
+        " FROM transactions WHERE date >= ? AND date < ? AND currency='RUB'"
+        " GROUP BY category ORDER BY total_k",
+        (start, end),
     ).fetchall()
     income = sum(r["total_k"] for r in rows if r["total_k"] > 0)
     expense = sum(r["total_k"] for r in rows if r["total_k"] < 0)
@@ -51,8 +53,8 @@ def categories_with_totals(store: Store, month: str | None = None) -> list[dict]
            " WHERE currency='RUB'")
     params: list[str] = []
     if month:
-        sql += " AND substr(date,1,7)=?"
-        params.append(month)
+        sql += " AND date >= ? AND date < ?"
+        params.extend(month_bounds(month))
     sql += " GROUP BY category ORDER BY category"
     rows = store.conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
@@ -60,10 +62,11 @@ def categories_with_totals(store: Store, month: str | None = None) -> list[dict]
 
 def report_daily(store: Store, month: str) -> list[dict]:
     """Дневной ряд расходов за месяц (непродажные дни отсутствуют в выводе)."""
+    start, end = month_bounds(month)
     rows = store.conn.execute(
         "SELECT date, SUM(amount_kopecks) AS total_k FROM transactions"
-        " WHERE substr(date,1,7)=? AND currency='RUB' GROUP BY date ORDER BY date",
-        (month,),
+        " WHERE date >= ? AND date < ? AND currency='RUB' GROUP BY date ORDER BY date",
+        (start, end),
     ).fetchall()
     return [{"date": r["date"], "total_k": r["total_k"]} for r in rows]
 
@@ -79,10 +82,11 @@ def budgets_progress(store: Store, month: str, known: set[str] | None = None) ->
     budgets = store.budget_map()
     if not budgets:
         return []
+    start, end = month_bounds(month)
     spent_rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS s FROM transactions"
-        " WHERE substr(date,1,7)=? AND currency='RUB' GROUP BY category",
-        (month,),
+        " WHERE date >= ? AND date < ? AND currency='RUB' GROUP BY category",
+        (start, end),
     ).fetchall()
     spent = {r["category"]: -r["s"] for r in spent_rows}  # расход = минус знаковая сумма
     out: list[dict] = []

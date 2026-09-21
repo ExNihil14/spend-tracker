@@ -299,6 +299,22 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   + e2e `test_first_run_checklist_visible_then_hidden` (виден на пустой БД, скрыт после данных).
   Попутно e2e-`clean_db` чистит `import_batches` — состояние партий не течёт между session-scoped тестами.
 
+## Бенчмарк производительности (perf-pass, 21.09)
+- Инструмент: `uv run python scripts/bench.py run [--sizes 5000,20000,50000] [--repeats 3] [--import-rows 5000]`
+  — детерминированная синтетика (36 мес, подписки/очередь/бюджеты) в temp-БД, median-замеры ключевых путей,
+  HTTP через TestClient; JSON — `reports/bench.json`. Прод не трогает.
+- Оптимизации по замерам: `month_bounds()` — диапазон `date >= / <` вместо `substr(date,1,7)=?` (использует
+  индекс); partial-индекс `idx_tx_pending` (создаётся после миграций — колонка `review_status` из v2; в SCHEMA
+  индекс ронял апгрейд легаси-БД); O(1)-медиана кластеров в `detect_recurring`; `detect_recurring` один раз
+  на `/dashboard` (параметр `subscriptions=` у `recurring_summary`/`build_digest`); `Store.has_transactions()`
+  (EXISTS) вместо `counts()` для флагов страниц; `add_transaction(commit=False)` в `import_csv` — одна
+  транзакция на партию; при сбое в середине — `rollback` (партия атомарна, открытой транзакции не остаётся).
+- Факты 50K строк (до → после): `/dashboard` 2.75 с → 388 мс, `/` 521 → 73 мс, очередь 245 → 2 мс, месячные
+  агрегаты ≈93 → 5 мс, `build_digest` 1.17 с → 365 мс, импорт 5K строк 1.67 с → 0.40 с. Отчёт с таблицей —
+  `D:\dev\docs\machine\PERF_BENCH_SPENDTRACKER.md`.
+- Перф-смок в наборе: `tests/test_perf.py::test_digest_20k_synthetic` (маркер perf, порог 2 с; длительности —
+  `reports/perf.json`).
+
 ## Тесты / анализ
 ```bash
 uv run pytest -q                # unit-тесты (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)

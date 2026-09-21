@@ -76,6 +76,23 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (21.09, сессия perf-pass — замеры «до/после»; ждёт команды на коммит).**
+> Deliverable: бенч-инструмент + точечные оптимизации по фактам (монетизация — пауза по решению юзера).
+> ① `scripts/bench.py` — синтетика 36 мес в temp-БД (seed), median×3, HTTP через TestClient, JSON
+> `reports/bench.json` (+ `bench_after.json`); артефакт — `D:\dev\docs\machine\PERF_BENCH_SPENDTRACKER.md`.
+> ② Факты 50K строк (до → после): `/dashboard` 2.75 с → 388 мс, `/` 521 → 73 мс, очередь 245 → 2 мс,
+> месячные агрегаты ≈93 → 5 мс, `build_digest` 1.17 с → 365 мс, импорт 5K строк 1.67 с → 0.40 с
+> (3.0K → 12.5K строк/с). ③ Причины/правки: `substr(date,1,7)` → `month_bounds()`-диапазон (индекс);
+> partial-индекс `idx_tx_pending` (создаётся после миграций — колонка из v2); O(1)-медиана кластеров
+> в `detect_recurring`; один `detect_recurring` на `/dashboard` (`subscriptions=`); `has_transactions()`
+> (EXISTS) для флагов страниц; `add_transaction(commit=False)` в `import_csv` — одна транзакция на партию
+> (+ `rollback` при сбое). ④ Ревью $0 (nemotron-ultra:free, 377 с): NO-GO → все 2 P0 и 3 P1 приняты и
+> закрыты (`EXPERT_REVIEW_PERF_OR.md` + raw; отклонено: глобальные assert'ы на чтениях, валидация month).
+> ⑤ Контур: **461 unit (+10)**, ruff чист, contract ok (baseline осознанно аддитивный: `month_bounds`,
+> `has_transactions`, 3 опц. параметра); perf-смок `test_digest_20k_synthetic` (20K, порог 2 с; длительности
+> в `reports/perf.json`). ⑥ Live: NSSM рестартнут (дважды), `/`, `/dashboard`, `/approve`, `/health*` 200,
+> playwright — 0 ошибок консоли; прод-БД получила `idx_tx_pending`. Commit/push — по явной команде юзера.
+> Дальше по плану: #15 «10-мин сценарий» (процесс) / P1 #6 / #4 (data-gated).
 > **АКТУАЛЬНО (21.09, сессия монетизации, фаза 1 — ЧЕРНОВИКИ; вне репо, ждёт решений юзера).**
 > Deliverable: три документа в `D:\dev\docs\machine\`: ① `MONETIZATION_SUPPORTER_OFFER_DRAFT.md` — оферта/
 > состав/прайс ($25 / 1900 ₽; юр-рамка «услуги, не лицензия»; AGPLv3-совместимость; возврат 14 дней);

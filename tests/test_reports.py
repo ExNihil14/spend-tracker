@@ -177,3 +177,21 @@ def test_cli_confidence_command(store, tmp_path, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "Калибровка порога" in out and "Текущий порог" in out and "t=0.9" in out
     assert "рекомендация:" in out  # #11: рекомендация порога по Wilson-CI (здесь — «данных мало»)
+
+
+# ── Границы месяца: индексный диапазон date >= / < (perf-pass) ─────────────
+
+def test_report_month_excludes_next_month(store):
+    _populate(store)  # есть строка 2026-10-01
+    sept = report_month(store, "2026-09")
+    assert sept["expense_k"] == (parse_amount("-1234.50") + parse_amount("-1200")
+                                 + parse_amount("-1549"))
+    assert report_month(store, "2026-10")["expense_k"] == parse_amount("-500")
+
+
+def test_list_transactions_month_boundary(store):
+    _populate(store)
+    dates = {t["date"] for t in store.list_transactions(month="2026-09")}
+    assert dates == {"2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04"}
+    days, _, _ = store.list_transactions_days(month="2026-09")
+    assert {t["date"] for t in days} == dates
