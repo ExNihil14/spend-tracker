@@ -29,7 +29,7 @@
         hx-on::after-request="htmx.trigger('body','refresh-list')"
         class="flex flex-col gap-3">
     <div class="flex flex-wrap gap-3">
-      <select name="bank" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <select name="bank" aria-label="Банк выписки" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
         <option value="auto">Определить банк</option>
         <option value="sber">Сбербанк</option>
         <option value="tinkoff">Тинькофф</option>
@@ -38,7 +38,7 @@
       <button class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Импортировать</button>
       <span id="import-spinner" class="htmx-indicator text-indigo-400 text-sm self-center">Импорт…</span>
     </div>
-    <textarea name="csv" rows="5" placeholder="Вставьте содержимое CSV-выписки…"
+    <textarea name="csv" rows="5" aria-label="Содержимое CSV-выписки" placeholder="Вставьте содержимое CSV-выписки…"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
   </form>
   <p class="text-xs text-slate-400 mt-3">
@@ -54,11 +54,11 @@
         hx-indicator="#global-indicator"
         hx-on::after-request="this.reset(); const cnt=document.getElementById('pending-count'); if(cnt){fetch('/api/pending-count').then(r=>r.json()).then(d=>cnt.textContent=d.count);} htmx.trigger('body','refresh-list')"
         class="flex flex-wrap gap-3">
-    <input name="date" type="date" required value="{{ current }}-01"
+    <input name="date" type="date" required aria-label="Дата операции" value="{{ current }}-01"
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
-    <input name="description" placeholder="Описание" required
+    <input name="description" placeholder="Описание" aria-label="Описание" required
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 flex-1 min-w-40 focus:outline-none focus:ring-2 focus:ring-blue-500">
-    <input name="amount" placeholder="Сумма (-23.45)" required
+    <input name="amount" placeholder="Сумма (-23.45)" aria-label="Сумма" required
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 w-40 focus:outline-none focus:ring-2 focus:ring-blue-500">
     <button class="bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Добавить</button>
     <span id="add-spinner" class="htmx-indicator text-blue-400 text-sm self-center">Добавление…</span>
@@ -70,13 +70,13 @@
   <div class="px-5 py-3 border-b border-slate-800 flex flex-wrap items-center gap-3">
     <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Транзакции {{ current }}</h2>
     <form hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
-      <select name="sort"
+      <select name="sort" aria-label="Сортировка"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" hx-include="#filters" hx-trigger="change">
         <option value="recent" {% if sort == 'recent' %}selected{% endif %}>Сначала новые</option>
         <option value="amount" {% if sort == 'amount' %}selected{% endif %}>Крупные сначала</option>
       </select>
-      <select name="category"
+      <select name="category" aria-label="Фильтр по категории"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" hx-include="#filters" hx-trigger="change">
         <option value="">Все категории</option>
@@ -84,7 +84,7 @@
         <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c }}</option>
         {% endfor %}
       </select>
-      <input name="q" value="{{ q }}" placeholder="Поиск…"
+      <input name="q" value="{{ q }}" placeholder="Поиск…" aria-label="Поиск по описанию"
              class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-blue-500"
              hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" hx-include="#filters"
              hx-trigger="input changed delay:400ms">
@@ -95,7 +95,7 @@
        class="text-slate-300 hover:text-white text-sm px-3 py-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 transition-colors"
        aria-label="Экспорт транзакций в CSV (открывается в Excel)" title="Экспорт CSV (Excel)">Экспорт CSV</a>
   </div>
-  <div class="overflow-x-auto">
+  <div class="table-scroll overflow-x-auto" role="region" aria-label="Таблица операций" tabindex="0">
   <div id="tx-table" hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-trigger="refresh-list from:body">
   <table class="w-full text-sm">
     <thead>

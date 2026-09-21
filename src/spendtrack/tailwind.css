@@ -1,0 +1,5 @@
+/* Входной CSS для prebuilt-сборки (Tailwind CSS v4, standalone CLI — без Node).
+   Сборка: uv run python scripts/build_css.py  →  src/spendtrack/static/app.css
+   Browser build (static/tailwind.js) больше не используется: в проде отдаём готовый CSS. */
+@import "tailwindcss";
+@source "./templates";

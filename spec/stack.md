@@ -13,7 +13,9 @@
 
 ## Frontend
 - htmx + Jinja2 server-rendered шаблоны (templates/{base,index,approve}.html).
-- Tailwind CSS v4 vendored: `static/tailwind.js` (282KB, без npm-сборки).
+- Tailwind CSS v4: **prebuilt CSS** (`src/spendtrack/static/app.css`, ~70 КБ, собирается официальным
+  standalone-CLI без Node: `uv run python scripts/build_css.py`; вход — `src/spendtrack/tailwind.css`,
+  шаблоны подключаются через `@source`). Browser build (Play CDN) не используется в проде.
 - НЕ React (решение stack-анализа 13.09.2026 — см. continue.md «Stack-вердикт»).
 
 ## Данные
