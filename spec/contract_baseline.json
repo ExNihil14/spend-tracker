@@ -84,6 +84,22 @@
    "args": "",
    "returns": "Store"
   },
+  "spendtrack.colors:badge_text_color": {
+   "args": "background: str",
+   "returns": "str"
+  },
+  "spendtrack.colors:composite": {
+   "args": "foreground: str, background: str, alpha: float",
+   "returns": "str"
+  },
+  "spendtrack.colors:contrast_ratio": {
+   "args": "color_a: str, color_b: str",
+   "returns": "float"
+  },
+  "spendtrack.colors:relative_luminance": {
+   "args": "color: str",
+   "returns": "float"
+  },
   "spendtrack.config:ensure_config_dir": {
    "args": "",
    "returns": "Path"
@@ -517,6 +533,10 @@
    "returns": "str"
   },
   "spendtrack.store:fmt_amount": {
+   "args": "kopecks: int",
+   "returns": "str"
+  },
+  "spendtrack.store:fmt_amount_signed": {
    "args": "kopecks: int",
    "returns": "str"
   },

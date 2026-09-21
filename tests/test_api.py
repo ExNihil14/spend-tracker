@@ -120,7 +120,7 @@ def test_index_category_and_search_filters(client):
     r2 = client.get("/?category=household")
     assert r2.status_code == 200
     assert "ЛЕНТА" not in r2.text
-    assert "Пусто" in r2.text
+    assert "Ничего не найдено по этому фильтру" in r2.text
     r3 = client.get("/?q=ЛЕНТА")
     assert r3.status_code == 200
     assert "ЛЕНТА" in r3.text

@@ -7,6 +7,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR, load_settings
 from spendtrack.digest import build_digest
 from spendtrack.export import csv_bytes, export_filename, write_xlsx
@@ -17,11 +18,12 @@ from spendtrack.reports import (
     report_daily,
     report_month,
 )
-from spendtrack.store import Store, fmt_amount
+from spendtrack.store import Store, fmt_amount, fmt_amount_signed
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
+templates.env.globals.update(fmt_signed=fmt_amount_signed, badge_text=badge_text_color)
 
 PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)
 
@@ -76,6 +78,7 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
             "has_more": has_more,
             "more_url": _more_url(current, category, q, sort, next_after, PAGE_DAYS) if has_more else None,
             "fmt": fmt_amount,
+            "has_any": sum(store.counts().values()) > 0,
         },
     )
 
@@ -118,7 +121,8 @@ def approve(request: Request):
     return templates.TemplateResponse(
         request, "approve.html",
         {"pending": pending, "cat_colors": cats, "fmt": fmt_amount,
-         "all_categories": [c.name for c in taxonomy.categories]},
+         "all_categories": [c.name for c in taxonomy.categories],
+         "threshold": load_settings().acceptance.auto_accept_confidence},
     )
 
 
@@ -167,6 +171,7 @@ def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
             "pending": store.queued_for_review(),
             "fmt": fmt_amount,
             "cat_colors": cats,
+            "has_data": sum(store.counts().values()) > 0,
             "categories_json": [dict(c) for c in report["categories"]],
             "daily_json": daily,
             "colors_json": colors,
@@ -208,6 +213,7 @@ def more_rows(request: Request, month: str | None = None, category: str | None =
         {"transactions": rows, "day_totals": day_totals, "group_days": True,
          "cat_colors": cats, "fmt": fmt_amount,
          "has_more": has_more,
+         "has_any": True, "category": category or "", "q": q or "", "current": month or "",
          "more_url": _more_url(month, category, q, sort, next_after, days)},
     )
 
