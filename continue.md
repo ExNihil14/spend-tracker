@@ -76,7 +76,23 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (21.09, сессия «инструменты #15 + одностраничник МНС» — docs вне репо; continue.md ждёт коммита).**
+> **АКТУАЛЬНО (21.09, сессия «ресёрч адаптивности/кроссбраузерности» — docs вне репо; continue.md ждёт коммита).**
+> ① Два research-файла (фоновые агенты, первоисточники, метки verified/secondary): `RESEARCH_ADAPTIVITY_MATRIX.md`
+> (порог Tailwind v4 = Chrome 111+/Safari 16.4+/Firefox 128+; РФ/BY авг-2026 — Chromium ~80% десктопа
+> (Chrome+Yandex+Opera+Edge); Safari desktop без календаря у `<input type=date>` (WebKit #119175); Clipboard
+> только secure context; `-webkit-calendar-picker-indicator` не чтится с FF109; StatCounter desktop/mobile:
+> РФ 75/25, BY 81/19) и `RESEARCH_CROSSBROWSER_TESTING.md` (Playwright 3 движка на Windows, CI публичных репо
+> бесплатен; WebKit≠Safari; iOS без Mac недостижим; YandexDriver; WCAG 1.4.10 reflow 320px / 1.4.4 200% /
+> 2.5.8 24px; overflow-паттерн таблиц + sticky шапка, карточки не нужны). ② Тяжёлый синтез opus-5
+> (2 прогона, ≈$0.5): «запускать можно, 3 мягких блокера» — Tailwind v4 browser build в проде (dev-only:
+> без JS нет стилей, FOUC, 282 КБ, CSP), reflow 320px/zoom (нав без wrap; таблицы уже `overflow-x-auto`,
+> но нет фокуса/sticky/индикатора), CI только Chromium. Адъюдикация: принято 9, отклонено 2 фактами
+> (кнопки ↑↓ 28×28 ≥24 — 2.5.8 ок; clipboard в приложении не используется), исправлена research-ошибка
+> (Yandex «10+»). Артефакты: `EXPERT_ANALYSIS_ADAPTIVITY_OPUS5.md` (+raw ×2). ③ Следующий deliverable-кандидат:
+> **«кроссбраузерность-пасс, фаза 1» (S–M)** — prebuilt CSS через Tailwind standalone CLI (без Node),
+> projects firefox/webkit в CI + assert 320px no-h-scroll + axe, nav wrap + a11y-обёртки таблиц
+> (role=region/tabindex/sticky/edge-индикатор), README-матрица поддержки + known-issues.
+> **АКТУАЛЬНО (21.09, сессия «инструменты #15 + одностраничник МНС» — закоммичено `a6dd830`).**
 > ① `SCENARIO_10MIN_OBSERVER_CARD.md` — карточка наблюдателя: preflight 5 мин, хронометраж t0–t6 с критериями,
 > правила фиксации (застрял >60 с, дословные цитаты, обезличивание образцов), «чего не делать»;
 > ② `SCENARIO_10MIN_RESULTS.md` — шаблон результатов: 3 таблицы прогонов, сводка с легендой успеха
