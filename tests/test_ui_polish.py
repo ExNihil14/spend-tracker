@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from spendtrack.main import app
+from spendtrack.store import Store
 
 
 @pytest.fixture()
@@ -26,6 +27,30 @@ def test_empty_list_teaches_first_step(client):
     html = client.get("/").text
     assert "Пока нет транзакций" in html
     assert 'href="/help#faq-import-sber"' in html
+
+
+def test_first_run_checklist_shows_four_steps(client):
+    """P2 #10: на первом запуске главная показывает чек-лист 4 шагов со ссылками на действия."""
+    html = client.get("/").text
+    assert 'id="start-checklist"' in html
+    assert "Первый запуск — 4 шага" in html
+    for href in ('href="#import"', 'href="#add"', 'href="/approve"', 'href="/settings"',
+                 'href="/dashboard"', 'href="/help#quick-start"'):
+        assert href in html, href
+
+
+def test_first_run_checklist_hidden_after_import(client, tmp_path):
+    store = Store(db_path=tmp_path / "ui.db")
+    assert store.batch_count() == 0
+    store.add_batch("sber.csv", "sha", 1)
+    assert store.batch_count() == 1
+    store.close()
+    assert 'id="start-checklist"' not in client.get("/").text
+
+
+def test_first_run_checklist_hidden_after_manual_add(client):
+    _add(client, "-10.00")
+    assert 'id="start-checklist"' not in client.get("/").text
 
 
 def test_empty_queue_hint_links_to_help(client):

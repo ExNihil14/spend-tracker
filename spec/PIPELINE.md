@@ -279,6 +279,15 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   (знаки аномалий: медианы хранятся магнитудами — знак расхода ставится явно); e2e
   `tests/e2e/test_ui_polish_e2e.py`. Источник формулировок — `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` §4/§6.
 
+## Первый запуск: чек-лист 4 шага (P2 #10)
+- Главная при `first_run` (нет транзакций И нет партий импорта) показывает `#start-checklist`
+  (`partials/start_checklist.html`): 4 шага со ссылками (#import/#add, /approve, /settings, /dashboard) +
+  `/help#quick-start`. Состояние серверное (`Store.counts()` + `Store.batch_count()`), localStorage не нужен;
+  после первых данных (импорт или ручное добавление) чек-лист исчезает — не навязывается активному пользователю.
+- Тесты: `tests/test_ui_polish.py` (3: показ 4 шагов со ссылками; скрытие после партии импорта; после ручного add)
+  + e2e `test_first_run_checklist_visible_then_hidden` (виден на пустой БД, скрыт после данных).
+  Попутно e2e-`clean_db` чистит `import_batches` — состояние партий не течёт между session-scoped тестами.
+
 ## Тесты / анализ
 ```bash
 uv run pytest -q                # unit-тесты (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)

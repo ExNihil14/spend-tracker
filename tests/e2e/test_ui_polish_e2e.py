@@ -36,6 +36,16 @@ def test_empty_states_teach_first_step(page: Page, live_server):
     expect(page.locator('#onboarding a[href="/help#quick-start"]')).to_be_visible()
 
 
+def test_first_run_checklist_visible_then_hidden(page: Page, live_server, db_path):
+    """P2 #10: чек-лист 4 шагов виден на пустой базе и исчезает после первых данных."""
+    page.goto(f"{live_server}/")
+    expect(page.locator("#start-checklist")).to_be_visible()
+    expect(page.locator("#start-checklist li")).to_have_count(4)
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА СТАРТ", -10000)
+    page.goto(f"{live_server}/")
+    expect(page.locator("#start-checklist")).to_have_count(0)
+
+
 def test_amount_signs_and_badge_text_color(page: Page, live_server, db_path):
     """Расход/доход различаются знаком (−/+), а не только цветом; бейдж задаёт цвет текста."""
     _seed(str(db_path), "2026-09-10", "ЛЕНТА ЗНАК", -12345)

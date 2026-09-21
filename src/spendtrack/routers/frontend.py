@@ -58,6 +58,7 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
     report = report_month(store, current)
     totals = categories_with_totals(store, current)
     cats = {c.name: c.color for c in taxonomy.categories}
+    has_any = sum(store.counts().values()) > 0  # один вызов на страницу
 
     return templates.TemplateResponse(
         request, "index.html",
@@ -79,7 +80,9 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
             "has_more": has_more,
             "more_url": _more_url(current, category, q, sort, next_after, PAGE_DAYS) if has_more else None,
             "fmt": fmt_amount,
-            "has_any": sum(store.counts().values()) > 0,
+            "has_any": has_any,
+            # «Первый запуск»: ни операций, ни импортов — показываем чек-лист 4 шагов (P2 #10).
+            "first_run": not has_any and store.batch_count() == 0,
         },
     )
 

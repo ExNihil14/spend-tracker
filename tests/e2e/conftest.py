@@ -80,6 +80,8 @@ def clean_db():
         con = sqlite3.connect(DB_PATH)
         con.execute("DELETE FROM transactions")
         con.execute("DELETE FROM merchant_cache")
+        # партии импорта влияют на онбординг «первый запуск» (#10) — иначе состояние течёт между тестами
+        con.execute("DELETE FROM import_batches")
         con.commit()
         con.close()
     if TAXONOMY_PATH is not None and TAXONOMY_ORIGINAL is not None:
