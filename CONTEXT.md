@@ -8,6 +8,11 @@
   `parse_amount(str) → int`; `fmt_amount(int) → "-123.45"` (машинная ASCII-форма: CSV/промпты/CLI);
   `fmt_amount_signed(int) → "−123.45"/"+123.45"` (отображаемая форма UI: типографский U+2212, явный знак,
   ноль «0.00» — WCAG 1.4.1, цвет не единственный носитель смысла).
+- **Валюта** — `transactions.currency` (ISO 4217, `NOT NULL DEFAULT 'RUB'`, миграция v5). `normalize_currency()`
+  понимает «₽/руб./rub/$/€/доллар»; незнакомое значение в импорте → RUB, в API/CLI (`add --currency`) — ошибка.
+  Не-RUB **не участвует в ₽-агрегациях** (отчёты, бюджеты, дайджест, рекурринги, дневные итоги) и не склеивается
+  дедупом с ₽-аналогом (fingerprint включает код только для не-RUB). В UI код показывается рядом с суммой,
+  в экспорте — колонка «Валюта».
 - **Бейдж категории / контраст** — цветной бейдж с названием; цвет текста подбирает `colors.badge_text_color(bg)`
   (#020617 или #ffffff по контрасту, ≥4.5:1 для всех дефолтных цветов taxonomy; тест `tests/test_colors.py`).
 - **Категория** — одна из 18 в `config/taxonomy.toml` (groceries, restaurants, transport, fuel, housing, utilities, internet-phone, subscriptions, health, education, entertainment, clothing, household, transfers, income, taxes, travel, other).

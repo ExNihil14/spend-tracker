@@ -6,14 +6,14 @@ from html import escape
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, field_validator
 
 from spendtrack.categorize import categorize_transaction
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
 from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv, summarize
 from spendtrack.reports import budgets_progress
-from spendtrack.store import Store, fmt_amount, fmt_amount_signed, parse_amount
+from spendtrack.store import Store, fmt_amount, fmt_amount_signed, normalize_currency, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
@@ -30,6 +30,15 @@ class TxIn(BaseModel):
     description: str
     amount: str
     account: str | None = None
+    currency: str = "RUB"
+
+    @field_validator("currency")
+    @classmethod
+    def _valid_currency(cls, value: str) -> str:
+        code = normalize_currency(value)
+        if code is None:
+            raise ValueError("Неизвестная валюта (ожидается код ISO 4217, например RUB/USD/EUR)")
+        return code
 
 
 class ConfirmIn(BaseModel):
@@ -50,7 +59,14 @@ async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
     try:
         return model(**data)
     except ValidationError as e:
-        raise HTTPException(422, detail=e.errors()) from e
+        # ctx может содержать объект исключения кастомного валидатора — приводим к строке,
+        # иначе JSONResponse падает на сериализации (500 вместо 422).
+        errors = [
+            {**err, "ctx": {k: str(v) for k, v in err["ctx"].items()}}
+            if isinstance(err.get("ctx"), dict) else err
+            for err in e.errors()
+        ]
+        raise HTTPException(422, detail=errors) from e
 
 
 @router.post("/transactions")
@@ -63,7 +79,8 @@ async def create(request: Request):
     else:
         form = await request.form()
         tx = TxIn(**{k: str(v) for k, v in
-                     ((k, form.get(k)) for k in ("date", "description", "amount", "account")) if v is not None})
+                     ((k, form.get(k)) for k in ("date", "description", "amount", "account", "currency"))
+                     if v is not None})
     amount = parse_amount(tx.amount)
     account_anon = store.pseudonymize(tx.account)
     category = categorize_transaction(
@@ -78,6 +95,7 @@ async def create(request: Request):
         account_anon=account_anon, export_rowid="",
         category_llm=category.get("category_llm"),
         review_status=category.get("review_status", "approved"),
+        currency=tx.currency,
     )
     if request.headers.get("hx-request", "").lower() == "true":
         label = category["category"]

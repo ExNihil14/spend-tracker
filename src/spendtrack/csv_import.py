@@ -8,7 +8,7 @@ from decimal import InvalidOperation
 from io import StringIO
 
 from spendtrack.categorize import categorize_transaction
-from spendtrack.store import Store, fingerprint, parse_amount
+from spendtrack.store import Store, fingerprint, normalize_currency, parse_amount
 from spendtrack.taxonomy import Taxonomy
 
 _DATE_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
@@ -94,11 +94,12 @@ def missing_columns(bank: str, fieldnames: list[str]) -> list[str]:
             if not any(alias.lower() in names for alias in group)]
 
 
-def _row_tx(date: str, desc: str, amount: str, account: str) -> dict:
+def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "") -> dict:
     """Строка выписки → tx или маркер пропуска `_skip` (общая сборка для всех адаптеров).
 
     Непарсящаяся сумма/пустые обязательные поля не роняют импорт и не теряются молча —
     попадают в отчёт причинами. Нераспознанная дата импортируется с пометкой `_suspicious`.
+    Незнакомая валюта трактуется как RUB (базовая): импорт не должен падать из-за неё.
     """
     if not date or not desc or not amount:
         return {"_skip": "missing_fields"}
@@ -107,7 +108,8 @@ def _row_tx(date: str, desc: str, amount: str, account: str) -> dict:
     except (InvalidOperation, ValueError, OverflowError):
         return {"_skip": "amount_unparsed"}
     tx = {"date": _iso_date(date), "description": desc, "amount_kopecks": kopecks,
-          "account": account or None, "export_rowid": ""}
+          "account": account or None, "export_rowid": "",
+          "currency": normalize_currency(currency) or "RUB"}
     if not _date_recognized(date):
         tx["_suspicious"] = "date_unrecognized"
     return tx
@@ -123,7 +125,8 @@ class SberAdaptor:
                 yield {"_skip": "status"}
                 continue
             yield _row_tx(_cell(r, "Дата операции", "Дата"), _cell(r, "Описание", "Категория"),
-                          _cell(r, "Сумма операции", "Сумма"), _cell(r, "Номер карты"))
+                          _cell(r, "Сумма операции", "Сумма"), _cell(r, "Номер карты"),
+                          _cell(r, "Валюта операции", "Валюта"))
 
 
 class TinkoffAdaptor:
@@ -132,7 +135,8 @@ class TinkoffAdaptor:
     def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
         for r in rows:
             yield _row_tx(_cell(r, "Дата", "Date"), _cell(r, "Описание", "Description"),
-                          _cell(r, "Сумма операции", "Сумма", "Amount"), _cell(r, "Счёт", "Account"))
+                          _cell(r, "Сумма операции", "Сумма", "Amount"), _cell(r, "Счёт", "Account"),
+                          _cell(r, "Валюта", "Currency"))
 
 
 class YandexMoneyAdaptor:
@@ -142,7 +146,8 @@ class YandexMoneyAdaptor:
         for r in rows:
             yield _row_tx(_cell(r, "datetime", "date", "Дата"),
                           _cell(r, "description", "title", "Описание"),
-                          _cell(r, "amount", "Сумма"), _cell(r, "account", "Счёт"))
+                          _cell(r, "amount", "Сумма"), _cell(r, "account", "Счёт"),
+                          _cell(r, "currency", "Валюта"))
 
 
 BANKS = {
@@ -268,7 +273,8 @@ def import_csv(
         # export_rowid = индекс ПОВТОРЯЕМОСТИ (0,1,2...) одинаковых операций, а не позиция строки:
         # реэкспорт со сдвигом строк не создаёт дублей, а легитимные одинаковые покупки в один
         # день различаются (fable-review 12.09 + фикс сдвига реэкспорта 15.09).
-        base = fingerprint(tx["date"], tx["amount_kopecks"], tx["description"], account_anon or "", "")
+        base = fingerprint(tx["date"], tx["amount_kopecks"], tx["description"], account_anon or "", "",
+                           tx.get("currency", "RUB"))
         tx["export_rowid"] = str(seen.get(base, 0))
         seen[base] = seen.get(base, 0) + 1
         classification = classify(tx, store, taxonomy)

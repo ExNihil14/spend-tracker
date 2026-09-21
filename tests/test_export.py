@@ -58,7 +58,8 @@ def test_csv_has_bom_delimiter_and_escaped_fields():
     assert rows[1][0] == "2026-09-20"
     assert rows[1][1] == 'ПИЦЦА "ДОДО"; МОСКВА'  # поле с «;» и кавычками экранировано csv-модулем
     assert rows[1][2] == "-123.45"
-    assert rows[1][5] == "0.98"
+    assert rows[1][3] == "RUB"
+    assert rows[1][6] == "0.98"
     assert "\r\n" in text  # Excel-совместимые переводы строк
 
 
@@ -70,7 +71,7 @@ def test_csv_empty_has_header_only():
 def test_export_row_handles_missing_fields():
     row = export_row({"date": "2026-01-01", "description": "X", "amount_kopecks": 100,
                       "category": "other"})
-    assert row == ("2026-01-01", "X", "1.00", "other", "", "", "", "", "", "")
+    assert row == ("2026-01-01", "X", "1.00", "RUB", "other", "", "", "", "", "", "")
 
 
 def test_formula_injection_is_neutralized():
@@ -78,8 +79,8 @@ def test_formula_injection_is_neutralized():
     tx = dict(TX, description="=SUM(A1:A2)", merchant="+79001234567", category_llm="@cmd")
     row = export_row(tx)
     assert row[1] == "'=SUM(A1:A2)"
-    assert row[6] == "'+79001234567"
-    assert row[9] == "'@cmd"
+    assert row[7] == "'+79001234567"
+    assert row[10] == "'@cmd"
     assert row[2] == "-123.45"  # суммы не экранируются
 
 
@@ -100,7 +101,7 @@ def test_write_xlsx_native_types(tmp_path):
     assert ws["C2"].value == -123.45
     assert ws["C2"].number_format == "#,##0.00"
     assert ws["B2"].value == "'=SUM(A1)"  # не формула
-    assert ws.auto_filter.ref == "A1:J2"
+    assert ws.auto_filter.ref == "A1:K2"
     assert ws.freeze_panes == "A2"
     wb.close()
 
@@ -129,8 +130,8 @@ def test_write_xlsx_formula_prefixes(tmp_path):
     wb = load_workbook(path)
     ws = wb.active
     assert ws["B2"].value == "'+1+1"
-    assert ws["G2"].value == "'-cmd"
-    assert ws["J2"].value == "'@x"
+    assert ws["H2"].value == "'-cmd"
+    assert ws["K2"].value == "'@x"
     wb.close()
 
 

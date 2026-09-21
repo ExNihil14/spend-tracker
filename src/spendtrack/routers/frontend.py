@@ -52,7 +52,8 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
     day_totals: dict[str, int] = {}
     if group_days:
         for t in transactions:
-            day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
+            if t["currency"] == "RUB":  # дневной итог — только ₽ (валюты не смешиваем)
+                day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
     pending = store.queued_for_review()
     report = report_month(store, current)
     totals = categories_with_totals(store, current)
@@ -206,7 +207,8 @@ def more_rows(request: Request, month: str | None = None, category: str | None =
         days=days, after_date=after or None)
     day_totals: dict[str, int] = {}
     for t in rows:
-        day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
+        if t["currency"] == "RUB":  # дневной итог — только ₽ (валюты не смешиваем)
+            day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
     cats = {c.name: c.color for c in taxonomy.categories}
     return templates.TemplateResponse(
         request, "partials/tx_rows.html",
