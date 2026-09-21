@@ -8,7 +8,7 @@
     переставьте (↑) или удалите их: они никогда не срабатывают.
   </div>
   {% endif %}
-  <div class="overflow-x-auto">
+  <div class="table-scroll overflow-x-auto" role="region" aria-label="Правила" tabindex="0">
     <table class="w-full text-sm">
       <thead>
         <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-950/40">
@@ -79,11 +79,11 @@
     <form hx-post="/settings/rules" hx-target="#settings-rules" hx-swap="outerHTML"
           class="flex flex-wrap items-center gap-2">
       <input type="hidden" name="file_hash" value="{{ file_hash }}">
-      <input name="pattern" placeholder="НОВЫЙ ПАТТЕРН" required
+      <input name="pattern" placeholder="НОВЫЙ ПАТТЕРН" aria-label="Паттерн правила" required
              hx-post="/settings/rules/preview" hx-trigger="input changed delay:400ms"
              hx-include="closest form" hx-target="#rule-preview" hx-swap="innerHTML"
              class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-mono uppercase placeholder:normal-case placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-blue-500">
-      <select name="category"
+      <select name="category" aria-label="Категория правила"
               hx-post="/settings/rules/preview" hx-trigger="change"
               hx-include="closest form" hx-target="#rule-preview" hx-swap="innerHTML"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">

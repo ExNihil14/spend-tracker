@@ -31,6 +31,9 @@ jobs:
       - name: Pytest (unit)
         run: uv run pytest -q
 
+      - name: Prebuilt CSS check
+        run: uv run python scripts/build_css.py --check
+
       - name: Contract delta (public API + DB schema + routes)
         run: uv run python scripts/contract_delta.py check
 
@@ -56,6 +59,29 @@ jobs:
 
       - name: Pytest (e2e, Playwright)
         run: uv run pytest -m e2e -q
+
+  cross-browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Install Playwright (firefox, webkit)
+        run: uv run playwright install --with-deps firefox webkit
+
+      - name: Cross-browser smoke (render, 320px reflow, axe)
+        run: uv run pytest tests/e2e/test_crossbrowser_smoke.py -m e2e -q --browser firefox --browser webkit
 
   secret-scan:
     runs-on: ubuntu-latest

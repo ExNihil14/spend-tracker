@@ -76,7 +76,26 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (21.09, сессия «ресёрч адаптивности/кроссбраузерности» — docs вне репо; continue.md ждёт коммита).**
+> **АКТУАЛЬНО (21.09, сессия «кроссбраузерность-пасс, фаза 1» — ждёт команды на коммит).**
+> По плану research+opus-5 закрыты все 3 «мягких блокера»: ① **prebuilt CSS** вместо browser build — вход
+> `src/spendtrack/tailwind.css`, выход `static/app.css` (~25 КБ); сборка `scripts/build_css.py` (официальный
+> standalone CLI Tailwind v4.3.3, **без Node**; sha256 всех платформ-ассетов из GitHub API; кэш в
+> `%LOCALAPPDATA%/spendtrack/tailwindcss`, env `SPENDTRACK_TAILWINDCSS_DIR`; `--check` в CI-lint);
+> `static/tailwind.js` (282 КБ, dev-only) удалён; ② **кросс-движковый смоук**
+> `tests/e2e/test_crossbrowser_smoke.py` (18: рендер/консоль 5 страниц, отсутствие h-скролла на 320 старт+resize,
+> axe critical=0, фокус скролл-области) + CI-джоб `cross-browser-smoke` (firefox+webkit; полный e2e — chromium);
+> ③ **a11y/reflow**: 17 aria-label (axe label/select-name criticals), `.table-scroll`
+> (role=region/tabindex/sticky thead/edge-тени/focus-visible), nav `flex-wrap`; попутно найден и закрыт
+> **реальный баг**: карточки графиков не сжимались при сужении окна (`min-w-0`) — на живом стенде было
+> +180px overflow (регресс-тест `test_no_horizontal_scroll_after_resize`, красный до фикса).
+> Контур: unit **469**, e2e chromium **43**, cross-engine (FF+WebKit) **36**, ruff, contract ok;
+> live-смоук: `/static/app.css` 200, скриншот 1280 — стили на месте, 320 после resize = 0. Ревью $0
+> (nemotron-ultra:free, 155 с): NO-GO → **все 2 P0 и 4 P1 приняты и закрыты** (кросс-путь CLI, хэши всех
+> платформ, детерминированный wait, seed через Store, семантические ассерты CSS, ретраи/UA, тест фокуса) —
+> `EXPERT_REVIEW_CROSSBROWSER_F1_OR.md`. Новая dev-зависимость: `axe-playwright-python` (axe оффлайн).
+> **Фаза 2 (по плану opus-5):** axe-serious (контрасты `text-slate-500`/emerald-кнопок/link-in-text-block),
+> date-хинт для Safari, кнопка «Загрузить ещё», CSP после prebuild.
+> **АКТУАЛЬНО (21.09, сессия «ресёрч адаптивности/кроссбраузерности» — закоммичено `4aa8d74`).**
 > ① Два research-файла (фоновые агенты, первоисточники, метки verified/secondary): `RESEARCH_ADAPTIVITY_MATRIX.md`
 > (порог Tailwind v4 = Chrome 111+/Safari 16.4+/Firefox 128+; РФ/BY авг-2026 — Chromium ~80% десктопа
 > (Chrome+Yandex+Opera+Edge); Safari desktop без календаря у `<input type=date>` (WebKit #119175); Clipboard

@@ -304,6 +304,19 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   + e2e `test_first_run_checklist_visible_then_hidden` (виден на пустой БД, скрыт после данных).
   Попутно e2e-`clean_db` чистит `import_batches` — состояние партий не течёт между session-scoped тестами.
 
+## CSS-сборка (prebuilt Tailwind, кроссбраузерность-пасс 21.09)
+- В проде отдаётся готовый CSS `src/spendtrack/static/app.css` (~70 КБ); browser build (Play CDN, 282 КБ JS,
+  dev-only) удалён. Вход — `src/spendtrack/tailwind.css` (`@import "tailwindcss"; @source "./templates";`).
+- Сборка/проверка: `uv run python scripts/build_css.py` / `--check` (в CI-джобе lint). CLI — официальный
+  standalone-бинарник Tailwind v4.3.3, пин версии + sha256, без Node (`D:/dev/tools/tailwindcss/`).
+- **После правок классов в шаблонах — пересобрать CSS** (иначе новых утилит не будет); `--check` в CI ловит
+  отсутствие артефакта/ключевых селекторов, e2e-смоук — визуальную регрессию.
+- Кросс-браузерный смоук: `tests/e2e/test_crossbrowser_smoke.py` (рендер без ошибок консоли, отсутствие
+  горизонтального скролла на 320px — WCAG 1.4.10, axe critical = 0). В CI: chromium — полный e2e,
+  firefox+webkit — только этот файл (`--browser firefox --browser webkit`).
+- Таблицы обёрнуты в `.table-scroll` (`role="region"`, `tabindex="0"`, sticky `<thead>`, edge-тени);
+  навбар — `flex-wrap`. Матрица поддержки — README «Поддерживаемые браузеры».
+
 ## Бенчмарк производительности (perf-pass, 21.09)
 - Инструмент: `uv run python scripts/bench.py run [--sizes 5000,20000,50000] [--repeats 3] [--import-rows 5000]`
   — детерминированная синтетика (36 мес, подписки/очередь/бюджеты) в temp-БД, median-замеры ключевых путей,
