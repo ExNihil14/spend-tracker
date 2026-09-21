@@ -181,6 +181,17 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - Попутный фикс: кастомный pydantic-валидатор (`TxIn.currency`) при 422 падал 500 — `ctx` с объектом ValueError
   не сериализовался; `_json_payload` приводит `ctx` к строкам.
 
+## Калибровка порога авто-приёма (#11, Wilson-CI)
+- `reports.wilson_interval(successes, n, z=1.96)` — 95% интервал Wilson (устойчив к 0/n и n/n; n=0 → (0,1)).
+  В `confidence_calibration` у каждого кандидата t добавлен `wrong_high` — верхняя граница доли ошибок.
+- Рекомендация (`recommendation`): ошибок ≤ `CALIBRATION_TARGET_ERROR` (10%) с 95% уверенностью при
+  ≥ `CALIBRATION_MIN_SAMPLE` (20) принятых; выбирается минимальный t (максимальное покрытие). Статусы:
+  `ok` (порог), `low_data` (мало принятых), `no_candidate` (безопасных порогов нет). При нуле ошибок граница
+  10% достигается на ~35 принятых (Wilson) — поэтому решение по порогу остаётся data-gated.
+- CLI `spendtrack confidence`: к каждому t печатает верхнюю границу + «рекомендация: …». Live на проде:
+  решённых 2/20 → «набрано меньше 20 принятых решений» (data-gated норма). Тесты: `tests/test_reports.py`
+  (+5: табличные значения Wilson + guard-и, параметры рекомендации, рекомендации ok/no_candidate, low_data).
+
 ## Дайджест недели + аномалии (read-only)
 - CLI `spendtrack digest [--days N] [--json]` + карточка «Дайджест недели» на `/dashboard`; ничего не хранится,
   вычисление на лету (модуль `src/spendtrack/digest.py`).
