@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sqlite3
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -327,6 +329,67 @@ def test_backup_path_with_space_ok(tmp_path):
     assert _check(run_checks(db), "backup")["severity"] == "ok"
 
 
+# ---- ⑨ offsite-копия бэкапа (#12) ----
+def _offsite_marker(db_path: Path, dest: Path, *, when: str | None = None,
+                    sha: str | None = None, payload: bytes = b"snapshot") -> Path:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(payload)
+    marker = _backup_dir(db_path) / "last_offsite_copy.json"
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(json.dumps({
+        "time": when or datetime.now(UTC).isoformat(timespec="seconds"),
+        "source": "s", "dest": str(dest),
+        "sha256": sha or hashlib.sha256(payload).hexdigest(),
+        "size": len(payload),
+    }, ensure_ascii=False), encoding="utf-8")
+    return marker
+
+
+def test_offsite_missing_info(db_path):
+    check = _check(run_checks(db_path), "offsite_backup")
+    assert check["severity"] == "info" and check["count"] == 0
+    assert "--copy-to" in check["detail"]
+
+
+def test_offsite_fresh_ok(db_path, tmp_path):
+    _offsite_marker(db_path, tmp_path / "usb" / "spend-20260921-120000.db")
+    check = _check(run_checks(db_path), "offsite_backup")
+    assert check["severity"] == "ok" and check["count"] == 1
+
+
+def test_offsite_stale_warn(db_path, tmp_path):
+    when = (datetime.now(UTC) - timedelta(days=10)).isoformat(timespec="seconds")
+    _offsite_marker(db_path, tmp_path / "usb" / "spend-20260911-120000.db", when=when)
+    report = run_checks(db_path)
+    check = _check(report, "offsite_backup")
+    assert report["status"] == "warn" and check["severity"] == "warn"
+    assert "7 дней" in check["detail"]
+
+
+def test_offsite_file_missing_warn(db_path, tmp_path):
+    _offsite_marker(db_path, tmp_path / "usb" / "spend-20260921-120000.db")
+    (tmp_path / "usb" / "spend-20260921-120000.db").unlink()  # USB «отключён»
+    report = run_checks(db_path)
+    check = _check(report, "offsite_backup")
+    assert report["status"] == "warn" and check["severity"] == "warn"
+    assert "не найдена" in check["detail"]
+
+
+def test_offsite_hash_mismatch_critical(db_path, tmp_path):
+    _offsite_marker(db_path, tmp_path / "usb" / "spend-20260921-120000.db", sha="0" * 64)
+    report = run_checks(db_path)
+    check = _check(report, "offsite_backup")
+    assert report["status"] == "critical" and check["severity"] == "critical"
+    assert "повреждена" in check["detail"]
+
+
+def test_offsite_broken_marker_warn(db_path):
+    _backup_dir(db_path).mkdir(parents=True)
+    (_backup_dir(db_path) / "last_offsite_copy.json").write_text("not json", encoding="utf-8")
+    check = _check(run_checks(db_path), "offsite_backup")
+    assert check["severity"] == "warn" and "повреждён" in check["detail"]
+
+
 # ---- фолбэки и приоритет severity ----
 def test_db_open_critical(tmp_path):
     path = tmp_path / "broken.db"
@@ -390,7 +453,7 @@ def test_cli_doctor_json_ok(db_path, monkeypatch, capsys):
     report = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert report["status"] == "ok"
-    assert len(report["checks"]) == 10
+    assert len(report["checks"]) == 11
 
 
 def test_cli_doctor_critical_exit1(db_path, monkeypatch, capsys):

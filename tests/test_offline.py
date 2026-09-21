@@ -105,6 +105,21 @@ def test_byo_cloud_with_dead_network_goes_to_queue(monkeypatch, tmp_path):
     assert all("llm.example.test" in host for host in attempts)
 
 
+def test_doctor_share_offline(monkeypatch, tmp_path, capsys):
+    """`doctor --share` печатает анонимную сводку и ссылку локально — ни одного сетевого вызова."""
+    attempts = _block_network(monkeypatch)
+    db = tmp_path / "offline.db"
+    Store(db_path=db).close()
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+
+    from spendtrack import cli
+
+    assert cli.main(["doctor", "--share"]) == 0
+    out = capsys.readouterr().out
+    assert "Анонимная статистика" in out and "issues/new" in out
+    assert all(host in _LOOPBACK for host in attempts), f"outbound-попытки: {attempts}"
+
+
 def test_dashboard_renders_offline(monkeypatch, tmp_path):
     """HTTP-страница рендерится in-process при заблокированных соединениях.
 

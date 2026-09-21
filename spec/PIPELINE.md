@@ -19,6 +19,7 @@ uv run spendtrack doctor [--json]                # целостность дан
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
 uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
 uv run spendtrack digest [--days N] [--json]     # дайджест недели + флаги аномалий (read-only)
+uv run python -m scripts.backup [--keep 14] [--copy-to ПАПКА] [--force]  # бэкап + внешняя копия (offsite)
 uv run python -m scripts.restore_drill           # restore-drill последнего бэкапа → маркер для doctor
 uv run python scripts/contract_delta.py check    # контракт-дельта: API+схема+роуты vs baseline (exit 1 при дрейфе)
 uv run python scripts/contract_delta.py snapshot # обновить baseline после осознанного изменения контракта
@@ -55,17 +56,45 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - CLI `spendtrack doctor` — таблица чеков; `--json` — машинный JSON; exit 0 = ok/warn, 1 = critical.
 - API `GET /health/data` → `{status, checks:[{id, severity, count, detail}]}`; 503 при critical.
   `GET /health` (liveness) — отдельный эндпоинт, не трогать.
-- Проверки: quick_check (critical) · дубли fingerprint (critical) · `user_version==SCHEMA_VERSION` (critical) ·
+- Проверки (11): quick_check (critical) · дубли fingerprint (critical) · `user_version==SCHEMA_VERSION` (critical) ·
   категории вне таксономии (`transactions.category` critical; `category_llm` warn только при
   `source != 'llm_pending_review'`; rules/budgets/merchant_cache/examples warn) · pending с чужим source (warn) ·
   пустые import_batches (info) · бэкап `data/backup/spend-*.db` (папки нет → info, >48ч → warn, quick_check → critical) ·
-  restore-drill `data/backup/last_restore_drill.json` (маркера нет → info, >30 дней → warn, последний прогон failed → critical).
+  restore-drill `data/backup/last_restore_drill.json` (маркера нет → info, >30 дней → warn, последний прогон failed → critical) ·
+  offsite-копия `data/backup/last_offsite_copy.json` (маркера нет → info; файл не найден/старше 7 дней/битый маркер →
+  warn; sha256 не совпал → critical).
   Битая БД не роняет прогон: упавший чек становится critical (`db_open`/`не удалось выполнить проверку`).
 - Авторемонта нет (read-only; Store на входе до-мигрирует старую схему — это норма).
 - История (16.09): doctor нашёл, что задача `spendtrack-backup` не срабатывает (0x800710E0: Principal Interactive +
   `DisallowStartIfOnBatteries=True` + `StartWhenAvailable=False`). Починено: догон пропусков включён, запуск на батарее
   разрешён, `ExecutionTimeLimit=PT1H`; прогон задачи → `LastTaskResult=0`, свежий бэкап, doctor = ok.
   Остаётся осознанно: `LogonType=Interactive` (при пропуске 03:00 задача догоняется при следующем входе в систему).
+
+## Бэкапы: локальный + offsite (#12)
+- `python -m scripts.backup [--keep N] [--copy-to ПАПКА] [--force]`: локальный снимок `VACUUM INTO`
+  (`data/backup/spend-<UTC>.db`, ротация `--keep`, дефолт 14) + опциональная внешняя копия.
+- Offsite-политика: копия обязана быть на **другом томе** (`same_device` через `st_dev`; Windows — серийный
+  номер тома) — иначе отказ, кроме явного `--force` (тесты/осознанное исключение). После копирования
+  сверяется sha256 (`spendtrack.checksum.sha256_file`); битая копия удаляется, маркер не пишется.
+- Маркер `data/backup/last_offsite_copy.json` (`time/source/dest/sha256/size`) читает doctor-чек
+  `offsite_backup`; его семантика — в разделе Doctor. Ротация `--keep` внешнюю папку не трогает.
+- Инструкция — README/FAQ + /help; `doctor` вызванный без настройки offsite даёт info, не ошибку.
+- Тесты: `tests/test_backup_offsite.py` (10, оффлайн; guard/force/sha-мисматч/недоступная папка/
+  путь-файл/ротация не трогает внешнюю папку) + offsite-тесты `tests/test_doctor.py` (6).
+
+## Метрики-прокси без телеметрии (#13)
+- Решение по приватности: автоматического ping/телеметрии **нет и не будет**; счётчиков установок через
+  внешний сервис тоже нет. Метрики-прокси = ① GitHub (звёзды/клоны/скачивания установщика/Codespaces) и
+  ② добровольная анонимная сводка: `spendtrack doctor --share` печатает **локально** блок со счётчиками
+  и prefilled-ссылку на issue (`usage_issue_url`) — открывает/отправляет сам пользователь (ручной opt-in ping).
+- Состав сводки (`doctor.build_usage_summary`): версии (spendtrack/схема/Python), ОС, режим repo/installed,
+  режим LLM (off/byo/ollama/free, без ключей и адресов), счётчики (tx/imported/batches/categories_used/
+  categories_total/rules/budgets/pending), бакет истории (≤30/31–90/91–365/>365), наличие локального и
+  внешнего бэкапа. **Никогда**: суммы, описания, мерчанты, счета, имена категорий, точные даты, пути, секреты.
+- `--share` не меняет поведение без флага; сеть не трогается вообще (проверено
+  `tests/test_offline.py::test_doctor_share_offline` — под заблокированными сокетами). Тесты:
+  `tests/test_share_stats.py` (8, оффлайн, включая «в сводке нет чувствительных значений»).
+- Канон приватности — `PRIVACY.md` (§Метрики без телеметрии).
 
 ## Рекурринги/подписки (read-only)
 - CLI `spendtrack recurring [--json]` + карточка «Подписки / рекурринги» на `/dashboard` (вся история).

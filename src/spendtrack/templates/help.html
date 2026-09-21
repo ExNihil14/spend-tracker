@@ -225,6 +225,11 @@
     <details id="faq-backup" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <summary class="cursor-pointer font-medium text-slate-200">Где хранятся данные и как сделать бэкап или перенести их?</summary>
       <p class="mt-2 text-sm text-slate-400">В файле SQLite (в папке данных; точный путь — <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack paths</code>). Бэкап — <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">python scripts/backup.py</code>; перенос — копированием файла базы.</p>
+      <p class="mt-2 text-sm text-slate-400">Копия вне компьютера (на случай поломки диска): <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">python scripts/backup.py --copy-to E:\backup</code> — скрипт откажется писать на тот же диск и проверит контрольную сумму. <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack doctor</code> следит, что копия на месте, не повреждена и свежее 7 дней.</p>
+    </details>
+    <details id="faq-share-stats" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-slate-200">Отправляет ли приложение статистику автору?</summary>
+      <p class="mt-2 text-sm text-slate-400">Нет, автоматически — ничего. Есть добровольная анонимная сводка: <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack doctor --share</code> печатает только счётчики (версии, ОС, режим ИИ, число операций) и ссылку — отправляете вручную, если захотите. Суммы и описания в сводку не попадают.</p>
     </details>
     <details id="faq-multiuser" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <summary class="cursor-pointer font-medium text-slate-200">Можно ли вести несколько валют или несколько пользователей?</summary>
@@ -236,7 +241,7 @@
   <div class="space-y-2">
     <details id="faq-doctor" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <summary class="cursor-pointer font-medium text-slate-200">Что-то не работает — с чего начать?</summary>
-      <p class="mt-2 text-sm text-slate-400">Запустите <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack doctor</code> — он проверит целостность данных и бэкапы и подскажет, что не так. Если не помогло — создайте issue с выводом doctor (в нём нет ваших операций).</p>
+      <p class="mt-2 text-sm text-slate-400">Запустите <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack doctor</code> — он проверит целостность данных и бэкапы и подскажет, что не так. Если не помогло — создайте issue с выводом doctor (в нём нет ваших операций); добавить анонимную статистику можно флагом <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">--share</code>.</p>
     </details>
     <details id="faq-bank-format" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
       <summary class="cursor-pointer font-medium text-slate-200">Банк изменил формат выписки — что делать?</summary>
@@ -254,7 +259,7 @@
     </div>
     <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
       <div class="font-medium text-slate-200 mb-1">Только localhost</div>
-      <p class="text-slate-400">Сервер слушает 127.0.0.1. Телеметрии, аналитики и «анонимной статистики» нет.</p>
+      <p class="text-slate-400">Сервер слушает 127.0.0.1. Телеметрии и автоматической отправки статистики нет; анонимная сводка — только вручную (`doctor --share`).</p>
     </div>
     <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
       <div class="font-medium text-slate-200 mb-1">Честные ограничения</div>

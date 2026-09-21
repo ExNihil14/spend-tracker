@@ -115,12 +115,18 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 <summary><strong>Куда уходят мои данные?</strong></summary>
 Никуда, пока вы сами не подключите ИИ. Сервер слушает только `127.0.0.1`, телеметрии нет. Что именно уходит
 при включённом ИИ — в [PRIVACY.md](PRIVACY.md); модель угроз — в [SECURITY.md](SECURITY.md).
+Поделиться анонимной статистикой (сколько операций и т.п.) можно только вручную — `spendtrack doctor --share`
+печатает сводку и ссылку на issue; приложение само ничего не отправляет.
 </details>
 
 <details>
 <summary><strong>Как сделать бэкап или забрать данные?</strong></summary>
-Экспорт CSV/Excel — кнопкой на главной; бэкап базы — `uv run python scripts/backup.py`; путь к базе —
-`spendtrack paths`. `spendtrack doctor` подскажет, всё ли в порядке.
+Экспорт CSV/Excel — кнопкой на главной; бэкап базы — `uv run python scripts/backup.py` (консистентный
+снимок через `VACUUM INTO`, работает при запущенном приложении); путь к базе — `spendtrack paths`.
+
+<b>Копия вне компьютера</b> (защита от поломки диска): `uv run python scripts/backup.py --copy-to E:\spendtrack-backup`
+— скрипт откажется писать копию на тот же диск, что и база, проверит контрольную сумму и оставит отметку.
+`spendtrack doctor` проверит и локальный бэкап, и внешнюю копию (файл на месте, не повреждена, свежее 7 дней).
 </details>
 
 ## Демо без своих данных
@@ -180,7 +186,8 @@ uv run python scripts/demo_data.py clean    # убрать демо
 | `spendtrack recurring` | найденные подписки |
 | `spendtrack digest` | дайджест недели и аномалии |
 | `spendtrack export --format csv` | выгрузка CSV/XLSX |
-| `spendtrack doctor` | проверка целостности данных |
+| `spendtrack doctor [--share]` | проверка целостности данных (+ анонимная сводка вручную) |
+| `python scripts/backup.py --copy-to E:\backup` | бэкап базы + копия на другой диск |
 | `spendtrack paths` | где лежат база и настройки |
 | `spendtrack llm-status` | какой режим ИИ сейчас |
 | `spendtrack confidence` | калибровка порога авто-приёма |

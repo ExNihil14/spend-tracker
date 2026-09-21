@@ -9,11 +9,15 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import UTC, datetime, timedelta
+import sys
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
-from spendtrack.config import load_settings, resolve_data_dir
+from spendtrack import __version__
+from spendtrack.checksum import sha256_file
+from spendtrack.config import load_settings, repo_mode, resolve_data_dir
 from spendtrack.store import SCHEMA_VERSION, Store
 from spendtrack.taxonomy import Taxonomy, load_taxonomy
 
@@ -25,6 +29,8 @@ OK = "ok"
 _DETAIL_ITEMS = 5
 _BACKUP_STALE = timedelta(hours=48)
 _RESTORE_STALE = timedelta(days=30)
+_OFFSITE_STALE = timedelta(days=7)
+PROJECT_ISSUES_NEW = "https://github.com/ExNihil14/spend-tracker/issues/new"
 
 
 def _check(check_id: str, severity: str, count: int = 0, detail: str = "") -> dict[str, Any]:
@@ -212,6 +218,40 @@ def check_restore_drill(db_path: Path) -> dict:
                   f"restore-drill ok ({age.total_seconds() / 86400:.0f} дн назад, {data.get('file')})")
 
 
+# ---- 9. внешняя копия бэкапа (scripts/backup.py --copy-to → backup/last_offsite_copy.json) ----
+def check_offsite_backup(db_path: Path) -> dict:
+    """Offsite-копия: маркер + файл по пути из маркера + sha256.
+
+    Нет маркера → info (внешний бэкап не настраивали — не ошибка). Пропавший файл
+    (USB отключён) и устаревший маркер → warn; несовпавший sha256 → critical:
+    восстановление из такой копии невозможно.
+    """
+    marker = db_path.parent / "backup" / "last_offsite_copy.json"
+    if not marker.exists():
+        return _check("offsite_backup", INFO, 0,
+                      "внешней копии не делали (scripts/backup.py --copy-to <папка/USB>)")
+    try:
+        data = json.loads(marker.read_text(encoding="utf-8"))
+        when = datetime.fromisoformat(str(data["time"]))
+        when = when.replace(tzinfo=UTC) if when.tzinfo is None else when.astimezone(UTC)
+        dest = Path(str(data["dest"]))
+        digest = str(data["sha256"])
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        return _check("offsite_backup", WARN, 1, f"маркер внешней копии повреждён: {e}")
+    if not dest.is_file():
+        return _check("offsite_backup", WARN, 1,
+                      f"внешняя копия не найдена: {dest} (носитель подключён?)")
+    if sha256_file(dest) != digest:
+        return _check("offsite_backup", CRITICAL, 1, f"внешняя копия повреждена: {dest}")
+    age = datetime.now(UTC) - when
+    if age > _OFFSITE_STALE:
+        return _check("offsite_backup", WARN, 1,
+                      f"внешняя копия старше 7 дней ({age.total_seconds() / 86400:.0f} дн,"
+                      f" {dest.name})")
+    return _check("offsite_backup", OK, 1,
+                  f"внешняя копия: {dest.name} ({age.total_seconds() / 86400:.0f} дн назад)")
+
+
 def _guarded(check_id: str, fn) -> dict:
     """Битая БД/нет доступа/неожиданная ошибка чтения — чек становится critical, прогон не падает.
 
@@ -261,7 +301,106 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
             _guarded("empty_batches", lambda: check_empty_batches(conn)),
             _guarded("backup", lambda: check_backup(path)),
             _guarded("restore_drill", lambda: check_restore_drill(path)),
+            _guarded("offsite_backup", lambda: check_offsite_backup(path)),
         ]
     finally:
         store.close()
     return {"status": overall_status(checks), "checks": checks}
+
+
+# ---- метрики-прокси без телеметрии (#13): анонимная сводка, только по явному запросу ----
+def _os_name(platform: str | None = None) -> str:
+    p = sys.platform if platform is None else platform
+    if p.startswith("win"):
+        return "windows"
+    if p == "darwin":
+        return "macos"
+    return "linux"
+
+
+def _history_bucket(first: str | None, last: str | None) -> str:
+    """История в бакетах — точные даты не выдаём даже в сводке."""
+    if not first or not last:
+        return "нет данных"
+    try:
+        days = (date.fromisoformat(last) - date.fromisoformat(first)).days
+    except ValueError:
+        return "нет данных"
+    if days <= 30:
+        return "≤30 дней"
+    if days <= 90:
+        return "31–90 дней"
+    if days <= 365:
+        return "91–365 дней"
+    return ">365 дней"
+
+
+def build_usage_summary(db_path: Path | str | None = None) -> dict[str, Any]:
+    """Анонимная сводка использования: метрики-прокси без телеметрии.
+
+    Ничего не отправляет и не требует сети — печатается локально (`doctor --share`),
+    делиться или нет решает пользователь. Внутрь попадают только версии, ОС, режимы
+    и счётчики: суммы, описания, мерчанты, счета, пути и точные даты исключены by design
+    (канон — PRIVACY.md).
+    """
+    cfg = load_settings()
+    path = Path(db_path or cfg.db_path or resolve_data_dir() / "spend.db").expanduser().resolve()
+    backup_dir = path.parent / "backup"
+    out: dict[str, Any] = {
+        "version": __version__,
+        "schema_version": SCHEMA_VERSION,
+        "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "os": _os_name(),
+        "mode": "repo" if repo_mode() else "installed",
+        "llm_mode": "off",
+        "backup_local": any(backup_dir.glob("spend-*.db")),
+        "backup_offsite": (backup_dir / "last_offsite_copy.json").exists(),
+    }
+    from spendtrack.llm import llm_status
+
+    out["llm_mode"] = str(llm_status(cfg).get("mode", "off"))
+    try:
+        tax = load_taxonomy()
+        out["rules"] = len(tax.rules)
+        out["categories_total"] = len(tax.categories)
+    except Exception:  # noqa: BLE001 — битый taxonomy.toml не должен ломать сводку
+        out["rules"] = None
+        out["categories_total"] = None
+    try:
+        store = Store(path)
+    except sqlite3.Error:
+        out["db"] = "unavailable"
+        return out
+    try:
+        conn = store.conn
+        out["tx_total"] = int(conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0])
+        out["tx_imported"] = int(conn.execute(
+            "SELECT COUNT(*) FROM transactions WHERE import_batch IS NOT NULL").fetchone()[0])
+        out["batches"] = int(conn.execute("SELECT COUNT(*) FROM import_batches").fetchone()[0])
+        out["categories_used"] = int(conn.execute(
+            "SELECT COUNT(DISTINCT category) FROM transactions").fetchone()[0])
+        out["budgets"] = int(conn.execute("SELECT COUNT(*) FROM budgets").fetchone()[0])
+        out["pending"] = int(conn.execute(
+            "SELECT COUNT(*) FROM transactions WHERE review_status='pending'").fetchone()[0])
+        row = conn.execute(
+            "SELECT MIN(date) AS first, MAX(date) AS last FROM transactions"
+            " WHERE date IS NOT NULL AND date != ''").fetchone()
+        out["history"] = _history_bucket(row["first"], row["last"])
+    finally:
+        store.close()
+    return out
+
+
+def usage_issue_url(usage: dict[str, Any]) -> str:
+    """Ссылка на prefilled GitHub-issue: пользователь открывает её сам (opt-in ping)."""
+    body = "\n".join([
+        "Анонимная статистика из `spendtrack doctor --share` — отправляю вручную,",
+        "ничего не уходило автоматически. Лишнее можно удалить перед отправкой.",
+        "",
+        "```json",
+        json.dumps(usage, ensure_ascii=False, indent=2),
+        "```",
+    ])
+    query = urlencode({"title": f"ping: spend-tracker {usage.get('version', '?')} (установка)",
+                       "body": body})
+    return f"{PROJECT_ISSUES_NEW}?{query}"
