@@ -6,7 +6,7 @@ from spendtrack.store import Store
 def report_month(store: Store, month: str) -> dict:
     rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS total_k, COUNT(*) AS n"
-        " FROM transactions WHERE substr(date,1,7)=? GROUP BY category ORDER BY total_k",
+        " FROM transactions WHERE substr(date,1,7)=? AND currency='RUB' GROUP BY category ORDER BY total_k",
         (month,),
     ).fetchall()
     income = sum(r["total_k"] for r in rows if r["total_k"] > 0)
@@ -24,10 +24,11 @@ def report_month(store: Store, month: str) -> dict:
 
 
 def categories_with_totals(store: Store, month: str | None = None) -> list[dict]:
-    sql = ("SELECT category, COUNT(*) n, SUM(amount_kopecks) total_k FROM transactions")
+    sql = ("SELECT category, COUNT(*) n, SUM(amount_kopecks) total_k FROM transactions"
+           " WHERE currency='RUB'")
     params: list[str] = []
     if month:
-        sql += " WHERE substr(date,1,7)=?"
+        sql += " AND substr(date,1,7)=?"
         params.append(month)
     sql += " GROUP BY category ORDER BY category"
     rows = store.conn.execute(sql, params).fetchall()
@@ -38,7 +39,7 @@ def report_daily(store: Store, month: str) -> list[dict]:
     """Дневной ряд расходов за месяц (непродажные дни отсутствуют в выводе)."""
     rows = store.conn.execute(
         "SELECT date, SUM(amount_kopecks) AS total_k FROM transactions"
-        " WHERE substr(date,1,7)=? GROUP BY date ORDER BY date",
+        " WHERE substr(date,1,7)=? AND currency='RUB' GROUP BY date ORDER BY date",
         (month,),
     ).fetchall()
     return [{"date": r["date"], "total_k": r["total_k"]} for r in rows]
@@ -57,7 +58,7 @@ def budgets_progress(store: Store, month: str, known: set[str] | None = None) ->
         return []
     spent_rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS s FROM transactions"
-        " WHERE substr(date,1,7)=? GROUP BY category",
+        " WHERE substr(date,1,7)=? AND currency='RUB' GROUP BY category",
         (month,),
     ).fetchall()
     spent = {r["category"]: -r["s"] for r in spent_rows}  # расход = минус знаковая сумма

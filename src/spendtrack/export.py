@@ -12,7 +12,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
-CSV_HEADERS = ("Дата", "Описание", "Сумма", "Категория", "Источник", "Уверенность",
+CSV_HEADERS = ("Дата", "Описание", "Сумма", "Валюта", "Категория", "Источник", "Уверенность",
                "Мерчант", "Счёт", "Статус", "Предложение LLM")
 
 
@@ -49,7 +49,8 @@ def export_values(tx: dict) -> tuple:
         date.fromisoformat(tx["date"]),
         _safe_text(tx["description"]),
         tx["amount_kopecks"] / 100,
-        _safe_text(tx["category"]),
+        _safe_text(tx.get("currency") or "RUB"),
+        _safe_text(tx.get("category") or ""),
         _safe_text(tx.get("category_source") or ""),
         float(tx.get("confidence") or 0.0),
         _safe_text(tx.get("merchant") or ""),
@@ -68,11 +69,12 @@ def export_row(tx: dict) -> tuple[str, ...]:
         plain_amount(tx["amount_kopecks"]),
         v[3],
         v[4],
+        v[5],
         _confidence(tx.get("confidence")),
-        v[6],
         v[7],
         v[8],
         v[9],
+        v[10],
     )
 
 
@@ -104,7 +106,7 @@ def write_xlsx(txs: Iterable[dict], path_or_stream: str | Path | io.BytesIO) -> 
         ws.append(list(export_values(tx)))
     for row in ws.iter_rows(min_row=2, min_col=3, max_col=3):
         row[0].number_format = "#,##0.00"
-    widths = (12, 42, 12, 16, 20, 12, 24, 12, 14, 20)
+    widths = (12, 42, 12, 8, 16, 20, 12, 24, 12, 14, 20)
     for idx, width in enumerate(widths, start=1):
         ws.column_dimensions[ws.cell(row=1, column=idx).column_letter].width = width
     if ws.max_row > 1:

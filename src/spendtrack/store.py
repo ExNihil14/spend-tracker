@@ -6,6 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
+from types import MappingProxyType
 
 from spendtrack.config import resolve_data_dir
 from spendtrack.config import settings as load_settings
@@ -43,14 +44,65 @@ def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
 
+_CURRENCY_ALIASES = MappingProxyType({
+    "RUB": "RUB", "RUR": "RUB", "РУБ": "RUB", "РУБ.": "RUB", "₽": "RUB",
+    "USD": "USD", "US$": "USD", "$": "USD", "ДОЛЛАР": "USD", "ДОЛЛАРОВ": "USD",
+    "EUR": "EUR", "€": "EUR", "ЕВРО": "EUR",
+    "KZT": "KZT", "₸": "KZT", "ТЕНГЕ": "KZT",
+    "BYN": "BYN", "БЕЛРУБ": "BYN", "БЕЛ.РУБ": "BYN",
+    "UAH": "UAH", "₴": "UAH", "ГРИВНА": "UAH", "ГРИВЕН": "UAH",
+    "GBP": "GBP", "£": "GBP", "ФУНТ": "GBP",
+    "TRY": "TRY", "₺": "TRY", "ЛИРА": "TRY",
+    "CNY": "CNY", "ЮАНЬ": "CNY", "ЖЭНЬМИНЬБИ": "CNY",
+    "JPY": "JPY", "ИЕНА": "JPY",
+    "GEL": "GEL", "₾": "GEL", "ЛАРИ": "GEL",
+    "AMD": "AMD", "֏": "AMD", "ДРАМ": "AMD",
+    "KGS": "KGS", "СОМ": "KGS",
+    "UZS": "UZS", "СУМ": "UZS",
+    "AZN": "AZN", "₼": "AZN", "МАНАТ": "AZN",
+    "PLN": "PLN", "ZŁ": "PLN", "ЗЛОТЫЙ": "PLN",
+    "CHF": "CHF", "AED": "AED", "THB": "THB", "฿": "THB",
+    "INR": "INR", "₹": "INR", "VND": "VND", "₫": "VND",
+})
+
+
+def normalize_currency(value: str | None) -> str | None:
+    """Код валюты ISO 4217 из строки банка/пользователя: «₽»/«руб.»/«rub» → RUB.
+
+    Не распознано (или пусто) → None: импорт трактует как RUB (базовая валюта),
+    API/CLI — как ошибку ввода (пользователь не должен получить молчаливую подмену).
+    """
+    if value is None:
+        return None
+    v = str(value).strip().upper().replace(" ", "").replace("\u00a0", "")
+    if not v:
+        return None
+    if v in _CURRENCY_ALIASES:
+        return _CURRENCY_ALIASES[v]
+    v = v.rstrip(".")
+    if v in _CURRENCY_ALIASES:
+        return _CURRENCY_ALIASES[v]
+    if len(v) == 3 and v.isascii() and v.isalpha():
+        return v
+    return None
+
+
+
 def _norm_desc(desc: str) -> str:
     return " ".join(desc.upper().split())
 
 
-def fingerprint(date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str) -> str:
-    """sha1; export_rowid НЕ обязателен — дедуп без него работает."""
-    raw = f"{date}|{amount_kopecks}|{_norm_desc(desc)}|{account_anon}|{export_rowid or ''}".encode()
-    return hashlib.sha1(raw).hexdigest()
+def fingerprint(date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str,
+                currency: str = "RUB") -> str:
+    """sha1; export_rowid НЕ обязателен — дедуп без него работает.
+
+    Валюта входит в отпечаток только для НЕ-RUB: рублёвые отпечатки не меняются (реэкспорт
+    старой выписки остаётся no-op), а одинаковые суммы в разных валютах не склеиваются дедупом.
+    """
+    raw = f"{date}|{amount_kopecks}|{_norm_desc(desc)}|{account_anon}|{export_rowid or ''}"
+    if currency != "RUB":
+        raw += f"|{currency}"
+    return hashlib.sha1(raw.encode()).hexdigest()
 
 
 SCHEMA = """
@@ -59,6 +111,7 @@ CREATE TABLE IF NOT EXISTS transactions(
   date TEXT NOT NULL,
   description TEXT NOT NULL,
   amount_kopecks INTEGER NOT NULL,
+  currency TEXT NOT NULL DEFAULT 'RUB',  -- ISO 4217; не-RUB не попадает в ₽-итоги/бюджеты
   category TEXT NOT NULL,
   category_source TEXT NOT NULL,      -- rule | llm | import | manual | correction
   confidence REAL NOT NULL DEFAULT 1.0,
@@ -125,7 +178,7 @@ CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);
 """
 
 
-SCHEMA_VERSION = 4  # текущая версия схемы (см. Store._migrate)
+SCHEMA_VERSION = 5  # текущая версия схемы (см. Store._migrate)
 
 
 class Store:
@@ -159,7 +212,7 @@ class Store:
         self.conn.execute(f"PRAGMA user_version = {int(version)}")
 
     def _migrate(self) -> None:
-        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets."""
+        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency."""
         if self._user_version() < 1:
             self._mark_migration(1)
         if self._user_version() < 2:
@@ -183,6 +236,15 @@ class Store:
             self._mark_migration(3)
         if self._user_version() < 4:
             self._mark_migration(4)  # таблица budgets создана в SCHEMA (аддитивно)
+        if self._user_version() < 5:
+            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
+            if "currency" not in cols:
+                # DEFAULT 'RUB' сам бэкфиллит старые строки — рублёвые данные не меняются.
+                self.conn.execute(
+                    "ALTER TABLE transactions ADD COLUMN currency TEXT NOT NULL DEFAULT 'RUB'")
+                # Страховка для экзотических сборок SQLite, где DEFAULT не виден старым строкам.
+                self.conn.execute("UPDATE transactions SET currency='RUB' WHERE currency IS NULL")
+            self._mark_migration(5)
 
     def close(self) -> None:
         self.conn.close()
@@ -216,18 +278,26 @@ class Store:
         category_llm: str | None = None,
         review_status: str = "approved",
         statement_order: int | None = None,
+        currency: str = "RUB",
     ) -> int | None:
-        fp = fingerprint(date, amount_kopecks, description, account_anon or "", export_rowid)
+        """Precondition: `currency` — ISO 4217 (или алиас); невалидный код → ValueError.
+
+        Границы (CLI/API/импорт) валидируют и нормализуют код до вызова Store.
+        """
+        code = normalize_currency(currency)
+        if code is None:
+            raise ValueError(f"Неизвестная валюта: {currency!r} (ожидается ISO 4217, например RUB/USD/EUR)")
+        fp = fingerprint(date, amount_kopecks, description, account_anon or "", export_rowid, code)
         existing = self.conn.execute("SELECT id FROM transactions WHERE fingerprint=?", (fp,)).fetchone()
         if existing:
             return None
         now = _now_iso()
         cur = self.conn.execute(
-            "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+            "INSERT INTO transactions(date, description, amount_kopecks, currency, category, category_source,"
             " confidence, merchant, account_anon, import_batch, fingerprint, created, updated,"
             " category_llm, review_status, statement_order)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (date, description, amount_kopecks, category, category_source, confidence,
+            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (date, description, amount_kopecks, code, category, category_source, confidence,
              merchant, account_anon, import_batch, fp, now, now, category_llm, review_status,
              statement_order),
         )

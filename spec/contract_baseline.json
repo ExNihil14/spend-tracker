@@ -465,7 +465,7 @@
    "returns": "None"
   },
   "spendtrack.store:Store.add_transaction": {
-   "args": "self, date: str, description: str, amount_kopecks: int, category: str, category_source: str, confidence: float=1.0, merchant: str | None=None, account_anon: str | None=None, import_batch: str | None=None, export_rowid: str='', category_llm: str | None=None, review_status: str='approved', statement_order: int | None=None",
+   "args": "self, date: str, description: str, amount_kopecks: int, category: str, category_source: str, confidence: float=1.0, merchant: str | None=None, account_anon: str | None=None, import_batch: str | None=None, export_rowid: str='', category_llm: str | None=None, review_status: str='approved', statement_order: int | None=None, currency: str='RUB'",
    "returns": "int | None"
   },
   "spendtrack.store:Store.approve_all_reviews": {
@@ -553,7 +553,7 @@
    "returns": "None"
   },
   "spendtrack.store:fingerprint": {
-   "args": "date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str",
+   "args": "date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str, currency: str='RUB'",
    "returns": "str"
   },
   "spendtrack.store:fmt_amount": {
@@ -563,6 +563,10 @@
   "spendtrack.store:fmt_amount_signed": {
    "args": "kopecks: int",
    "returns": "str"
+  },
+  "spendtrack.store:normalize_currency": {
+   "args": "value: str | None",
+   "returns": "str | None"
   },
   "spendtrack.store:parse_amount": {
    "args": "value: str | float",
@@ -730,6 +734,7 @@
   "transactions.category_source": "TEXT|notnull=1|pk=0",
   "transactions.confidence": "REAL|notnull=1|pk=0",
   "transactions.created": "TEXT|notnull=1|pk=0",
+  "transactions.currency": "TEXT|notnull=1|pk=0",
   "transactions.date": "TEXT|notnull=1|pk=0",
   "transactions.description": "TEXT|notnull=1|pk=0",
   "transactions.fingerprint": "TEXT|notnull=0|pk=0",
@@ -739,6 +744,6 @@
   "transactions.review_status": "TEXT|notnull=1|pk=0",
   "transactions.statement_order": "INTEGER|notnull=0|pk=0",
   "transactions.updated": "TEXT|notnull=1|pk=0",
-  "user_version": "4"
+  "user_version": "5"
  }
 }

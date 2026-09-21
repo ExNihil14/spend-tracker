@@ -8,12 +8,20 @@ from pathlib import Path
 
 from spendtrack.categorize import categorize_transaction
 from spendtrack.reports import confidence_calibration, report_month
-from spendtrack.store import Store, fmt_amount, parse_amount
+from spendtrack.store import Store, fmt_amount, normalize_currency, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
 
 def make_store() -> Store:
     return Store()
+
+
+def _currency_arg(value: str) -> str:
+    code = normalize_currency(value)
+    if code is None:
+        raise argparse.ArgumentTypeError(
+            f"неизвестная валюта: {value!r} (ожидается ISO 4217, например RUB/USD/EUR)")
+    return code
 
 
 def cmd_add(args) -> int:
@@ -39,10 +47,12 @@ def cmd_add(args) -> int:
         category=category, category_source=source, confidence=confidence,
         category_llm=category_llm, review_status=review_status,
         merchant=args.description.upper()[:20],
+        currency=args.currency,
     )
     if tx_id:
         queue = " [в очередь]" if review_status == "pending" else ""
-        print(f"OK id={tx_id} {fmt_amount(amount)} {args.description} -> {category}{queue}")
+        cur = "" if args.currency == "RUB" else f" {args.currency}"
+        print(f"OK id={tx_id} {fmt_amount(amount)}{cur} {args.description} -> {category}{queue}")
         return 0
     print("dup (уже есть)")
     return 1
@@ -382,6 +392,8 @@ def main(argv: list[str] | None = None) -> int:
     a_add.add_argument("description")
     a_add.add_argument("--date", default="2026-09-12")
     a_add.add_argument("--category")
+    a_add.add_argument("--currency", type=_currency_arg, default="RUB",
+                       help="код валюты ISO 4217 (по умолчанию RUB)")
     a_add.set_defaults(fn=cmd_add)
 
     a_im = sub.add_parser("import")

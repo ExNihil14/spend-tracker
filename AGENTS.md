@@ -27,6 +27,8 @@
 
 ## Ключевые решения (не менять без ревью)
 - Суммы = `amount_kopecks INTEGER` (копейки), НЕ REAL
+- Валюта: `transactions.currency` ISO 4217 (миграция v5); fingerprint включает код ТОЛЬКО для не-RUB
+  (рублёвые отпечатки неизменны); не-RUB исключён из ₽-агрегаций (отчёты/бюджеты/дайджест/рекурринги)
 - Fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — повторный импорт = no-op
 - account псевдонимизируется (`account_pseudonyms`), сырые номера карт не хранятся
 - Авто-приём категории от LLM при confidence ≥ 0.9, иначе → очередь «на подтверждение» (`review_status='pending'`, `category_llm` = предложение LLM)
