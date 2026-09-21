@@ -6,12 +6,12 @@ from html import escape
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from spendtrack.categorize import categorize_transaction
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
-from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv
+from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv, summarize
 from spendtrack.reports import budgets_progress
 from spendtrack.store import Store, fmt_amount, fmt_amount_signed, parse_amount
 from spendtrack.taxonomy import load_taxonomy
@@ -41,13 +41,25 @@ class ImportIn(BaseModel):
     csv: str
 
 
+async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
+    """Разбор JSON-тела: битая кодировка → 400, неверные поля → 422 (а не 500 на ровном месте)."""
+    try:
+        data = await request.json()
+    except ValueError as e:  # JSONDecodeError/UnicodeDecodeError — тело не UTF-8/не JSON
+        raise HTTPException(400, detail="Тело запроса — некорректный JSON (ожидается UTF-8)") from e
+    try:
+        return model(**data)
+    except ValidationError as e:
+        raise HTTPException(422, detail=e.errors()) from e
+
+
 @router.post("/transactions")
 async def create(request: Request):
     store = _store()
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")
     if "application/json" in ct:
-        tx = TxIn(**await request.json())
+        tx = await _json_payload(request, TxIn)
     else:
         form = await request.form()
         tx = TxIn(**{k: str(v) for k, v in
@@ -235,7 +247,7 @@ async def do_import(request: Request):
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")
     if "application/json" in ct:
-        body = ImportIn(**await request.json())
+        body = await _json_payload(request, ImportIn)
     else:
         # framework-дефолт 1 МБ резал форму раньше наших лимитов: поднимаем до 2×лимита,
         # чтобы превышение обрабатывал наш код (понятные 413/HTMX-сообщение)
@@ -256,13 +268,10 @@ async def do_import(request: Request):
             return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')
         raise
     if is_hx:
-        status = str({
-            "ok": "Импортировано",
-            "empty": "Пустой файл",
-        }.get(result["status"], result["status"]))
-        msg = (
-            f"{escape(status)}: +{result['added']} добавлено, "
-            f"{result['dupes']} дублей, банк={escape(str(result.get('bank', '-')))}"
-        )
-        return HTMLResponse(f'<p class="text-blue-400">{msg}</p>')
+        if result["status"] == "format_error":
+            return HTMLResponse(
+                f'<p class="text-red-400">Ошибка импорта: {escape(str(result["message"]))}</p>')
+        if result["status"] == "empty":
+            return HTMLResponse('<p class="text-red-400">Пустой файл</p>')
+        return HTMLResponse(f'<p class="text-blue-400">Импортировано: {escape(summarize(result))}</p>')
     return result
