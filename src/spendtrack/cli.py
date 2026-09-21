@@ -265,9 +265,39 @@ def cmd_llm_status(args) -> int:
     return 0
 
 
+def _yes_no(value) -> str:
+    return "да" if value else "нет"
+
+
+def _usage_lines(usage: dict) -> list[str]:
+    return [
+        (
+            f"spendtrack {usage.get('version')} · python {usage.get('python')}"
+            f" · {usage.get('os')} · режим {usage.get('mode')}"
+        ),
+        (
+            f"транзакций {usage.get('tx_total')} (импортировано {usage.get('tx_imported')})"
+            f" · партий импорта {usage.get('batches')}"
+        ),
+        (
+            f"категорий {usage.get('categories_used')} из {usage.get('categories_total')}"
+            f" · правил {usage.get('rules')} · бюджетов {usage.get('budgets')}"
+        ),
+        f"история: {usage.get('history')} · в очереди {usage.get('pending')}",
+        (
+            f"LLM: {usage.get('llm_mode')} · локальный бэкап: {_yes_no(usage.get('backup_local'))}"
+            f" · внешняя копия: {_yes_no(usage.get('backup_offsite'))}"
+        ),
+    ]
+
+
 def cmd_doctor(args) -> int:
-    from spendtrack.doctor import run_checks
+    from spendtrack.doctor import build_usage_summary, run_checks, usage_issue_url
     report = run_checks()
+    usage = build_usage_summary() if args.share else None
+    if usage is not None:
+        report["usage"] = usage
+        report["usage_issue_url"] = usage_issue_url(usage)
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
@@ -275,6 +305,12 @@ def cmd_doctor(args) -> int:
         for c in report["checks"]:
             count = str(c["count"]) if c["count"] else "-"
             print(f"  {c['severity'].upper():<8} {c['id']:<20} {count:>5}  {c['detail']}")
+        if usage is not None:
+            print()
+            print("Анонимная статистика (opt-in: приложение ничего не отправляет само):")
+            for line in _usage_lines(usage):
+                print(f"  {line}")
+            print(f"  отправить вручную — открыть issue: {report['usage_issue_url']}")
     return 1 if report["status"] == "critical" else 0
 
 
@@ -375,6 +411,8 @@ def main(argv: list[str] | None = None) -> int:
 
     a_doc = sub.add_parser("doctor", help="проверка целостности данных")
     a_doc.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    a_doc.add_argument("--share", action="store_true",
+                       help="добавить анонимную сводку и ссылку на issue (метрики без телеметрии)")
     a_doc.set_defaults(fn=cmd_doctor)
 
     a_rec = sub.add_parser("recurring", help="детекция рекуррингов/подписок")

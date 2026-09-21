@@ -37,6 +37,14 @@
   `SPENDTRACK_CONFIG_DIR`/`SPENDTRACK_DATA_DIR`. Bootstrap: `install.ps1`/`install.sh`.
 - **Doctor** — проверка целостности данных: CLI `spendtrack doctor [--json]`, API `GET /health/data`. Severities: `critical` (битая БД/схема, категории транзакций вне таксономии, последний restore-drill failed), `warn` (данные вне очереди/таксономии, бэкап >48ч, restore-drill >30 дней), `info` (пустые партии, нет папки бэкапов, нет маркера restore-drill), `ok`. Exit 1 — только при critical; API 503 — при critical. Авторемонта нет.
 - **Restore-drill** — `scripts/restore_drill.py` (CLI `python -m scripts.restore_drill`): копирует последний `data/backup/spend-*.db` во временную папку, проверяет `PRAGMA integrity_check` + `transactions` + `user_version`, сверяет COUNT/SUM с живой БД информативно, пишет маркер `data/backup/last_restore_drill.json`.
+- **Offsite-копия (внешний бэкап)** — копия свежего снимка на другом томе: `scripts/backup.py --copy-to <папка/USB>`
+  (guard «тот же диск» через `st_dev`, `--force` — исключение; sha256-проверка; удаление битой копии). Маркер
+  `data/backup/last_offsite_copy.json` (`time/source/dest/sha256/size`) читает doctor-чек `offsite_backup`
+  (нет маркера → info, файл не найден/старше 7 дней/битый маркер → warn, sha не совпал → critical). Хэш-хелпер — `spendtrack.checksum`.
+- **Анонимная сводка (share)** — `spendtrack doctor --share`: метрики-прокси без телеметрии — локально печатает
+  счётчики (версии, ОС, режим repo/installed, режим LLM, tx/imported/партии/категории/правила/бюджеты/pending,
+  бакет истории, наличие бэкапов) и prefilled-ссылку на issue; ничего не отправляется, пока пользователь сам не
+  поделится. Суммы/описания/мерчанты/счета/точные даты/пути/секреты исключены (канон — `PRIVACY.md`).
 - **Рекурринг/подписка** — повторяющееся списание: ≥3 расхода мерчанта с суммами в ±5% медианы кластера и интервалами 27–34 дн (медиана 28–31; допускается 1 пропуск месяца: разрыв 56–62 дн). «Цена» = медиана кластера, `active` = последнее списание ≤40 дн назад. Считается на лету, не хранится: CLI `spendtrack recurring [--json]`, карточка на `/dashboard` (`recurring_summary`, JSON-ключ `subscriptions` — не `items`, т.к. в Jinja `dict.items` — метод).
 - **Suggest-rules (подсказки правил)** — read-only кандидаты keyword-паттернов из решений человека: явные правки (`category_source='correction'`), переопределения LLM в решённых строках (`review_status='approved'` и `category != category_llm`; pending/skipped игнорируются), `examples`, плюс тип «merchant». Пороги n≥3 / чистота ≥80%, конфликты показываются; статус сверяется с taxonomy.toml (`analyze_rules`): новое/дубль/будет мёртвым/пересечение. CLI `spendtrack suggest-rules [--json]`; записи нет.
 - **Экспорт** — выгрузка транзакций без потерь: CLI `spendtrack export [--format csv|xlsx]` (по умолчанию все),

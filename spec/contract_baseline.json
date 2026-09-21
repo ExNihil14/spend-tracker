@@ -16,6 +16,10 @@
    "args": "tx: dict, taxonomy: Taxonomy, store: Store, llm_getter, acceptance: float",
    "returns": "dict"
   },
+  "spendtrack.checksum:sha256_file": {
+   "args": "path: Path, chunk_size: int=_CHUNK",
+   "returns": "str"
+  },
   "spendtrack.cli:cmd_add": {
    "args": "args",
    "returns": "int"
@@ -168,6 +172,10 @@
    "args": "store: Store, days: int=DEFAULT_DAYS, today: date | None=None",
    "returns": "dict"
   },
+  "spendtrack.doctor:build_usage_summary": {
+   "args": "db_path: Path | str | None=None",
+   "returns": "dict[str, Any]"
+  },
   "spendtrack.doctor:check_backup": {
    "args": "db_path: Path",
    "returns": "dict"
@@ -186,6 +194,10 @@
   },
   "spendtrack.doctor:check_fingerprint_dupes": {
    "args": "conn: sqlite3.Connection",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_offsite_backup": {
+   "args": "db_path: Path",
    "returns": "dict"
   },
   "spendtrack.doctor:check_pending_source": {
@@ -215,6 +227,10 @@
   "spendtrack.doctor:run_checks": {
    "args": "db_path: Path | str | None=None, taxonomy: Taxonomy | None=None",
    "returns": "dict[str, Any]"
+  },
+  "spendtrack.doctor:usage_issue_url": {
+   "args": "usage: dict[str, Any]",
+   "returns": "str"
   },
   "spendtrack.export:csv_bytes": {
    "args": "txs: Iterable[dict]",
