@@ -297,7 +297,7 @@ def test_dashboard_digest_card(page: Page, live_server, db_path):
     card = page.locator("#digest-card")
     expect(card).to_contain_text("Дайджест недели")
     expect(card).to_contain_text("7 дн")
-    expect(card).to_contain_text("-270.00")   # расход окна: -150 -120
+    expect(card).to_contain_text("\u2212270.00")   # расход окна: -150 -120, знак — часть отображения
     expect(card).to_contain_text("groceries")
     expect(card).to_contain_text("near-дубль")
     expect(card).to_contain_text("КОФЕ")

@@ -22,7 +22,20 @@ def parse_amount(value: str | float) -> int:
 
 
 def fmt_amount(kopecks: int) -> str:
+    """Машинная форма (ASCII-минус, без плюса): CSV/экспорт, промпты, CLI."""
     sign = "-" if kopecks < 0 else ""
+    return f"{sign}{abs(kopecks) / 100:.2f}"
+
+
+def fmt_amount_signed(kopecks: int) -> str:
+    """Отображаемая форма с явным знаком: «−123.45» / «+123.45» (ноль — «0.00»).
+
+    Типографский минус U+2212; знак обязателен, чтобы цвет не был единственным
+    носителем смысла «доход/расход» (WCAG 1.4.1). Для CSV/промптов — `fmt_amount`.
+    """
+    if kopecks == 0:
+        return "0.00"
+    sign = "\u2212" if kopecks < 0 else "+"
     return f"{sign}{abs(kopecks) / 100:.2f}"
 
 

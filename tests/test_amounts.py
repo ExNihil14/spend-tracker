@@ -5,7 +5,28 @@ from decimal import InvalidOperation
 
 import pytest
 
-from spendtrack.store import fmt_amount, parse_amount
+from spendtrack.store import fmt_amount, fmt_amount_signed, parse_amount
+
+
+def test_fmt_amount_stays_ascii_for_machine_output():
+    """Машинная форма (CSV/промпты/CLI): ASCII-минус, без плюса у положительных."""
+    assert fmt_amount(-12345) == "-123.45"
+    assert fmt_amount(12345) == "123.45"
+    assert fmt_amount(0) == "0.00"
+
+
+def test_fmt_amount_signed_display_form():
+    """Отображаемая форма: явный знак, типографский минус U+2212 (WCAG 1.4.1)."""
+    assert fmt_amount_signed(-12345) == "\u2212123.45"
+    assert fmt_amount_signed(12345) == "+123.45"
+    assert fmt_amount_signed(0) == "0.00"
+    assert fmt_amount_signed(-5) == "\u22120.05"
+
+
+def test_fmt_amount_signed_roundtrip_parse():
+    """Отображаемую форму можно скормить обратно parse_amount (U+2212/«+» — читаются)."""
+    for kop in (-123456, 123456, 1, -1, 0):
+        assert parse_amount(fmt_amount_signed(kop)) == kop
 
 
 def test_parse_amount_roundtrip_random():

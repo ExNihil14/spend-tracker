@@ -9,14 +9,16 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 from spendtrack.categorize import categorize_transaction
+from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
 from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv
 from spendtrack.reports import budgets_progress
-from spendtrack.store import Store, fmt_amount, parse_amount
+from spendtrack.store import Store, fmt_amount, fmt_amount_signed, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
+templates.env.globals.update(fmt_signed=fmt_amount_signed, badge_text=badge_text_color)
 
 
 def _store() -> Store:
@@ -142,13 +144,15 @@ def _oob_approve_all(request: Request, store: Store) -> str:
     ).body.decode()
 
 
-def _oob_empty_state(store: Store) -> str:
-    """OOB: плейсхолдер «Все подтверждены» появляется/убирается без перерисовки таблицы."""
+def _oob_empty_state(request: Request, store: Store) -> str:
+    """OOB: плейсхолдер «Все подтверждены» появляется/убирается без перерисовки таблицы.
+
+    Разметка — общий partial `partials/review_empty.html` (тот же, что в `review_rows.html`):
+    единый вид пустой очереди и при OOB-добавлении после последнего решения.
+    """
     if store.pending_count() == 0:
-        return (
-            '<tr id="review-empty" hx-swap-oob="beforeend:#review-rows">'
-            '<td colspan="6" class="px-5 py-8 text-center text-emerald-400/80">Все подтверждены</td></tr>'
-        )
+        return templates.TemplateResponse(
+            request, "partials/review_empty.html", {"oob": True}).body.decode()
     return '<tr id="review-empty" hx-swap-oob="delete"></tr>'
 
 
@@ -177,7 +181,7 @@ async def approve_review(request: Request, tx_id: int):
         raise HTTPException(409, "запись не в очереди")
     desc = str(proposal.get("description") or "")[:24]
     return HTMLResponse(
-        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store)
+        _oob_empty_state(request, store) + _oob_approve_all(request, store) + _oob_badge(store)
         + _oob_toast(f"Одобрено: {chosen} — {desc}"))
 
 
@@ -191,7 +195,7 @@ async def skip_review(request: Request, tx_id: int):
         raise HTTPException(409, "запись не в очереди")
     desc = str(tx.get("description") or "")[:24]
     return HTMLResponse(
-        _oob_empty_state(store) + _oob_approve_all(request, store) + _oob_badge(store)
+        _oob_empty_state(request, store) + _oob_approve_all(request, store) + _oob_badge(store)
         + _oob_toast(f"Пропущено: {desc}"))
 
 

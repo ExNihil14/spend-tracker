@@ -16,8 +16,8 @@
       {% for c in categories %}
       <tr class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
         <td class="px-5 py-3">
-          <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium text-slate-900"
-                style="background:{{ c.color }}">{{ c.name }}</span>
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium"
+                style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ c.name }}</span>
         </td>
         <td class="px-5 py-3 text-right text-slate-400">{{ usage.get(c.name, 0) }}</td>
         <td class="px-5 py-3">
