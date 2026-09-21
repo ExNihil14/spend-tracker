@@ -76,7 +76,27 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **✅ СДЕЛАНО (21.09, сессия P3 #12–#13 — offsite-бэкап + метрики-прокси; НЕ закоммичено, ждёт команды).**
+> **АКТУАЛЬНО (21.09, сессия P3 #14 — «Запуск как сервис»; ждёт команды на коммит/push).**
+> P3 #12–#13 уже закоммичены и запушены (`c350144` + `092603b`, origin/main = HEAD). #4 Сбер-XLS — по-прежнему
+> data-gated (образца нет: проверил репо и `data/` — .xls/.xlsx отсутствуют), поэтому взят #14.
+> ① **Шаблоны**: `deploy/spendtrack.service` (systemd --user: `ExecStart=%h/.local/bin/spendtrack serve`,
+> `Restart=on-failure`, `WantedBy=default.target`) и `deploy/com.spendtrack.serve.plist` (launchd LaunchAgent:
+> `/bin/sh -c 'exec "$HOME/.local/bin/spendtrack" serve'`, `RunAtLoad`+`KeepAlive`, логи `/tmp/spendtrack.*.log`).
+> ② **README §«Работа в фоне (автозапуск)»**: Windows — Планировщик заданий (AtLogOn, без администратора) и
+> NSSM (служба до входа; под LocalSystem пути данных/конфига передаются явно `SPENDTRACK_CONFIG_DIR`/
+> `SPENDTRACK_DATA_DIR`); macOS — `launchctl bootstrap gui/$(id -u)`; Linux — `systemctl --user enable --now`
+> (+ `loginctl enable-linger`); ключи LLM — в окружении сервиса, шаблоны секретов не содержат.
+> ③ **Live-проверка на Windows** (сессия elevated; прод `spendtrack` 8766 не трогали): NSSM-служба
+> `spendtrack-svc-check` (шим uv tool под LocalSystem, порт 8799, temp-данные/env) — `start` → `/health` 200
+> (0 tx) → `restart` → 200 → `stop` (порт свободен) → `remove`; Планировщик AtLogOn `spendtrack-svc-check` —
+> `Start` → `/health` 200 → `Stop`/`Unregister` (задача удалена, слушателя не осталось); прод `/health` 200 (8 tx).
+> ④ **Доки**: PIPELINE §«Запуск как сервис (P3 #14)» (с фактами live), CONTEXT — термин «Сервис (автозапуск)»,
+> README EN-блок. Тесты: `tests/test_deploy_templates.py` (4, оффлайн: структура юнита/plist через `plistlib`,
+> отсутствие заглушек/секретов, README ссылается на шаблоны и все три ОС).
+> **Контур: 429 unit (+4) + 24 e2e (не трогали — UI без изменений), ruff чист, contract ok** (Python-код не менялся).
+> Ревью $0 — `EXPERT_REVIEW_SERVICE_14_OR.md`. Следующая по плану — **#15 «10-минутный сценарий» с 3 внешними**
+> (процесс) либо **P1 #5 мультивалютность** (M, миграция v5).
+> **✅ СДЕЛАНО (21.09, сессия P3 #12–#13 — offsite-бэкап + метрики-прокси; закоммичено `c350144`+`092603b`, запушено).**
 > ① **#12 Offsite-бэкап**: `scripts/backup.py --copy-to <папка/USB> [--force]` — свежий VACUUM INTO-снимок
 > копируется на другой том (guard `same_device` через `st_dev`; Windows — серийник тома), sha256-сверка
 > (`spendtrack/checksum.py`), битая копия удаляется; маркер `data/backup/last_offsite_copy.json`
