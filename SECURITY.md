@@ -23,12 +23,26 @@
 - **Бэкапы**: `scripts/backup.py` (VACUUM INTO) + проверка восстановлением; внешняя копия —
   `--copy-to <USB/папка>` (отказ, если это тот же диск); `doctor` следит за свежестью и целостностью копии.
 - **Метрики**: автоматической отправки нет; `doctor --share` только печатает анонимную сводку (см. PRIVACY.md).
-- **Заголовки безопасности**: CSP `default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';
-  form-action 'self'; img-src 'self' data:; connect-src 'self'` + `X-Content-Type-Options: nosniff` +
-  `Referrer-Policy: no-referrer` (middleware в `main.py`). `script-src` пока включает `'unsafe-inline'/'unsafe-eval'`,
-  `style-src` — `'unsafe-inline'`: это осознанный компромисс локального приложения (inline-скрипт тоста,
-  htmx-атрибуты `hx-on::*`, inline-стили цветов категорий; htmx 2 вычисляет `hx-on` через `Function`).
-  Строгий CSP (nonce/hash, вынос обработчиков в `/static/*.js`) — задача фазы 3, актуальна при появлении hosted.
+- **Периметр браузера**: state-changing запросы (POST/PUT/PATCH/DELETE) проходят гейт Origin/Sec-Fetch-Site
+  (`spendtrack/security.py`): `Origin` — только loopback-имена (порт любой), иначе `Sec-Fetch-Site` ∈
+  {same-origin, none}; запросы без обоих заголовков (CLI/тесты) пропускаются. Плюс `TrustedHostMiddleware`
+  (только `127.0.0.1`/`localhost`, иначе 400) — защита от DNS-rebinding/Host-атак. CSRF-токены не нужны:
+  нет сессии/cookie, привязывать нечего; `HX-Request` — не гейт (сломал бы форму без JS).
+- **Заголовки безопасности**: CSP `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
+  img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';
+  form-action 'self'` + `X-Content-Type-Options: nosniff` + `Referrer-Policy: no-referrer` (middleware в
+  `main.py`). Inline-скрипты и `hx-on::*` вынесены в `/static/app.js`/`dashboard.js`, `htmx.config.allowEval=false`
+  — `unsafe-inline`/`unsafe-eval` для скриптов не требуются. `style-src 'unsafe-inline'` остаётся осознанно:
+  inline-стили цветов категорий и темы.
+- **Lifecycle данных**: SQLite-соединение — одно на запрос (FastAPI dependency `get_store`), `close()` в
+  `finally` + `PRAGMA optimize` перед закрытием; `cache_size=8 МБ`, `temp_store=MEMORY`. Это устраняет
+  накопление соединений/WAL-reader'ов до GC.
+- **Supply chain**: `uv.lock` в репо + `uv lock --check` в CI; `pip-audit` (dev-зависимость, шаг CI);
+  Dependabot (pip + github-actions); все сторонние GitHub Actions пиннуты по commit SHA; `permissions: read`.
+- **Диск и бэкапы**: БД и `-wal`/`-shm`/temp лежат plaintext на томе — защищайте BitLocker'ом тома +
+  NTFS-ACL на `data/` (в нашей машине BitLocker выключен — включить). Offsite-копия (`--copy-to`) —
+  plaintext-файл: если она покидает машину, шифруйте архив. SQLCipher осознанно не используется (вне модели
+  угроз; ломает stdlib `sqlite3`).
 
 ## Сообщить об уязвимости
 

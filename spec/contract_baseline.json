@@ -168,6 +168,10 @@
    "args": "result: dict",
    "returns": "str"
   },
+  "spendtrack.deps:get_store": {
+   "args": "",
+   "returns": "Iterator[Store]"
+  },
   "spendtrack.digest:build_digest": {
    "args": "store: Store, days: int=DEFAULT_DAYS, today: date | None=None, subscriptions: list[dict] | None=None",
    "returns": "dict"
@@ -345,95 +349,95 @@
    "returns": "None"
   },
   "spendtrack.routers.api:approve_all": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:approve_review": {
-   "args": "request: Request, tx_id: int",
+   "args": "request: Request, tx_id: int, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:budgets": {
-   "args": "month: str | None=None",
+   "args": "store: Annotated[Store, Depends(get_store)], month: str | None=None",
    "returns": ""
   },
   "spendtrack.routers.api:confirm": {
-   "args": "tx_id: int, body: ConfirmIn",
+   "args": "tx_id: int, body: ConfirmIn, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:create": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:do_import": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:get_one": {
-   "args": "tx_id: int",
+   "args": "tx_id: int, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:list_reviews": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:pending_count": {
-   "args": "",
+   "args": "store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:reviews_count": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:skip_review": {
-   "args": "request: Request, tx_id: int",
+   "args": "request: Request, tx_id: int, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.frontend:approve": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.frontend:dashboard": {
-   "args": "request: Request, month: str | None=None, month_delta: int=0",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)], month: str | None=None, month_delta: int=0",
    "returns": ""
   },
   "spendtrack.routers.frontend:export_csv": {
-   "args": "month: str | None=None, category: str | None=None, q: str | None=None",
+   "args": "store: Annotated[Store, Depends(get_store)], month: str | None=None, category: str | None=None, q: str | None=None",
    "returns": ""
   },
   "spendtrack.routers.frontend:export_xlsx": {
-   "args": "month: str | None=None, category: str | None=None, q: str | None=None",
+   "args": "store: Annotated[Store, Depends(get_store)], month: str | None=None, category: str | None=None, q: str | None=None",
    "returns": ""
   },
   "spendtrack.routers.frontend:help_page": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.frontend:index": {
-   "args": "request: Request, month: str | None=None, month_delta: int=0, category: str | None=None, q: str | None=None, sort: str | None=None",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)], month: str | None=None, month_delta: int=0, category: str | None=None, q: str | None=None, sort: str | None=None",
    "returns": ""
   },
   "spendtrack.routers.frontend:more_rows": {
-   "args": "request: Request, month: str | None=None, category: str | None=None, q: str | None=None, sort: str='recent', after: str | None=None, days: int=PAGE_DAYS",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)], month: str | None=None, category: str | None=None, q: str | None=None, sort: str='recent', after: str | None=None, days: int=PAGE_DAYS",
    "returns": ""
   },
   "spendtrack.routers.settings:add_category": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:add_rule": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:delete_category": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:delete_rule": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:move_rule": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:preview_rule": {
@@ -441,28 +445,32 @@
    "returns": ""
   },
   "spendtrack.routers.settings:rename_category": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:rename_preview": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:set_budget": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:set_color": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:settings": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.settings:tester": {
-   "args": "request: Request",
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
+  },
+  "spendtrack.security:origin_allowed": {
+   "args": "origin: str | None, sec_fetch_site: str | None",
+   "returns": "bool"
   },
   "spendtrack.store:Store.add_batch": {
    "args": "self, filename: str, sha: str, nrows: int",

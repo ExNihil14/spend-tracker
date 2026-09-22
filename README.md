@@ -286,6 +286,9 @@ loginctl enable-linger $USER    # запускать, даже когда вы �
 uv run pytest              # unit-тесты (сеть не нужна, LLM подменяется)
 uv run pytest -m e2e       # браузерные тесты (Playwright)
 uv run ruff check src tests
+uv run pip-audit --skip-editable   # уязвимости зависимостей
+uv lock --check                    # lock-файл актуален
+uv run python scripts/build_css.py # пересборка CSS после правок классов
 ```
 
 - Архитектура и решения: [spec/ARCHITECTURE.md](spec/ARCHITECTURE.md) · контур верификации:

@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import io
 from datetime import UTC, datetime
+from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR, load_settings
+from spendtrack.deps import get_store
 from spendtrack.digest import build_digest
 from spendtrack.export import csv_bytes, export_filename, write_xlsx
 from spendtrack.recurring import detect_recurring, recurring_summary
@@ -29,14 +31,9 @@ templates.env.globals.update(fmt_signed=fmt_amount_signed, badge_text=badge_text
 PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)
 
 
-def _store() -> Store:
-    return Store()
-
-
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request, month: str | None = None, month_delta: int = 0,
+def index(request: Request, store: Annotated[Store, Depends(get_store)], month: str | None = None, month_delta: int = 0,
           category: str | None = None, q: str | None = None, sort: str | None = None):
-    store = _store()
     taxonomy = load_taxonomy()
     current = _resolve_month(store, month, month_delta)
     sort = sort if sort in ("recent", "amount") else "recent"
@@ -89,13 +86,14 @@ def index(request: Request, month: str | None = None, month_delta: int = 0,
 
 
 @router.get("/export.csv")
-def export_csv(month: str | None = None, category: str | None = None, q: str | None = None):
+def export_csv(store: Annotated[Store, Depends(get_store)], month: str | None = None, category: str | None = None,
+               q: str | None = None):
     """Выгрузка текущего фильтра списка в CSV (utf-8-sig, «;») — «выход без потерь».
 
     Произвольный диапазон дат (`--from/--to`) доступен только в CLI.
     """
-    txs = _store().export_transactions(month=month or None, category=category or None,
-                                       search=q or None)
+    txs = store.export_transactions(month=month or None, category=category or None,
+                                    search=q or None)
     return Response(
         csv_bytes(txs),
         media_type="text/csv; charset=utf-8",
@@ -104,10 +102,11 @@ def export_csv(month: str | None = None, category: str | None = None, q: str | N
 
 
 @router.get("/export.xlsx")
-def export_xlsx(month: str | None = None, category: str | None = None, q: str | None = None):
+def export_xlsx(store: Annotated[Store, Depends(get_store)], month: str | None = None, category: str | None = None,
+                q: str | None = None):
     """Та же выгрузка в XLSX (нативные дата/число, автофильтр)."""
-    txs = _store().export_transactions(month=month or None, category=category or None,
-                                       search=q or None)
+    txs = store.export_transactions(month=month or None, category=category or None,
+                                    search=q or None)
     buf = io.BytesIO()
     write_xlsx(txs, buf)
     return Response(
@@ -118,8 +117,7 @@ def export_xlsx(month: str | None = None, category: str | None = None, q: str | 
 
 
 @router.get("/approve", response_class=HTMLResponse)
-def approve(request: Request):
-    store = _store()
+def approve(request: Request, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
     pending = store.queued_for_review()
     cats = {c.name: c.color for c in taxonomy.categories}
@@ -132,7 +130,7 @@ def approve(request: Request):
 
 
 @router.get("/help", response_class=HTMLResponse)
-def help_page(request: Request):
+def help_page(request: Request, store: Annotated[Store, Depends(get_store)]):
     """Помощь: быстрый старт, how-to, глоссарий, легенда, FAQ (структура — RESEARCH_HELP_FAQ_BEST_PRACTICES.md).
 
     Контент статический, но порог авто-приёма и список категорий берём из конфига,
@@ -145,14 +143,13 @@ def help_page(request: Request):
         {
             "categories": [c.name for c in taxonomy.categories],
             "threshold": settings.acceptance.auto_accept_confidence,
-            "pending": _store().queued_for_review(),
+            "pending": store.queued_for_review(),
         },
     )
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
-def dashboard(request: Request, month: str | None = None, month_delta: int = 0):
-    store = _store()
+def dashboard(request: Request, store: Annotated[Store, Depends(get_store)], month: str | None = None, month_delta: int = 0):
     taxonomy = load_taxonomy()
     current = _resolve_month(store, month, month_delta)
     report = report_month(store, current)
@@ -201,12 +198,11 @@ def _more_url(month: str | None, category: str | None, q: str | None,
 
 
 @router.get("/transactions/more", response_class=HTMLResponse)
-def more_rows(request: Request, month: str | None = None, category: str | None = None,
+def more_rows(request: Request, store: Annotated[Store, Depends(get_store)], month: str | None = None, category: str | None = None,
               q: str | None = None, sort: str = "recent", after: str | None = None,
               days: int = PAGE_DAYS):
     """Keyset-догрузка целыми днями (htmx sentinel): rows + итоги + следующий sentinel."""
     days = max(1, min(int(days), 92))
-    store = _store()
     taxonomy = load_taxonomy()
     rows, next_after, has_more = store.list_transactions_days(
         month=month or None, category=category or None, search=q or None,

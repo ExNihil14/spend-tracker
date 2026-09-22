@@ -12,10 +12,10 @@ jobs:
   lint-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
+      # Actions пиннуты по commit SHA (иммутабельный релиз), версия — в комментарии
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
         with:
           enable-cache: true
 
@@ -24,6 +24,9 @@ jobs:
 
       - name: Install dependencies
         run: uv sync --dev
+
+      - name: Lockfile check
+        run: uv lock --check
 
       - name: Ruff (lint)
         run: uv run ruff check .
@@ -34,6 +37,9 @@ jobs:
       - name: Prebuilt CSS check
         run: uv run python scripts/build_css.py --check
 
+      - name: pip-audit (dependency vulnerabilities)
+        run: uv run pip-audit --skip-editable
+
       - name: Contract delta (public API + DB schema + routes)
         run: uv run python scripts/contract_delta.py check
 
@@ -41,10 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
         with:
           enable-cache: true
 
@@ -64,10 +69,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
         with:
           enable-cache: true
 
@@ -86,11 +90,11 @@ jobs:
   secret-scan:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
         with:
           fetch-depth: 0
 
       - name: Gitleaks (secret scan)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

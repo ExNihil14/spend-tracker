@@ -76,7 +76,48 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (22.09, сессия «кроссбраузерность-пасс, фаза 2» — ждёт команды на коммит).**
+> **АКТУАЛЬНО (22.09, сессия «оптимизация+безопасность, фаза 1» — ждёт команды на коммит).**
+> ① **Периметр:** `src/spendtrack/security.py` (`origin_allowed`) + middleware в main.py: POST/PUT/PATCH/DELETE
+> с чужим `Origin`/`Sec-Fetch-Site` → 403; без заголовков (CLI/тесты) — пропуск; `TrustedHostMiddleware`
+> (127.0.0.1/localhost/testserver) → 400 на чужой Host; тесты `tests/test_security_perimeter.py` (7);
+> live: evil-origin POST=403, same-origin POST=422 (валидация), чужой Host=400. ② **Lifecycle SQLite:**
+> `deps.get_store()` — dependency с `yield` (close гарантирован + `PRAGMA optimize`), `cache_size=-8000`,
+> `temp_store=MEMORY`, `check_same_thread=False`; все 29 роутов переведены на
+> `store: Annotated[Store, Depends(get_store)]`; bench без регресса (месячные агрегаты 4.7→0.8 мс,
+> `/dashboard` 50K 388→344 мс, импорт в шуме). ③ **Строгий CSP `script-src 'self'`:** `/static/app.js`
+> (тост + обработчики форм), `/static/dashboard.js` (графики; данные — `#dashboard-data` data-атрибутами),
+> `htmx.config.allowEval=false`, `hx-on::*` удалены; e2e-тест `test_add_form_works_under_strict_csp` +
+> живой смоук демо-стенда (форма/сброс/счётчик/графики, консоль 0 ошибок). ④ **Supply chain (A03:2025):**
+> `pip-audit` dev-зависимостью + шаг CI («No known vulnerabilities»), `uv lock --check`, Dependabot
+> (pip+github-actions), все actions пиннуты по commit SHA, `permissions: contents: read`.
+> Контур: unit **476 (+5)**, e2e **44 (+1)**, cross-engine **38**, ruff, contract ok (baseline осознанно:
+> +2 функции `origin_allowed`/`get_store` и dependency в сигнатурах роутов), `build_css --check` ok.
+> Прод NSSM рестартнут (8 tx — не тронуты), демо-стенд 8767 проверен и остановлен.
+> Доки: SECURITY (периметр/CSP/lifecycle/supply chain/BitLocker-чек), PIPELINE (раздел «Периметр, lifecycle
+> и supply chain»), CONTEXT (термины), README (команды). **Факт для юзера:** BitLocker на C:/D: выключен —
+> включить том + ACL на `data/`; offsite-копия — plaintext, при выносе шифровать.
+> **Осталось (фаза 2, S):** Chart.js только на дашборде (Jinja-блок) + версия/Cache-Control статики.
+> **АКТУАЛЬНО (22.09, сессия «ресёрч оптимизации/безопасности» — docs вне репо; войдёт в коммит фазы 1).**
+> Два research-файла (первоисточники): `RESEARCH_SECURITY_SPENDTRACKER.md` (26 источников: для no-auth
+> localhost классический CSRF неприменим, но кросс-сайтовые state-changing POST — да → «золотой минимум»
+> Origin/Sec-Fetch + TrustedHost (токены избыточны, PNA — draft, полагаться нельзя); ASVS 5.0 L1: единственный
+> gap — `unsafe-eval` для htmx `hx-on`; A03:2025 supply chain; uvicorn access-log пишет query, но у нас
+> подавлен; BitLocker покрывает WAL/shm; SQLCipher — вне модели) и `RESEARCH_OPTIMIZATION_SPENDTRACKER.md`
+> (19: `PRAGMA optimize` перед close; per-request соединение через dependency yield; StaticFiles без
+> Cache-Control; workers=1; Chart.js по страницам; измерение без APM; анти-over-engineering).
+> Тяжёлый синтез opus-5 (138 с, ≈$0.35): «база выше среднего; две реальные дыры — периметр браузера и
+> supply chain». План P0: Origin/TrustedHost; per-request store + `PRAGMA optimize`/cache_size/temp_store;
+> pip-audit + Dependabot + SHA-pin + `permissions: read` + `uv lock --check`. P1: Chart.js только на дашборде;
+> Cache-Control+версия статики; **строгий `script-src`** (наш аудит: всего 2 `hx-on::*` + 1 inline-скрипт →
+> перенос в `/static/app.js`, `allowEval=false` — S/M вместо «отложить»); доки (SECURITY/PRIVACY/PIPELINE).
+> Адъюдикация 14 пунктов: принято 10, скорректирован 1 (strict script-src), уточнено фактом 1 (access-логи
+> уже подавлены: 0 записей), отклонено 2 (XXE — XLSX-импорта ещё нет; 500-трейсбеки — debug выключен).
+> **Факт для юзера:** BitLocker на C:/D: выключен (`ProtectionStatus=Off`) — шифрование тома + ACL на `data/`
+> в чек-лист; offsite-копия — plaintext, если покидает машину, шифровать архив.
+> Артефакты: `EXPERT_ANALYSIS_OPTSEC_OPUS5.md` (+raw). **Следующий deliverable: «оптимизация+безопасность,
+> фаза 1» (M)** — Origin/TrustedHost + strict script-src + supply chain CI + store-lifecycle/PRAGMA
+> (bench до/после); фаза 2 (S) — фронт-гигиена и доки.
+> **АКТУАЛЬНО (22.09, сессия «кроссбраузерность-пасс, фаза 2» — закоммичено `999812e`).**
 > Добита фаза 2: ① **контрасты** (axe serious → 0): muted-текст `slate-500→400` по шаблонам, кнопки
 > `emerald-600→700` (3), «Одобрить все» `amber-600→700`, пустой бюджет `slate-600→400`; disabled-состояния
 > оставлены тёмными (WCAG 1.4.3 исключает inactive-компоненты); ② **ссылки в тексте** — `p a, li a`
