@@ -5,7 +5,7 @@
 <div class="table-scroll overflow-x-auto" role="region" aria-label="Категории" tabindex="0">
   <table class="w-full text-sm">
     <thead>
-      <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-950/40">
+      <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-800 bg-slate-950/40">
         <th class="px-5 py-2.5 font-medium">Категория</th>
         <th class="px-5 py-2.5 font-medium text-right">Использований</th>
         <th class="px-5 py-2.5 font-medium">Цвет</th>
@@ -52,12 +52,12 @@
          class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
   <input type="color" name="color" value="#9ca3af" aria-label="Цвет новой категории"
          class="h-8 w-10 bg-slate-800 border border-slate-700 rounded cursor-pointer">
-  <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
+  <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
 </form>
 <form hx-post="/settings/categories/rename/preview" hx-target="#rename-confirm" hx-swap="innerHTML"
       class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-slate-800">
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
-  <span class="text-xs uppercase tracking-wide text-slate-500">Переименовать:</span>
+  <span class="text-xs uppercase tracking-wide text-slate-400">Переименовать:</span>
   <select name="name" aria-label="Категория для переименования"
           class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
     {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}

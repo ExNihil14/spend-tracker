@@ -23,6 +23,12 @@
 - **Бэкапы**: `scripts/backup.py` (VACUUM INTO) + проверка восстановлением; внешняя копия —
   `--copy-to <USB/папка>` (отказ, если это тот же диск); `doctor` следит за свежестью и целостностью копии.
 - **Метрики**: автоматической отправки нет; `doctor --share` только печатает анонимную сводку (см. PRIVACY.md).
+- **Заголовки безопасности**: CSP `default-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';
+  form-action 'self'; img-src 'self' data:; connect-src 'self'` + `X-Content-Type-Options: nosniff` +
+  `Referrer-Policy: no-referrer` (middleware в `main.py`). `script-src` пока включает `'unsafe-inline'/'unsafe-eval'`,
+  `style-src` — `'unsafe-inline'`: это осознанный компромисс локального приложения (inline-скрипт тоста,
+  htmx-атрибуты `hx-on::*`, inline-стили цветов категорий; htmx 2 вычисляет `hx-on` через `Function`).
+  Строгий CSP (nonce/hash, вынос обработчиков в `/static/*.js`) — задача фазы 3, актуальна при появлении hosted.
 
 ## Сообщить об уязвимости
 

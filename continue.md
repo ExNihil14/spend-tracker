@@ -76,7 +76,25 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (21.09, сессия «кроссбраузерность-пасс, фаза 1» — ждёт команды на коммит).**
+> **АКТУАЛЬНО (22.09, сессия «кроссбраузерность-пасс, фаза 2» — ждёт команды на коммит).**
+> Добита фаза 2: ① **контрасты** (axe serious → 0): muted-текст `slate-500→400` по шаблонам, кнопки
+> `emerald-600→700` (3), «Одобрить все» `amber-600→700`, пустой бюджет `slate-600→400`; disabled-состояния
+> оставлены тёмными (WCAG 1.4.3 исключает inactive-компоненты); ② **ссылки в тексте** — `p a, li a`
+> подчёркнуты (1.4.1); ③ **date-хинт** «ГГГГ-ММ-ДД» с `aria-describedby` (Safari без календаря);
+> ④ **кнопка «Показать ещё»** у sentinel догрузки (`hx-trigger="revealed, click"`; в UI дремлет — страница =
+> месяц, активируется в многомесячном режиме; роут-тест обновлён regex-проверкой); ⑤ **CSP + nosniff +
+> Referrer-Policy** (middleware `_security_headers`; `unsafe-inline/eval` осознанно — htmx `hx-on` через
+> `new Function`, факт grep; документировано в `SECURITY.md`); ⑥ axe-гейт в e2e усилен до **critical+serious=0**,
+> сид смоука включает pending-строки (нашлись и закрыты `select-name` в review-строках и контраст кнопки).
+> Контур: unit **471 (+2 security-headers)**, e2e chromium **43**, cross-engine **36**, ruff, contract ok,
+> `build_css --check` ok; live: CSP/nosniff/referrer на `/`, API и статике, все страницы 200, консоль
+> playwright 0 ошибок, хинт рендерится. Ревью $0 (157 с): NO-GO → принят 1 P1 (устойчивый regex-ассерт),
+> **8 пунктов отклонены фактами** (htmx eval — проверено; русский UI — роадмап i18n; disabled — WCAG-исключение;
+> CSP-поломки ловит консольный смоук; app.css — билд-артефакт v4; кнопка в `<td>` валидна; даты сида—
+> детерминированы от MAX(date)) — `EXPERT_REVIEW_CROSSBROWSER_F2_OR.md`.
+> Осталось (фаза 3, при hosted): строгий CSP (nonce/hash, вынос hx-on в `/static/app.js`); компонентные
+> классы при росте повторений; реальный Safari/iOS — best effort.
+> **АКТУАЛЬНО (21.09, сессия «кроссбраузерность-пасс, фаза 1» — закоммичено `763ad0a`, запушено).**
 > По плану research+opus-5 закрыты все 3 «мягких блокера»: ① **prebuilt CSS** вместо browser build — вход
 > `src/spendtrack/tailwind.css`, выход `static/app.css` (~25 КБ); сборка `scripts/build_css.py` (официальный
 > standalone CLI Tailwind v4.3.3, **без Node**; sha256 всех платформ-ассетов из GitHub API; кэш в

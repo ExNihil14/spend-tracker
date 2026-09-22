@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from fastapi.testclient import TestClient
 
 from spendtrack.main import app
@@ -54,6 +56,12 @@ def test_more_endpoint_rows_and_sentinel(tmp_path, monkeypatch):
     html2 = client.get("/transactions/more?month=2026-09&days=2&after=2026-09-09").text
     assert "more-sentinel" in html2
     assert "after=2026-09-07" in html2  # курсор следующей страницы
+    # кнопка-фолбэк (клавиатура/инерционный скролл), а не только hx-trigger="revealed"
+    assert "Показать ещё" in html2
+    sentinel = re.search(r'id="more-sentinel"[^>]*hx-trigger="([^"]*)"', html2)
+    assert sentinel is not None
+    triggers = {t.strip() for t in sentinel.group(1).split(",")}
+    assert triggers == {"revealed", "click"}
 
 
 def test_index_month_fits_one_page(tmp_path, monkeypatch):

@@ -46,25 +46,25 @@
 <div id="digest-card" class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
     <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Дайджест недели</h2>
-    <span class="text-xs text-slate-500">{{ digest.period.from }} → {{ digest.period.to }} · {{ digest.period.days }} дн · к прошлому окну</span>
+    <span class="text-xs text-slate-400">{{ digest.period.from }} → {{ digest.period.to }} · {{ digest.period.days }} дн · к прошлому окну</span>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-500">Доход</div>
+      <div class="text-xs uppercase tracking-wide text-slate-400">Доход</div>
       <div class="text-emerald-400">{{ fmt_signed(digest.income_k) }}</div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-500">Расход</div>
+      <div class="text-xs uppercase tracking-wide text-slate-400">Расход</div>
       <div class="text-rose-400">{{ fmt_signed(digest.expense_k) }}
         <span class="text-xs {{ 'text-rose-400' if digest.expense_delta_k < 0 else 'text-emerald-400' }}">Δ {{ fmt_signed(digest.expense_delta_k) }}</span>
       </div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-500">Баланс</div>
+      <div class="text-xs uppercase tracking-wide text-slate-400">Баланс</div>
       <div class="text-slate-100">{{ fmt_signed(digest.balance_k) }}</div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-500">Средний/день</div>
+      <div class="text-xs uppercase tracking-wide text-slate-400">Средний/день</div>
       <div class="text-slate-300">{{ fmt_signed(digest.avg_per_day_k) }}</div>
     </div>
   </div>
@@ -82,7 +82,7 @@
   {% endif %}
   {% if digest.anomalies %}
   <div class="text-xs space-y-1">
-    <div class="uppercase tracking-wide text-slate-500">Аномалии ({{ digest.anomalies | length }})</div>
+    <div class="uppercase tracking-wide text-slate-400">Аномалии ({{ digest.anomalies | length }})</div>
     {% for a in digest.anomalies %}
     <div class="flex flex-wrap items-baseline gap-2">
       <span class="text-amber-500">{{ a.label }}</span>
@@ -100,18 +100,18 @@
 <div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
     <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Подписки / рекурринги</h2>
-    <span class="text-xs text-slate-500">по всей истории · активных {{ recurring.active_count }}, {{ fmt_signed(-recurring.monthly_total_k) }} ₽ / мес</span>
+    <span class="text-xs text-slate-400">по всей истории · активных {{ recurring.active_count }}, {{ fmt_signed(-recurring.monthly_total_k) }} ₽ / мес</span>
   </div>
   <div class="space-y-2">
     {% for s in recurring.subscriptions %}
     <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
       <span class="flex items-center gap-2 min-w-0">
         <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background:{{ cat_colors.get(s.category, '#9ca3af') }}"></span>
-        <span class="{{ 'text-slate-200' if s.active else 'text-slate-500' }}">{{ s.merchant }}</span>
-        <span class="text-xs text-slate-500">{{ s.category }}</span>
+        <span class="{{ 'text-slate-200' if s.active else 'text-slate-400' }}">{{ s.merchant }}</span>
+        <span class="text-xs text-slate-400">{{ s.category }}</span>
         {% if s.skipped_months %}<span class="text-xs text-amber-500">пропуск месяца</span>{% endif %}
       </span>
-      <span class="{{ 'text-slate-300' if s.active else 'text-slate-500' }} whitespace-nowrap">
+      <span class="{{ 'text-slate-300' if s.active else 'text-slate-400' }} whitespace-nowrap">
         {{ fmt_signed(-s.price_k) }} ₽ / мес · n={{ s.occurrences }}{% if not s.active %} · нет списаний {{ s.days_since_last }} дн{% endif %}
       </span>
     </div>
@@ -143,7 +143,7 @@
   <div class="table-scroll overflow-x-auto" role="region" aria-label="Итоги по категориям" tabindex="0">
   <table class="w-full text-sm">
     <thead>
-      <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-950/40">
+      <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-800 bg-slate-950/40">
         <th class="px-5 py-2.5 font-medium">Категория</th>
         <th class="px-5 py-2.5 font-medium text-right">Сумма</th>
         <th class="px-5 py-2.5 font-medium text-right">Кол-во</th>

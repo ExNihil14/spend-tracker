@@ -32,6 +32,12 @@ def _seed_txs(db_path: Path, n: int = 6) -> None:
                 amount_kopecks=-(10_000 + i * 1_000), category="groceries",
                 category_source="import", export_rowid=f"smoke-{i}", merchant=f"МАГАЗИН {i}",
                 statement_order=i)
+        for i in range(2):  # очередь подтверждения: покрываем разметку review-строк в axe/320px
+            store.add_transaction(
+                date=f"2026-09-{20 + i:02d}", description=f"НЕИЗВЕСТНЫЙ {i}",
+                amount_kopecks=-(20_000 + i * 500), category="other",
+                category_source="llm_pending_review", export_rowid=f"smoke-pending-{i}",
+                merchant=f"НЕИЗВЕСТНЫЙ {i}", category_llm="other", review_status="pending")
     finally:
         store.close()
 
@@ -103,8 +109,8 @@ def test_table_region_is_keyboard_focusable(page: Page, live_server: str) -> Non
 
 
 @pytest.mark.parametrize("path", PAGES)
-def test_axe_no_critical_violations(page: Page, live_server: str, path: str) -> None:
-    """axe (WCAG 2.1 A/AA): критичные нарушения — блокер; остальные печатаем для разбора."""
+def test_axe_no_critical_or_serious_violations(page: Page, live_server: str, path: str) -> None:
+    """axe (WCAG 2.1 A/AA): critical/serious — блокер; minor/moderate печатаем для разбора."""
     from axe_playwright_python.sync_playwright import Axe
 
     _open(page, live_server, path)
@@ -113,8 +119,9 @@ def test_axe_no_critical_violations(page: Page, live_server: str, path: str) -> 
         "runOnly": {"type": "tag", "values": AXE_TAGS},
     })
     violations = results.response["violations"]
-    critical = [v["id"] for v in violations if v.get("impact") == "critical"]
-    assert critical == [], f"{path}: критичные a11y-нарушения: {critical}"
+    blockers = [f"{v['id']} ({v['impact']}, {len(v['nodes'])})"
+                for v in violations if v.get("impact") in ("critical", "serious")]
+    assert blockers == [], f"{path}: a11y-нарушения critical/serious: {blockers}"
     if violations:
         summary = ", ".join(f"{v['id']} ({v['impact']}, {len(v['nodes'])})" for v in violations)
-        print(f"[axe] {path}: не-критичные нарушения: {summary}")
+        print(f"[axe] {path}: minor/moderate: {summary}")

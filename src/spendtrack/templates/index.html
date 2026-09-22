@@ -54,7 +54,7 @@
         hx-indicator="#global-indicator"
         hx-on::after-request="this.reset(); const cnt=document.getElementById('pending-count'); if(cnt){fetch('/api/pending-count').then(r=>r.json()).then(d=>cnt.textContent=d.count);} htmx.trigger('body','refresh-list')"
         class="flex flex-wrap gap-3">
-    <input name="date" type="date" required aria-label="Дата операции" value="{{ current }}-01"
+    <input name="date" type="date" required aria-label="Дата операции" aria-describedby="date-hint" value="{{ current }}-01"
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
     <input name="description" placeholder="Описание" aria-label="Описание" required
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 flex-1 min-w-40 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -62,6 +62,7 @@
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 w-40 focus:outline-none focus:ring-2 focus:ring-blue-500">
     <button class="bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Добавить</button>
     <span id="add-spinner" class="htmx-indicator text-blue-400 text-sm self-center">Добавление…</span>
+    <p id="date-hint" class="text-xs text-slate-400 w-full">Дата — в формате ГГГГ-ММ-ДД; в Safari нативного календаря нет, дата вводится вручную.</p>
   </form>
   <div id="newmsg" class="mt-3 text-sm"></div>
 </div>
@@ -99,7 +100,7 @@
   <div id="tx-table" hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-trigger="refresh-list from:body">
   <table class="w-full text-sm">
     <thead>
-      <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-950/40">
+      <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-800 bg-slate-950/40">
         <th class="px-5 py-2.5 font-medium">Дата</th>
         <th class="px-5 py-2.5 font-medium">Описание</th>
         <th class="px-5 py-2.5 font-medium text-right">Сумма</th>

@@ -52,6 +52,27 @@ app.include_router(api_router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=PKG_DIR / "static"), name="static")
 
+# Минимальный CSP для локального приложения: ограничиваем источники/встраивание.
+# 'unsafe-inline'/'unsafe-eval' пока нужны: inline <style> (тема, table-scroll), inline-скрипт тоста
+# и htmx-атрибуты hx-on::* (htmx вычисляет их через Function). Строгий CSP без них — отдельная задача.
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data:; "
+    "connect-src 'self'; "
+    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+)
+
+
+@app.middleware("http")
+async def _security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("Content-Security-Policy", _CSP)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    return response
+
 
 @app.get("/health")
 def health():

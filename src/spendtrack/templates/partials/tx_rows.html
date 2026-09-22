@@ -15,7 +15,7 @@
   <td class="px-5 py-3 whitespace-nowrap text-slate-400">{{ t.date }}</td>
   <td class="px-5 py-3">
     {{ t.description }}
-    {% if t.merchant %}<div class="text-xs text-slate-500 mt-0.5">{{ t.merchant }}</div>{% endif %}
+    {% if t.merchant %}<div class="text-xs text-slate-400 mt-0.5">{{ t.merchant }}</div>{% endif %}
   </td>
   <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-emerald-400' if t.amount_kopecks > 0 else 'text-rose-400' }}">{{ fmt_signed(t.amount_kopecks) }}{% if t.currency != 'RUB' %} <span class="text-xs text-slate-400 font-normal">{{ t.currency }}</span>{% endif %}</td>
   <td class="px-5 py-3">
@@ -43,8 +43,12 @@
   {% endif %}
 </td></tr>
 {% endfor %}
+{# Keyset-догрузка целыми днями: сейчас страница = месяц (31 день), поэтому в UI обычно не активируется;
+   кнопка-фолбэк даёт клавиатурный доступ и страховку при инерционном скролле (многомесячный режим). #}
 {% if has_more %}
-<tr id="more-sentinel" hx-get="{{ more_url }}" hx-trigger="revealed" hx-target="this" hx-swap="outerHTML">
-  <td colspan="5" class="px-5 py-3 text-center text-slate-500 text-xs">Загрузка…</td>
+<tr id="more-sentinel" hx-get="{{ more_url }}" hx-trigger="revealed, click" hx-target="this" hx-swap="outerHTML">
+  <td colspan="5" class="px-5 py-3 text-center">
+    <button type="button" class="text-blue-400 hover:text-blue-300 text-sm underline underline-offset-2 cursor-pointer">Показать ещё</button>
+  </td>
 </tr>
 {% endif %}
