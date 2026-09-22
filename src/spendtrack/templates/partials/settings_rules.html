@@ -11,7 +11,7 @@
   <div class="table-scroll overflow-x-auto" role="region" aria-label="Правила" tabindex="0">
     <table class="w-full text-sm">
       <thead>
-        <tr class="text-left text-xs uppercase tracking-wide text-slate-500 border-b border-slate-800 bg-slate-950/40">
+        <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-800 bg-slate-950/40">
           <th class="px-5 py-2.5 font-medium w-16">#</th>
           <th class="px-5 py-2.5 font-medium">Паттерн</th>
           <th class="px-5 py-2.5 font-medium">Категория</th>
@@ -23,7 +23,7 @@
         {% for a in rules_view %}
         <tr data-pattern="{{ a.pattern }}"
             class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
-          <td class="px-5 py-2.5 text-slate-500">{{ a.index }}</td>
+          <td class="px-5 py-2.5 text-slate-400">{{ a.index }}</td>
           <td class="px-5 py-2.5 font-mono text-xs text-slate-200">{{ a.pattern }}</td>
           <td class="px-5 py-2.5 text-slate-300">{{ a.category }}</td>
           <td class="px-5 py-2.5 space-x-2">
@@ -70,7 +70,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="5" class="px-5 py-6 text-center text-slate-500">Правил нет</td></tr>
+        <tr><td colspan="5" class="px-5 py-6 text-center text-slate-400">Правил нет</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -90,7 +90,7 @@
         {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
       </select>
       <button type="submit"
-              class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
+              class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
     </form>
     <div id="rule-preview" class="text-xs mt-2"></div>
   </div>

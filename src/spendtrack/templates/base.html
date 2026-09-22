@@ -40,6 +40,8 @@
     }
     .table-scroll thead th { position: sticky; top: 0; z-index: 1; background: #0f172a; }
     .table-scroll:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+    /* Ссылки в тексте различимы не только цветом (WCAG 1.4.1; axe link-in-text-block) */
+    p a, li a { text-decoration: underline; text-underline-offset: 2px; }
   </style>
 </head>
 <body hx-boost="true" class="bg-slate-950 text-slate-200 min-h-screen">

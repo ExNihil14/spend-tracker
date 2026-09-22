@@ -312,10 +312,17 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - **После правок классов в шаблонах — пересобрать CSS** (иначе новых утилит не будет); `--check` в CI ловит
   отсутствие артефакта/ключевых селекторов, e2e-смоук — визуальную регрессию.
 - Кросс-браузерный смоук: `tests/e2e/test_crossbrowser_smoke.py` (рендер без ошибок консоли, отсутствие
-  горизонтального скролла на 320px — WCAG 1.4.10, axe critical = 0). В CI: chromium — полный e2e,
+  горизонтального скролла на 320px — WCAG 1.4.10, axe **critical+serious = 0**). В CI: chromium — полный e2e,
   firefox+webkit — только этот файл (`--browser firefox --browser webkit`).
 - Таблицы обёрнуты в `.table-scroll` (`role="region"`, `tabindex="0"`, sticky `<thead>`, edge-тени);
   навбар — `flex-wrap`. Матрица поддержки — README «Поддерживаемые браузеры».
+- Фаза 2 (контрасты/доступность): muted-текст `slate-400` (4.5:1), кнопки `emerald-700`/`amber-700`,
+  `p a, li a` — подчёркивание (1.4.1); date-хинт `ГГГГ-ММ-ДД` с `aria-describedby` (Safari); у sentinel
+  догрузки — кнопка «Показать ещё» (`hx-trigger="revealed, click"`; в UI дремлет — страница = месяц,
+  активируется в многомесячном режиме).
+- Заголовки безопасности: CSP + `nosniff` + `Referrer-Policy: no-referrer` (middleware `main.py`,
+  тесты `tests/test_security_headers.py`). `unsafe-inline/eval` в CSP — осознанно (inline-скрипт, `hx-on::*`,
+  inline-стили); строгий CSP — фаза 3 при hosted. Подробности — `SECURITY.md`.
 
 ## Бенчмарк производительности (perf-pass, 21.09)
 - Инструмент: `uv run python scripts/bench.py run [--sizes 5000,20000,50000] [--repeats 3] [--import-rows 5000]`

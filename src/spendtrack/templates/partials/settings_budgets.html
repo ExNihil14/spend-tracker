@@ -2,7 +2,7 @@
   {% if error %}
   <div class="px-5 py-2 text-sm text-rose-400 border-b border-slate-800">{{ error }}</div>
   {% endif %}
-  <p class="px-5 py-2 text-xs text-slate-500">
+  <p class="px-5 py-2 text-xs text-slate-400">
     Месячный лимит по категории, ₽. Пусто или 0 — снять. Считаются расходы месяца; возвраты уменьшают.
   </p>
   <div class="divide-y divide-slate-800/60">
@@ -13,7 +13,7 @@
       <input type="hidden" name="category" value="{{ c.name }}">
       <span class="inline-block w-40 px-2.5 py-0.5 rounded-full text-xs font-medium"
             style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ c.name }}</span>
-      <span class="text-xs {{ 'text-slate-400' if b else 'text-slate-600' }}">{{ (fmt(b) ~ ' ₽/мес') if b else 'без бюджета' }}</span>
+      <span class="text-xs {{ 'text-slate-400' if b else 'text-slate-400' }}">{{ (fmt(b) ~ ' ₽/мес') if b else 'без бюджета' }}</span>
       <input name="amount" inputmode="decimal" aria-label="Бюджет: {{ c.name }}" placeholder="например 20000" value="{{ fmt(b) if b else '' }}"
              class="w-36 bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
       <button type="submit" class="text-xs text-blue-400 hover:text-blue-300 px-1">OK</button>

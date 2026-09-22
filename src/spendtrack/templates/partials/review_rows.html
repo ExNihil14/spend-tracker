@@ -4,7 +4,7 @@
     <td class="px-5 py-3 whitespace-nowrap text-slate-400">{{ t.date }}</td>
     <td class="px-5 py-3">
       {{ t.description }}
-      {% if t.merchant %}<div class="text-xs text-slate-500 mt-0.5">{{ t.merchant }}</div>{% endif %}
+      {% if t.merchant %}<div class="text-xs text-slate-400 mt-0.5">{{ t.merchant }}</div>{% endif %}
     </td>
     <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-emerald-400' if t.amount_kopecks > 0 else 'text-rose-400' }}">{{ fmt_signed(t.amount_kopecks) }}{% if t.currency != 'RUB' %} <span class="text-xs text-slate-400 font-normal">{{ t.currency }}</span>{% endif %}</td>
     <td class="px-5 py-3">
@@ -13,7 +13,7 @@
             style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">
         {{ t.category_llm or t.category }}</span>
       {% if t.category_llm and t.category_llm != t.category %}
-        <span class="text-xs text-slate-500">(в БД: {{ t.category }})</span>
+        <span class="text-xs text-slate-400">(в БД: {{ t.category }})</span>
       {% endif %}
     </td>
     <td class="px-5 py-3 text-amber-400/90 text-xs">{{ '%.2f' | format(t.confidence) }}</td>
@@ -22,11 +22,11 @@
         <form hx-post="/api/reviews/{{ t.id }}/approve" hx-target="closest tr"
               hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button"
               class="flex items-center gap-2">
-          <select name="category"
+          <select name="category" aria-label="Категория для подтверждения"
                   class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             {% for c in all_categories %}<option value="{{ c }}" {% if c == (t.category_llm or t.category) %}selected{% endif %}>{{ c }}</option>{% endfor %}
           </select>
-          <button type="submit" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Одобрить</button>
+          <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Одобрить</button>
         </form>
         <form hx-post="/api/reviews/{{ t.id }}/skip" hx-target="closest tr"
               hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button">
