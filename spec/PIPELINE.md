@@ -304,6 +304,22 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   + e2e `test_first_run_checklist_visible_then_hidden` (виден на пустой БД, скрыт после данных).
   Попутно e2e-`clean_db` чистит `import_batches` — состояние партий не течёт между session-scoped тестами.
 
+## Периметр, lifecycle и supply chain (security-пасс, 22.09)
+- **Периметр браузера**: `spendtrack/security.py` (`origin_allowed`) + middleware `_origin_guard` в `main.py`:
+  state-changing запросы с чужим `Origin`/`Sec-Fetch-Site` → 403; без заголовков (CLI/TestClient) — пропуск.
+  `TrustedHostMiddleware` (127.0.0.1/localhost/testserver) → 400 на чужой Host (DNS-rebinding).
+  Тесты: `tests/test_security_perimeter.py`. CSRF-токены осознанно не вводим (нет сессии/cookie).
+- **Lifecycle SQLite**: `deps.get_store()` — FastAPI dependency с `yield`: одно соединение на запрос,
+  `close()` гарантирован (раньше — GC), `PRAGMA optimize` перед закрытием, `cache_size=-8000`,
+  `temp_store=MEMORY`; `check_same_thread=False` (sync-роуты в threadpool). Роутеры принимают
+  `store: Annotated[Store, Depends(get_store)]`. Замеры bench.py: без регресса (месячные агрегаты 4.7→0.8 мс,
+  `/dashboard` 50K 388→344 мс — кэш страниц; import в пределах шума).
+- **Supply chain (A03:2025)**: `uv lock --check` + `pip-audit --skip-editable` (dev-зависимость) в CI-lint;
+  `.github/dependabot.yml` (pip + github-actions, weekly); все actions пиннуты по commit SHA с комментарием
+  версии; `permissions: contents: read`.
+- **Диск**: BitLocker + NTFS-ACL на `data/` — пункт чек-листа юзера (на текущей машине BitLocker выключен);
+  offsite-копия — plaintext, при выносе шифровать архив. SQLCipher — осознанно нет.
+
 ## CSS-сборка (prebuilt Tailwind, кроссбраузерность-пасс 21.09)
 - В проде отдаётся готовый CSS `src/spendtrack/static/app.css` (~70 КБ); browser build (Play CDN, 282 КБ JS,
   dev-only) удалён. Вход — `src/spendtrack/tailwind.css` (`@import "tailwindcss"; @source "./templates";`).
@@ -321,8 +337,10 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   догрузки — кнопка «Показать ещё» (`hx-trigger="revealed, click"`; в UI дремлет — страница = месяц,
   активируется в многомесячном режиме).
 - Заголовки безопасности: CSP + `nosniff` + `Referrer-Policy: no-referrer` (middleware `main.py`,
-  тесты `tests/test_security_headers.py`). `unsafe-inline/eval` в CSP — осознанно (inline-скрипт, `hx-on::*`,
-  inline-стили); строгий CSP — фаза 3 при hosted. Подробности — `SECURITY.md`.
+  тесты `tests/test_security_headers.py`). С 22.09 `script-src 'self'` (без `unsafe-*`): inline-скрипты и
+  `hx-on::*` вынесены в `/static/app.js` и `/static/dashboard.js` (данные графиков — в `#dashboard-data`
+  data-атрибутами), `htmx.config.allowEval=false`. `style-src 'unsafe-inline'` — осознанно (inline-стили
+  цветов/темы). Подробности — `SECURITY.md`.
 
 ## Бенчмарк производительности (perf-pass, 21.09)
 - Инструмент: `uv run python scripts/bench.py run [--sizes 5000,20000,50000] [--repeats 3] [--import-rows 5000]`

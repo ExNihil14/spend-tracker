@@ -24,9 +24,8 @@
 
 <div id="import" class="bg-slate-900 rounded-xl p-5 border border-slate-800 mb-8">
   <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Импорт CSV</h2>
-  <form hx-post="/api/import" hx-target="#importmsg" hx-swap="innerHTML"
+  <form id="import-form" hx-post="/api/import" hx-target="#importmsg" hx-swap="innerHTML"
         hx-indicator="#import-spinner"
-        hx-on::after-request="htmx.trigger('body','refresh-list')"
         class="flex flex-col gap-3">
     <div class="flex flex-wrap gap-3">
       <select name="bank" aria-label="Банк выписки" class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -50,9 +49,8 @@
 
 <div id="add" class="bg-slate-900 rounded-xl p-5 border border-slate-800 mb-8">
   <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Добавить</h2>
-  <form hx-post="/api/transactions" hx-target="#newmsg" hx-swap="innerHTML"
+  <form id="add-form" hx-post="/api/transactions" hx-target="#newmsg" hx-swap="innerHTML"
         hx-indicator="#global-indicator"
-        hx-on::after-request="this.reset(); const cnt=document.getElementById('pending-count'); if(cnt){fetch('/api/pending-count').then(r=>r.json()).then(d=>cnt.textContent=d.count);} htmx.trigger('body','refresh-list')"
         class="flex flex-wrap gap-3">
     <input name="date" type="date" required aria-label="Дата операции" aria-describedby="date-hint" value="{{ current }}-01"
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">

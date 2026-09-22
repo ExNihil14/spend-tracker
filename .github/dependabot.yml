@@ -1,0 +1,12 @@
+# Dependabot: еженедельные обновления зависимостей (pip/uv) и версий actions.
+# Security-обновления приходят вне графика (без cooldown).
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

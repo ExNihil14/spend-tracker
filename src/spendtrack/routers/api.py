@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from html import escape
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ValidationError, field_validator
@@ -12,6 +13,7 @@ from spendtrack.categorize import categorize_transaction
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
 from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv, summarize
+from spendtrack.deps import get_store
 from spendtrack.reports import budgets_progress
 from spendtrack.store import Store, fmt_amount, fmt_amount_signed, normalize_currency, parse_amount
 from spendtrack.taxonomy import load_taxonomy
@@ -19,10 +21,6 @@ from spendtrack.taxonomy import load_taxonomy
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(fmt_signed=fmt_amount_signed, badge_text=badge_text_color)
-
-
-def _store() -> Store:
-    return Store()
 
 
 class TxIn(BaseModel):
@@ -70,8 +68,7 @@ async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
 
 
 @router.post("/transactions")
-async def create(request: Request):
-    store = _store()
+async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")
     if "application/json" in ct:
@@ -109,34 +106,29 @@ async def create(request: Request):
 
 
 @router.get("/budgets")
-def budgets(month: str | None = None):
+def budgets(store: Annotated[Store, Depends(get_store)], month: str | None = None):
     """Прогресс по бюджетам за месяц (по умолчанию — месяц последней транзакции)."""
-    store = _store()
     taxonomy = load_taxonomy()
     if not month:
         row = store.conn.execute("SELECT MAX(date) m FROM transactions").fetchone()
         month = (row["m"] or datetime.now(UTC).strftime("%Y-%m-%d"))[:7]
     items = budgets_progress(store, month, known={c.name for c in taxonomy.categories})
-    store.close()
     return {"month": month, "items": items}
 
 
 @router.get("/pending-count")
-def pending_count():
-    store = _store()
+def pending_count(store: Annotated[Store, Depends(get_store)]):
     return {"count": store.pending_count()}
 
 
 @router.get("/reviews", response_class=HTMLResponse)
-def list_reviews(request: Request):
+def list_reviews(request: Request, store: Annotated[Store, Depends(get_store)]):
     """htmx-фрагмент очереди (одно место рендера → страница и oob едины)."""
-    store = _store()
     return HTMLResponse(_rows_html(request, store))
 
 
 @router.get("/reviews/count", response_class=HTMLResponse)
-def reviews_count(request: Request):
-    store = _store()
+def reviews_count(request: Request, store: Annotated[Store, Depends(get_store)]):
     n = store.pending_count()
     body = (
         '<span id="pending-count" hx-swap-oob="true"'
@@ -197,8 +189,7 @@ def _oob_toast(text: str) -> str:
 
 
 @router.post("/reviews/{tx_id}/approve", response_class=HTMLResponse)
-async def approve_review(request: Request, tx_id: int):
-    store = _store()
+async def approve_review(request: Request, tx_id: int, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
     proposal = store.get_transaction(tx_id)
     if not proposal:
@@ -216,8 +207,7 @@ async def approve_review(request: Request, tx_id: int):
 
 
 @router.post("/reviews/{tx_id}/skip", response_class=HTMLResponse)
-async def skip_review(request: Request, tx_id: int):
-    store = _store()
+async def skip_review(request: Request, tx_id: int, store: Annotated[Store, Depends(get_store)]):
     tx = store.get_transaction(tx_id)
     if not tx:
         raise HTTPException(404, "не найдено")
@@ -230,16 +220,14 @@ async def skip_review(request: Request, tx_id: int):
 
 
 @router.post("/reviews/approve-all", response_class=HTMLResponse)
-async def approve_all(request: Request):
-    store = _store()
+async def approve_all(request: Request, store: Annotated[Store, Depends(get_store)]):
     n = store.approve_all_reviews()
     return HTMLResponse(_rows_html(request, store) + _oob_approve_all(request, store)
                         + _oob_badge(store) + _oob_toast(f"Одобрено записей: {n}"))
 
 
 @router.patch("/transactions/{tx_id}")
-def confirm(tx_id: int, body: ConfirmIn):
-    store = _store()
+def confirm(tx_id: int, body: ConfirmIn, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
     if not taxonomy.is_valid(body.category):
         raise HTTPException(422, f"категория {body.category} вне таксономии")
@@ -251,8 +239,7 @@ def confirm(tx_id: int, body: ConfirmIn):
 
 
 @router.get("/transactions/{tx_id}")
-def get_one(tx_id: int):
-    store = _store()
+def get_one(tx_id: int, store: Annotated[Store, Depends(get_store)]):
     tx = store.get_transaction(tx_id)
     if not tx:
         raise HTTPException(404, "не найдено")
@@ -260,8 +247,7 @@ def get_one(tx_id: int):
 
 
 @router.post("/import")
-async def do_import(request: Request):
-    store = _store()
+async def do_import(request: Request, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")
     if "application/json" in ct:

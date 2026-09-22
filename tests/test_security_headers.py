@@ -19,6 +19,9 @@ def test_security_headers_present(tmp_path, monkeypatch) -> None:
     for directive in ("default-src 'self'", "object-src 'none'", "base-uri 'self'",
                       "frame-ancestors 'none'", "form-action 'self'", "img-src 'self' data:"):
         assert directive in csp, directive
+    # Строгий script-src: inline/hx-on вынесены в /static/app.js, htmx allowEval=false
+    assert "script-src 'self'" in csp
+    assert "unsafe-eval" not in csp and "script-src 'self' 'unsafe-inline'" not in csp
     assert r.headers.get("x-content-type-options") == "nosniff"
     assert r.headers.get("referrer-policy") == "no-referrer"
 

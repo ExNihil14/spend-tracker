@@ -196,7 +196,8 @@ class Store:
         cfg = load_settings()
         self.path = db_path or cfg.db_path or (resolve_data_dir() / "spend.db")
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(self.path)
+        # check_same_thread=False: sync-роуты FastAPI живут в threadpool, соединение может пересекать потоки
+        self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA busy_timeout=5000")  # ждать чужую блокировку до 5с, а не падать сразу
@@ -204,6 +205,8 @@ class Store:
         # целостность БД гарантирована, теряется лишь последний коммит при крахе ОС (не процесса).
         self.conn.execute("PRAGMA synchronous=NORMAL")
         self.conn.execute("PRAGMA foreign_keys=ON")
+        self.conn.execute("PRAGMA cache_size=-8000")  # 8 МБ кэша страниц (дефолт ~2 МБ)
+        self.conn.execute("PRAGMA temp_store=MEMORY")  # temp-таблицы/индексы в RAM, меньше plaintext-temp
         self.conn.executescript(SCHEMA)
         self._migrate()
         self.conn.commit()
@@ -262,6 +265,12 @@ class Store:
             " WHERE review_status='pending'")
 
     def close(self) -> None:
+        # PRAGMA optimize перед закрытием короткоживущего соединения — рекомендованная схема SQLite
+        # («usually a no-op … very fast»): обновляет статистику планировщика по факту запросов.
+        try:
+            self.conn.execute("PRAGMA optimize")
+        except sqlite3.Error:
+            pass
         self.conn.close()
 
     # ---- account pseudonymization ----

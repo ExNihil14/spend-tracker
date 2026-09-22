@@ -95,6 +95,23 @@ def test_no_horizontal_scroll_after_resize(page: Page, live_server: str, path: s
     assert overflow <= 0, f"{path}: после resize 1280→320 горизонтальный скролл +{overflow}px"
 
 
+def test_add_form_works_under_strict_csp(page: Page, live_server: str) -> None:
+    """Интерактивный сценарий под строгим `script-src 'self'`: добавление без CSP-нарушений.
+
+    Проверяет и перенос обработчиков в /static/app.js: форма сбрасывается после успешного ответа.
+    """
+    errors = _open(page, live_server, "/")
+    page.fill('#add-form input[name="description"]', "ТЕСТ CSP")
+    page.fill('#add-form input[name="amount"]', "-123.45")
+    with page.expect_response(lambda r: "/api/transactions" in r.url):
+        page.locator("#add-form button").click()
+    page.wait_for_selector("#newmsg p")
+    page.wait_for_function(
+        "() => document.querySelector('#add-form input[name=\"description\"]').value === ''",
+        timeout=3000)
+    assert errors == [], f"CSP/консоль: {errors[:5]}"
+
+
 def test_table_region_is_keyboard_focusable(page: Page, live_server: str) -> None:
     """Скролл-область таблицы достижима с клавиатуры и имеет видимый фокус (WCAG 2.1.1/2.4.7)."""
     _open(page, live_server, "/")
