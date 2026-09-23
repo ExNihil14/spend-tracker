@@ -76,6 +76,24 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (23.09, вечер-2, сессия «cooldown/очередь в плагине AgentRouter» — dev-tooling; репо-код не менялся).**
+> Deliverable: WAF-защита в плагине `~/.config/opencode/plugins/agentrouter-ua.js` (после бана IP 23.09):
+> ① FIFO-сериализация запросов к AgentRouter (в полёте ≤1); ② `AGENTROUTER_MIN_INTERVAL_MS`=1500 мс между
+> стартами; ③ cooldown после WAF-ответа (405/429; 403 + HTML «not allowed/blocked/potential threats») с
+> эскалацией 60с→120с→…→30 мин и сбросом на успехе; ④ fast-fail: ожидание дольше `AGENTROUTER_WAIT_MAX_MS`
+> =120с → мгновенный 503 `error.type=agentrouter_cooldown` (без молчаливого зависания); ⑤ ожидание
+> abort-совместимо (AbortError; отменённый запрос не уходит на сервер). Образец — npm-референс
+> `opencode-agentrouter@1.3.0` (`withClaudeQueue`), но мягче (без 30-кратных ретраев).
+> **Канон:** `D:\dev\bootstrap\config\plugins\agentrouter-ua.js` (bootstrap README обновлён: config/plugins +
+> строки скриптов; правило «живой конфиг = копия канона»); **тест:**
+> `D:\dev\bootstrap\scripts\agentrouter_plugin_test.mjs` — 7 сценариев / **38 проверок** на мок-сервере
+> (база/санитизация/SSE, FIFO+min-интервал, cooldown+эскалация+403, изоляция чужих хостов, abort×2,
+> fast-fail, sync канона) — зелёные (портативный Node 24); temp-копия теста заменена делегатором.
+> Ревью $0 (kilo/nemotron-3-ultra:free, 214 с, $0): GO; принят 1 реальный P1 (abort при нулевом ожидании
+> мог отправить запрос) + расширены тест-запасы; артефакт `EXPERT_REVIEW_AGENTROUTER_COOLDOWN_KILO_2026-09-23.md`.
+> AgentRouter не трогали (IP под баном). Плагин вступит в силу после рестарта opencode. **Факт от юзера:**
+> в Abacus появилась модель **Opus-5.5** (кандидат в тяжёлые ревью). Следующее: рестарт opencode (юзер) →
+> проверка плагина живой сессией AgentRouter (1 редкий запрос, после разбана/смены IP); задачи из стартера.
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter→opencode + Ollama Cloud» — dev-tooling; репо-код не менялся).**
 > Deliverable: интеграция AgentRouter в opencode + пилот Opus-5 на окне квоты; бонусом — тест Ollama Cloud
 > на важном ревью. ① **Плагин** `~/.config/opencode/plugins/agentrouter-ua.js` (авто-загрузка подтверждена):
