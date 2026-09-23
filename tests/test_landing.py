@@ -114,7 +114,8 @@ def test_no_misleading_supporter_claims() -> None:
     assert "managed-llm" not in lowered
     assert "разовая лицензия" not in lowered
     assert "разовая поддержка" in lowered
-    assert "xls-импорт в планах" in lowered
+    assert "xls-импорт" not in lowered  # обещание XLS убрано: у физлиц Сбера XLS не существует (ресёрч 23.09)
+    assert "pdf" in lowered  # честная оговорка: выписка физлица в приложении — PDF
     assert "boosty.to" not in lowered  # нет живой ссылки-заглушки (REPLACE_ME)
     assert "доступ к заметкам" not in lowered  # донат без перков
     assert "по умолчанию данные не покидают" in lowered  # без безусловного «данные не покидают»
@@ -123,7 +124,8 @@ def test_no_misleading_supporter_claims() -> None:
     readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
     assert "managed-llm" not in readme
     assert "разовая лицензия" not in readme
-    assert "xls-импорт" in readme
+    assert "xls-импорт" not in readme  # обещание XLS убрано из README (у физлиц Сбера XLS не существует)
+    assert "pdf" in readme
 
     supporter = (ISSUE_TEMPLATES / "supporter.yml").read_text(encoding="utf-8").lower()
     assert "managed" not in supporter

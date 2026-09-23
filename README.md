@@ -14,9 +14,9 @@
 
 ## Что умеет
 
-- **Импорт выписок** Т-Банка (Тинькофф), ЮMoney (Яндекс) и Сбера (там, где у вас есть CSV-экспорт;
-  у физлиц Сбер чаще даёт PDF/XLS — XLS-импорт в планах): формат определяется автоматически, повторный
-  импорт того же файла не создаёт дубликатов.
+- **Импорт выписок** Т-Банка (Тинькофф), ЮMoney (Яндекс) и Сбера (там, где у вас есть CSV-экспорт:
+  у физлиц Сбер присылает его по e-mail и не у всех, выписка в приложении — PDF): формат определяется
+  автоматически, повторный импорт того же файла не создаёт дубликатов.
 - **Категории почти без ручной работы:** сначала срабатывают ваши правила и «память» о магазинах, затем — ИИ
   (если подключите), а спорные операции попадают в очередь «Подтвердить». Одобренная правка запоминается.
 - **Бюджеты по категориям** — месячные лимиты и прогресс: видно, где ещё есть запас, а где перерасход.
@@ -303,7 +303,8 @@ uv run python scripts/build_css.py # пересборка CSS после пра�
 ## English
 
 Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (Tinkoff, Yandex, and Sber
-where CSV export is available; Sber XLS import is planned), deterministic rule-based categorization with an
+where CSV export is available — for individuals Sber sends CSV by e-mail, while the in-app statement is PDF),
+deterministic rule-based categorization with an
 optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest
 — all on your machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with
 synthetic data: `uv run python scripts/demo_data.py seed`. Runs as a background service too (Windows Task
