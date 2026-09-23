@@ -47,6 +47,16 @@
     ensureChart(data.chartSrc, function () { draw(data); });
   }
 
+  // Цвета графиков — из semantic-токенов (tokens.css): JS не хардкодит палитру.
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  function withAlpha(color, alphaHex) {
+    return color.charAt(0) === '#' && color.length === 7 ? color + alphaHex : color;
+  }
+
   function draw(data) {
     var dailyEl = document.getElementById('dailyChart');
     if (!dailyEl || dailyEl.dataset.init === '1') return;
@@ -54,6 +64,9 @@
     var daily = data.daily;
     var cats = data.cats;
     var catColorMap = data.colors;
+    var fg = cssVar('--fg', '#e2e8f0');
+    var fgMuted = cssVar('--fg-muted', '#94a3b8');
+    var accentBg = cssVar('--accent-bg', '#2563eb');
     var tick = function (v) { return v.toFixed(2) + ' ₽'; }; // в datasets уже рубли (total_k/100 ниже)
 
     if (daily.length) {
@@ -64,8 +77,8 @@
           datasets: [{
             label: 'Сумма, ₽',
             data: daily.map(function (d) { return d.total_k / 100; }),
-            backgroundColor: 'rgba(59,130,246,0.55)',
-            borderColor: 'rgba(59,130,246,1)',
+            backgroundColor: withAlpha(accentBg, '8c'),
+            borderColor: accentBg,
             borderWidth: 1
           }]
         },
@@ -73,15 +86,18 @@
           responsive: true,
           maintainAspectRatio: false, // иначе чарт перерастает контейнер h-56 при перерисовке
           plugins: { legend: { display: false } },
-          scales: { y: { ticks: { callback: tick, color: '#94a3b8' } },
-                    x: { ticks: { color: '#94a3b8', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
+          scales: { y: { ticks: { callback: tick, color: fgMuted } },
+                    x: { ticks: { color: fgMuted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
         }
       });
     }
 
     var catsEl = document.getElementById('catsChart');
+    // label — RU-имя категории (display_name), color — по слагу (cat_colors)
     var expenses = cats.filter(function (c) { return c.total_k < 0; })
-      .map(function (c) { return { label: c.category, value: -c.total_k / 100 }; });
+      .map(function (c) {
+        return { key: c.category, label: c.label || c.category, value: -c.total_k / 100 };
+      });
     if (expenses.length && catsEl) {
       new Chart(catsEl, {
         type: 'doughnut',
@@ -89,11 +105,11 @@
           labels: expenses.map(function (e) { return e.label; }),
           datasets: [{
             data: expenses.map(function (e) { return e.value; }),
-            backgroundColor: expenses.map(function (e) { return catColorMap[e.label] || '#9ca3af'; }),
+            backgroundColor: expenses.map(function (e) { return catColorMap[e.key] || '#9ca3af'; }),
             borderWidth: 0
           }]
         },
-        options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
+        options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: fg } } } }
       });
     }
   }

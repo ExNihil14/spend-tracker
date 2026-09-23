@@ -154,7 +154,8 @@
       {% for c in report.categories %}
       <tr class="border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
         <td class="px-5 py-3">
-          <a href="/?category={{ c.category }}" class="text-fg hover:text-accent transition-colors">{{ catname(c.category) }}</a>
+          <a href="/?month={{ current }}&category={{ c.category }}" hx-boost="false"
+             class="text-fg hover:text-accent transition-colors">{{ catname(c.category) }}</a>
         </td>
         <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-income' if c.total_k > 0 else 'text-fg' }}">{{ fmt_money(c.total_k) }}</td>
         <td class="px-5 py-3 text-right text-fg-muted">{{ c.count }}</td>

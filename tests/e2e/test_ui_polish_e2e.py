@@ -1,6 +1,7 @@
 """P2 UX-полировка в браузере: пустые состояния, знаки сумм, подсказки (e2e, оффлайн-сервер)."""
 from __future__ import annotations
 
+import re
 import sqlite3
 
 import pytest
@@ -54,10 +55,28 @@ def test_amount_signs_and_badge_text_color(page: Page, live_server, db_path):
     table = page.locator("#tx-table")
     expect(table).to_contain_text("\u2212123,45 ₽")
     expect(table).to_contain_text("+12 345,00 ₽")
-    badge = page.locator('#tx-table a[href="/?category=groceries"]').first
+    badge = page.locator('#tx-table a[href*="category=groceries"]').first
     style = badge.get_attribute("style") or ""
     assert "background:" in style and "color:" in style
     assert "#020617" in style  # светлый цвет категории → тёмный текст (контраст ≥4.5:1)
+
+
+def test_category_badge_keeps_month(page: Page, live_server, db_path):
+    """Смоук-баг 23.09: бейдж категории не должен уводить в другой месяц и подменять только таблицу.
+
+    Было: href без месяца + наследование hx-target/#tx-table → шапка «Июль», строки сентября.
+    Стало: полная навигация с month= → согласованная страница (шапка/итоги/фильтр/таблица).
+    """
+    _seed(str(db_path), "2026-08-10", "ЛЕНТА АВГ", -7000)
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА СЕН", -8000)
+    page.goto(f"{live_server}/?month=2026-08")
+    expect(page.locator("h2", has_text="Транзакции Август 2026")).to_be_visible()
+    page.locator('#tx-table a[href*="category=groceries"]').first.click()
+    expect(page).to_have_url(re.compile(r"month=2026-08.*category=groceries"))
+    expect(page.locator("h2", has_text="Транзакции Август 2026")).to_be_visible()
+    expect(page.locator('#filters select[name="category"]')).to_have_value("groceries")
+    expect(page.locator("#tx-table")).to_contain_text("ЛЕНТА АВГ")
+    expect(page.locator("#tx-table")).not_to_contain_text("ЛЕНТА СЕН")
 
 
 def test_month_empty_note(page: Page, live_server, db_path):

@@ -557,10 +557,13 @@ class Store:
             return [], None, False
 
         placeholders = ",".join("?" * len(dates))
+        # Фильтры применяются и к выборке строк: дни выбраны по условию, но без этого
+        # в страницу попадали ВСЕ операции этих дней (фильтр категории/поиска протекал).
+        rows_clause = clause + (" AND " if clause else " WHERE ") + f"date IN ({placeholders})"
         rows = self.conn.execute(
-            f"SELECT * FROM transactions WHERE date IN ({placeholders})"
+            f"SELECT * FROM transactions{rows_clause}"
             " ORDER BY date DESC, COALESCE(statement_order, id) DESC, id DESC",
-            dates,
+            [*params, *dates],
         ).fetchall()
         return [dict(r) for r in rows], dates[-1], has_more
 

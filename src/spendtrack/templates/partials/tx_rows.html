@@ -20,7 +20,10 @@
   <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-income' if t.amount_kopecks > 0 else 'text-fg' }}">{{ fmt_money(t.amount_kopecks, t.currency) }}</td>
   <td class="px-5 py-3">
     {% set badge_bg = cat_colors.get(t.category, '#9ca3af') %}
-    <a href="/?category={{ t.category }}" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
+    {# hx-boost="false": внутри #tx-table htmx наследует target/select/swap → подменялась бы только таблица
+       (шапка/итоги/фильтр оставались от прошлого состояния). Полная навигация сохраняет консистентность. #}
+    <a href="/?{% if current %}month={{ current }}&{% endif %}category={{ t.category }}" hx-boost="false"
+       class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
        style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">{{ catname(t.category) }}</a>
   </td>
   <td class="px-5 py-3">

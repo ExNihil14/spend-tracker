@@ -64,6 +64,44 @@ def test_more_endpoint_rows_and_sentinel(tmp_path, monkeypatch):
     assert triggers == {"revealed", "click"}
 
 
+def test_days_pagination_applies_category_and_search(tmp_path):
+    """Регресс (смоук 23.09): фильтры применяются и к строкам страницы, не только к выбору дней.
+
+    Было: дни выбирались по условию, а строки — `WHERE date IN (...)` без фильтров →
+    в таблицу протекали все операции этих дней (категория/поиск не работали в «recent»).
+    """
+    s = Store(db_path=tmp_path / "f.db")
+    s.add_transaction(date="2026-09-10", description="ЛЕНТА", amount_kopecks=-1000,
+                      category="groceries", category_source="manual")
+    s.add_transaction(date="2026-09-10", description="ТАКСИ", amount_kopecks=-2000,
+                      category="transport", category_source="manual")
+    s.add_transaction(date="2026-09-11", description="ПЯТЁРОЧКА", amount_kopecks=-3000,
+                      category="groceries", category_source="manual")
+
+    only_groceries, _, _ = s.list_transactions_days(month="2026-09", category="groceries")
+    assert {t["description"] for t in only_groceries} == {"ЛЕНТА", "ПЯТЁРОЧКА"}
+
+    only_taxi, _, _ = s.list_transactions_days(month="2026-09", search="ТАКСИ")
+    assert [t["description"] for t in only_taxi] == ["ТАКСИ"]
+    s.close()
+
+
+def test_index_category_filter_no_leak(tmp_path, monkeypatch):
+    """Регресс UI: ?category= не показывает чужие операции того же дня."""
+    db = tmp_path / "leak.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    s = Store(db_path=db)
+    s.add_transaction(date="2026-09-10", description="ЛЕНТА ФИЛЬТР", amount_kopecks=-1000,
+                      category="groceries", category_source="manual")
+    s.add_transaction(date="2026-09-10", description="ТАКСИ ФИЛЬТР", amount_kopecks=-2000,
+                      category="transport", category_source="manual")
+    s.close()
+
+    html = TestClient(app).get("/?month=2026-09&category=groceries").text
+    assert "ЛЕНТА ФИЛЬТР" in html
+    assert "ТАКСИ ФИЛЬТР" not in html
+
+
 def test_index_month_fits_one_page(tmp_path, monkeypatch):
     db = tmp_path / "idx.db"
     monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))

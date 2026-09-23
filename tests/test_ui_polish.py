@@ -5,6 +5,9 @@ DoD POLISH_PLAN #7-#9: тексты по `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` (
 """
 from __future__ import annotations
 
+import json
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -74,6 +77,30 @@ def test_amounts_render_with_explicit_signs_and_adaptive_badges(client):
     assert "\u22121\u00a0234,56 ₽" in html   # U+2212, разряды NBSP, запятая, ₽
     assert "+250\u00a0000,00 ₽" in html      # явный плюс у дохода
     assert "background:#22c55e;color:#020617" in html  # светлый бейдж groceries → тёмный текст
+
+
+def test_category_links_keep_month_and_full_navigation(client):
+    """Клик по бейджу: полная навигация (hx-boost=false) + месяц в href (баг смоука 23.09).
+
+    Иначе htmx наследует target/select/swap от #tx-table и подменяет только таблицу
+    (шапка/итоги/фильтр остаются от прошлого состояния), а без месяца уводит в последний месяц.
+    """
+    _add(client, "-100.00", "ЛЕНТА")  # groceries, 2026-09-12
+    html = client.get("/?month=2026-09").text
+    assert 'href="/?month=2026-09&category=groceries"' in html
+    assert 'hx-boost="false"' in html
+    assert ">Продукты</option>" in html  # фильтр-селект — RU-имена, не слаги
+
+
+def test_dashboard_chart_data_has_display_labels(client):
+    """Донат-чарт получает RU-подписи (display_name), цвет — по слагу (cat_colors)."""
+    _add(client, "-100.00", "ЛЕНТА")
+    html = client.get("/dashboard").text
+    match = re.search(r"data-cats='([^']*)'", html)
+    assert match, "data-cats не найден"
+    items = json.loads(match.group(1))  # Jinja tojson экранирует кириллицу в \uXXXX
+    by_slug = {item["category"]: item.get("label") for item in items}
+    assert by_slug.get("groceries") == "Продукты"
 
 
 def test_import_hint_and_help_anchors_exist(client):

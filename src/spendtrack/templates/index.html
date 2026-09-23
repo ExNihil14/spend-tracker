@@ -80,14 +80,14 @@
               hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" hx-include="#filters" hx-trigger="change">
         <option value="">Все категории</option>
         {% for c in all_categories %}
-        <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ c }}</option>
+        <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ catname(c) }}</option>
         {% endfor %}
       </select>
       <input name="q" value="{{ q }}" placeholder="Поиск…" aria-label="Поиск по описанию"
              class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-accent"
              hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" hx-include="#filters"
              hx-trigger="input changed delay:400ms">
-      {% if category or q %}<a href="/" class="text-accent hover:text-accent-hover text-sm px-2 py-1">✕</a>{% endif %}
+      {% if category or q %}<a href="/?month={{ current }}" class="text-accent hover:text-accent-hover text-sm px-2 py-1" aria-label="Сбросить фильтры">✕</a>{% endif %}
     </form>
     <a href="/export.csv?month={{ current }}{% if category %}&category={{ category }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}"
        hx-boost="false"

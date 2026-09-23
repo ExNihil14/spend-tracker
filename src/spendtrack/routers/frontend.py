@@ -182,7 +182,7 @@ def dashboard(request: Request, store: Annotated[Store, Depends(get_store)], mon
             "cat_colors": cats,
             "catname": taxonomy.display,
             "has_data": store.has_transactions(),
-            "categories_json": [dict(c) for c in report["categories"]],
+            "categories_json": [dict(c, label=taxonomy.display(c["category"])) for c in report["categories"]],
             "daily_json": daily,
             "colors_json": colors,
         },
