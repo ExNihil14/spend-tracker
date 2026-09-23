@@ -146,8 +146,18 @@
 > (`tokens.css` 2 слоя + `@theme`; `fmt_money`/`fmt_month`/RU-названия категорий; цвет-семантика; /approve
 > bulk-порог+клавиатура; /dashboard аномалии/темп; /transactions таблица выше форм + file input; nav/settings;
 > порядок секций лендинга + финальный CTA). Имя не менять (проверка ФИПС/RuStore — вручную). Инструмент:
-> `D:\dev\bootstrap\scripts\abacus_chat.py` (дублирует temp-версию + `--image`, usage-лог). Следующее:
-> волна S — по команде юзера.
+> `D:\dev\bootstrap\scripts\abacus_chat.py` (дублирует temp-версию + `--image`, usage-лог).
+> **Волна S — СДЕЛАНА (ждёт коммита):** ① контрасты лендинга (`--accent-strong` #2563eb, `--faint` #7c8aa0);
+> ② hero (H1 «Учёт расходов по банковским выпискам», строка «для кого», primary → `#install`, демо-ссылка сразу
+> в Codespaces); ③ support — лист ожидания «Разовая поддержка — скоро» (₽ первым, перк «имя в README/CHANGELOG»,
+> «ядро не урезается», донат-карта с disabled Boosty убрана), опрос → секция «Дорожная карта» после FAQ;
+> ④ демо-БД пересобрана (без «ПРОВЕРКА CSP») + скриншоты 2x (hero-кроп бюджеты+дайджест 1984×1240,
+> /approve 1980×1068, атрибуты width/height обновлены); ⑤ синхронизация заявлений («Вставьте CSV…»,
+> «Демо за пару минут», «Т-Банк (Тинькофф)»/«ЮMoney» в лендинге/README/UI/help); ⑥ app-микротексты
+> («Уверенность» вместо Conf + проценты, «сейчас: …», дата-хинт ДД.ММ.ГГГГ, ЮMoney в селекте);
+> ⑦ `fetchpriority`/`loading=lazy`/`scroll-margin-top`. Контур: **482 unit + 45 e2e** + ruff/contract/build_css,
+> смоуки лендинга и приложения (0 ошибок консоли). Дальше — волна M (tokens.css, fmt_money/month, RU-категории,
+> /approve-клавиатура, /dashboard темп/аномалии, /transactions file input) — по команде юзера.
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter→opencode + Ollama Cloud» — dev-tooling; репо-код не менялся).**
 > Deliverable: интеграция AgentRouter в opencode + пилот Opus-5 на окне квоты; бонусом — тест Ollama Cloud
 > на важном ревью. ① **Плагин** `~/.config/opencode/plugins/agentrouter-ua.js` (авто-загрузка подтверждена):
