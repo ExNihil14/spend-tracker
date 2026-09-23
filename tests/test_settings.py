@@ -240,6 +240,24 @@ def test_settings_api_validation_error(tax_env):
     assert "имя" in r.text
 
 
+def test_category_color_and_delete_routes(tax_env):
+    """Роуты смены цвета и удаления категории (аудит 23.09: repo покрыт, роуты — нет)."""
+    client = TestClient(app)
+    client.post("/settings/categories",
+                data={"name": "cafe", "color": "#112233", "file_hash": repo.file_hash()})
+
+    r = client.post("/settings/categories/color",
+                    data={"name": "cafe", "color": "#ff0000", "file_hash": repo.file_hash()})
+    assert r.status_code == 200
+    colors = {c["name"]: c["color"] for c in repo.load_raw()["categories"]}
+    assert colors["cafe"] == "#ff0000"
+
+    r = client.post("/settings/categories/delete",
+                    data={"name": "cafe", "file_hash": repo.file_hash()})
+    assert r.status_code == 200
+    assert "cafe" not in [c["name"] for c in repo.load_raw()["categories"]]
+
+
 def test_rename_api_preview_and_execute(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,

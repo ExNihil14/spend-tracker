@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from spendtrack.main import _setup_logging, app
+from spendtrack.store import Store
 
 
 @pytest.fixture()
@@ -212,3 +213,54 @@ def test_import_hx_report_shows_skipped_and_suspicious(client):
     assert "Импортировано" in r.text
     assert "+1 добавлено" in r.text
     assert "банк=tinkoff" in r.text
+
+
+def _seed_tx(tmp_path, description="АЗС", category_source="llm_pending_review",
+             category="other", review_status="pending") -> int:
+    """Прямая запись в ту же БД, что у client-фикстуры (env SPENDTRACK_DB_PATH)."""
+    s = Store(db_path=tmp_path / "api.db")
+    s.add_transaction(date="2026-09-10", description=description, amount_kopecks=-1000,
+                      category=category, category_source=category_source, confidence=0.5,
+                      category_llm="transport", review_status=review_status)
+    tx_id = s.conn.execute("SELECT id FROM transactions ORDER BY id DESC LIMIT 1").fetchone()["id"]
+    s.close()
+    return tx_id
+
+
+def test_reviews_count_endpoint(client, tmp_path):
+    """GET /api/reviews/count — OOB-бейдж счётчика (аудит 23.09: роут без тестов)."""
+    _seed_tx(tmp_path)
+    r = client.get("/api/reviews/count")
+    assert r.status_code == 200
+    assert 'id="pending-count"' in r.text
+    assert ">1<" in r.text
+
+
+def test_review_and_tx_4xx_branches(client, tmp_path):
+    """Ветки ошибок очереди/транзакций: approve/skip 404/409, PATCH/GET 404 (аудит 23.09)."""
+    pending_id = _seed_tx(tmp_path)
+    approved_id = _seed_tx(tmp_path, description="ЛЕНТА", category_source="rule",
+                           category="groceries", review_status="approved")
+
+    assert client.post("/api/reviews/999999/approve", data={"category": "other"}).status_code == 404
+    assert client.post(f"/api/reviews/{approved_id}/approve",
+                       data={"category": "other"}).status_code == 409
+    assert client.post("/api/reviews/999999/skip").status_code == 404
+    assert client.post(f"/api/reviews/{approved_id}/skip").status_code == 409
+    assert client.patch("/api/transactions/999999",
+                        json={"category": "other"}).status_code == 404
+
+    r_ok = client.get(f"/api/transactions/{pending_id}")
+    assert r_ok.status_code == 200
+    assert r_ok.json()["description"] == "АЗС"
+    assert client.get("/api/transactions/999999").status_code == 404
+
+
+def test_health_503_when_db_unavailable(client, monkeypatch):
+    """/health отдаёт 503, если БД не открывается (ветка main.py:104, аудит 23.09)."""
+    class BrokenStore:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("db unavailable")
+
+    monkeypatch.setattr("spendtrack.store.Store", BrokenStore)
+    assert client.get("/health").status_code == 503

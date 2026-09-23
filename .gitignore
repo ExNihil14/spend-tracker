@@ -37,3 +37,8 @@ blob-report/
 playwright-report/
 .playwright/
 .playwright-mcp/
+
+# coverage-артефакты (замер по запросу: uv run --with coverage ...)
+.coverage
+.coverage.*
+htmlcov/

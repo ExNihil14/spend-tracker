@@ -273,6 +273,18 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - Тесты: `tests/test_help.py` (3, оффлайн) + e2e `test_help_page_nav_and_faq`; FAQPage JSON-LD не внедряем
   (Google снял rich results 07.05.2026).
 
+## Список: фильтры, ссылки категорий, чарты (смоук 23.09)
+- **Фильтр категории/поиска в «Сначала новые» (регресс-фикс):** `list_transactions_days` выбирал дни по
+  условию, но строки — `WHERE date IN (...)` без фильтров → в таблицу протекали все операции этих дней.
+  Теперь фильтры применяются и к выбору строк; регресс-тесты — `tests/test_tx_paging.py`.
+- **Клик по бейджу категории** — полная навигация (`hx-boost="false"`) и **месяц в href**
+  (`/?month=YYYY-MM&category=…`): иначе htmx наследует `target/select/swap` от `#tx-table` и подменяет
+  только таблицу (шапка/итоги/фильтр остаются от прошлого состояния), а без месяца уводит в последний месяц.
+  То же — ссылки топ-категорий на дашборде; «✕» сброса фильтров сохраняет месяц; селект фильтра — RU-имена.
+- **Чарты дашборда:** подписи — `display_name` категорий (`categories_json[*].label`), цвета — из
+  semantic-токенов через CSS-переменные (`dashboard.js` читает `--accent-bg/--fg/--fg-muted`), цвета
+  категорий — по слагу (`cat_colors`). Тест: `tests/test_ui_polish.py::test_dashboard_chart_data_has_display_labels`.
+
 ## Токены и цвет-семантика (дизайн-ревью, M-1/M-3)
 - `src/spendtrack/tokens.css` — 2 слоя (primitives → semantic); приложение подключает через Tailwind v4
   (`tailwind.css`: `@import` + `@theme inline` → утилиты `bg-surface`, `text-fg-muted`, `border-line`,
@@ -391,7 +403,12 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 ```bash
 uv run pytest -q                # unit-тесты (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
 uv run ruff check               # lint, чистый
+uv run --with coverage coverage run -m pytest -q && uv run --with coverage coverage report --include="src/spendtrack/*"
+                                # замер покрытия (без постоянной зависимости); сейчас src ~96%
 ```
+**Стратегия и организация тестов — `spec/TESTING.md`** (уровни/маркеры, принципы, как добавлять, анти-скоуп).
+Аудит тестирования и функциональности (QA-лид, 23.09): `D:\dev\docs\machine\AUDIT_TESTING_SPENDTRACKER.md`
+(покрытие по модулям, матрица «функция→тесты→пробел», P0/P1/P2; P0 закрыт — 499 unit, покрытие 96%).
 Правила Фазы 2 (контур верификации):
 - Commit ПЕРЕД началом задачи, diff ПОСЛЕ.
 - Визуальная проверка в браузере для ЛЮБОГО UI-изменения (не только pytest).
