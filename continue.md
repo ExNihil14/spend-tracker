@@ -175,6 +175,18 @@
 > (+tokens-sync) + 45 e2e + ruff + contract + build_css (app.css 25 232 Б; все утилиты в сборке) + смоук
 > лендинга/приложения (computed-цвета, 0 ошибок консоли). Отложено: приглушение/точка-текст категорийных
 > бейджей (отдельная итерация с colors.py + taxonomy + visual). Дальше: M-4, M-5, M-6 — по команде.
+> **Разбор CSP-отчёта из Codespaces (запрос юзера) + фикс реального блокера (ждёт коммита):**
+> 11 «ошибок» — внутренние ресурсы VS Code Web/Copilot (`githubassets`, `vscode-cdn`, `githubcopilot`,
+> blob-воркеры; source locations — `workbench.web.main.internal.js`/`content.bundle.js`) под CSP редактора
+> GitHub; в репо нет ни одного упоминания этих origin, наш CSP их не запрашивает — **не наш кейс**
+> (README-troubleshooting дополнен). Попутно найден и исправлен **реальный блокер демо-пути**: прокси
+> Codespaces сохраняет публичный Host (`<codespace>-<port>.app.github.dev`, первоисточник — community
+> discussion #147513 + официальный codespaces-django), поэтому `TrustedHostMiddleware` отдавал 400 на
+> публичном URL. Решение (env-gated): при `CODESPACES=true` trusted hosts/Origin/frame-ancestors расширяются
+> доменом форвардинга (`GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN`, обычно `app.github.dev`); вне Codespaces
+> поведение прежнее (loopback). Тесты: +3 (`test_security_perimeter.py`, вкл. middleware-смоук); SECURITY/
+> PIPELINE/CONTEXT/README обновлены; прод рестартнут (CSP локально `frame-ancestors 'none'`, чужой Host 400,
+> `/health` 200). Контур: **486 unit + 45 e2e** + ruff + contract (baseline осознанно +5 символов).
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter→opencode + Ollama Cloud» — dev-tooling; репо-код не менялся).**
 > Deliverable: интеграция AgentRouter в opencode + пилот Opus-5 на окне квоты; бонусом — тест Ollama Cloud
 > на важном ревью. ① **Плагин** `~/.config/opencode/plugins/agentrouter-ua.js` (авто-загрузка подтверждена):
