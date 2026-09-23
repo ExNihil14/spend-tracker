@@ -76,3 +76,14 @@ def test_cli_budget_command(store, tmp_path, monkeypatch, capsys):
     assert cli.main(["budget", "--month", "2026-09"]) == 0
     out = capsys.readouterr().out
     assert "groceries" in out and "25%" in out
+
+
+def test_budgets_progress_sorted_by_risk(store):
+    """M-5: бюджеты сортируются по риску — перерасход выше «близко к лимиту», а не по алфавиту."""
+    store.set_budget("groceries", 1000_00)   # 120% — перерасход
+    store.set_budget("transport", 1000_00)   # 90% — близко к лимиту
+    store.set_budget("fuel", 1000_00)        # 10% — спокойно
+    store.add_transaction("2026-09-01", "ЛЕНТА", -1200_00, "groceries", "rule")
+    store.add_transaction("2026-09-02", "ТАКСИ", -900_00, "transport", "rule")
+    store.add_transaction("2026-09-03", "АЗС", -100_00, "fuel", "rule")
+    assert [b["category"] for b in budgets_progress(store, "2026-09")] == ["groceries", "transport", "fuel"]

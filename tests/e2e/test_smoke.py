@@ -284,8 +284,13 @@ def test_dashboard_digest_card(page: Page, live_server, db_path):
     expect(card).to_contain_text("7 дн")
     expect(card).to_contain_text("\u2212270,00 ₽")   # расход окна: -150 -120, знак — часть отображения
     expect(card).to_contain_text("Продукты")
-    expect(card).to_contain_text("возможный дубль")
-    expect(card).to_contain_text("КОФЕ")
+    expect(card).to_contain_text("к прошлому окну")  # дельта словами (M-5)
+    expect(card).not_to_contain_text("возможный дубль")  # аномалии — отдельной карточкой
+
+    anomalies = page.locator("#anomalies-card")   # M-5: первый блок дашборда
+    expect(anomalies).to_contain_text("возможный дубль")
+    expect(anomalies).to_contain_text("КОФЕ")
+    expect(anomalies).to_contain_text("Открыть")
 
 
 def test_approve_all_button(page: Page, live_server, db_path):

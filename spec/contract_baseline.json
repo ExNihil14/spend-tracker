@@ -604,6 +604,10 @@
    "args": "confidence: float",
    "returns": "str"
   },
+  "spendtrack.store:delta_words": {
+   "args": "delta_k: int",
+   "returns": "str"
+  },
   "spendtrack.store:fingerprint": {
    "args": "date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str, currency: str='RUB'",
    "returns": "str"

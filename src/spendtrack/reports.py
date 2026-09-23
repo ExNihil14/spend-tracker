@@ -105,6 +105,8 @@ def budgets_progress(store: Store, month: str, known: set[str] | None = None) ->
             "over": spend_for_limits > budget_k,
             "pct": pct,
         })
+    # Сортировка по риску (дизайн-ревью M-5): перерасход → ближе к лимиту, а не по алфавиту.
+    out.sort(key=lambda b: (-b["pct"], b["category"]))
     return out
 
 

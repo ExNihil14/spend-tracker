@@ -102,6 +102,18 @@ def conf_level(confidence: float) -> str:
     return "высокая"
 
 
+def delta_words(delta_k: int) -> str:
+    """Дельта расходов словами (дизайн-ревью M-5): «↑ на 6 925,00 ₽» / «↓ на …» / «без изменений».
+
+    Семантика расходная: `delta_k` — изменение знаковой суммы расходов (отрицательные);
+    рост трат → `↑`, снижение → `↓`. Вместо «Δ −6925.00» — направление словом и модуль суммы.
+    """
+    if delta_k == 0:
+        return "без изменений"
+    arrow = "↑ на" if delta_k < 0 else "↓ на"
+    return f"{arrow} {fmt_money(abs(delta_k), signed=False)}"
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 

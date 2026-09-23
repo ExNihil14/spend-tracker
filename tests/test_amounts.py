@@ -55,3 +55,12 @@ def test_parse_amount_rejects_garbage():
         parse_amount("abc")
     with pytest.raises(InvalidOperation):
         parse_amount("")
+
+
+def test_delta_words_expense_direction():
+    """Дельта расходов словами (M-5): рост трат — ↑, снижение — ↓, ноль — без изменений."""
+    from spendtrack.store import delta_words
+
+    assert delta_words(-692500) == "↑ на 6\u00a0925,00 ₽"
+    assert delta_words(692500) == "↓ на 6\u00a0925,00 ₽"
+    assert delta_words(0) == "без изменений"

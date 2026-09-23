@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated
 from urllib.parse import urlencode
 
@@ -22,14 +22,22 @@ from spendtrack.reports import (
     report_daily,
     report_month,
 )
-from spendtrack.store import Store, conf_level, fmt_amount, fmt_date, fmt_money, fmt_month
+from spendtrack.store import (
+    Store,
+    conf_level,
+    delta_words,
+    fmt_amount,
+    fmt_date,
+    fmt_money,
+    fmt_month,
+)
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(
     fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date, conf_level=conf_level,
-    badge_text=badge_text_color, static=static_url,
+    delta_words=delta_words, badge_text=badge_text_color, static=static_url,
 )
 
 PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)
@@ -151,6 +159,21 @@ def help_page(request: Request, store: Annotated[Store, Depends(get_store)]):
     )
 
 
+def _month_elapsed_pct(month: str, today: date) -> int:
+    """Доля прошедшего месяца для маркера темпа на бюджетах (прошлый месяц — 100, будущий — 0)."""
+    try:
+        first = date.fromisoformat(f"{month}-01")
+    except ValueError:
+        return 0
+    next_first = date(first.year + (first.month == 12), first.month % 12 + 1, 1)
+    if today < first:
+        return 0
+    if today >= next_first:
+        return 100
+    last_day = (next_first - timedelta(days=1)).day
+    return round(today.day / last_day * 100)
+
+
 @router.get("/dashboard", response_class=HTMLResponse)
 def dashboard(request: Request, store: Annotated[Store, Depends(get_store)], month: str | None = None, month_delta: int = 0):
     taxonomy = load_taxonomy()
@@ -173,6 +196,7 @@ def dashboard(request: Request, store: Annotated[Store, Depends(get_store)], mon
             "recurring": recurring,
             "digest": digest,
             "current": current,
+            "month_elapsed": _month_elapsed_pct(current, today),
             "prev_month": _shift_month(current, -1),
             "next_month": _shift_month(current, 1),
             "pending": store.queued_for_review(),
