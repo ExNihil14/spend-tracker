@@ -99,9 +99,15 @@
 > `free_llm_chat.py --provider ollama-cloud`, `ollama_cloud_probe.py`, `agentrouter_chat.py --protocol`.
 > ⑤ Продукт не менялся: 482 unit + ruff + contract + build_css — зелёные (факт). Репо-изменение: только
 > continue.md. ⑥ **AgentRouter: WAF забанил IP** после серии запросов (браузер тоже; пилот успел до бана) —
-> канал для редких one-shot; не долбить (ждать/сменить IP). Следующее: cooldown/очередь в плагине (для
-> агентных сессий); решения юзера по адъюдикации (нейтральный e-mail, акцепт, FUNDING.yml); прочее —
-> по SESSION_START_PROMPT.
+> канал для редких one-shot; не долбить (ждать/сменить IP). ⑦ **Чистка архивного e-mail из git-истории
+> (вариант B, решение юзера):** закрыты 5 Dependabot-PR; `git-filter-repo` (mailmap + replace-text) —
+> 130 коммитов и тег `v0.1.0` перезаписаны (новые SHA; автор `exnihil88@gmail.com`); защита main снята
+> и возвращена 1:1; force-push — юзером; Pages передеплоен (живой сайт без старого адреса); свежий клон
+> чист (0 вхождений). **Остаток:** старые коммиты (cadea35/c52ce82/961345a/279d969) ещё отдаются по SHA —
+> их держат закрытые PR-refs (dereference — только через Support; тикет опционален). Бэкап-зеркало
+> со старым адресом: `temp\opencode\spend-tracker-backup-2026-09-23.git` (удалить после решения).
+> Следующее: cooldown/очередь в плагине (для агентных сессий); решения юзера по адъюдикации (акцепт,
+> FUNDING.yml); прочее — по SESSION_START_PROMPT.
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter и бесплатные AI-роутеры» — docs/скрипты; репо-код не менялся).**
 > Разобран пост Habr (6 бесплатных роутеров, https://habr.com/ru/articles/1070906/): AgentRouter ($125
 > кредитов, Opus-5 $2/$10, Opus-4-8, gpt-6-astra), OrcaRouter/TeamoRouter (free DeepSeek), Token Harbor
