@@ -135,6 +135,19 @@
 > обновлены (нет `REPLACE_ME`/`boosty.to`, «Boosty — к запуску», «псевдоним счёта», донат без перков).
 > Контур: **482 unit** + ruff + contract + build_css + визуальный смоук лендинга (0 ошибок консоли).
 > За юзером: §3.6 оферты, mailto (1.8), горизонт (1.5), вопросы в МНС, включить Boosty-кнопку после URL.
+> **Дизайн-ревью Opus-5.5 (Abacus + 6 скриншотов; ≈$0.60; 253 с, 31 879 in / 23 846 out):** ресёрч
+> primary sources → `RESEARCH_DESIGN_BRAND_SPENDTRACKER.md` (372 стр.) → досье (лендинг HTML+CSS + выжимка)
+> → vision-probe → one-shot → `EXPERT_REVIEW_DESIGN_OPUS55_2026-09-23.md` (+адъюдикация; все P0 проверены
+> расчётом/фактами). **Вердикт:** лендинг ~7/10, приложение ~5/10 («developer UI на дефолтах Tailwind»).
+> P0: контрасты лендинга (white/#3b82f6 = 3.68:1; --faint 3.75:1), hero-CTA ведёт на якорь, «Перетащите CSV»
+> vs textarea, расходы всё красные (сигнал обесценен), EN-слаги/CONF/«Яндекс.Деньги», disabled Boosty на
+> проде, «ПРОВЕРКА CSP» в демо-данных скриншотов. **План:** волна S (7 пунктов: контрасты, hero/CTA-текст,
+> support, демо-данные+кропы, синхронизация заявлений, микро-тексты, fetchpriority/lazy) + волна M
+> (`tokens.css` 2 слоя + `@theme`; `fmt_money`/`fmt_month`/RU-названия категорий; цвет-семантика; /approve
+> bulk-порог+клавиатура; /dashboard аномалии/темп; /transactions таблица выше форм + file input; nav/settings;
+> порядок секций лендинга + финальный CTA). Имя не менять (проверка ФИПС/RuStore — вручную). Инструмент:
+> `D:\dev\bootstrap\scripts\abacus_chat.py` (дублирует temp-версию + `--image`, usage-лог). Следующее:
+> волна S — по команде юзера.
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter→opencode + Ollama Cloud» — dev-tooling; репо-код не менялся).**
 > Deliverable: интеграция AgentRouter в opencode + пилот Opus-5 на окне квоты; бонусом — тест Ollama Cloud
 > на важном ревью. ① **Плагин** `~/.config/opencode/plugins/agentrouter-ua.js` (авто-загрузка подтверждена):
