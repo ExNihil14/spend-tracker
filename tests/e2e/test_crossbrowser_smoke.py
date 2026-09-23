@@ -8,7 +8,7 @@ from __future__ import annotations
 import contextlib
 
 import pytest
-from helpers import seed_smoke_data
+from helpers import open_panel, seed_smoke_data
 from playwright.sync_api import Page
 
 pytestmark = pytest.mark.e2e
@@ -76,6 +76,7 @@ def test_add_form_works_under_strict_csp(page: Page, live_server: str) -> None:
     Проверяет и перенос обработчиков в /static/app.js: форма сбрасывается после успешного ответа.
     """
     errors = _open(page, live_server, "/")
+    open_panel(page, "add")
     page.fill('#add-form input[name="description"]', "ТЕСТ CSP")
     page.fill('#add-form input[name="amount"]', "-123.45")
     with page.expect_response(lambda r: "/api/transactions" in r.url):

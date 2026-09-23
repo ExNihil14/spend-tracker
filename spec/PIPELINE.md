@@ -366,6 +366,19 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   (знаки аномалий: медианы хранятся магнитудами — знак расхода ставится явно); e2e
   `tests/e2e/test_ui_polish_e2e.py`. Источник формулировок — `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` §4/§6.
 
+## Главная: данные выше форм (M-6, дизайн-ревью)
+- Итоги месяца — строкой (`Доход/Расход/Баланс` + стрелки месяцев), а не четырьмя KPI-карточками (на дашборде
+  карточки остались — дубль сжат на одной из страниц).
+- Формы «Импорт CSV» и «Добавить» свёрнуты в кнопки шапки таблицы транзакций (`[data-toggle]` →
+  панели `#import-panel`/`#add-panel`, по умолчанию `hidden`; `aria-expanded`/`aria-controls` — в `app.js`;
+  ссылки `/#import`, `/#add` (лендинг, чек-лист, дашборд) открывают панель через hash-обработчик).
+- Импорт: `<input type=file>` + drop-zone (`#import-drop`, drag&drop в `app.js` подставляет файл в input),
+  textarea осталась запасным путём; форма `hx-encoding="multipart/form-data"`. API `/api/import` принимает
+  JSON | form | multipart: файл читается байтами (utf-8-sig/cp1251-фолбэк внутри `import_csv`), имя файла —
+  источник партии; пустой `file` (filename="") → фолбэк на textarea.
+- Тесты: `test_api.py` (multipart utf-8/cp1251/пустой файл), `test_ui_polish.py` (структура/скрытые панели/
+  drop-zone/итоги строкой), e2e `open_panel()`-хелпер + `test_import_csv_by_file_upload`.
+
 ## Первый запуск: чек-лист 4 шага (P2 #10)
 - Главная при `first_run` (нет транзакций И нет партий импорта) показывает `#start-checklist`
   (`partials/start_checklist.html`): 4 шага со ссылками (#import/#add, /approve, /settings, /dashboard) +

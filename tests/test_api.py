@@ -303,3 +303,39 @@ def test_health_503_when_db_unavailable(client, monkeypatch):
 
     monkeypatch.setattr("spendtrack.store.Store", BrokenStore)
     assert client.get("/health").status_code == 503
+
+
+# ── M-6: импорт файлом (multipart) ──────────────────────────────────────────
+
+def test_import_multipart_file_upload(client):
+    """CSV из <input type=file> (multipart) импортируется; имя файла — источник партии."""
+    csv_data = ("Номер документа;Дата операции;Номер карты;Статус;Сумма операции;"
+                "Валюта операции;Категория;Описание\n"
+                "1;01.09.2026 10:00;1234;Выполнено;-1 234,56;RUB;Продукты;ЛЕНТА ФАЙЛ\n")
+    r = client.post("/api/import", data={"bank": "sber"},
+                    files={"file": ("sber.csv", csv_data.encode("utf-8"), "text/csv")})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok" and body["added"] == 1
+    assert client.get("/health").json()["transactions"] == 1
+
+
+def test_import_multipart_cp1251_bytes(client):
+    """Файл в cp1251 (реальный экспорт Т-Банка) читается байтами без «кракозябр»."""
+    csv_data = ("Дата;Сумма операции;Категория;Описание;Счёт\n"
+                "02.09.2026;-1200,00;Транспорт;АЗС ЛУКОЙЛ;4081781\n")
+    r = client.post("/api/import", data={"bank": "auto"},
+                    files={"file": ("tbank.csv", csv_data.encode("cp1251"), "text/csv")})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "ok" and body["bank"] == "tinkoff" and body["added"] == 1
+
+
+def test_import_multipart_empty_file_falls_back_to_text(client):
+    """Пустой file (filename="") не ломает форму: используется текст из textarea."""
+    csv_data = ("Дата;Сумма операции;Категория;Описание;Счёт\n"
+                "02.09.2026;-1200,00;Транспорт;АЗС ЛУКОЙЛ;4081781\n")
+    r = client.post("/api/import", data={"bank": "auto", "csv": csv_data},
+                    files={"file": ("", b"", "application/octet-stream")})
+    assert r.status_code == 200
+    assert r.json()["added"] == 1

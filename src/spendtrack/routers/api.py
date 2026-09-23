@@ -277,21 +277,26 @@ def get_one(tx_id: int, store: Annotated[Store, Depends(get_store)]):
 
 @router.post("/import")
 async def do_import(request: Request, store: Annotated[Store, Depends(get_store)]):
+    """JSON | form-urlencoded | multipart (file=CSV-файл, M-6) — единый результат ImportOut/htmx."""
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")
     if "application/json" in ct:
         body = await _json_payload(request, ImportIn)
+        raw: str | bytes = body.csv
+        bank, filename = body.bank, "api.json"
     else:
         # framework-дефолт 1 МБ резал форму раньше наших лимитов: поднимаем до 2×лимита,
         # чтобы превышение обрабатывал наш код (понятные 413/HTMX-сообщение)
         form = await request.form(max_part_size=2 * MAX_CSV_BYTES)
-        bank = form.get("bank")
-        csv = form.get("csv")
-        body = ImportIn(bank=str(bank) if bank is not None else "auto",
-                        csv=str(csv) if csv is not None else "")
+        bank = str(form.get("bank") or "auto")
+        upload = form.get("file")
+        if upload is not None and getattr(upload, "filename", ""):
+            raw, filename = await upload.read(), str(upload.filename)  # байты: utf-8-sig/cp1251-фолбэк внутри
+        else:
+            raw, filename = str(form.get("csv") or ""), "form.csv"
     is_hx = request.headers.get("hx-request", "").lower() == "true"
     try:
-        result = import_csv(body.csv, store, bank=body.bank, taxonomy=taxonomy)
+        result = import_csv(raw, store, bank=bank, taxonomy=taxonomy, filename=filename)
     except ImportLimitError as e:  # лимиты импорта — понятный 413; прочие ValueError остаются багами (500)
         if is_hx:
             return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')

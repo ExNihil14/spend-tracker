@@ -32,4 +32,41 @@
       htmx.trigger('body', 'refresh-list');
     }
   });
+
+  // Панели «Импорт»/«Добавить» на главной (M-6): формы свёрнуты в кнопки шапки таблицы.
+  function setPanel(btn, open) {
+    var panel = document.getElementById(btn.getAttribute('aria-controls'));
+    if (!panel) return;
+    panel.toggleAttribute('hidden', !open);
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  }
+
+  document.body.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('[data-toggle]') : null;
+    if (!btn) return;
+    setPanel(btn, btn.getAttribute('aria-expanded') !== 'true');
+  });
+
+  // Ссылки /#import и /#add (лендинг, чек-лист, дашборд) открывают панель, а не «немой» якорь.
+  function openFromHash() {
+    var btn = document.getElementById((location.hash || '').replace('#', ''));
+    if (btn && btn.hasAttribute('data-toggle')) setPanel(btn, true);
+  }
+  openFromHash();
+  window.addEventListener('hashchange', openFromHash);
+
+  // Drop-zone импорта: файл можно перетащить в зону.
+  var drop = document.getElementById('import-drop');
+  if (drop) {
+    var fileInput = drop.querySelector('input[type=file]');
+    ['dragenter', 'dragover'].forEach(function (t) {
+      drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('border-accent'); });
+    });
+    ['dragleave', 'drop'].forEach(function (t) {
+      drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('border-accent'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      if (fileInput && e.dataTransfer && e.dataTransfer.files.length) fileInput.files = e.dataTransfer.files;
+    });
+  }
 })();

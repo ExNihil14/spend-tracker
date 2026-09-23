@@ -21,6 +21,16 @@ def seed_tx(db_path: str | Path, date: str, description: str, kopecks: int, *,
         store.close()
 
 
+def open_panel(page, name: str) -> None:
+    """Открыть свёрнутую панель «Импорт»/«Добавить» на главной (M-6: формы в шапке таблицы).
+
+    `name` — суффикс панели: «import» → кнопка [data-toggle="import-panel"].
+    """
+    btn = page.locator(f'[data-toggle="{name}-panel"]')
+    if btn.get_attribute("aria-expanded") != "true":
+        btn.click()
+
+
 def seed_pending(db_path: str | Path, rows: list[tuple]) -> None:
     """Очередь подтверждения (обход LLM): строки (fp, date, desc, kopecks, conf, llm_cat).
 

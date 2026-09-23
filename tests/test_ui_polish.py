@@ -179,3 +179,20 @@ def test_dashboard_budget_tempo_marker_and_risk_order(client, tmp_path):
     assert html.index("Продукты") < html.index("Топливо")  # перерасход выше (по риску, не по алфавиту)
     assert f"left: {elapsed}%" in html
     assert f"прошло {elapsed}% месяца" in html
+
+
+def test_index_forms_collapsed_and_totals_line(client):
+    """M-6: данные выше форм — итоги строкой, «Импорт»/«Добавить» свёрнуты в кнопки шапки таблицы."""
+    html = client.get("/").text
+    # свёрнутые панели с формами (по умолчанию скрыты)
+    assert '<div id="import-panel" hidden' in html
+    assert '<div id="add-panel" hidden' in html
+    # кнопки-переключатели с aria-состоянием (a11y)
+    assert 'data-toggle="import-panel"' in html and 'aria-controls="import-panel"' in html
+    assert 'aria-expanded="false"' in html
+    assert 'data-toggle="add-panel"' in html and 'aria-controls="add-panel"' in html
+    # импорт файлом + drop-zone
+    assert 'id="import-drop"' in html and 'type="file"' in html and 'hx-encoding="multipart/form-data"' in html
+    # итоги месяца — строкой, а не четырьмя KPI-карточками
+    assert "Доход" in html and "Расход" in html and "Баланс" in html
+    assert "grid-cols-2 sm:grid-cols-4" not in html

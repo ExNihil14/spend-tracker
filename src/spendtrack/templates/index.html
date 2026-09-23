@@ -1,73 +1,27 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-  <div class="bg-surface rounded-xl p-4 border border-line">
-    <div class="text-xs uppercase tracking-wide text-fg-muted">Доход</div>
-    <div class="text-lg font-semibold text-income mt-1">{{ fmt_money(report.income_k) }}</div>
-  </div>
-  <div class="bg-surface rounded-xl p-4 border border-line">
-    <div class="text-xs uppercase tracking-wide text-fg-muted">Расход</div>
-    <div class="text-lg font-semibold text-fg mt-1">{{ fmt_money(report.expense_k) }}</div>
-  </div>
-  <div class="bg-surface rounded-xl p-4 border border-line">
-    <div class="text-xs uppercase tracking-wide text-fg-muted">Баланс</div>
-    <div class="text-lg font-semibold text-fg-strong mt-1">{{ fmt_money(report.balance_k) }}</div>
-  </div>
-  <div class="bg-surface rounded-xl p-4 border border-line flex items-center justify-between">
-    <a href="/?month={{ prev_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors">←</a>
-    <div class="text-sm font-medium text-fg">{{ fmt_month(current) }}</div>
-    <a href="/?month={{ next_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors">→</a>
-  </div>
+<div class="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm mb-4">
+  <span class="text-fg-muted">Доход <span class="text-income font-medium">{{ fmt_money(report.income_k) }}</span></span>
+  <span class="text-fg-muted">Расход <span class="text-fg font-medium">{{ fmt_money(report.expense_k) }}</span></span>
+  <span class="text-fg-muted">Баланс <span class="text-fg-strong font-medium">{{ fmt_money(report.balance_k) }}</span></span>
+  <span class="ml-auto flex items-center gap-1">
+    <a href="/?month={{ prev_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}"
+       class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors" aria-label="Предыдущий месяц">←</a>
+    <span class="text-sm font-medium text-fg">{{ fmt_month(current) }}</span>
+    <a href="/?month={{ next_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}"
+       class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors" aria-label="Следующий месяц">→</a>
+  </span>
 </div>
 
 {% if first_run %}{% include "partials/start_checklist.html" %}{% endif %}
 
-<div id="import" class="bg-surface rounded-xl p-5 border border-line mb-8">
-  <h2 class="text-sm font-semibold text-fg mb-3 uppercase tracking-wide">Импорт CSV</h2>
-  <form id="import-form" hx-post="/api/import" hx-target="#importmsg" hx-swap="innerHTML"
-        hx-indicator="#import-spinner"
-        class="flex flex-col gap-3">
-    <div class="flex flex-wrap gap-3">
-      <select name="bank" aria-label="Банк выписки" class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent">
-        <option value="auto">Определить банк</option>
-        <option value="sber">Сбербанк</option>
-        <option value="tinkoff">Т-Банк (Тинькофф)</option>
-        <option value="yandex">ЮMoney (Яндекс)</option>
-      </select>
-      <button class="bg-accent-bg hover:bg-accent-bg-hover text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Импортировать</button>
-      <span id="import-spinner" class="htmx-indicator text-accent text-sm self-center">Импорт…</span>
-    </div>
-    <textarea name="csv" rows="5" aria-label="Содержимое CSV-выписки" placeholder="Вставьте содержимое CSV-выписки…"
-              class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
-  </form>
-  <p class="text-xs text-fg-muted mt-3">
-    CSV Сбербанка, Т-Банка (Тинькофф) и ЮMoney; формат определяется автоматически, повторный импорт не создаёт дублей.
-    <a href="/help#faq-import-sber" class="text-accent hover:text-accent-hover">Как импортировать выписку →</a>
-  </p>
-  <div id="importmsg" class="mt-3 text-sm"></div>
-</div>
-
-<div id="add" class="bg-surface rounded-xl p-5 border border-line mb-8">
-  <h2 class="text-sm font-semibold text-fg mb-3 uppercase tracking-wide">Добавить</h2>
-  <form id="add-form" hx-post="/api/transactions" hx-target="#newmsg" hx-swap="innerHTML"
-        hx-indicator="#global-indicator"
-        class="flex flex-wrap gap-3">
-    <input name="date" type="date" required aria-label="Дата операции" aria-describedby="date-hint" value="{{ current }}-01"
-           class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent">
-    <input name="description" placeholder="Описание" aria-label="Описание" required
-           class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 flex-1 min-w-40 focus:outline-none focus:ring-2 focus:ring-accent">
-    <input name="amount" placeholder="Сумма, напр. −23,45" aria-label="Сумма" required
-           class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 w-40 focus:outline-none focus:ring-2 focus:ring-accent">
-    <button class="bg-accent-bg hover:bg-accent-bg-hover text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Добавить</button>
-    <span id="add-spinner" class="htmx-indicator text-accent text-sm self-center">Добавление…</span>
-    <p id="date-hint" class="text-xs text-fg-muted w-full">Дата — ДД.ММ.ГГГГ; в Safari нативного календаря нет — вводится вручную.</p>
-  </form>
-  <div id="newmsg" class="mt-3 text-sm"></div>
-</div>
-
 <div class="bg-surface rounded-xl border border-line overflow-hidden">
-  <div class="px-5 py-3 border-b border-line flex flex-wrap items-center gap-3">
+  <div class="px-5 py-3 border-b border-line flex flex-wrap items-center gap-2">
     <h2 class="text-sm font-semibold text-fg uppercase tracking-wide">Транзакции {{ fmt_month(current) }}</h2>
+    <button type="button" id="import" data-toggle="import-panel" aria-expanded="false" aria-controls="import-panel"
+            class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Импорт CSV</button>
+    <button type="button" id="add" data-toggle="add-panel" aria-expanded="false" aria-controls="add-panel"
+            class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
     <form hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
       <select name="sort" aria-label="Сортировка"
               class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
@@ -94,6 +48,53 @@
        class="text-fg hover:text-fg-strong text-sm px-3 py-1.5 rounded-lg border border-line-strong hover:bg-line transition-colors"
        aria-label="Экспорт транзакций в CSV (открывается в Excel)" title="Экспорт CSV (Excel)">Экспорт CSV</a>
   </div>
+
+  <div id="import-panel" hidden class="px-5 py-4 border-b border-line bg-canvas/30">
+    <form id="import-form" hx-post="/api/import" hx-encoding="multipart/form-data"
+          hx-target="#importmsg" hx-swap="innerHTML" hx-indicator="#import-spinner"
+          class="flex flex-col gap-3">
+      <div class="flex flex-wrap items-center gap-3">
+        <select name="bank" aria-label="Банк выписки" class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent">
+          <option value="auto">Определить банк</option>
+          <option value="sber">Сбербанк</option>
+          <option value="tinkoff">Т-Банк (Тинькофф)</option>
+          <option value="yandex">ЮMoney (Яндекс)</option>
+        </select>
+        <button class="bg-accent-bg hover:bg-accent-bg-hover text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Импортировать</button>
+        <span id="import-spinner" class="htmx-indicator text-accent text-sm self-center">Импорт…</span>
+      </div>
+      <div id="import-drop" class="border border-dashed border-line-strong rounded-lg px-4 py-3 bg-surface-2/40">
+        <input type="file" name="file" accept=".csv,text/csv" aria-label="CSV-файл выписки"
+               class="block w-full text-xs text-fg-muted file:mr-3 file:rounded-lg file:border-0 file:bg-accent-bg file:text-white file:text-xs file:font-medium file:px-3 file:py-1.5 file:cursor-pointer">
+        <p class="text-xs text-fg-muted mt-2">Перетащите CSV-файл сюда или выберите его — либо вставьте текст выписки ниже.</p>
+      </div>
+      <textarea name="csv" rows="5" aria-label="Содержимое CSV-выписки" placeholder="Вставьте содержимое CSV-выписки…"
+                class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-accent"></textarea>
+    </form>
+    <p class="text-xs text-fg-muted mt-3">
+      CSV Сбербанка, Т-Банка (Тинькофф) и ЮMoney; формат определяется автоматически, повторный импорт не создаёт дублей.
+      <a href="/help#faq-import-sber" class="text-accent hover:text-accent-hover">Как импортировать выписку →</a>
+    </p>
+    <div id="importmsg" class="mt-3 text-sm"></div>
+  </div>
+
+  <div id="add-panel" hidden class="px-5 py-4 border-b border-line bg-canvas/30">
+    <form id="add-form" hx-post="/api/transactions" hx-target="#newmsg" hx-swap="innerHTML"
+          hx-indicator="#global-indicator"
+          class="flex flex-wrap gap-3">
+      <input name="date" type="date" required aria-label="Дата операции" aria-describedby="date-hint" value="{{ current }}-01"
+             class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-accent">
+      <input name="description" placeholder="Описание" aria-label="Описание" required
+             class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 flex-1 min-w-40 focus:outline-none focus:ring-2 focus:ring-accent">
+      <input name="amount" placeholder="Сумма, напр. −23,45" aria-label="Сумма" required
+             class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 w-40 focus:outline-none focus:ring-2 focus:ring-accent">
+      <button class="bg-accent-bg hover:bg-accent-bg-hover text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Добавить</button>
+      <span id="add-spinner" class="htmx-indicator text-accent text-sm self-center">Добавление…</span>
+      <p id="date-hint" class="text-xs text-fg-muted w-full">Дата — ДД.ММ.ГГГГ; в Safari нативного календаря нет — вводится вручную.</p>
+    </form>
+    <div id="newmsg" class="mt-3 text-sm"></div>
+  </div>
+
   <div class="table-scroll overflow-x-auto" role="region" aria-label="Таблица операций" tabindex="0">
   <div id="tx-table" hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-trigger="refresh-list from:body">
   <table class="w-full text-sm">

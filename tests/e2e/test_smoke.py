@@ -6,8 +6,8 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from helpers import open_panel, seed_tx
 from helpers import seed_pending as _seed_pending
-from helpers import seed_tx
 from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.e2e
@@ -35,6 +35,7 @@ def _wait_single(page: Page, selector: str, timeout: int = 15_000) -> None:
 def test_add_transaction_rule_keyword(page: Page, live_server):
     """Добавление через UI: «ЛЕНТА» матчится keyword-правилом → groceries без LLM."""
     page.goto(live_server)
+    open_panel(page, "add")
     page.fill('input[name="date"]', "2026-09-12")
     page.fill('input[name="description"]', "ЛЕНТА")
     page.fill('input[name="amount"]', "-1234.56")
@@ -50,6 +51,7 @@ def test_filter_search_htmx(page: Page, live_server):
     marker = f"ЛЕНТА{uuid4().hex[:6]}"
     with page.expect_response(lambda r: "/api/transactions" in r.url and r.request.method == "POST"):
         page.goto(live_server)
+        open_panel(page, "add")
         page.fill('input[name="date"]', "2026-09-12")
         page.fill('input[name="description"]', marker)
         page.fill('input[name="amount"]', "-100.00")
@@ -65,6 +67,7 @@ def test_filter_search_htmx(page: Page, live_server):
 def test_import_csv_via_ui(page: Page, live_server):
     """Импорт Сбер-CSV через UI: выбран банк, вставлены строки, фрагмент в #importmsg."""
     page.goto(live_server)
+    open_panel(page, "import")
     csv = (
         "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;"
         "Валюта операции;Категория;Описание\n"
@@ -72,6 +75,22 @@ def test_import_csv_via_ui(page: Page, live_server):
     )
     page.select_option('select[name="bank"]', "sber")
     page.fill('textarea[name="csv"]', csv)
+    page.click('form[hx-post="/api/import"] button')
+    _wait_htmx(page, "#importmsg")
+    expect(page.locator("#importmsg").first).to_contain_text(re.compile(r"добавлено", re.IGNORECASE))
+
+
+def test_import_csv_by_file_upload(page: Page, live_server, tmp_path):
+    """M-6: CSV-файл из <input type=file> импортируется через multipart (без textarea)."""
+    path = tmp_path / "sber.csv"
+    path.write_text(
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;"
+        "Валюта операции;Категория;Описание\n"
+        "1;01.09.2026 10:00;1234;Выполнено;-1 234,56;RUB;Продукты;ЛЕНТА ФАЙЛ\n",
+        encoding="utf-8")
+    page.goto(live_server)
+    open_panel(page, "import")
+    page.set_input_files('#import-form input[type=file]', str(path))
     page.click('form[hx-post="/api/import"] button')
     _wait_htmx(page, "#importmsg")
     expect(page.locator("#importmsg").first).to_contain_text(re.compile(r"добавлено", re.IGNORECASE))
