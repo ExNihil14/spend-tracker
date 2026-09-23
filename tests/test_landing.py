@@ -79,7 +79,7 @@ def test_required_sections_and_mechanics() -> None:
         assert anchor in collector.ids, anchor
     assert "https://codespaces.new/ExNihil14/spend-tracker" in collector.links
     assert any(link.startswith("mailto:") for link in collector.links)
-    assert "Boosty — к запуску" in html  # кнопка доната выключена до запуска (живой заглушки нет)
+    assert "Разовая поддержка — скоро" in html  # лист ожидания до Boosty/URL; живой заглушки нет
     raw = "https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/"
     assert raw + "install.ps1" in html and raw + "install.sh" in html
 

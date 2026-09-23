@@ -5,9 +5,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Spendtrack — бюджет и подписки без облака</title>
+<title>Spendtrack — локальный учёт расходов по выпискам</title>
 <meta name="description" content="Локальный трекер расходов: импорт CSV Тинькофф и Яндекса (Сбер — где доступен CSV-экспорт), категории без облака, бюджеты, автодетект подписок и недельный отчёт об аномалиях. Открытый код, бесплатно.">
-<meta property="og:title" content="Spendtrack — бюджет и подписки без облака">
+<meta property="og:title" content="Spendtrack — локальный учёт расходов по выпискам">
 <meta property="og:description" content="Импорт выписок Тинькофф/Яндекс (Сбер — где доступен CSV-экспорт), локальная категоризация, бюджеты и дайджест аномалий. По умолчанию данные не покидают ваш компьютер.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://exnihil14.github.io/spend-tracker/">
@@ -35,24 +35,25 @@
 
   <section class="hero wrap">
     <div>
-      <span class="eyebrow">Локально · без облака · AGPLv3</span>
-      <h1>Бюджет и подписки без облака</h1>
-      <p class="lead">Закиньте выписку Тинькофф или Яндекса (Сбер — там, где доступен CSV-экспорт) — получите категории, бюджеты и недельный отчёт об аномалиях. По умолчанию данные не покидают ваш компьютер, подписки нет.</p>
+      <span class="eyebrow">Локально · без облака · AGPLv3 · бета</span>
+      <h1>Учёт расходов по банковским выпискам — без облака</h1>
+      <p class="lead">Загрузите CSV из Т-Банка (Тинькофф) или ЮMoney — Spendtrack разложит траты по категориям, покажет бюджеты и найдёт подорожавшие подписки. Всё работает на вашем компьютере, код открыт.</p>
+      <p class="for-whom">Для тех, кто ведёт бюджет в Excel или ZenMoney и не хочет отдавать выписки в чужое облако.</p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="#demo">Попробовать демо</a>
-        <a class="btn btn-ghost" href="#install">Установить за одну команду</a>
+        <a class="btn btn-primary" href="#install">Установить — 10 минут до отчёта</a>
+        <a class="btn btn-ghost" href="https://codespaces.new/ExNihil14/spend-tracker" rel="noopener">Посмотреть демо без установки →</a>
       </div>
-      <p class="hint">Демо открывается в GitHub Codespaces с синтетическими данными — реальные выписки не нужны.</p>
+      <p class="hint">В демо — синтетические данные за ~5 месяцев; нужен аккаунт GitHub, порт приватный.</p>
     </div>
     <figure class="shot">
-      <img src="assets/shot-dashboard.png" width="1280" height="800" alt="Дашборд Spendtrack: бюджеты месяца с перерасходом и дайджест недели с аномалиями">
+      <img src="assets/shot-dashboard.png" width="992" height="620" fetchpriority="high" alt="Дашборд Spendtrack: бюджеты месяца с перерасходом и дайджест недели с аномалиями">
       <figcaption>Бюджеты месяца и дайджест аномалий — синтетические данные демо-режима.</figcaption>
     </figure>
   </section>
 
   <div class="facts">
     <div class="wrap">
-      <div class="fact"><strong>Тинькофф · Яндекс · Сбер</strong>CSV-выписки с автоопределением формата; у Сбера CSV есть не у всех — XLS-импорт в планах</div>
+      <div class="fact"><strong>Т-Банк · ЮMoney · Сбер</strong>CSV-выписки с автоопределением формата; у Сбера CSV есть не у всех — XLS-импорт в планах</div>
       <div class="fact"><strong>Повторный импорт = no-op</strong>дедуп по fingerprint, без двойного учёта</div>
       <div class="fact"><strong>LLM — опция</strong>свой ключ (BYO) или локальный Ollama; по умолчанию выключен</div>
       <div class="fact"><strong>Экспорт без потерь</strong>CSV/Excel в любой момент; база — ваш SQLite-файл</div>
@@ -79,7 +80,7 @@
         </div>
         <div class="step">
           <h3>Загрузите выписку</h3>
-          <p>Перетащите CSV в веб-интерфейс или в терминале:</p>
+          <p>Вставьте CSV в веб-интерфейс или загрузите файл командой в терминале:</p>
           <div class="cmd">
             <pre><code>spendtrack import statement.csv --bank auto</code></pre>
             <button class="copy" type="button">Скопировать</button>
@@ -106,7 +107,7 @@
       <div class="grid3">
         <div class="card">
           <h3>CSV трёх банков</h3>
-          <p>Тинькофф и Яндекс, а также Сбер (там, где доступен CSV-экспорт): кодировки, разделители, десятичные запятые. Повторный импорт — no-op, пересекающиеся периоды не удваиваются.</p>
+          <p>Т-Банк (Тинькофф), ЮMoney (Яндекс) и Сбер (там, где доступен CSV-экспорт): кодировки, разделители, десятичные запятые. Повторный импорт — no-op, пересекающиеся периоды не удваиваются.</p>
         </div>
         <div class="card">
           <h3>Каскад категоризации</h3>
@@ -135,7 +136,7 @@
   <section>
     <div class="wrap split">
       <figure class="shot">
-        <img src="assets/shot-approve.png" width="1280" height="800" alt="Очередь подтверждения: предложения LLM с уверенностью и выбор категории">
+        <img src="assets/shot-approve.png" width="990" height="534" loading="lazy" alt="Очередь подтверждения: предложения LLM с уверенностью и выбор категории">
         <figcaption>Очередь подтверждения: LLM предлагает — решение за вами.</figcaption>
       </figure>
       <div>
@@ -152,7 +153,7 @@
 
   <section id="demo" class="demo-band">
     <div class="wrap">
-      <h2>Демо за 30 секунд — без установки</h2>
+      <h2>Демо за пару минут — без установки</h2>
       <p class="section-lead">Кнопка открывает ваш личный GitHub Codespace: приложение стартует само, внутри — синтетические данные за ~5 месяцев. Витринные фичи (подписки, аномалии, бюджеты, очередь) уже на месте.</p>
       <div class="demo-actions">
         <a class="btn btn-primary" href="https://codespaces.new/ExNihil14/spend-tracker" rel="noopener">Открыть демо в Codespaces</a>
@@ -165,43 +166,21 @@
   <section id="support">
     <div class="wrap">
       <h2>Поддержать проект</h2>
-      <p class="section-lead">Ядро бесплатное и останется бесплатным: импорт, правила, бюджеты, дайджест, экспорт, BYO-LLM. Платное — только поддержка разработки.</p>
+      <p class="section-lead">Ядро бесплатное и останется бесплатным: импорт, правила, бюджеты, дайджест, экспорт, BYO-LLM. Поддержка — для тех, кто хочет помочь разработке.</p>
       <div class="support-grid">
         <div class="card">
-          <h3>Supporter — разовая поддержка</h3>
-          <div class="price">$25 <span>или 1900 ₽ · один раз</span></div>
+          <h3>Разовая поддержка — скоро</h3>
+          <div class="price">1900 ₽ <span>или $25 · один раз</span></div>
           <ul>
-            <li>спасибо в списке поддержавших — или анонимно</li>
+            <li>имя в README и CHANGELOG релиза — или анонимно</li>
             <li>приоритет внимания к вашим issue и предложениям</li>
-            <li>ранний доступ к новым сборкам (по мере появления бета-сборок)</li>
-            <li>ядро не кастрируется — это тот же продукт, без возни</li>
+            <li>ядро не урезается — это тот же продукт</li>
           </ul>
           <div class="cta-row">
-            <a class="btn btn-primary" href="mailto:exnihil88@gmail.com?subject=Supporter%3A%20%D1%85%D0%BE%D1%87%D1%83%20%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D1%82%D1%8C">Оставить почту</a>
-            <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml" rel="noopener">Интересуюсь (issue)</a>
+            <a class="btn btn-primary" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml" rel="noopener">Сообщить мне о запуске</a>
+            <a class="btn btn-ghost" href="mailto:exnihil88@gmail.com?subject=Supporter%3A%20%D1%85%D0%BE%D1%87%D1%83%20%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D1%82%D1%8C">Оставить почту</a>
           </div>
-          <p class="note">Почта — только для ответа о запуске Supporter; рассылок не будет.</p>
-        </div>
-        <div class="card">
-          <h3>Донат</h3>
-          <div class="price">Boosty <span>разово или ежемесячно</span></div>
-          <ul>
-            <li>поддержка разработки напрямую</li>
-            <li>без перков и обязательств — чистый донат</li>
-            <li>можно отменить в любой момент</li>
-          </ul>
-          <div class="cta-row">
-            <button class="btn btn-primary" type="button" disabled>Boosty — к запуску</button>
-          </div>
-          <p class="note">Страница Boosty появится к запуску — кнопка станет активной здесь.</p>
-        </div>
-      </div>
-      <div class="card poll">
-        <h3>Что делать следующим: Telegram-бот или PWA?</h3>
-        <p>Ввод трат с телефона — следующий большой шаг. Выберите канал, который вам важнее: голос — открытый issue, достаточно нажать «Submit».</p>
-        <div class="poll-actions">
-          <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-telegram.yml" rel="noopener">Хочу Telegram-бот</a>
-          <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-pwa.yml" rel="noopener">Хочу PWA на телефоне</a>
+          <p class="note">Когда запустим — появится страница поддержки (разовый платёж и донаты Boosty). Почта — только для ответа о запуске; рассылок не будет.</p>
         </div>
       </div>
     </div>
@@ -250,7 +229,7 @@
         </details>
         <details>
           <summary>Какие банки поддерживаются?</summary>
-          <p>Тинькофф и Яндекс, а также Сбер там, где есть CSV-экспорт (у физлиц Сбер чаще даёт PDF/XLS — XLS-импорт в планах). Если формат вашего банка изменился или его нет — пришлите обезличенный образец в issue: адаптеры сообщества — самый быстрый путь к поддержке нового банка.</p>
+          <p>Т-Банк (Тинькофф), ЮMoney (Яндекс), а также Сбер там, где есть CSV-экспорт (у физлиц Сбер чаще даёт PDF/XLS — XLS-импорт в планах). Если формат вашего банка изменился или его нет — пришлите обезличенный образец в issue: адаптеры сообщества — самый быстрый путь к поддержке нового банка.</p>
         </details>
         <details>
           <summary>Это замена YNAB, ZenMoney или Firefly III?</summary>
@@ -264,6 +243,20 @@
           <summary>Как сообщить о баге или предложить фичу?</summary>
           <p>Через <a href="https://github.com/ExNihil14/spend-tracker/issues/new?template=bug-report.yml" rel="noopener">issue-шаблон</a>: он попросит вывод <code>spendtrack doctor</code> (без ваших транзакций) и шаги воспроизведения. Личных данных для этого не требуется.</p>
         </details>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap">
+    <div class="wrap">
+      <h2>Дорожная карта</h2>
+      <div class="card poll">
+        <h3>Что делать следующим: Telegram-бот или PWA?</h3>
+        <p>Ввод трат с телефона — следующий большой шаг. Выберите канал, который вам важнее: голос — открытый issue, достаточно нажать «Submit».</p>
+        <div class="poll-actions">
+          <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-telegram.yml" rel="noopener">Хочу Telegram-бот</a>
+          <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-pwa.yml" rel="noopener">Хочу PWA на телефоне</a>
+        </div>
       </div>
     </div>
   </section>
