@@ -12,7 +12,7 @@ from spendtrack.config import PKG_DIR, ensure_config_dir, load_settings, resolve
 from spendtrack.routers.api import router as api_router
 from spendtrack.routers.frontend import router as frontend_router
 from spendtrack.routers.settings import router as settings_router
-from spendtrack.security import SAFE_METHODS, origin_allowed
+from spendtrack.security import SAFE_METHODS, content_security_policy, origin_allowed, trusted_hosts
 
 cfg = load_settings()
 LOG_DIR = resolve_data_dir() / "logs"
@@ -48,9 +48,10 @@ def _setup_logging() -> None:
 
 app = FastAPI(title="Spendtrack", version="0.1.0")
 _setup_logging()
-# DNS-rebinding/Host-атаки: принимаем только loopback-имена (порт Starlette отбрасывает сам).
+# DNS-rebinding/Host-атаки: loopback-имена (порт Starlette отбрасывает сам) + в Codespaces —
+# домен форвардинга портов (прокси сохраняет публичный Host; см. spendtrack.security.trusted_hosts).
 # "testserver" — Host по умолчанию у FastAPI TestClient (в тестах); публично не резолвится.
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost", "testserver"])
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts())
 app.include_router(frontend_router)
 app.include_router(settings_router)
 app.include_router(api_router, prefix="/api")
@@ -60,14 +61,8 @@ app.mount("/static", StaticFiles(directory=PKG_DIR / "static"), name="static")
 # Минимальный CSP для локального приложения: ограничиваем источники/встраивание.
 # script-src — строго 'self': inline-скрипты и hx-on::* вынесены в /static/app.js (см. base.html),
 # htmx.config.allowEval=false. style-src 'unsafe-inline' остаётся: inline-стили цветов категорий и темы.
-_CSP = (
-    "default-src 'self'; "
-    "script-src 'self'; "
-    "style-src 'self' 'unsafe-inline'; "
-    "img-src 'self' data:; "
-    "connect-src 'self'; "
-    "object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
-)
+# Сборка строки — spendtrack.security.content_security_policy() (в Codespaces добавляется
+# frame-ancestors для Simple Browser редактора).
 
 
 @app.middleware("http")
@@ -82,7 +77,7 @@ async def _origin_guard(request, call_next):
 @app.middleware("http")
 async def _security_headers(request, call_next):
     response = await call_next(request)
-    response.headers.setdefault("Content-Security-Policy", _CSP)
+    response.headers.setdefault("Content-Security-Policy", content_security_policy())
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
     # Кэш: статика с версией (?v=) — immutable на год; без версии — revalidate;

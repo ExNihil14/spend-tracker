@@ -70,3 +70,47 @@ def test_trusted_host_rejects_foreign_host(tmp_path, monkeypatch) -> None:
     with _client(tmp_path, monkeypatch) as client:
         assert client.get("/", headers={"Host": "evil.example"}).status_code == 400
         assert client.get("/", headers={"Host": "localhost:8766"}).status_code == 200
+
+
+def test_codespaces_disabled_by_default(monkeypatch) -> None:
+    """Без CODESPACES домен форвардинга не принимается (локальный прод не расширяется)."""
+    monkeypatch.delenv("CODESPACES", raising=False)
+    from spendtrack.security import content_security_policy, origin_allowed, trusted_hosts
+
+    assert "*.app.github.dev" not in trusted_hosts()
+    assert origin_allowed("https://foo-8766.app.github.dev", None) is False
+    assert "frame-ancestors 'none'" in content_security_policy()
+
+
+def test_codespaces_env_allows_forwarded_host_origin_and_frame(monkeypatch) -> None:
+    """Codespaces: прокси сохраняет Host `*-<port>.app.github.dev` → разрешаем домен форвардинга."""
+    monkeypatch.setenv("CODESPACES", "true")
+    monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+    from spendtrack.security import content_security_policy, origin_allowed, trusted_hosts
+
+    assert "*.app.github.dev" in trusted_hosts()
+    assert origin_allowed("https://foo-8766.app.github.dev", None) is True
+    assert origin_allowed("https://evil.example", None) is False
+    assert "frame-ancestors 'self' https://*.app.github.dev" in content_security_policy()
+
+
+def test_codespaces_trusted_host_middleware_accepts_forwarded_host(monkeypatch) -> None:
+    """Смоук связки: TrustedHostMiddleware с trusted_hosts() пропускает codespace-Host и режет чужой."""
+    monkeypatch.setenv("CODESPACES", "true")
+    monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+    from starlette.applications import Starlette
+    from starlette.middleware.trustedhost import TrustedHostMiddleware
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient as StarletteTestClient
+
+    from spendtrack.security import trusted_hosts
+
+    async def _home(_request):
+        return PlainTextResponse("ok")
+
+    inner = Starlette(routes=[Route("/", _home)])
+    inner.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts())
+    with StarletteTestClient(inner) as client:
+        assert client.get("/", headers={"Host": "foo-8766.app.github.dev"}).status_code == 200
+        assert client.get("/", headers={"Host": "evil.example"}).status_code == 400

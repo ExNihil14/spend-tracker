@@ -472,9 +472,29 @@
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
+  "spendtrack.security:codespaces_domain": {
+   "args": "",
+   "returns": "str"
+  },
+  "spendtrack.security:codespaces_enabled": {
+   "args": "",
+   "returns": "bool"
+  },
+  "spendtrack.security:content_security_policy": {
+   "args": "",
+   "returns": "str"
+  },
+  "spendtrack.security:frame_ancestors": {
+   "args": "",
+   "returns": "str"
+  },
   "spendtrack.security:origin_allowed": {
    "args": "origin: str | None, sec_fetch_site: str | None",
    "returns": "bool"
+  },
+  "spendtrack.security:trusted_hosts": {
+   "args": "",
+   "returns": "list[str]"
   },
   "spendtrack.store:Store.add_batch": {
    "args": "self, filename: str, sha: str, nrows: int",

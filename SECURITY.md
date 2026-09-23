@@ -28,6 +28,11 @@
   {same-origin, none}; запросы без обоих заголовков (CLI/тесты) пропускаются. Плюс `TrustedHostMiddleware`
   (только `127.0.0.1`/`localhost`, иначе 400) — защита от DNS-rebinding/Host-атак. CSRF-токены не нужны:
   нет сессии/cookie, привязывать нечего; `HX-Request` — не гейт (сломал бы форму без JS).
+  **Codespaces**: прокси форвардинга СОХРАНЯЕТ публичный Host (`<codespace>-<port>.app.github.dev`), поэтому
+  при `CODESPACES=true` в trusted hosts добавляется домен форвардинга (`GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN`,
+  обычно `app.github.dev`), Origin того же домена принимается, а CSP `frame-ancestors` разрешает Simple Browser
+  редактора. Домен контролируется GitHub → DNS-rebinding не расширяется; вне Codespaces поведение прежнее
+  (только loopback).
 - **Заголовки безопасности**: CSP `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';
   img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';
   form-action 'self'` + `X-Content-Type-Options: nosniff` + `Referrer-Policy: no-referrer` (middleware в

@@ -84,6 +84,8 @@
   пересобрать (`uv run python scripts/build_css.py`), в CI — `--check`.
 - **Периметр** — гейт Origin/Sec-Fetch-Site для state-changing запросов + `TrustedHostMiddleware`
   (`spendtrack/security.py`): чужие Origin/Host → 403/400; CLI/тесты без заголовков пропускаются.
+  В Codespaces (`CODESPACES=true`) trusted hosts/Origin/frame-ancestors расширяются доменом форвардинга
+  портов (прокси сохраняет публичный Host) — домен GitHub-контролируемый.
 - **Соединение на запрос** — SQLite-соединение на HTTP-запрос через `deps.get_store()` (dependency с `yield`):
   закрытие гарантировано, `PRAGMA optimize` перед закрытием.
 - **Токены** — `src/spendtrack/tokens.css` (2 слоя: primitives → semantic) — единый источник цветов/радиусов

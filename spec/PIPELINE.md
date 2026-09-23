@@ -325,10 +325,13 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   Попутно e2e-`clean_db` чистит `import_batches` — состояние партий не течёт между session-scoped тестами.
 
 ## Периметр, lifecycle и supply chain (security-пасс, 22.09)
-- **Периметр браузера**: `spendtrack/security.py` (`origin_allowed`) + middleware `_origin_guard` в `main.py`:
-  state-changing запросы с чужим `Origin`/`Sec-Fetch-Site` → 403; без заголовков (CLI/TestClient) — пропуск.
-  `TrustedHostMiddleware` (127.0.0.1/localhost/testserver) → 400 на чужой Host (DNS-rebinding).
-  Тесты: `tests/test_security_perimeter.py`. CSRF-токены осознанно не вводим (нет сессии/cookie).
+- **Периметр браузера**: `spendtrack/security.py` (`origin_allowed`, `trusted_hosts`, `content_security_policy`)
+  + middleware `_origin_guard`/`_security_headers` в `main.py`: state-changing запросы с чужим
+  `Origin`/`Sec-Fetch-Site` → 403; без заголовков (CLI/TestClient) — пропуск. `TrustedHostMiddleware` →
+  400 на чужой Host (DNS-rebinding). **Codespaces**: при `CODESPACES=true` trusted hosts/Origin/frame-ancestors
+  расширяются доменом форвардинга (`GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN`, обычно `app.github.dev`) —
+  прокси сохраняет публичный Host; домен GitHub-контролируемый. Тесты: `tests/test_security_perimeter.py`.
+  CSRF-токены осознанно не вводим (нет сессии/cookie).
 - **Lifecycle SQLite**: `deps.get_store()` — FastAPI dependency с `yield`: одно соединение на запрос,
   `close()` гарантирован (раньше — GC), `PRAGMA optimize` перед закрытием, `cache_size=-8000`,
   `temp_store=MEMORY`; `check_same_thread=False` (sync-роуты в threadpool). Роутеры принимают

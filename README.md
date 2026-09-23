@@ -154,8 +154,13 @@ uv run python scripts/demo_data.py clean    # убрать демо
 - **После обновления кода страница отдаёт 500:** работает старый процесс (шаблоны Jinja горячие, Python — нет):
   `pkill -f "uvicorn spendtrack" && bash .devcontainer/start-app.sh` или Stop/Start codespace.
 - **Страница порта отдаёт GitHub 404:** проверьте, что codespace запущен и вы вошли в GitHub (порт приватный);
-  после Rebuild Container порт мог «переехать» — Stop → Start и откройте порт заново; обходной путь — Simple Browser
-  внутри VS Code вместо прямого URL.
+  после Rebuild Container порт мог «переехать» — Stop → Start и откройте порт заново.
+- **Страница порта отдаёт 400:** прокси Codespaces сохраняет публичный Host (`…-8766.app.github.dev`) — приложение
+  принимает его при `CODESPACES=true` (см. `SECURITY.md`). Если 400 остался — обновите код codespace (Rebuild)
+  и перезапустите приложение.
+- **В консоли редактора CSP-предупреждения про `githubassets`/`vscode-cdn`/`githubcopilot`:** это внутренние
+  ресурсы VS Code Web/Copilot (CSP ставит GitHub) — приложение их не запрашивает и повлиять на них не может;
+  на работу spendtrack не влияют.
 </details>
 
 
