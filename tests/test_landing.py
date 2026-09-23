@@ -56,7 +56,7 @@ def _parse_index() -> tuple[str, _Collector]:
 def test_landing_files_exist() -> None:
     assert (LANDING / "index.html").is_file()
     assert (LANDING / "style.css").is_file()
-    for name in ("shot-dashboard.png", "shot-digest.png", "shot-approve.png"):
+    for name in ("shot-dashboard.png", "shot-digest.png", "shot-approve.png", "shot-import.png"):
         assert (LANDING / "assets" / name).is_file(), name
 
 
@@ -148,3 +148,35 @@ def test_funding_has_no_live_placeholder() -> None:
     active = [line.strip() for line in funding.splitlines() if line.strip() and not line.strip().startswith("#")]
     assert not any(line.startswith("custom:") for line in active)
     assert all("boosty.to" not in line for line in active)
+
+
+def test_m8_section_order_and_final_cta() -> None:
+    """M-8: «что увидите» и privacy ДО установки; финальный CTA перед футером; без дублей скриншотов."""
+    html, collector = _parse_index()
+    assert "screens" in collector.ids
+    pos = {a: html.index(f'id="{a}"') for a in ("screens", "privacy", "install", "support")}
+    assert pos["screens"] < pos["privacy"] < pos["install"] < pos["support"]
+    assert html.count("assets/shot-approve.png") == 1  # очередь показана один раз («что увидите»)
+    assert "assets/shot-import.png" in html and "assets/shot-digest.png" in html
+    assert "Что вы увидите через 10 минут" in html
+    for caption in ("1. Импорт.", "2. Спорное — на подтверждение.", "3. Дайджест недели."):
+        assert caption in html
+
+    final = html.index('class="final-cta"')
+    footer = html.index("<footer>")
+    assert html.index('id="roadmap"') < final < footer
+    tail = html[final:footer]
+    assert 'href="#install"' in tail and "install.ps1" in tail
+    assert "codespaces.new/ExNihil14/spend-tracker" in tail
+
+
+def test_m8_result_first_copy() -> None:
+    """M-8 (P1-5): фичи и facts — с результата, без внутреннего жаргона."""
+    html, _ = _parse_index()
+    assert "Выписки без ручной правки" in html
+    assert "Категории расставляются сами" in html
+    assert "Загрузили дважды — дублей нет" in html
+    assert "ИИ выключен, пока вы сами не включите" in html
+    assert "near-дубли" not in html
+    assert "Каскад категоризации" not in html and "CSV трёх банков" not in html
+    assert "Клавиатура:" in html  # M-4-ускоритель в списке «LLM предлагает, вы решаете»

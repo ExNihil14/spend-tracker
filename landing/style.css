@@ -54,7 +54,7 @@ a:hover { text-decoration: underline; }
 .shot figcaption { padding: 10px 14px; font-size: 12.5px; color: var(--fg-subtle); border-top: 1px solid var(--line); }
 
 .facts { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); }
-.facts .wrap { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; padding-top: 22px; padding-bottom: 22px; }
+.facts .wrap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; padding-top: 22px; padding-bottom: 22px; }
 .fact { font-size: 14px; color: var(--fg-muted); }
 .fact strong { display: block; color: var(--fg); font-size: 15px; margin-bottom: 2px; }
 
@@ -63,21 +63,21 @@ section + section { border-top: 1px solid var(--line); }
 h2 { font-size: clamp(23px, 3vw, 31px); letter-spacing: -0.02em; margin: 0 0 10px; color: var(--fg-strong); }
 .section-lead { color: var(--fg-muted); max-width: 720px; margin: 0 0 34px; }
 
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; counter-reset: step; }
-.step { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; counter-reset: step; }
+.step { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
 .step h3 { margin: 0; font-size: 16px; color: var(--fg); counter-increment: step; }
 .step h3::before { content: counter(step); display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; margin-right: 10px; border-radius: 50%; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-size: 13px; }
 .step p { margin: 0; font-size: 14px; color: var(--fg-muted); }
 .step .cmd { margin-top: auto; }
 
-.cmd { position: relative; }
+.cmd { position: relative; min-width: 0; }
 .cmd pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
 .cmd code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--fg); white-space: pre; }
 .copy { position: absolute; top: 7px; right: 7px; font-size: 12px; font-weight: 600; color: var(--fg-muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
 .copy:hover { color: var(--fg); border-color: var(--fg-subtle); }
 .copy.done { color: var(--income); border-color: color-mix(in srgb, var(--income) 40%, transparent); }
 
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; }
 .card h3 { margin: 0 0 8px; font-size: 16px; color: var(--fg); }
 .card p { margin: 0; font-size: 14px; color: var(--fg-muted); }
@@ -113,10 +113,22 @@ footer { padding: 40px 0 56px; color: var(--fg-subtle); font-size: 13.5px; }
 .footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
 .footer-links a { color: var(--fg-muted); }
 
+
+/* «Что увидите»: три кадра пути (M-8) */
+.screens { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
+.screens .shot { margin: 0; }
+.screens .shot figcaption strong { color: var(--fg); display: block; margin-bottom: 2px; }
+
+/* Финальный CTA перед футером (M-8) */
+.final-cta { background: linear-gradient(180deg, color-mix(in srgb, var(--accent-bg) 10%, transparent), transparent); text-align: center; }
+.final-cta .section-lead { margin: 0 auto 28px; }
+.final-cta .cmd { max-width: 620px; margin: 0 auto 22px; text-align: left; }
+.final-cta .cta-row { justify-content: center; }
+
 @media (max-width: 900px) {
   .hero { grid-template-columns: 1fr; padding-top: 48px; gap: 30px; }
   .facts .wrap { grid-template-columns: 1fr 1fr; }
-  .steps, .grid3 { grid-template-columns: 1fr; }
+  .steps, .grid3, .screens { grid-template-columns: 1fr; }
   .split { grid-template-columns: 1fr; gap: 24px; }
   .support-grid { grid-template-columns: 1fr; }
 }

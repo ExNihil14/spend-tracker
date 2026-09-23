@@ -283,6 +283,14 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - Деплой: `.github/workflows/pages.yml` при push в `main` с изменениями в `landing/**` (source — GitHub Actions;
   Pages включён через `gh api repos/ExNihil14/spend-tracker/pages -X POST -f build_type=workflow`).
   URL — <https://exnihil14.github.io/spend-tracker/>.
+- **Порядок секций и финальный CTA (M-8, дизайн-ревью):** hero → facts → **«Что вы увидите»** (3 кадра
+  пути: импорт → очередь → дайджест, `#screens`) → **privacy** (дифференциатор — ДО установки) → install →
+  features → «LLM предлагает, вы решаете» (без дубля скриншота) → demo → support → FAQ → roadmap →
+  **финальный CTA** (`class="final-cta"`: команда установки + демо) → EN. Формулировки фич/facts «с результата»
+  («Выписки без ручной правки», «Категории расставляются сами», «Загрузили дважды — дублей нет»,
+  «ИИ выключен, пока вы сами не включите»). Скриншоты пересняты после M-4…M-7 (`shot-import/approve/digest/
+  dashboard`, 2x; скрипт — temp `recapture_m_waves_shots.py`, стенд 8767). Сетки — `minmax(0, 1fr)`
+  (фикс горизонтального скролла на 1280px: `.steps/.grid3/.screens/.facts .wrap` + `min-width:0` у `.step/.cmd`).
 - Локальный предпросмотр: `python -m http.server 8788 --directory landing` → <http://127.0.0.1:8788/>.
 - Скриншоты для лендинга снимаются со стенда демо-данных (`scripts/demo_data.py seed` + сервер 8767).
 - Перед запуском включить кнопку Boosty (сейчас выключена во всех трёх местах): `landing/index.html`

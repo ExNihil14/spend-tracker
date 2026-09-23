@@ -46,19 +46,61 @@
       <p class="hint">В демо — синтетические данные за ~5 месяцев; нужен аккаунт GitHub, порт приватный.</p>
     </div>
     <figure class="shot">
-      <img src="assets/shot-dashboard.png" width="992" height="620" fetchpriority="high" alt="Дашборд Spendtrack: бюджеты месяца с перерасходом и дайджест недели с аномалиями">
-      <figcaption>Бюджеты месяца и дайджест аномалий — синтетические данные демо-режима.</figcaption>
+      <img src="assets/shot-dashboard.png" width="992" height="719" fetchpriority="high" alt="Аномалии недели и бюджеты месяца: перерасход и скачок цены подписки">
+      <figcaption>Аномалии недели и бюджеты месяца — синтетические данные демо-режима.</figcaption>
     </figure>
   </section>
 
   <div class="facts">
     <div class="wrap">
       <div class="fact"><strong>Т-Банк · ЮMoney · Сбер</strong>CSV-выписки с автоопределением формата; у Сбера CSV приходит по e-mail и не у всех (выписка — PDF)</div>
-      <div class="fact"><strong>Повторный импорт = no-op</strong>дедуп по fingerprint, без двойного учёта</div>
-      <div class="fact"><strong>LLM — опция</strong>свой ключ (BYO) или локальный Ollama; по умолчанию выключен</div>
+      <div class="fact"><strong>Загрузили дважды — дублей нет</strong>дедуп по отпечатку операции, без двойного учёта</div>
+      <div class="fact"><strong>ИИ выключен, пока вы сами не включите</strong>свой ключ (BYO) или локальный Ollama — по умолчанию ни одного сетевого вызова</div>
       <div class="fact"><strong>Экспорт без потерь</strong>CSV/Excel в любой момент; база — ваш SQLite-файл</div>
     </div>
   </div>
+
+  <section id="screens">
+    <div class="wrap">
+      <h2>Что вы увидите через 10 минут</h2>
+      <p class="section-lead">Три экрана — весь путь: выписка, разбор спорного, итоги недели.</p>
+      <div class="screens">
+        <figure class="shot">
+          <img src="assets/shot-import.png" width="990" height="314" loading="lazy" alt="Импорт выписки: выбор банка, файл или вставка CSV">
+          <figcaption><strong>1. Импорт.</strong> CSV из Т-Банка, ЮMoney или Сбера — формат определяется сам, дублей не будет.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/shot-approve.png" width="990" height="452" loading="lazy" alt="Очередь подтверждения: предложение ИИ, уровень уверенности, клавиши j/k/Enter/s">
+          <figcaption><strong>2. Спорное — на подтверждение.</strong> Видно предложение и уверенность; разбирается клавишами.</figcaption>
+        </figure>
+        <figure class="shot">
+          <img src="assets/shot-digest.png" width="992" height="213" loading="lazy" alt="Дайджест недели: расход и дельты словами, аномалии">
+          <figcaption><strong>3. Дайджест недели.</strong> Что изменилось, где перерасход, какие подписки подорожали.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="wrap">
+      <h2>Приватность — это не маркетинг, а поведение по умолчанию</h2>
+      <div class="grid3">
+        <div class="card">
+          <h3>Ноль сети без ключей</h3>
+          <p>LLM выключен: приложение не делает сетевых вызовов — это проверяется автотестом «нулевой сети» в CI при каждом коммите.</p>
+        </div>
+        <div class="card">
+          <h3>Сервер — только localhost</h3>
+          <p>По умолчанию слушает 127.0.0.1. Телеметрии, аналитики и «анонимной статистики» нет вообще.</p>
+        </div>
+        <div class="card">
+          <h3>Что уходит к LLM</h3>
+          <p>Описание операции (≤300 символов), сумма, дата и псевдоним счёта (без номера карты), плюс до 8 примеров из ваших правок — и только если вы сами включили свой ключ или локальный Ollama.</p>
+        </div>
+      </div>
+      <p class="note">Честно: файл базы не шифруется — это ваш диск и ваша ответственность. Подробности: <a href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> и <a href="https://github.com/ExNihil14/spend-tracker/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a>.</p>
+    </div>
+  </section>
 
   <section id="install">
     <div class="wrap">
@@ -106,11 +148,11 @@
       <p class="section-lead">Детерминированное ядро делает основную работу; LLM подключается только к остатку — и никогда по умолчанию.</p>
       <div class="grid3">
         <div class="card">
-          <h3>CSV трёх банков</h3>
+          <h3>Выписки без ручной правки</h3>
           <p>Т-Банк (Тинькофф), ЮMoney (Яндекс) и Сбер (там, где доступен CSV-экспорт): кодировки, разделители, десятичные запятые. Повторный импорт — no-op, пересекающиеся периоды не удваиваются.</p>
         </div>
         <div class="card">
-          <h3>Каскад категоризации</h3>
+          <h3>Категории расставляются сами</h3>
           <p>Кэш мерчантов → keyword-правила → LLM → офлайн-правила. Авто-приём при уверенности ≥ 0.9, спорное — в очередь «Подтвердить».</p>
         </div>
         <div class="card">
@@ -119,7 +161,7 @@
         </div>
         <div class="card">
           <h3>Дайджест недели</h3>
-          <p>Расход/доход и дельты, топ категорий, самый дорогой день, крупные суммы и near-дубли — короткий отчёт вместо таблиц.</p>
+          <p>Расход/доход и дельты, топ категорий, самый дорогой день, крупные суммы и возможные дубли — короткий отчёт вместо таблиц.</p>
         </div>
         <div class="card">
           <h3>Бюджеты по категориям</h3>
@@ -134,11 +176,7 @@
   </section>
 
   <section>
-    <div class="wrap split">
-      <figure class="shot">
-        <img src="assets/shot-approve.png" width="990" height="534" loading="lazy" alt="Очередь подтверждения: предложения LLM с уверенностью и выбор категории">
-        <figcaption>Очередь подтверждения: LLM предлагает — решение за вами.</figcaption>
-      </figure>
+    <div class="wrap">
       <div>
         <h2>LLM предлагает, вы решаете</h2>
         <ul class="proof-list">
@@ -146,6 +184,7 @@
           <li><strong>Правка учит:</strong> ваше решение запоминается для мерчанта и попадает в примеры — LLM будет точнее в следующий раз.</li>
           <li><strong>Подсказки правил:</strong> из ваших правок система предлагает keyword-правила, которые можно применить одним нажатием.</li>
           <li><strong>Работает офлайн:</strong> без LLM очередь просто наполняется — приложение не делает ни одного сетевого вызова.</li>
+          <li><strong>Клавиатура:</strong> <code>j</code>/<code>k</code> — строки, <code>Enter</code> — одобрить, <code>s</code> — пропустить, <code>1–9</code> — категория.</li>
         </ul>
       </div>
     </div>
@@ -183,27 +222,6 @@
           <p class="note">Когда запустим — появится страница поддержки (разовый платёж и донаты Boosty). Почта — только для ответа о запуске; рассылок не будет.</p>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section id="privacy">
-    <div class="wrap">
-      <h2>Приватность — это не маркетинг, а поведение по умолчанию</h2>
-      <div class="grid3">
-        <div class="card">
-          <h3>Ноль сети без ключей</h3>
-          <p>LLM выключен: приложение не делает сетевых вызовов — это проверяется автотестом «нулевой сети» в CI при каждом коммите.</p>
-        </div>
-        <div class="card">
-          <h3>Сервер — только localhost</h3>
-          <p>По умолчанию слушает 127.0.0.1. Телеметрии, аналитики и «анонимной статистики» нет вообще.</p>
-        </div>
-        <div class="card">
-          <h3>Что уходит к LLM</h3>
-          <p>Описание операции (≤300 символов), сумма, дата и псевдоним счёта (без номера карты), плюс до 8 примеров из ваших правок — и только если вы сами включили свой ключ или локальный Ollama.</p>
-        </div>
-      </div>
-      <p class="note">Честно: файл базы не шифруется — это ваш диск и ваша ответственность. Подробности: <a href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> и <a href="https://github.com/ExNihil14/spend-tracker/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a>.</p>
     </div>
   </section>
 
@@ -257,6 +275,21 @@
           <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-telegram.yml" rel="noopener">Хочу Telegram-бот</a>
           <a class="btn btn-ghost" href="https://github.com/ExNihil14/spend-tracker/issues/new?template=poll-pwa.yml" rel="noopener">Хочу PWA на телефоне</a>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final-cta">
+    <div class="wrap">
+      <h2>Поставьте за 10 минут — данные останутся у вас</h2>
+      <p class="section-lead">Одна команда, никаких аккаунтов и ключей: приложение поднимется на <code>127.0.0.1</code>, выписки и база останутся на вашем диске.</p>
+      <div class="cmd">
+        <pre><code>powershell -c "irm https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.ps1 | iex"</code></pre>
+        <button class="copy" type="button">Скопировать</button>
+      </div>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="#install">Установить — 10 минут до отчёта</a>
+        <a class="btn btn-ghost" href="https://codespaces.new/ExNihil14/spend-tracker" rel="noopener">Демо без установки →</a>
       </div>
     </div>
   </section>
