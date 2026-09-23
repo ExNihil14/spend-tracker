@@ -187,6 +187,28 @@
 > поведение прежнее (loopback). Тесты: +3 (`test_security_perimeter.py`, вкл. middleware-смоук); SECURITY/
 > PIPELINE/CONTEXT/README обновлены; прод рестартнут (CSP локально `frame-ancestors 'none'`, чужой Host 400,
 > `/health` 200). Контур: **486 unit + 45 e2e** + ruff + contract (baseline осознанно +5 символов).
+> **Визуальный смоук юзера (23.09, вечер) — два бага найдены и исправлены (ждут коммита):**
+> ① «клик по категории в списке → непонятно что»: **корневой баг** — `list_transactions_days` выбирал дни
+> с фильтром, а строки без него (`WHERE date IN (...)`), поэтому фильтр категории/поиска в «Сначала новые»
+> **протекал** (в таблице оставались все операции выбранных дней); плюс бейдж терял месяц в href и наследовал
+> `hx-target/hx-select/hx-swap` от `#tx-table` (htmx inheritance) → подменялась только таблица (шапка Июль +
+> строки сентября + пустой селект). Фиксы: фильтры и к строкам; бейдж — полная навигация (`hx-boost="false"`)
+> с `month=`; ссылки топ-категорий на дашборде — так же; «✕» сохраняет месяц; селект фильтра — RU-имена.
+> ② «непереведённые категории в чарте»: `dashboard.js` брал слаг (`label: c.category`) — теперь
+> `categories_json[*].label` (display_name), цвета чарта — из токенов через CSS-переменные
+> (`--accent-bg/--fg/--fg-muted`), цвета категорий — по слагу. Регресс-тесты: +2 unit (`test_tx_paging.py`),
+> +2 unit (`test_ui_polish.py`), +1 e2e (бейдж сохраняет месяц). Контур: **490 unit + 46 e2e** + ruff +
+> contract + live-проверка (только fuel в таблице, месяц сохраняется, чарт RU, 0 ошибок консоли).
+> **Аудит тестирования/функциональности (QA-лид-субагент, 23.09) + организация тестов (ждут коммита):**
+> артефакт `D:\dev\docs\machine\AUDIT_TESTING_SPENDTRACKER.md` (238 стр.): контур подтверждён фактами
+> (490 unit/46 e2e, покрытие src 95%), матрица «функция→тесты→пробел», топ-дыры (CLI report/count/confirm,
+> роуты категорий color/delete, `/api/reviews/count`, 4xx-ветки очереди, `/health` 503), качество тестов
+> и план P0/P1/P2 + анти-скоуп. **P0 закрыт** (+9 тестов): `tests/test_cli_commands.py` (report/count/confirm),
+> 4xx-ветки + reviews/count + `/health` 503 в `test_api.py`, роуты color/delete в `test_settings.py`,
+> `update_merchant`/`needs_review` в `test_store_helpers.py`. Покрытие после: **src 96%** (cli 85→90%,
+> api 92→97%, settings 89→95%, main 91→94%); контур **499 unit + 46 e2e** + ruff + contract. Организация:
+> `spec/TESTING.md` (уровни/маркеры/принципы/как добавлять/анти-скоуп) + ссылка в PIPELINE. Бэклог P1/P2 —
+> в аудите (e2e настроек/пагинации/XLSX/валют, hypothesis, HX-ветки, дедуп seed-хелперов).
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter→opencode + Ollama Cloud» — dev-tooling; репо-код не менялся).**
 > Deliverable: интеграция AgentRouter в opencode + пилот Opus-5 на окне квоты; бонусом — тест Ollama Cloud
 > на важном ревью. ① **Плагин** `~/.config/opencode/plugins/agentrouter-ua.js` (авто-загрузка подтверждена):
