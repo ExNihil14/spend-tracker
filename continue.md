@@ -76,7 +76,22 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (23.09, сессия «оптимизация+безопасность, фаза 2» — ждёт команды на коммит).**
+> **АКТУАЛЬНО (23.09, сессия «AgentRouter и бесплатные AI-роутеры» — docs/скрипты; репо-код не менялся).**
+> Разобран пост Habr (6 бесплатных роутеров, https://habr.com/ru/articles/1070906/): AgentRouter ($125
+> кредитов, Opus-5 $2/$10, Opus-4-8, gpt-6-astra), OrcaRouter/TeamoRouter (free DeepSeek), Token Harbor
+> (7-дневное окно, запросы сохраняются), NaraRouter (7 млн токенов/день + Telegram), FreeRouter (qwen3.8-max).
+> **Проба ключа AgentRouter (23.09):** WAF принимает только «кодовые» клиенты — с `claude-cli`/`QwenCode` UA
+> `/v1/models` = 200, с дефолтным = 401; аккаунт видит 3 модели; **любая генерация → 402 «Budget pool quota
+> has been exhausted»** (пул/Unlimited quota — настройка консоли; блокер на стороне аккаунта).
+> `co.agentrouter.org` — другой сервис (ключ там 401). Протоколы: Claude → `/v1/messages` (x-api-key, base без
+> `/v1`), GPT → `/v1/chat/completions`. Инструменты (bootstrap): `agentrouter_probe.py`, `agentrouter_chat.py`
+> (one-shot ревью, оба протокола, кодовый UA, ретраи, лог `agentrouter_usage.jsonl` без ключа); ключ —
+> User-env `AGENTROUTER_API_KEY`. Артефакт: `RESEARCH_AGENTROUTER_FREE_ROUTERS.md` (экономика: $125 ≈
+> 700–900 наших ревью vs Abacus ≈ $0.35–0.55/ревью и 20K кредитов/мес). **Действие юзера:** в консоли
+> agentrouter.org включить Unlimited quota/выбрать пул с балансом (+check-in, перелогин) — после этого пилот
+> Opus-5 vs Abacus и opencode-интеграция (провайдер + наш локальный fetch-плагин с UA-инъекцией, рестарт).
+> В продуктовый `llm.py` ключ не заводим (dev-tooling).
+> **АКТУАЛЬНО (23.09, сессия «оптимизация+безопасность, фаза 2» — закоммичено `961345a`, запушено).**
 > ① **Chart.js только на дашборде:** из `base.html` убран глобальный `chart.umd.min.js` (205 КБ);
 > `base.html` получил блок `{% block scripts %}`; `dashboard.html` подключает `dashboard.js`, который
 > динамически загружает Chart (URL — из `data-chart-src`, с версией) и рисует графики; e2e
