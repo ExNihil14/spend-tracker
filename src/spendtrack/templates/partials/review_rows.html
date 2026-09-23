@@ -1,38 +1,41 @@
 <tbody id="review-rows">
   {% for t in pending %}
+  {% set suggestion = t.category_llm or t.category %}
   <tr id="review-{{ t.id }}" class="review-row border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
     <td class="px-5 py-3 whitespace-nowrap text-fg-muted">{{ fmt_date(t.date) }}</td>
     <td class="px-5 py-3">
       {{ t.description }}
-      {% if t.merchant %}<div class="text-xs text-fg-muted mt-0.5">{{ t.merchant }}</div>{% endif %}
+      {% if t.merchant and t.merchant | lower not in t.description | lower %}
+        <div class="text-xs text-fg-muted mt-0.5">{{ t.merchant }}</div>
+      {% endif %}
     </td>
     <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-income' if t.amount_kopecks > 0 else 'text-fg' }}">{{ fmt_money(t.amount_kopecks, t.currency) }}</td>
     <td class="px-5 py-3">
-      {% set badge_bg = cat_colors.get((t.category_llm or t.category), '#9ca3af') %}
-      <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium"
-            style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">
-        {{ catname(t.category_llm or t.category) }}</span>
+      <form hx-post="/api/reviews/{{ t.id }}/approve" hx-target="closest tr"
+            hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button"
+            class="flex items-center gap-2">
+        <select name="category" aria-label="Категория для подтверждения"
+                class="review-cat bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+          {% for c in all_categories %}<option value="{{ c }}" {% if c == suggestion %}selected{% endif %}>{{ catname(c) }}{% if c == suggestion %} — предложено{% endif %}</option>{% endfor %}
+        </select>
+        <button type="submit" class="review-approve bg-accent-bg hover:bg-accent-bg-hover text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Одобрить</button>
+      </form>
       {% if t.category_llm and t.category_llm != t.category %}
-        <span class="text-xs text-fg-muted">сейчас: {{ catname(t.category) }}</span>
+        <div class="text-xs text-fg-muted mt-1">сейчас: {{ catname(t.category) }}</div>
       {% endif %}
     </td>
-    <td class="px-5 py-3 text-warn/90 text-xs">{{ (t.confidence * 100) | round(0) | int }}%</td>
     <td class="px-5 py-3">
-      <div class="flex items-center gap-2">
-        <form hx-post="/api/reviews/{{ t.id }}/approve" hx-target="closest tr"
-              hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button"
-              class="flex items-center gap-2">
-          <select name="category" aria-label="Категория для подтверждения"
-                  class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
-            {% for c in all_categories %}<option value="{{ c }}" {% if c == (t.category_llm or t.category) %}selected{% endif %}>{{ catname(c) }}</option>{% endfor %}
-          </select>
-          <button type="submit" class="bg-accent-bg hover:bg-accent-bg-hover text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Одобрить</button>
-        </form>
-        <form hx-post="/api/reviews/{{ t.id }}/skip" hx-target="closest tr"
-              hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button">
-          <button type="submit" class="bg-line-strong hover:bg-line-strong text-fg text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Пропустить</button>
-        </form>
-      </div>
+      <span class="text-xs text-fg-muted">{{ conf_level(t.confidence) }}</span>
+      <span class="mt-1 block h-1 w-14 rounded-full bg-line-strong" role="img"
+            aria-label="Уверенность {{ (t.confidence * 100) | round(0) | int }}%">
+        <span class="block h-1 rounded-full bg-accent" style="width: {{ (t.confidence * 100) | round(0) | int }}%"></span>
+      </span>
+    </td>
+    <td class="px-5 py-3 text-right">
+      <form hx-post="/api/reviews/{{ t.id }}/skip" hx-target="closest tr"
+            hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button">
+        <button type="submit" class="review-skip text-fg-muted hover:text-fg text-xs px-2 py-1.5 transition-colors">Пропустить</button>
+      </form>
     </td>
   </tr>
   {% else %}

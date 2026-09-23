@@ -289,7 +289,7 @@ def test_dashboard_digest_card(page: Page, live_server, db_path):
 
 
 def test_approve_all_button(page: Page, live_server, db_path):
-    """Кнопка «Одобрить все» убирает все pending-строки."""
+    """Пакетное одобрение ≥ 60% (M-4): уверенная уходит, низкоуверенная остаётся человеку."""
     _seed_pending(str(db_path), [
         ("fp-b1", "2026-09-12", "ЛЕНТА А", -3000, 0.7, "groceries"),
         ("fp-b2", "2026-09-13", "Яндекс Такси", -2000, 0.5, "transport"),
@@ -299,10 +299,34 @@ def test_approve_all_button(page: Page, live_server, db_path):
     _wait_htmx(page, "#review-rows")
     expect(page.locator("#review-rows")).to_contain_text("ЛЕНТА А")
     expect(page.locator("#review-rows")).to_contain_text("Яндекс Такси")
+    expect(page.locator("#approve-all-wrap button")).to_contain_text("(1)")
 
     # auto-accept confirm dialog
     page.on("dialog", lambda d: d.accept())
-    page.click("button:has-text('Одобрить все')")
+    page.click("#approve-all-wrap button")
+    page.wait_for_function("() => window.htmx && !document.querySelector('.htmx-request')")
+    expect(page.locator("#review-rows tr.review-row")).to_have_count(1)
+    expect(page.locator("#review-rows")).to_contain_text("Яндекс Такси")
+    expect(page.locator("#approve-all-wrap button")).to_have_count(0)  # уверенных больше нет
+
+
+def test_approve_keyboard_triage(page: Page, live_server, db_path):
+    """Клавиатурный триаж (M-4): j — выбрать строку, Enter — одобрить, s — пропустить."""
+    _seed_pending(str(db_path), [
+        ("fp-k1", "2026-09-12", "ЛЕНТА К", -3000, 0.7, "groceries"),
+        ("fp-k2", "2026-09-13", "АЗС К", -2000, 0.65, "transport"),
+    ])
+
+    page.goto(f"{live_server}/approve")
+    _wait_htmx(page, "#review-rows")
+    expect(page.locator("#review-rows tr.review-row")).to_have_count(2)
+
+    page.keyboard.press("j")
+    expect(page.locator("#review-1")).to_have_class(re.compile(r"is-selected"))
+    page.keyboard.press("Enter")  # одобрить первую (как предложено)
+    expect(page.locator("#review-1")).to_have_count(0)
+    expect(page.locator("#review-rows tr.review-row")).to_have_count(1)
+    page.keyboard.press("s")  # пропустить оставшуюся
     _wait_single(page, "#review-rows")
     expect(page.locator("#review-rows")).to_contain_text("Все подтверждены")
 

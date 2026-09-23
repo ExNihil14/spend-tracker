@@ -280,10 +280,9 @@ def test_approve_all_button_hidden_when_empty(client):
     assert client.get("/api/pending-count").json()["count"] == 0
 
 
-def test_approve_all_button_present_when_pending(client):
-    client.post("/api/transactions", json={
-        "date": "2026-09-12", "description": "СТРОЙКАОПТ X", "amount": "-50.00",
-    })
+def test_approve_all_button_present_when_pending(client, tmp_path):
+    """M-4: кнопка показывается, когда есть записи с уверенностью ≥ 60% (порог в подписи)."""
+    _seed_pending_rows(tmp_path, [("ЛЕНТА М4Е", 0.7, "groceries")])
     r = client.get("/approve")
     assert "Одобрить все" in r.text
 
@@ -322,3 +321,97 @@ def test_toast_on_approve_and_skip(client):
     }).json()
     r2 = client.post(f"/api/reviews/{tx2['id']}/skip")
     assert "Пропущено:" in r2.text
+
+# ---- M-4: безопасный bulk с порогом, уровни уверенности, клавиатурные подсказки ----
+
+def test_conf_level_levels():
+    """Уровни уверенности текстом: <0.5 низкая, <0.7 средняя, ≥0.7 высокая."""
+    from spendtrack.store import conf_level
+
+    assert conf_level(0.0) == "низкая"
+    assert conf_level(0.49) == "низкая"
+    assert conf_level(0.5) == "средняя"
+    assert conf_level(0.69) == "средняя"
+    assert conf_level(0.7) == "высокая"
+    assert conf_level(1.0) == "высокая"
+
+
+def test_approve_all_min_confidence_store(pending_store):
+    """Порог: одобряется только уверенная запись (0.55), слабая (0.4) остаётся человеку."""
+    n = pending_store.approve_all_reviews(min_confidence=0.5)
+    assert n == 1
+    assert pending_store.pending_count() == 1
+    assert pending_store.queued_for_review()[0]["description"] == "КАФЕ А"
+
+
+def _seed_pending_rows(tmp_path, rows: list[tuple[str, float, str]]) -> None:
+    """(описание, уверенность, категория-предложение) в БД клиентского фикстура."""
+    s = Store(db_path=tmp_path / "api_w3.db")
+    try:
+        for desc, conf, llm in rows:
+            s.add_transaction(date="2026-09-12", description=desc, amount_kopecks=-1000,
+                              category="other", category_source="llm_pending_review",
+                              confidence=conf, category_llm=llm, review_status="pending")
+    finally:
+        s.close()
+
+
+def test_approve_all_endpoint_min_confidence(client, tmp_path):
+    """Endpoint: min_confidence=0.6 одобряет уверенную, слабая остаётся (M-4)."""
+    _seed_pending_rows(tmp_path, [("ЛЕНТА М4", 0.7, "groceries"), ("КАФЕ М4", 0.4, "restaurants")])
+    r = client.post("/api/reviews/approve-all", data={"min_confidence": "0.6"})
+    assert r.status_code == 200
+    assert client.get("/api/pending-count").json()["count"] == 1
+    page = client.get("/approve").text
+    assert "КАФЕ М4" in page
+    assert "ЛЕНТА М4" not in page
+
+
+def test_approve_all_endpoint_rejects_bad_min_confidence(client):
+    assert client.post("/api/reviews/approve-all", data={"min_confidence": "abc"}).status_code == 422
+    assert client.post("/api/reviews/approve-all", data={"min_confidence": "1.5"}).status_code == 422
+
+
+def test_approve_page_bulk_button_threshold(client, tmp_path):
+    """Кнопка пакетного одобрения называет порог и число записей; есть клавиатурная подсказка."""
+    _seed_pending_rows(tmp_path, [("ЛЕНТА М4Б", 0.7, "groceries"), ("КАФЕ М4Б", 0.4, "restaurants")])
+    text = client.get("/approve").text
+    assert "Одобрить все с уверенностью ≥ 60% (1)" in text
+    assert ">j</kbd>" in text and ">Enter</kbd>" in text and ">s</kbd>" in text
+
+
+def test_approve_page_all_low_confidence_hides_bulk(client, tmp_path):
+    """Если уверенных записей нет — кнопка пакетного одобрения не показывается."""
+    _seed_pending_rows(tmp_path, [("КАФЕ М4В", 0.4, "restaurants")])
+    assert "Одобрить все" not in client.get("/approve").text
+
+
+def test_approve_page_confidence_levels_and_bar(client, tmp_path):
+    _seed_pending_rows(tmp_path, [("КАФЕ М4Г", 0.65, "restaurants")])
+    text = client.get("/approve").text
+    assert "средняя" in text
+    assert 'aria-label="Уверенность 65%"' in text
+
+
+def test_approve_page_suggestion_marked_in_select(client, tmp_path):
+    """Дубль «чип + select» убран: предложение подсвечено в самом select (M-4)."""
+    _seed_pending_rows(tmp_path, [("КАФЕ М4Д", 0.5, "restaurants")])
+    text = client.get("/approve").text
+    assert "— предложено" in text
+    assert "сейчас: Прочее" in text  # category_llm != category → видно текущее значение
+
+
+def test_approve_page_merchant_hidden_when_redundant(client, tmp_path):
+    """Строка мерчанта не дублируется, если уже входит в описание (M-4)."""
+    s = Store(db_path=tmp_path / "api_w3.db")
+    try:
+        s.add_transaction(date="2026-09-12", description="ФОТОЛАБ ОПЛАТА", amount_kopecks=-1000,
+                          category="other", category_source="llm_pending_review", confidence=0.5,
+                          category_llm="other", review_status="pending", merchant="ФОТОЛАБ")
+        s.add_transaction(date="2026-09-13", description="ОПЛАТА КАРТОЙ", amount_kopecks=-2000,
+                          category="other", category_source="llm_pending_review", confidence=0.5,
+                          category_llm="other", review_status="pending", merchant="ФОТОЛАБ")
+    finally:
+        s.close()
+    text = client.get("/approve").text
+    assert text.count('mt-0.5">ФОТОЛАБ<') == 1  # только у «ОПЛАТА КАРТОЙ»

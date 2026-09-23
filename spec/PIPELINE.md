@@ -269,7 +269,8 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   Telegram-vs-PWA (issue-формы), FAQ и приватность. Внешних ресурсов нет (шрифты/CDN/аналитика) — без сети.
 - Фрейм платного блока — **«разовая поддержка разработки»** (тяжёлое ревью 21.09): managed-LLM-прокси и
   «разовая лицензия» убраны из landing/README/FUNDING-окрестностей как несуществующие/противоречащие AGPLv3;
-  у Сбера — оговорка про CSV (у физлиц чаще PDF/XLS, XLS-импорт в планах). Юр-природа — услуги (оферта).
+  у Сбера — честная оговорка (у физлиц выписка — PDF, CSV по e-mail и не у всех; XLS/XLSX у физлиц
+  не существует — ресёрч образцов 23.09, обещание «XLS-импорт в планах» убрано). Юр-природа — услуги (оферта).
 - Деплой: `.github/workflows/pages.yml` при push в `main` с изменениями в `landing/**` (source — GitHub Actions;
   Pages включён через `gh api repos/ExNihil14/spend-tracker/pages -X POST -f build_type=workflow`).
   URL — <https://exnihil14.github.io/spend-tracker/>.
@@ -343,6 +344,15 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   (порог авто-приёма берётся из конфига).
 - Пустое состояние очереди — общий partial `partials/review_empty.html` (используется и шаблоном,
   и OOB-ответом `api._oob_empty_state`, чтобы разметка не расходилась).
+- **Безопасный bulk и клавиатура очереди (M-4, дизайн-ревью):** кнопка «Одобрить все с уверенностью ≥ 60% (N)»
+  (порог в `partials/approve_all.html`; при 0 уверенных кнопки нет; `hx-confirm` называет число и предупреждает,
+  что слабые останутся). Endpoint `/api/reviews/approve-all` принимает `min_confidence` 0..1 (иначе 422);
+  без параметра — вся очередь (API-совместимость). Уверенность — `conf_level()` («низкая/средняя/высокая»,
+  границы 0.5/0.7) + мини-бар с `aria-label`; предложение LLM подсвечено в самом select («— предложено»),
+  дубль-чип убран; «Пропустить» — текстовая ссылка. Клавиатура: `static/approve.js` (`j/k`, `Enter`, `s`,
+  `1–9`; фокус на реальной кнопке строки, после свопа — та же позиция, выбранная строка `.is-selected`).
+  Тесты: `tests/test_review_queue.py` (порог/уровни/разметка), e2e `test_approve_all_button` +
+  `test_approve_keyboard_triage`; QA-план — `spec/QA_APPROVE_SMOKE.md` TC-08/16/17/18.
 - Тесты: `tests/test_ui_polish.py` + `test_colors.py` + дополнения `test_amounts.py`/`test_digest.py`
   (знаки аномалий: медианы хранятся магнитудами — знак расхода ставится явно); e2e
   `tests/e2e/test_ui_polish_e2e.py`. Источник формулировок — `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` §4/§6.

@@ -509,7 +509,7 @@
    "returns": "int | None"
   },
   "spendtrack.store:Store.approve_all_reviews": {
-   "args": "self",
+   "args": "self, min_confidence: float=0.0",
    "returns": "int"
   },
   "spendtrack.store:Store.approve_review": {
@@ -599,6 +599,10 @@
   "spendtrack.store:Store.update_merchant": {
    "args": "self, tx_id: int, merchant: str | None",
    "returns": "None"
+  },
+  "spendtrack.store:conf_level": {
+   "args": "confidence: float",
+   "returns": "str"
   },
   "spendtrack.store:fingerprint": {
    "args": "date: str, amount_kopecks: int, desc: str, account_anon: str, export_rowid: str, currency: str='RUB'",

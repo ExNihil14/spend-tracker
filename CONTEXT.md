@@ -23,7 +23,7 @@
   travel, other). У каждой — `display_name` (RU-имя для UI); слаг остаётся ключом в БД/URL/API, в интерфейсе
   рендерится `catname(slug)` (неизвестный слаг — как есть).
 - **Источник категории** (`category_source`) — как получена: `rule` (keyword-правило), `llm` (принято от LLM, conf≥0.9), `llm_pending_review` (низкая уверенность → в очередь), `import` (из CSV банка), `manual` (создано вручную), `correction` (правка юзера).
-- **Подтверждение (review queue)** — транзакции с `review_status='pending'` (ставится при `category_source='llm_pending_review'` — LLM дал conf<0.9 или категорию вне таксономии). `category_llm` — предложение LLM (не перезаписывается → рендер-diff). `approve` → `category`=выбранная + `category_source='rule'`; `skip` → вне очереди, категория не меняется; `approve-all` → `category=COALESCE(category_llm, category, 'other')`.
+- **Подтверждение (review queue)** — транзакции с `review_status='pending'` (ставится при `category_source='llm_pending_review'` — LLM дал conf<0.9 или категорию вне таксономии). `category_llm` — предложение LLM (не перезаписывается → рендер-diff). `approve` → `category`=выбранная + `category_source='rule'`; `skip` → вне очереди, категория не меняется; `approve-all` → `category=COALESCE(category_llm, category, 'other')`, с `min_confidence` (0..1) — только записи не ниже порога (UI: ≥60% — безопасный bulk, M-4).
 - **Мерчант** — нормализованное имя (UPPER). `merchant_cache` → связанная категория (выигрывает над правилами/LLM).
 - **Fingerprint** = sha1(date|kopecks|norm(desc)|account_anon|export_rowid). Дедуп импорта: повторный импорт = no-op. norm = UPPER + collapse пробелов.
 - **Партия импорта (import_batch)** — один загруженный CSV, id `b_hex`, sha256 содержимого, статус.

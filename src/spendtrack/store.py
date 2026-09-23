@@ -90,6 +90,18 @@ def fmt_date(iso_date: str) -> str:
         return iso_date
 
 
+def conf_level(confidence: float) -> str:
+    """Уровень уверенности для очереди текстом: «низкая» / «средняя» / «высокая».
+
+    Дизайн-ревью M-4: процент в UI читается хуже уровня, а «0%» выглядел как сбой.
+    """
+    if confidence < 0.5:
+        return "низкая"
+    if confidence < 0.7:
+        return "средняя"
+    return "высокая"
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 
@@ -419,20 +431,26 @@ class Store:
         self.conn.commit()
         return cur.rowcount > 0
 
-    def approve_all_reviews(self) -> int:
-        """Одобрить всю очередь одной транзакцией; few-shot-кэш учим только «неизвестными» мерчантами.
+    def approve_all_reviews(self, min_confidence: float = 0.0) -> int:
+        """Одобрить очередь одной транзакцией; `min_confidence` — только записи не ниже порога.
 
+        Безопасная пакетная работа (дизайн-ревью M-4): UI предлагает «≥ 60 %», записи с низкой
+        уверенностью остаются человеку. few-shot-кэш учим только «неизвестными» мерчантами.
         INSERT OR IGNORE (а не upsert): LLM-догадка из пачки не должна перетирать ручную правку
         человека, уже лежащую в кэше (одиночный approve — осознанный выбор юзера, там upsert).
         """
+        where, extra = "review_status='pending'", []
+        if min_confidence > 0:
+            where += " AND confidence >= ?"
+            extra.append(min_confidence)
         rows = self.conn.execute(
             "SELECT merchant, COALESCE(category_llm, category, 'other') AS cat"
-            " FROM transactions WHERE review_status='pending'").fetchall()
+            f" FROM transactions WHERE {where}", extra).fetchall()
         now = _now_iso()
         cur = self.conn.execute(
             "UPDATE transactions SET category=COALESCE(category_llm, category, 'other'),"
-            " category_source='rule', review_status='approved', updated=? WHERE review_status='pending'",
-            (now,),
+            f" category_source='rule', review_status='approved', updated=? WHERE {where}",
+            [now, *extra],
         )
         for r in rows:
             if r["merchant"]:

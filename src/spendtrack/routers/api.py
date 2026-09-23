@@ -18,6 +18,7 @@ from spendtrack.deps import get_store
 from spendtrack.reports import budgets_progress
 from spendtrack.store import (
     Store,
+    conf_level,
     fmt_amount,
     fmt_date,
     fmt_money,
@@ -30,7 +31,7 @@ from spendtrack.taxonomy import load_taxonomy
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(
-    fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date,
+    fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date, conf_level=conf_level,
     badge_text=badge_text_color, static=static_url,
 )
 
@@ -169,17 +170,16 @@ def _oob_badge(store: Store) -> str:
 def _rows_html(request: Request, store: Store) -> str:
     """Единый рендер фрагмента очереди (страница и htmx-ответы совпадают)."""
     taxonomy = load_taxonomy()
-    cats = {c.name: c.color for c in taxonomy.categories}
     return templates.TemplateResponse(
         request, "partials/review_rows.html",
-        {"pending": store.queued_for_review(), "cat_colors": cats, "fmt": fmt_amount,
+        {"pending": store.queued_for_review(), "fmt": fmt_amount,
          "catname": taxonomy.display,
          "all_categories": [c.name for c in taxonomy.categories]},
     ).body.decode()
 
 
 def _oob_approve_all(request: Request, store: Store) -> str:
-    """OOB: кнопка «Одобрить все» живёт/исчезает вместе с очередью."""
+    """OOB: кнопка «Одобрить все ≥ порога» живёт/исчезает вместе с очередью."""
     return templates.TemplateResponse(
         request, "partials/approve_all.html",
         {"pending": store.queued_for_review(), "oob": True},
@@ -241,9 +241,18 @@ async def skip_review(request: Request, tx_id: int, store: Annotated[Store, Depe
 
 @router.post("/reviews/approve-all", response_class=HTMLResponse)
 async def approve_all(request: Request, store: Annotated[Store, Depends(get_store)]):
-    n = store.approve_all_reviews()
+    """Пакетное одобрение; `min_confidence` (0..1) — только записи не ниже порога (дизайн-ревью M-4)."""
+    form = await request.form()
+    try:
+        min_conf = float(str(form.get("min_confidence") or 0))
+    except ValueError:
+        raise HTTPException(422, "min_confidence — число от 0 до 1") from None
+    if not 0 <= min_conf <= 1:
+        raise HTTPException(422, "min_confidence — число от 0 до 1")
+    n = store.approve_all_reviews(min_confidence=min_conf)
+    suffix = f" (уверенность ≥ {round(min_conf * 100)}%)" if min_conf > 0 else ""
     return HTMLResponse(_rows_html(request, store) + _oob_approve_all(request, store)
-                        + _oob_badge(store) + _oob_toast(f"Одобрено записей: {n}"))
+                        + _oob_badge(store) + _oob_toast(f"Одобрено записей: {n}{suffix}"))
 
 
 @router.patch("/transactions/{tx_id}")

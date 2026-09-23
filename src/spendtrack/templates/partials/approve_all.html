@@ -1,10 +1,14 @@
+{% set bulk_min = bulk_min | default(0.6) %}
+{% set bulk_pct = (bulk_min * 100) | round(0) | int %}
+{% set bulk_count = pending | selectattr('confidence', 'ge', bulk_min) | list | length %}
 <div id="approve-all-wrap"{% if oob %} hx-swap-oob="true"{% endif %}>
-  {% if pending %}
+  {% if bulk_count %}
   <button hx-post="/api/reviews/approve-all"
+          hx-vals='{"min_confidence": "{{ bulk_min }}"}'
           hx-target="#review-rows" hx-swap="outerHTML"
-          hx-confirm="Одобрить все {{ pending | length }} записей?"
+          hx-confirm="Одобрить {{ bulk_count }} записей с уверенностью ≥ {{ bulk_pct }}%? Записи с низкой уверенностью останутся в очереди."
           class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">
-    Одобрить все
+    Одобрить все с уверенностью ≥ {{ bulk_pct }}% ({{ bulk_count }})
   </button>
   {% endif %}
 </div>

@@ -22,13 +22,13 @@ from spendtrack.reports import (
     report_daily,
     report_month,
 )
-from spendtrack.store import Store, fmt_amount, fmt_date, fmt_money, fmt_month
+from spendtrack.store import Store, conf_level, fmt_amount, fmt_date, fmt_money, fmt_month
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(
-    fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date,
+    fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date, conf_level=conf_level,
     badge_text=badge_text_color, static=static_url,
 )
 
@@ -124,11 +124,9 @@ def export_xlsx(store: Annotated[Store, Depends(get_store)], month: str | None =
 @router.get("/approve", response_class=HTMLResponse)
 def approve(request: Request, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
-    pending = store.queued_for_review()
-    cats = {c.name: c.color for c in taxonomy.categories}
     return templates.TemplateResponse(
         request, "approve.html",
-        {"pending": pending, "cat_colors": cats, "fmt": fmt_amount, "catname": taxonomy.display,
+        {"pending": store.queued_for_review(), "fmt": fmt_amount, "catname": taxonomy.display,
          "all_categories": [c.name for c in taxonomy.categories],
          "threshold": load_settings().acceptance.auto_accept_confidence},
     )
