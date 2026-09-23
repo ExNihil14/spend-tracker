@@ -33,7 +33,8 @@
   form-action 'self'` + `X-Content-Type-Options: nosniff` + `Referrer-Policy: no-referrer` (middleware в
   `main.py`). Inline-скрипты и `hx-on::*` вынесены в `/static/app.js`/`dashboard.js`, `htmx.config.allowEval=false`
   — `unsafe-inline`/`unsafe-eval` для скриптов не требуются. `style-src 'unsafe-inline'` остаётся осознанно:
-  inline-стили цветов категорий и темы.
+  inline-стили цветов категорий и темы. Кэш: версионированная статика (`?v=<hash>`) — `immutable`, без версии —
+  `no-cache`, HTML/API — `no-store`.
 - **Lifecycle данных**: SQLite-соединение — одно на запрос (FastAPI dependency `get_store`), `close()` в
   `finally` + `PRAGMA optimize` перед закрытием; `cache_size=8 МБ`, `temp_store=MEMORY`. Это устраняет
   накопление соединений/WAL-reader'ов до GC.

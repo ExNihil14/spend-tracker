@@ -112,6 +112,21 @@ def test_add_form_works_under_strict_csp(page: Page, live_server: str) -> None:
     assert errors == [], f"CSP/консоль: {errors[:5]}"
 
 
+def test_chart_js_loads_only_on_dashboard(page: Page, live_server: str) -> None:
+    """Chart.js (~205 КБ) не грузится на списке; на дашборде — грузится и график нарисован."""
+    _open(page, live_server, "/")
+    page.wait_for_timeout(300)  # дать шанс любым поздним загрузкам
+    on_index = page.evaluate("() => performance.getEntriesByType('resource').map(e => e.name)")
+    assert not any("chart.umd" in r for r in on_index), "Chart.js загружен на /"
+
+    _open(page, live_server, "/dashboard")
+    page.wait_for_function(
+        "() => window.Chart && window.Chart.getChart(document.getElementById('dailyChart'))",
+        timeout=5000)
+    on_dash = page.evaluate("() => performance.getEntriesByType('resource').map(e => e.name)")
+    assert any("chart.umd" in r for r in on_dash)
+
+
 def test_table_region_is_keyboard_focusable(page: Page, live_server: str) -> None:
     """Скролл-область таблицы достижима с клавиатуры и имеет видимый фокус (WCAG 2.1.1/2.4.7)."""
     _open(page, live_server, "/")

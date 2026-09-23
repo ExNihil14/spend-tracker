@@ -336,6 +336,12 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   `p a, li a` — подчёркивание (1.4.1); date-хинт `ГГГГ-ММ-ДД` с `aria-describedby` (Safari); у sentinel
   догрузки — кнопка «Показать ещё» (`hx-trigger="revealed, click"`; в UI дремлет — страница = месяц,
   активируется в многомесячном режиме).
+- Фаза 2 (оптимизация, 22.09): **Chart.js грузится только на дашборде** — `base.html` даёт блок `scripts`,
+  `dashboard.html` подключает `dashboard.js`, который динамически тянет `chart.umd.min.js` (URL из
+  `data-chart-src`); на остальных страницах 205 КБ не запрашиваются (e2e-тест
+  `test_chart_js_loads_only_on_dashboard`). **Версия статики**: `assets.static_url()` → `/static/<файл>?v=<sha8>`
+  (Jinja-хелпер `static`), middleware ставит `Cache-Control: immutable` для `?v=`, `no-cache` без версии,
+  `no-store` для HTML/API (тесты `tests/test_static_cache.py`).
 - Заголовки безопасности: CSP + `nosniff` + `Referrer-Policy: no-referrer` (middleware `main.py`,
   тесты `tests/test_security_headers.py`). С 22.09 `script-src 'self'` (без `unsafe-*`): inline-скрипты и
   `hx-on::*` вынесены в `/static/app.js` и `/static/dashboard.js` (данные графиков — в `#dashboard-data`

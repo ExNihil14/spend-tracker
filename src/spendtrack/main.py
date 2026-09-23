@@ -85,6 +85,15 @@ async def _security_headers(request, call_next):
     response.headers.setdefault("Content-Security-Policy", _CSP)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "no-referrer")
+    # Кэш: статика с версией (?v=) — immutable на год; без версии — revalidate;
+    # HTML/API — no-store (данные чувствительные; htmx-история у нас отключена: historyCacheSize=0).
+    if request.url.path.startswith("/static/"):
+        if request.query_params.get("v"):
+            response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+        else:
+            response.headers.setdefault("Cache-Control", "no-cache")
+    else:
+        response.headers.setdefault("Cache-Control", "no-store")
     return response
 
 

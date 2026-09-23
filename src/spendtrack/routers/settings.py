@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from spendtrack import taxonomy_repo as repo
+from spendtrack.assets import static_url
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
 from spendtrack.deps import get_store
@@ -15,7 +16,7 @@ from spendtrack.store import Store, fmt_amount
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
-templates.env.globals.update(badge_text=badge_text_color)
+templates.env.globals.update(badge_text=badge_text_color, static=static_url)
 
 
 def _context(store: Store) -> dict:

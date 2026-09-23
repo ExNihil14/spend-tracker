@@ -1,5 +1,5 @@
-// Графики дашборда. Данные — в #dashboard-data (data-* JSON), скрипт внешний
-// (строгий CSP script-src 'self'); Chart.js подключён только на этой странице.
+// Графики дашборда. Данные — в #dashboard-data (data-* JSON); Chart.js грузится ТОЛЬКО здесь
+// (динамически, с версионированным URL из data-chart-src), а не на всех страницах.
 (function () {
   'use strict';
 
@@ -10,21 +10,47 @@
       return {
         daily: JSON.parse(el.dataset.daily || '[]'),
         cats: JSON.parse(el.dataset.cats || '[]'),
-        colors: JSON.parse(el.dataset.colors || '{}')
+        colors: JSON.parse(el.dataset.colors || '{}'),
+        chartSrc: el.dataset.chartSrc || '/static/chart.umd.min.js'
       };
     } catch (e) {
       return null;
     }
   }
 
+  function ensureChart(src, cb) {
+    if (window.Chart) return cb();
+    var queue = window.__spendtrackChartQueue = window.__spendtrackChartQueue || [];
+    queue.push(cb);
+    if (window.__spendtrackChartLoading) return;
+    window.__spendtrackChartLoading = true;
+    var s = document.createElement('script');
+    s.src = src;
+    s.onload = function () {
+      window.__spendtrackChartLoading = false;
+      window.__spendtrackChartQueue = [];
+      queue.forEach(function (fn) { fn(); });
+    };
+    s.onerror = function () {
+      // Chart не загрузился: не копим колбэки (иначе утечка и «вечное ожидание»)
+      window.__spendtrackChartLoading = false;
+      window.__spendtrackChartQueue = [];
+    };
+    document.head.appendChild(s);
+  }
+
   function initCharts() {
-    if (typeof Chart === 'undefined') return;
+    var dailyEl = document.getElementById('dailyChart');
+    if (!dailyEl || dailyEl.dataset.init === '1') return;
+    var data = readData();
+    if (!data) return;
+    ensureChart(data.chartSrc, function () { draw(data); });
+  }
+
+  function draw(data) {
     var dailyEl = document.getElementById('dailyChart');
     if (!dailyEl || dailyEl.dataset.init === '1') return;
     dailyEl.dataset.init = '1';
-
-    var data = readData();
-    if (!data) return;
     var daily = data.daily;
     var cats = data.cats;
     var catColorMap = data.colors;

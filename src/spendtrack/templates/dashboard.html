@@ -185,6 +185,10 @@
 <div id="dashboard-data" hidden
      data-daily='{{ daily_json | tojson }}'
      data-cats='{{ categories_json | tojson }}'
-     data-colors='{{ cat_colors | tojson }}'></div>
-<script src="/static/dashboard.js" defer></script>
+     data-colors='{{ cat_colors | tojson }}'
+     data-chart-src='{{ static('chart.umd.min.js') }}'></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ static('dashboard.js') }}" defer></script>
 {% endblock %}

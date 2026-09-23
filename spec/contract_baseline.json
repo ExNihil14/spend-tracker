@@ -1,5 +1,9 @@
 {
  "api": {
+  "spendtrack.assets:static_url": {
+   "args": "name: str",
+   "returns": "str"
+  },
   "spendtrack.categorize:categorize_llm": {
    "args": "tx: dict, store: Store, taxonomy: Taxonomy",
    "returns": "dict"

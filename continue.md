@@ -76,7 +76,20 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (22.09, сессия «оптимизация+безопасность, фаза 1» — ждёт команды на коммит).**
+> **АКТУАЛЬНО (23.09, сессия «оптимизация+безопасность, фаза 2» — ждёт команды на коммит).**
+> ① **Chart.js только на дашборде:** из `base.html` убран глобальный `chart.umd.min.js` (205 КБ);
+> `base.html` получил блок `{% block scripts %}`; `dashboard.html` подключает `dashboard.js`, который
+> динамически загружает Chart (URL — из `data-chart-src`, с версией) и рисует графики; e2e
+> `test_chart_js_loads_only_on_dashboard` (на `/` ресурса нет, на дашборде — есть и Chart.getChart != null).
+> ② **Версия статики + Cache-Control:** `assets.static_url()` → `/static/<файл>?v=<sha8>` (Jinja-хелпер
+> `static` в трёх роутерах), middleware: `immutable` для `?v=`, `no-cache` без версии, `no-store` для HTML/API;
+> тесты `tests/test_static_cache.py` (4) + обновлённые static-тесты. Контур: unit **481 (+4)**, e2e **45 (+1)**,
+> cross-engine **40**, ruff, contract ok (baseline аддитивно: `static_url`), `build_css --check` ok.
+> Live (NSSM рестартнут): HTML отдаёт версии (`app.css?v=30be5b6c`, `app.js?v=4a0fef40`), `/` без chart.umd,
+> дашборд грузит `chart.umd.min.js?v=…` и рисует (консоль 0 ошибок), заголовки кэша корректны.
+> Фазы 1–2 оптимизации/безопасности закрыты. Осталось по сигналу: строгий `style-src` (nonce), mmap_size
+> (по замеру), стриминг экспорта (>100k строк), CORS/прокси (remote-доступ), BitLocker (за юзером).
+> **АКТУАЛЬНО (22.09, сессия «оптимизация+безопасность, фаза 1» — закоммичено `c52ce82`, запушено).**
 > ① **Периметр:** `src/spendtrack/security.py` (`origin_allowed`) + middleware в main.py: POST/PUT/PATCH/DELETE
 > с чужим `Origin`/`Sec-Fetch-Site` → 403; без заголовков (CLI/тесты) — пропуск; `TrustedHostMiddleware`
 > (127.0.0.1/localhost/testserver) → 400 на чужой Host; тесты `tests/test_security_perimeter.py` (7);
