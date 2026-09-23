@@ -70,8 +70,9 @@
   категории/статусов/цветов, FAQ (нативные `<details>`), приватность, «Почему так?». Ссылка — в nav на всех
   страницах; структура — по `RESEARCH_HELP_FAQ_BEST_PRACTICES.md` (Diátaxis + WCAG 2.2).
 - **Лендинг** — статическая страница `landing/` (GitHub Pages, workflow `pages.yml`; URL `exnihil14.github.io/spend-tracker`):
-  оффер, скриншоты витрины, демо-кнопка Codespaces, Supporter ($25/1900₽, mailto + issue) и Boosty (заглушка `REPLACE_ME`),
-  опрос Telegram-vs-PWA через issue-формы; внешних ресурсов и аналитики нет.
+  оффер, скриншоты витрины, демо-кнопка Codespaces, Supporter ($25/1900₽, mailto + issue) и донат Boosty
+  (кнопка выключена до запуска — живой заглушки нет), опрос Telegram-vs-PWA через issue-формы; внешних
+  ресурсов и аналитики нет.
 - **Prebuilt CSS** — стили собираются заранее (Tailwind standalone CLI, `scripts/build_css.py`) в
   `static/app.css`; browser build (Play CDN) в проде не используется. После правок классов в шаблонах —
   пересобрать (`uv run python scripts/build_css.py`), в CI — `--check`.

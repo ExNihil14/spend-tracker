@@ -79,7 +79,7 @@ def test_required_sections_and_mechanics() -> None:
         assert anchor in collector.ids, anchor
     assert "https://codespaces.new/ExNihil14/spend-tracker" in collector.links
     assert any(link.startswith("mailto:") for link in collector.links)
-    assert any("boosty.to" in link for link in collector.links)
+    assert "Boosty — к запуску" in html  # кнопка доната выключена до запуска (живой заглушки нет)
     raw = "https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/"
     assert raw + "install.ps1" in html and raw + "install.sh" in html
 
@@ -106,14 +106,19 @@ def test_pages_workflow_deploys_landing() -> None:
 
 
 def test_no_misleading_supporter_claims() -> None:
-    """Гигиена публичных текстов (тяжёлое ревью 21.09): без managed-прокси и «разовой лицензии»,
-    у Сбера — честная оговорка про CSV; проверяем и README/issue-форму, чтобы дрейф не повторился."""
+    """Гигиена публичных текстов (ревью 21.09 + ре-ревью Opus-5.5 23.09): без managed-прокси и «разовой
+    лицензии», честные оговорки про CSV Сбера и состав данных для LLM, без живой Boosty-заглушки и
+    донат-перков; проверяем и README/issue-форму, чтобы дрейф не повторился."""
     html, _ = _parse_index()
     lowered = html.lower()
     assert "managed-llm" not in lowered
     assert "разовая лицензия" not in lowered
     assert "разовая поддержка" in lowered
     assert "xls-импорт в планах" in lowered
+    assert "boosty.to" not in lowered  # нет живой ссылки-заглушки (REPLACE_ME)
+    assert "доступ к заметкам" not in lowered  # донат без перков
+    assert "по умолчанию данные не покидают" in lowered  # без безусловного «данные не покидают»
+    assert "псевдоним счёта" in lowered  # карточка «Что уходит к LLM» не занижает состав данных
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
     assert "managed-llm" not in readme
@@ -125,6 +130,9 @@ def test_no_misleading_supporter_claims() -> None:
     assert "лицензи" not in supporter
 
 
-def test_funding_points_to_boosty() -> None:
+def test_funding_has_no_live_placeholder() -> None:
+    """До запуска кнопка Sponsor не должна вести на несуществующий URL (риск захвата ника)."""
     funding = (ROOT / ".github" / "FUNDING.yml").read_text(encoding="utf-8")
-    assert "boosty.to" in funding
+    active = [line.strip() for line in funding.splitlines() if line.strip() and not line.strip().startswith("#")]
+    assert not any(line.startswith("custom:") for line in active)
+    assert all("boosty.to" not in line for line in active)

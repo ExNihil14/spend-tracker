@@ -59,6 +59,7 @@ a:hover { text-decoration: underline; }
 .btn-primary:hover { background: #2f74e0; }
 .btn-ghost { background: transparent; color: var(--text); border-color: var(--border); }
 .btn-ghost:hover { border-color: var(--faint); background: var(--panel); }
+.btn:disabled { opacity: .55; cursor: default; }
 .hint { font-size: 13px; color: var(--faint); margin: 0; }
 
 .shot { border: 1px solid var(--border); border-radius: 14px; overflow: hidden; background: var(--panel); box-shadow: 0 24px 60px rgba(2, 6, 23, 0.6); }

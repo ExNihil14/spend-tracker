@@ -118,7 +118,7 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 Никуда, пока вы сами не подключите ИИ. Сервер слушает только `127.0.0.1`, телеметрии нет. Что именно уходит
 при включённом ИИ — в [PRIVACY.md](PRIVACY.md); модель угроз — в [SECURITY.md](SECURITY.md).
 Поделиться анонимной статистикой (сколько операций и т.п.) можно только вручную — `spendtrack doctor --share`
-печатает сводку и ссылку на issue; приложение само ничего не отправляет.
+печатает сводку и ссылку на **публичный** issue; приложение само ничего не отправляет.
 </details>
 
 <details>
@@ -305,7 +305,7 @@ synthetic data: `uv run python scripts/demo_data.py seed`. Runs as a background 
 Scheduler/NSSM, macOS launchd, Linux systemd — templates in `deploy/`; see the «Работа в фоне» section).
 UI is Russian for now (English localization is on the roadmap). Support the project once (Supporter: $25 /
 1900 ₽ — your name in the thanks list or anonymous, priority attention to your issues, early access to new
-builds) via Boosty.
+builds as beta builds appear); the Boosty link will be enabled at launch.
 
 ## Лицензия и поддержка
 
@@ -314,8 +314,8 @@ builds) via Boosty.
 
 Проект бесплатный. **Supporter** — разовая поддержка разработки (~$25 / 1900 ₽): спасибо в списке
 поддержавших (или анонимно), приоритет внимания к вашим issue и предложениям, ранний доступ к новым
-сборкам и адаптерам. Ядро не кастрируется — это тот же продукт.
-Поддержать: [Boosty](https://boosty.to/REPLACE_ME) (ссылка появится к запуску) ·
+сборкам (по мере появления бета-сборок). Ядро не кастрируется — это тот же продукт.
+Поддержать: Boosty — к запуску (кнопка появится здесь) ·
 интерес — [issue Supporter](https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml).
 
 Не финансовый и не налоговый совет; ПО поставляется «как есть».

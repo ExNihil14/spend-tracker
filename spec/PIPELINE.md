@@ -255,8 +255,8 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   URL — <https://exnihil14.github.io/spend-tracker/>.
 - Локальный предпросмотр: `python -m http.server 8788 --directory landing` → <http://127.0.0.1:8788/>.
 - Скриншоты для лендинга снимаются со стенда демо-данных (`scripts/demo_data.py seed` + сервер 8767).
-- Перед запуском заменить заглушку Boosty в трёх местах: `landing/index.html`, `README.md`, `.github/FUNDING.yml`
-  (`https://boosty.to/REPLACE_ME`).
+- Перед запуском включить кнопку Boosty (сейчас выключена во всех трёх местах): `landing/index.html`
+  (disabled-кнопка), `README.md` и `.github/FUNDING.yml` (закомментированный `custom`) — вставить реальный URL.
 - Механики: `mailto:exnihil88@gmail.com` (контакт автора из pyproject); опрос/Supporter/баги —
   `.github/ISSUE_TEMPLATE/{poll-pwa,poll-telegram,supporter,bug-report}.yml` (лейблы `poll`, `supporter`).
 - Тесты: `tests/test_landing.py` (оффлайн: отсутствие внешних ресурсов, существование локальных ссылок/ассетов,

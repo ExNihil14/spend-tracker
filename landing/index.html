@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<!-- ЗАМЕНИТЬ ПЕРЕД ЗАПУСКОМ: URL Boosty (ссылки «Поддержать»). -->
+<!-- Boosty-ссылка выключена до запуска (заглушку убрали — риск захвата ника); включить реальный URL в кнопке доната. -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>Spendtrack — бюджет и подписки без облака</title>
-<meta name="description" content="Локальный трекер расходов: импорт CSV Сбера, Тинькофф и Яндекса, категории без облака, бюджеты, автодетект подписок и недельный отчёт об аномалиях. Открытый код, бесплатно.">
+<meta name="description" content="Локальный трекер расходов: импорт CSV Тинькофф и Яндекса (Сбер — где доступен CSV-экспорт), категории без облака, бюджеты, автодетект подписок и недельный отчёт об аномалиях. Открытый код, бесплатно.">
 <meta property="og:title" content="Spendtrack — бюджет и подписки без облака">
-<meta property="og:description" content="Импорт выписок Сбер/Тинькофф/Яндекс, локальная категоризация, бюджеты и дайджест аномалий. Данные не покидают ваш компьютер.">
+<meta property="og:description" content="Импорт выписок Тинькофф/Яндекс (Сбер — где доступен CSV-экспорт), локальная категоризация, бюджеты и дайджест аномалий. По умолчанию данные не покидают ваш компьютер.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://exnihil14.github.io/spend-tracker/">
 <meta property="og:image" content="https://exnihil14.github.io/spend-tracker/assets/shot-dashboard.png">
@@ -37,7 +37,7 @@
     <div>
       <span class="eyebrow">Локально · без облака · AGPLv3</span>
       <h1>Бюджет и подписки без облака</h1>
-      <p class="lead">Закиньте выписку Сбера, Тинькофф или Яндекса — получите категории, бюджеты и недельный отчёт об аномалиях. Данные не покидают ваш компьютер, подписки нет.</p>
+      <p class="lead">Закиньте выписку Тинькофф или Яндекса (Сбер — там, где доступен CSV-экспорт) — получите категории, бюджеты и недельный отчёт об аномалиях. По умолчанию данные не покидают ваш компьютер, подписки нет.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="#demo">Попробовать демо</a>
         <a class="btn btn-ghost" href="#install">Установить за одну команду</a>
@@ -173,7 +173,7 @@
           <ul>
             <li>спасибо в списке поддержавших — или анонимно</li>
             <li>приоритет внимания к вашим issue и предложениям</li>
-            <li>ранний доступ к новым сборкам и адаптерам</li>
+            <li>ранний доступ к новым сборкам (по мере появления бета-сборок)</li>
             <li>ядро не кастрируется — это тот же продукт, без возни</li>
           </ul>
           <div class="cta-row">
@@ -187,13 +187,13 @@
           <div class="price">Boosty <span>разово или ежемесячно</span></div>
           <ul>
             <li>поддержка разработки напрямую</li>
-            <li>доступ к заметкам о разработке</li>
+            <li>без перков и обязательств — чистый донат</li>
             <li>можно отменить в любой момент</li>
           </ul>
           <div class="cta-row">
-            <a class="btn btn-primary" href="https://boosty.to/REPLACE_ME" rel="noopener">Поддержать на Boosty</a>
+            <button class="btn btn-primary" type="button" disabled>Boosty — к запуску</button>
           </div>
-          <p class="note">Страница Boosty появится к запуску — ссылка обновится здесь.</p>
+          <p class="note">Страница Boosty появится к запуску — кнопка станет активной здесь.</p>
         </div>
       </div>
       <div class="card poll">
@@ -221,7 +221,7 @@
         </div>
         <div class="card">
           <h3>Что уходит к LLM</h3>
-          <p>Только описание операции (≤300 символов), сумма и дата — и только если вы сами включили свой ключ или локальный Ollama.</p>
+          <p>Описание операции (≤300 символов), сумма, дата и псевдоним счёта (без номера карты), плюс до 8 примеров из ваших правок — и только если вы сами включили свой ключ или локальный Ollama.</p>
         </div>
       </div>
       <p class="note">Честно: файл базы не шифруется — это ваш диск и ваша ответственность. Подробности: <a href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> и <a href="https://github.com/ExNihil14/spend-tracker/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a>.</p>
@@ -246,7 +246,7 @@
         </details>
         <details>
           <summary>Что уходит на сервер ИИ, если я его включу?</summary>
-          <p>Только описание операции (до 300 символов), сумма и дата — и только на тот сервер, который вы указали сами (свой ключ или локальный Ollama). Подробности — в PRIVACY.md.</p>
+          <p>Описание операции (до 300 символов), сумма, дата и псевдоним счёта, плюс до 8 примеров из ваших правок — и только на сервер, который вы указали сами (свой ключ или локальный Ollama); бесплатные каналы — осознанный opt-in. Подробности — в PRIVACY.md.</p>
         </details>
         <details>
           <summary>Какие банки поддерживаются?</summary>
@@ -271,7 +271,7 @@
   <div class="en">
     <div class="wrap" style="padding-top:40px;padding-bottom:40px">
       <h2>English</h2>
-      <p>Local-first personal expense tracker (FastAPI + SQLite + htmx). Import Russian bank CSV statements (Sber, Tinkoff, Yandex): deterministic rule-based categorization with an optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest. Your data never leaves your machine, the core works fully offline, and there is no cloud or telemetry. AGPLv3. See the <a href="https://github.com/ExNihil14/spend-tracker#readme" rel="noopener">README</a> for quick start.</p>
+      <p>Local-first personal expense tracker (FastAPI + SQLite + htmx). Import Russian bank CSV statements (Tinkoff, Yandex; Sber where CSV export is available): deterministic rule-based categorization with an optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest. Your data stays on your machine by default, the core works fully offline, and there is no cloud or telemetry. AGPLv3. See the <a href="https://github.com/ExNihil14/spend-tracker#readme" rel="noopener">README</a> for quick start.</p>
     </div>
   </div>
 
