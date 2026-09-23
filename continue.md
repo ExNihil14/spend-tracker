@@ -166,6 +166,15 @@
 > под новый контракт (4 unit + 6 e2e). Дальше по плану: M-1/M-3 (tokens.css + цвет-семантика приложения),
 > M-4 (/approve: порог bulk + клавиатура), M-5 (/dashboard: аномалии/темп/дельты), M-6 (/transactions:
 > таблица выше форм + file input) — по команде юзера.
+> **Волна M-1/M-3 «токены + цвет-семантика» — СДЕЛАНА (ждёт коммита):** `src/spendtrack/tokens.css`
+> (2 слоя: primitives → semantic) + `@theme inline` в Tailwind; лендинг — `landing/tokens.css` (копия,
+> синхронность тестом); в шаблонах **707 замен** прямой палитры на semantic-классы (grep-остатков нет);
+> семантика: расходы нейтральные (`text-fg` со знаком «−»; красный — только перерасход/аномалии/деструктив),
+> доход `text-income`, один primary-акцент (`bg-accent-bg`: Импорт/Добавить/Одобрить/Подтвердить), «Одобрить
+> все»/«Проверить» — secondary, «Удалить» — ghost (danger на hover), ссылки/фокус — accent. Контур: **483 unit**
+> (+tokens-sync) + 45 e2e + ruff + contract + build_css (app.css 25 232 Б; все утилиты в сборке) + смоук
+> лендинга/приложения (computed-цвета, 0 ошибок консоли). Отложено: приглушение/точка-текст категорийных
+> бейджей (отдельная итерация с colors.py + taxonomy + visual). Дальше: M-4, M-5, M-6 — по команде.
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter→opencode + Ollama Cloud» — dev-tooling; репо-код не менялся).**
 > Deliverable: интеграция AgentRouter в opencode + пилот Opus-5 на окне квоты; бонусом — тест Ollama Cloud
 > на важном ревью. ① **Плагин** `~/.config/opencode/plugins/agentrouter-ua.js` (авто-загрузка подтверждена):
