@@ -1,28 +1,28 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-  <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-    <div class="text-xs uppercase tracking-wide text-slate-400">Доход</div>
-    <div class="text-lg font-semibold text-emerald-400 mt-1">{{ fmt_money(report.income_k) }}</div>
+  <div class="bg-surface rounded-xl p-4 border border-line">
+    <div class="text-xs uppercase tracking-wide text-fg-muted">Доход</div>
+    <div class="text-lg font-semibold text-income mt-1">{{ fmt_money(report.income_k) }}</div>
   </div>
-  <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-    <div class="text-xs uppercase tracking-wide text-slate-400">Расход</div>
-    <div class="text-lg font-semibold text-rose-400 mt-1">{{ fmt_money(report.expense_k) }}</div>
+  <div class="bg-surface rounded-xl p-4 border border-line">
+    <div class="text-xs uppercase tracking-wide text-fg-muted">Расход</div>
+    <div class="text-lg font-semibold text-fg mt-1">{{ fmt_money(report.expense_k) }}</div>
   </div>
-  <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
-    <div class="text-xs uppercase tracking-wide text-slate-400">Баланс</div>
-    <div class="text-lg font-semibold text-slate-100 mt-1">{{ fmt_money(report.balance_k) }}</div>
+  <div class="bg-surface rounded-xl p-4 border border-line">
+    <div class="text-xs uppercase tracking-wide text-fg-muted">Баланс</div>
+    <div class="text-lg font-semibold text-fg-strong mt-1">{{ fmt_money(report.balance_k) }}</div>
   </div>
-  <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 flex items-center justify-between">
-    <a href="/dashboard?month={{ prev_month }}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
-    <div id="dash-month" class="text-sm font-medium text-slate-300">{{ fmt_month(current) }}</div>
-    <a href="/dashboard?month={{ next_month }}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
+  <div class="bg-surface rounded-xl p-4 border border-line flex items-center justify-between">
+    <a href="/dashboard?month={{ prev_month }}" class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors">←</a>
+    <div id="dash-month" class="text-sm font-medium text-fg">{{ fmt_month(current) }}</div>
+    <a href="/dashboard?month={{ next_month }}" class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors">→</a>
   </div>
 </div>
 
 {% if budgets %}
-<div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
-  <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Бюджеты месяца</h2>
+<div class="bg-surface rounded-xl border border-line mb-8 p-5">
+  <h2 class="text-sm font-semibold text-fg mb-3 uppercase tracking-wide">Бюджеты месяца</h2>
   <div class="space-y-3">
     {% for b in budgets %}
     <div>
@@ -30,10 +30,10 @@
       <div class="flex flex-wrap items-center justify-between gap-2 text-sm mb-1">
         <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium"
               style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">{{ catname(b.category) }}</span>
-        <span class="text-slate-300">{{ fmt_money(b.spent_k, signed=False) }} / {{ fmt_money(b.budget_k, signed=False) }} · {{ b.pct | round(0) | int }}%{% if b.over %} <span class="text-rose-400">перерасход {{ fmt_money(b.over_k, signed=False) }}</span>{% endif %}</span>
+        <span class="text-fg">{{ fmt_money(b.spent_k, signed=False) }} / {{ fmt_money(b.budget_k, signed=False) }} · {{ b.pct | round(0) | int }}%{% if b.over %} <span class="text-danger">перерасход {{ fmt_money(b.over_k, signed=False) }}</span>{% endif %}</span>
       </div>
-      <div class="h-2 bg-slate-800 rounded-full overflow-hidden">
-        <div class="h-full {{ 'bg-rose-600' if b.over else ('bg-amber-500' if b.pct >= 80 else 'bg-emerald-600') }}"
+      <div class="h-2 bg-surface-2 rounded-full overflow-hidden">
+        <div class="h-full {{ 'bg-danger-bg' if b.over else ('bg-warn' if b.pct >= 80 else 'bg-income') }}"
              style="width: {{ 100 if b.pct > 100 else b.pct | round(0) | int }}%"></div>
       </div>
     </div>
@@ -43,52 +43,52 @@
 {% endif %}
 
 {% if digest %}
-<div id="digest-card" class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
+<div id="digest-card" class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-    <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Дайджест недели</h2>
-    <span class="text-xs text-slate-400">{{ fmt_date(digest.period.from) }} → {{ fmt_date(digest.period.to) }} · {{ digest.period.days }} дн · к прошлому окну</span>
+    <h2 class="text-sm font-semibold text-fg uppercase tracking-wide">Дайджест недели</h2>
+    <span class="text-xs text-fg-muted">{{ fmt_date(digest.period.from) }} → {{ fmt_date(digest.period.to) }} · {{ digest.period.days }} дн · к прошлому окну</span>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-400">Доход</div>
-      <div class="text-emerald-400">{{ fmt_money(digest.income_k) }}</div>
+      <div class="text-xs uppercase tracking-wide text-fg-muted">Доход</div>
+      <div class="text-income">{{ fmt_money(digest.income_k) }}</div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-400">Расход</div>
-      <div class="text-rose-400">{{ fmt_money(digest.expense_k) }}
-        <span class="text-xs {{ 'text-rose-400' if digest.expense_delta_k < 0 else 'text-emerald-400' }}">Δ {{ fmt_money(digest.expense_delta_k) }}</span>
+      <div class="text-xs uppercase tracking-wide text-fg-muted">Расход</div>
+      <div class="text-fg">{{ fmt_money(digest.expense_k) }}
+        <span class="text-xs {{ 'text-danger' if digest.expense_delta_k < 0 else 'text-income' }}">Δ {{ fmt_money(digest.expense_delta_k) }}</span>
       </div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-400">Баланс</div>
-      <div class="text-slate-100">{{ fmt_money(digest.balance_k) }}</div>
+      <div class="text-xs uppercase tracking-wide text-fg-muted">Баланс</div>
+      <div class="text-fg-strong">{{ fmt_money(digest.balance_k) }}</div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-slate-400">Средний/день</div>
-      <div class="text-slate-300">{{ fmt_money(digest.avg_per_day_k) }}</div>
+      <div class="text-xs uppercase tracking-wide text-fg-muted">Средний/день</div>
+      <div class="text-fg">{{ fmt_money(digest.avg_per_day_k) }}</div>
     </div>
   </div>
   {% if digest.top_categories %}
   <div class="flex flex-wrap gap-2 text-xs mb-3">
     {% for c in digest.top_categories %}
-    <span class="inline-flex items-center gap-1.5 bg-slate-800/60 rounded-full px-2.5 py-1">
+    <span class="inline-flex items-center gap-1.5 bg-surface-2/60 rounded-full px-2.5 py-1">
       <span class="inline-block w-2 h-2 rounded-full" style="background:{{ cat_colors.get(c.category, '#9ca3af') }}"></span>
-      <span class="text-slate-300">{{ catname(c.category) }}</span>
-      <span class="text-slate-400">{{ fmt_money(c.total_k) }}</span>
-      <span class="{{ 'text-rose-400' if c.delta_k < 0 else 'text-emerald-400' }}">Δ {{ fmt_money(c.delta_k) }}</span>
+      <span class="text-fg">{{ catname(c.category) }}</span>
+      <span class="text-fg-muted">{{ fmt_money(c.total_k) }}</span>
+      <span class="{{ 'text-danger' if c.delta_k < 0 else 'text-income' }}">Δ {{ fmt_money(c.delta_k) }}</span>
     </span>
     {% endfor %}
   </div>
   {% endif %}
   {% if digest.anomalies %}
   <div class="text-xs space-y-1">
-    <div class="uppercase tracking-wide text-slate-400">Аномалии ({{ digest.anomalies | length }})</div>
+    <div class="uppercase tracking-wide text-fg-muted">Аномалии ({{ digest.anomalies | length }})</div>
     {% for a in digest.anomalies %}
     <div class="flex flex-wrap items-baseline gap-2">
-      <span class="text-amber-500">{{ a.label }}</span>
-      <span class="text-amber-400">{{ fmt_date(a.date) }}</span>
-      <span class="text-slate-300">{{ a.merchant }}</span>
-      <span class="text-slate-400">{{ a.detail }}</span>
+      <span class="text-warn">{{ a.label }}</span>
+      <span class="text-warn">{{ fmt_date(a.date) }}</span>
+      <span class="text-fg">{{ a.merchant }}</span>
+      <span class="text-fg-muted">{{ a.detail }}</span>
     </div>
     {% endfor %}
   </div>
@@ -97,21 +97,21 @@
 {% endif %}
 
 {% if recurring.subscriptions %}
-<div class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
+<div class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-    <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Подписки / рекурринги</h2>
-    <span class="text-xs text-slate-400">по всей истории · активных {{ recurring.active_count }}, {{ fmt_money(-recurring.monthly_total_k) }} / мес</span>
+    <h2 class="text-sm font-semibold text-fg uppercase tracking-wide">Подписки / рекурринги</h2>
+    <span class="text-xs text-fg-muted">по всей истории · активных {{ recurring.active_count }}, {{ fmt_money(-recurring.monthly_total_k) }} / мес</span>
   </div>
   <div class="space-y-2">
     {% for s in recurring.subscriptions %}
     <div class="flex flex-wrap items-center justify-between gap-2 text-sm">
       <span class="flex items-center gap-2 min-w-0">
         <span class="inline-block w-2.5 h-2.5 rounded-full shrink-0" style="background:{{ cat_colors.get(s.category, '#9ca3af') }}"></span>
-        <span class="{{ 'text-slate-200' if s.active else 'text-slate-400' }}">{{ s.merchant }}</span>
-        <span class="text-xs text-slate-400">{{ catname(s.category) }}</span>
-        {% if s.skipped_months %}<span class="text-xs text-amber-500">пропуск месяца</span>{% endif %}
+        <span class="{{ 'text-fg' if s.active else 'text-fg-muted' }}">{{ s.merchant }}</span>
+        <span class="text-xs text-fg-muted">{{ catname(s.category) }}</span>
+        {% if s.skipped_months %}<span class="text-xs text-warn">пропуск месяца</span>{% endif %}
       </span>
-      <span class="{{ 'text-slate-300' if s.active else 'text-slate-400' }} whitespace-nowrap">
+      <span class="{{ 'text-fg' if s.active else 'text-fg-muted' }} whitespace-nowrap">
         {{ fmt_money(-s.price_k) }} / мес · n={{ s.occurrences }}{% if not s.active %} · нет списаний {{ s.days_since_last }} дн{% endif %}
       </span>
     </div>
@@ -122,28 +122,28 @@
 
 {% if has_data | default(true) %}
 {% if not report.categories %}
-<p class="text-sm text-slate-400 mb-6">За {{ fmt_month(current) }} операций нет.
-  <a href="/#import" class="text-blue-400 hover:text-blue-300">Импортируйте выписку</a> или выберите другой месяц стрелками выше.</p>
+<p class="text-sm text-fg-muted mb-6">За {{ fmt_month(current) }} операций нет.
+  <a href="/#import" class="text-accent hover:text-accent-hover">Импортируйте выписку</a> или выберите другой месяц стрелками выше.</p>
 {% endif %}
 
 <div class="grid md:grid-cols-2 gap-6 mb-8">
-  <div class="min-w-0 bg-slate-900 rounded-xl p-5 border border-slate-800">
-    <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">Расходы по дням</h2>
+  <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
+    <h2 class="text-sm font-semibold text-fg mb-3 uppercase tracking-wide">Расходы по дням</h2>
     <div class="relative h-56"><canvas id="dailyChart" class="w-full h-full"></canvas></div>
   </div>
-  <div class="min-w-0 bg-slate-900 rounded-xl p-5 border border-slate-800">
-    <h2 class="text-sm font-semibold text-slate-300 mb-3 uppercase tracking-wide">По категориям</h2>
+  <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
+    <h2 class="text-sm font-semibold text-fg mb-3 uppercase tracking-wide">По категориям</h2>
     <div class="relative h-56"><canvas id="catsChart" class="w-full h-full"></canvas></div>
   </div>
 </div>
 
 {% if report.categories %}
-<div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
-  <h2 class="px-5 py-3 text-sm font-semibold text-slate-300 uppercase tracking-wide border-b border-slate-800">Итоги по категориям</h2>
+<div class="bg-surface rounded-xl border border-line overflow-hidden">
+  <h2 class="px-5 py-3 text-sm font-semibold text-fg uppercase tracking-wide border-b border-line">Итоги по категориям</h2>
   <div class="table-scroll overflow-x-auto" role="region" aria-label="Итоги по категориям" tabindex="0">
   <table class="w-full text-sm">
     <thead>
-      <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-800 bg-slate-950/40">
+      <tr class="text-left text-xs uppercase tracking-wide text-fg-muted border-b border-line bg-canvas/40">
         <th class="px-5 py-2.5 font-medium">Категория</th>
         <th class="px-5 py-2.5 font-medium text-right">Сумма</th>
         <th class="px-5 py-2.5 font-medium text-right">Кол-во</th>
@@ -152,12 +152,12 @@
     </thead>
     <tbody>
       {% for c in report.categories %}
-      <tr class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
+      <tr class="border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
         <td class="px-5 py-3">
-          <a href="/?category={{ c.category }}" class="text-slate-200 hover:text-blue-400 transition-colors">{{ catname(c.category) }}</a>
+          <a href="/?category={{ c.category }}" class="text-fg hover:text-accent transition-colors">{{ catname(c.category) }}</a>
         </td>
-        <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-emerald-400' if c.total_k > 0 else 'text-rose-400' }}">{{ fmt_money(c.total_k) }}</td>
-        <td class="px-5 py-3 text-right text-slate-400">{{ c.count }}</td>
+        <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-income' if c.total_k > 0 else 'text-fg' }}">{{ fmt_money(c.total_k) }}</td>
+        <td class="px-5 py-3 text-right text-fg-muted">{{ c.count }}</td>
         <td class="px-5 py-3"><span class="inline-block w-3 h-3 rounded-full" style="background:{{ cat_colors.get(c.category, '#9ca3af') }}"></span></td>
       </tr>
       {% endfor %}
@@ -167,18 +167,18 @@
 </div>
 {% endif %}
 {% else %}
-<div id="onboarding" class="bg-slate-900 rounded-xl border border-slate-800 mb-8 p-5">
-  <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Данных пока нет</h2>
-  <p class="text-sm text-slate-300 mb-3">Начните с импорта выписки — дальше приложение само разложит операции по категориям,
+<div id="onboarding" class="bg-surface rounded-xl border border-line mb-8 p-5">
+  <h2 class="text-sm font-semibold text-fg uppercase tracking-wide mb-3">Данных пока нет</h2>
+  <p class="text-sm text-fg mb-3">Начните с импорта выписки — дальше приложение само разложит операции по категориям,
     найдёт подписки и посчитает дайджест недели.</p>
-  <ol class="space-y-2 text-sm text-slate-300 list-decimal list-inside">
-    <li><a href="/#import" class="text-blue-400 hover:text-blue-300">Импортируйте CSV-выписку</a> на странице «Расходы» —
-      или <a href="/#add" class="text-blue-400 hover:text-blue-300">добавьте операцию вручную</a>.</li>
-    <li>Разберите очередь <a href="/approve" class="text-blue-400 hover:text-blue-300">«Подтвердить»</a>:
+  <ol class="space-y-2 text-sm text-fg list-decimal list-inside">
+    <li><a href="/#import" class="text-accent hover:text-accent-hover">Импортируйте CSV-выписку</a> на странице «Расходы» —
+      или <a href="/#add" class="text-accent hover:text-accent-hover">добавьте операцию вручную</a>.</li>
+    <li>Разберите очередь <a href="/approve" class="text-accent hover:text-accent-hover">«Подтвердить»</a>:
       спорные категории запоминаются за мерчантом.</li>
     <li>Здесь появятся бюджеты месяца, подписки и дайджест недели.</li>
   </ol>
-  <p class="text-xs text-slate-400 mt-3"><a href="/help#quick-start" class="text-blue-400 hover:text-blue-300">Быстрый старт за 4 шага →</a></p>
+  <p class="text-xs text-fg-muted mt-3"><a href="/help#quick-start" class="text-accent hover:text-accent-hover">Быстрый старт за 4 шага →</a></p>
 </div>
 {% endif %}
 

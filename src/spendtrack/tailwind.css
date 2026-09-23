@@ -1,5 +1,29 @@
 /* Входной CSS для prebuilt-сборки (Tailwind CSS v4, standalone CLI — без Node).
    Сборка: uv run python scripts/build_css.py  →  src/spendtrack/static/app.css
-   Browser build (static/tailwind.js) больше не используется: в проде отдаём готовый CSS. */
+   Browser build (static/tailwind.js) больше не используется: в проде отдаём готовый CSS.
+   Цвета — только через semantic-токены (tokens.css → @theme inline): в шаблонах
+   используются классы bg-surface/text-fg-muted/border-line/accent и т.п. (дизайн-ревью M-1). */
 @import "tailwindcss";
+@import "./tokens.css";
 @source "./templates";
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-strong: var(--fg-strong);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-bg: var(--accent-bg);
+  --color-accent-bg-hover: var(--accent-bg-hover);
+  --color-on-accent: var(--on-accent);
+  --color-income: var(--income);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+}

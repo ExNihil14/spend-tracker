@@ -1,94 +1,94 @@
 {% extends "base.html" %}
 {% block content %}
 <h1 class="text-2xl font-semibold text-white mb-2">Помощь</h1>
-<p class="text-slate-400 text-sm mb-6">Коротко о том, как пользоваться приложением: быстрый старт, словарь терминов,
+<p class="text-fg-muted text-sm mb-6">Коротко о том, как пользоваться приложением: быстрый старт, словарь терминов,
 легенда значков и ответы на частые вопросы. Если чего-то не хватает — напишите в
-<a class="text-blue-400 hover:text-blue-300" href="https://github.com/ExNihil14/spend-tracker/issues" rel="noopener">issues</a>.</p>
+<a class="text-accent hover:text-accent-hover" href="https://github.com/ExNihil14/spend-tracker/issues" rel="noopener">issues</a>.</p>
 
-<div class="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-8">
-  <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-300 mb-3">Содержание</h2>
+<div class="bg-surface rounded-xl border border-line p-5 mb-8">
+  <h2 class="text-sm font-semibold uppercase tracking-wide text-fg mb-3">Содержание</h2>
   <ul class="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
-    <li><a class="text-blue-400 hover:text-blue-300" href="#quick-start">Быстрый старт</a></li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="#how-to">Как сделать…</a></li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="#glossary">Словарь терминов</a></li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="#legend">Легенда значков и статусов</a></li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="#faq">Частые вопросы</a></li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="#privacy">Данные и приватность</a></li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="#why">Почему так?</a></li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="#links">Ссылки и поддержка</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#quick-start">Быстрый старт</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#how-to">Как сделать…</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#glossary">Словарь терминов</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#legend">Легенда значков и статусов</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#faq">Частые вопросы</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#privacy">Данные и приватность</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#why">Почему так?</a></li>
+    <li><a class="text-accent hover:text-accent-hover" href="#links">Ссылки и поддержка</a></li>
   </ul>
 </div>
 
 <section id="quick-start" class="mb-10">
-  <h2 class="text-lg font-semibold text-white mb-3">Быстрый старт за 4 шага</h2>
-  <ol class="space-y-3 text-sm text-slate-300 list-decimal list-inside">
-    <li><strong class="text-slate-100">Запустите приложение.</strong> После установки — команда <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack serve --open</code>; откроется страница «Расходы» на вашем компьютере.</li>
-    <li><strong class="text-slate-100">Импортируйте выписку.</strong> На главной нажмите «Импорт» и выберите CSV-файл из банка — формат определится автоматически. Повторный импорт того же файла ничего не добавит.</li>
-    <li><strong class="text-slate-100">Пройдите «Подтвердить».</strong> Операции, в которых ИИ не уверен, ждут вашего решения: выберите категорию и нажмите «Одобрить» — приложение запомнит выбор для этого магазина.</li>
-    <li><strong class="text-slate-100">Посмотрите итоги.</strong> На «Дашборде» — бюджеты месяца, подписки, дайджест недели с аномалиями и графики.</li>
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Быстрый старт за 4 шага</h2>
+  <ol class="space-y-3 text-sm text-fg list-decimal list-inside">
+    <li><strong class="text-fg-strong">Запустите приложение.</strong> После установки — команда <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack serve --open</code>; откроется страница «Расходы» на вашем компьютере.</li>
+    <li><strong class="text-fg-strong">Импортируйте выписку.</strong> На главной нажмите «Импорт» и выберите CSV-файл из банка — формат определится автоматически. Повторный импорт того же файла ничего не добавит.</li>
+    <li><strong class="text-fg-strong">Пройдите «Подтвердить».</strong> Операции, в которых ИИ не уверен, ждут вашего решения: выберите категорию и нажмите «Одобрить» — приложение запомнит выбор для этого магазина.</li>
+    <li><strong class="text-fg-strong">Посмотрите итоги.</strong> На «Дашборде» — бюджеты месяца, подписки, дайджест недели с аномалиями и графики.</li>
   </ol>
-  <p class="text-xs text-slate-400 mt-3">Хотите посмотреть без своих данных — включите демо-режим: <code class="font-mono bg-slate-800 rounded px-1.5 py-0.5">uv run python scripts/demo_data.py seed</code>
+  <p class="text-xs text-fg-muted mt-3">Хотите посмотреть без своих данных — включите демо-режим: <code class="font-mono bg-surface-2 rounded px-1.5 py-0.5">uv run python scripts/demo_data.py seed</code>
     (синтетическая витрина на ~5 месяцев, реальная база не затрагивается).</p>
 </section>
 
 <section id="how-to" class="mb-10">
-  <h2 class="text-lg font-semibold text-white mb-3">Как сделать…</h2>
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Как сделать…</h2>
   <div class="grid sm:grid-cols-2 gap-3 text-sm">
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Импортировать выписку</div>
-      <p class="text-slate-400">Главная → «Импорт» → выберите файл. Или в терминале: <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack import file.csv --bank auto</code>.</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Импортировать выписку</div>
+      <p class="text-fg-muted">Главная → «Импорт» → выберите файл. Или в терминале: <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack import file.csv --bank auto</code>.</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Добавить операцию вручную</div>
-      <p class="text-slate-400">Форма «Добавить» на главной: сумма, описание, дата. Категория подберётся по правилам, при сомнении — попадёт в очередь.</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Добавить операцию вручную</div>
+      <p class="text-fg-muted">Форма «Добавить» на главной: сумма, описание, дата. Категория подберётся по правилам, при сомнении — попадёт в очередь.</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Исправить категорию</div>
-      <p class="text-slate-400">В строке операции измените категорию — приложение запомнит магазин и будет предлагать её в следующий раз. Подсказки новых правил — в «Настройках».</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Исправить категорию</div>
+      <p class="text-fg-muted">В строке операции измените категорию — приложение запомнит магазин и будет предлагать её в следующий раз. Подсказки новых правил — в «Настройках».</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Задать бюджет</div>
-      <p class="text-slate-400">«Настройки» → «Бюджеты»: укажите месячный лимит по категории. Прогресс — на «Дашборде». Лимит один на все месяцы, без переноса остатка.</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Задать бюджет</div>
+      <p class="text-fg-muted">«Настройки» → «Бюджеты»: укажите месячный лимит по категории. Прогресс — на «Дашборде». Лимит один на все месяцы, без переноса остатка.</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Выгрузить данные или сделать бэкап</div>
-      <p class="text-slate-400">Кнопка «Экспорт CSV» на главной (или <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack export</code>); бэкап — <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">python scripts/backup.py</code>.</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Выгрузить данные или сделать бэкап</div>
+      <p class="text-fg-muted">Кнопка «Экспорт CSV» на главной (или <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack export</code>); бэкап — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">python scripts/backup.py</code>.</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Подключить ИИ (необязательно)</div>
-      <p class="text-slate-400">Свой ключ или локальная модель: см. раздел «Настройка» в README. По умолчанию ИИ выключен, и приложение работает полностью офлайн.</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Подключить ИИ (необязательно)</div>
+      <p class="text-fg-muted">Свой ключ или локальная модель: см. раздел «Настройка» в README. По умолчанию ИИ выключен, и приложение работает полностью офлайн.</p>
     </div>
   </div>
 </section>
 
 <section id="glossary" class="mb-10">
-  <h2 class="text-lg font-semibold text-white mb-3">Словарь терминов</h2>
-  <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Словарь терминов</h2>
+  <div class="bg-surface rounded-xl border border-line overflow-hidden">
     <div class="table-scroll overflow-x-auto" role="region" aria-label="Словарь терминов" tabindex="0">
       <table class="w-full text-sm">
         <thead>
-          <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-800 bg-slate-950/40">
+          <tr class="text-left text-xs uppercase tracking-wide text-fg-muted border-b border-line bg-canvas/40">
             <th class="px-4 py-2.5 font-medium w-48">Термин</th>
             <th class="px-4 py-2.5 font-medium">Простыми словами</th>
             <th class="px-4 py-2.5 font-medium hidden md:table-cell w-64">Пример</th>
           </tr>
         </thead>
-        <tbody class="text-slate-300">
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Транзакция</td><td class="px-4 py-2.5">Одна операция из выписки или добавленная вручную.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">«−450 ₽, Пятёрочка, 03.09»</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Расход</td><td class="px-4 py-2.5">Трата денег — сумма со знаком минус.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">Кофе «−180 ₽»</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Доход</td><td class="px-4 py-2.5">Поступление денег — сумма со знаком плюс.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">Зарплата «+55 000 ₽»</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Перевод</td><td class="px-4 py-2.5">Перемещение своих денег между счетами; не расход и не доход.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">Со счёта на карту</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Категория</td><td class="px-4 py-2.5">Группа трат по смыслу ({{ categories | length }} фиксированных, список — в «Настройках»).</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">groceries, transport</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Правило категоризации</td><td class="px-4 py-2.5">Ключевое слово в описании, по которому категория ставится автоматически.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">«PYATEROCHKA → groceries»</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Источник категории</td><td class="px-4 py-2.5">Как появилась категория: правило, ИИ, выписка, вручную или исправление.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">rule, llm, correction</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Уверенность</td><td class="px-4 py-2.5">Насколько ИИ уверен в категории — число от 0 до 1.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">0.72 — уйдёт в очередь</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Очередь подтверждения</td><td class="px-4 py-2.5">Операции, которые ждут вашего решения по категории.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">Страница «Подтвердить»</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Отпечаток</td><td class="px-4 py-2.5">Невидимая метка строки; по ней повторный импорт не создаёт дубликат.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">Один файл дважды = 0 новых</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Мерчант</td><td class="px-4 py-2.5">Нормализованное имя магазина или сервиса.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">PYATEROCHKA</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Подписка (рекурринг)</td><td class="px-4 py-2.5">Регулярное списание, найденное по серии похожих платежей.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">Netflix раз в месяц</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Бюджет</td><td class="px-4 py-2.5">Месячный лимит расходов по категории.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">«Продукты — 15 000 ₽/мес»</td></tr>
-          <tr class="border-b border-slate-800/60"><td class="px-4 py-2.5 font-medium text-slate-200">Аномалия</td><td class="px-4 py-2.5">Пометка о нетипичной операции; ничего не меняется автоматически.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">«В 4 раза больше обычного»</td></tr>
-          <tr><td class="px-4 py-2.5 font-medium text-slate-200">Дайджест недели</td><td class="px-4 py-2.5">Сводка за неделю: расход/доход, топ-категории, подписки, аномалии.</td><td class="px-4 py-2.5 text-slate-400 hidden md:table-cell">«Дашборд → Дайджест»</td></tr>
+        <tbody class="text-fg">
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Транзакция</td><td class="px-4 py-2.5">Одна операция из выписки или добавленная вручную.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«−450 ₽, Пятёрочка, 03.09»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Расход</td><td class="px-4 py-2.5">Трата денег — сумма со знаком минус.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Кофе «−180 ₽»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Доход</td><td class="px-4 py-2.5">Поступление денег — сумма со знаком плюс.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Зарплата «+55 000 ₽»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Перевод</td><td class="px-4 py-2.5">Перемещение своих денег между счетами; не расход и не доход.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Со счёта на карту</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Категория</td><td class="px-4 py-2.5">Группа трат по смыслу ({{ categories | length }} фиксированных, список — в «Настройках»).</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">groceries, transport</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Правило категоризации</td><td class="px-4 py-2.5">Ключевое слово в описании, по которому категория ставится автоматически.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«PYATEROCHKA → groceries»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Источник категории</td><td class="px-4 py-2.5">Как появилась категория: правило, ИИ, выписка, вручную или исправление.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">rule, llm, correction</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Уверенность</td><td class="px-4 py-2.5">Насколько ИИ уверен в категории — число от 0 до 1.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">0.72 — уйдёт в очередь</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Очередь подтверждения</td><td class="px-4 py-2.5">Операции, которые ждут вашего решения по категории.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Страница «Подтвердить»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Отпечаток</td><td class="px-4 py-2.5">Невидимая метка строки; по ней повторный импорт не создаёт дубликат.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Один файл дважды = 0 новых</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Мерчант</td><td class="px-4 py-2.5">Нормализованное имя магазина или сервиса.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">PYATEROCHKA</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Подписка (рекурринг)</td><td class="px-4 py-2.5">Регулярное списание, найденное по серии похожих платежей.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Netflix раз в месяц</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Бюджет</td><td class="px-4 py-2.5">Месячный лимит расходов по категории.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«Продукты — 15 000 ₽/мес»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Аномалия</td><td class="px-4 py-2.5">Пометка о нетипичной операции; ничего не меняется автоматически.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«В 4 раза больше обычного»</td></tr>
+          <tr><td class="px-4 py-2.5 font-medium text-fg">Дайджест недели</td><td class="px-4 py-2.5">Сводка за неделю: расход/доход, топ-категории, подписки, аномалии.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«Дашборд → Дайджест»</td></tr>
         </tbody>
       </table>
     </div>
@@ -96,208 +96,208 @@
 </section>
 
 <section id="legend" class="mb-10">
-  <h2 class="text-lg font-semibold text-white mb-3">Легенда значков и статусов</h2>
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Легенда значков и статусов</h2>
   <div class="space-y-3 text-sm">
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-2">Источник категории (подпись рядом с категорией)</div>
-      <ul class="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-slate-400">
-        <li><code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">rule</code> — по правилу: сработало ваше ключевое слово</li>
-        <li><code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">llm</code> — подобрал ИИ (уверенно)</li>
-        <li><code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">llm_pending_review</code> — ждёт подтверждения</li>
-        <li><code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">import</code> — так было в выписке банка</li>
-        <li><code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">manual</code> — вы добавили операцию сами</li>
-        <li><code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">correction</code> — исправлено вами</li>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-2">Источник категории (подпись рядом с категорией)</div>
+      <ul class="grid sm:grid-cols-2 gap-x-6 gap-y-1.5 text-fg-muted">
+        <li><code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">rule</code> — по правилу: сработало ваше ключевое слово</li>
+        <li><code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">llm</code> — подобрал ИИ (уверенно)</li>
+        <li><code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">llm_pending_review</code> — ждёт подтверждения</li>
+        <li><code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">import</code> — так было в выписке банка</li>
+        <li><code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">manual</code> — вы добавили операцию сами</li>
+        <li><code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">correction</code> — исправлено вами</li>
       </ul>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-2">Уверенность и очередь</div>
-      <p class="text-slate-400">Число от 0.00 до 1.00 рядом с категорией — уверенность ИИ. Значение не ниже
-        <strong class="text-slate-200">{{ threshold }}</strong> принимается автоматически, меньше — операция попадает
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-2">Уверенность и очередь</div>
+      <p class="text-fg-muted">Число от 0.00 до 1.00 рядом с категорией — уверенность ИИ. Значение не ниже
+        <strong class="text-fg">{{ threshold }}</strong> принимается автоматически, меньше — операция попадает
         в «Подтвердить» (счётчик в меню показывает, сколько ждёт решения).</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-2">Суммы и цвета</div>
-      <p class="text-slate-400">Зелёный — доход (плюс), красный — расход (минус). Знак суммы указан всегда, поэтому цвет
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-2">Суммы и цвета</div>
+      <p class="text-fg-muted">Зелёный — доход (плюс), красный — расход (минус). Знак суммы указан всегда, поэтому цвет
         лишь дублирует смысл — интерфейс понятен и без различения цветов.</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-2">Цветной значок категории</div>
-      <p class="text-slate-400">Цвет бейджа — просто визуальная метка; смысл всегда передан названием категории текстом.
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-2">Цветной значок категории</div>
+      <p class="text-fg-muted">Цвет бейджа — просто визуальная метка; смысл всегда передан названием категории текстом.
         Цвета категорий настраиваются в «Настройках».</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-2">Аномалии в дайджесте</div>
-      <p class="text-slate-400">Три вида пометок с текстовым ярлыком: «крупная сумма», «скачок цены» подписки,
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-2">Аномалии в дайджесте</div>
+      <p class="text-fg-muted">Три вида пометок с текстовым ярлыком: «крупная сумма», «скачок цены» подписки,
         «возможный дубликат». Это только подсказки — проверьте операцию вручную.</p>
     </div>
   </div>
 </section>
 
 <section id="faq" class="mb-10">
-  <h2 class="text-lg font-semibold text-white mb-3">Частые вопросы</h2>
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Частые вопросы</h2>
 
-  <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mt-5 mb-2">Импорт</h3>
+  <h3 class="text-sm font-semibold uppercase tracking-wide text-fg-muted mt-5 mb-2">Импорт</h3>
   <div class="space-y-2">
-    <details id="faq-import-sber" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как импортировать выписку из Сбера, Т-Банка или ЮMoney?</summary>
-      <p class="mt-2 text-sm text-slate-400">Откройте главную, выберите банк и вставьте содержимое CSV-выписки в поле — формат банка определяется автоматически. Файл можно получить в интернет-банке; импорт файла доступен и командой <code>spendtrack import</code>. Для Сбера может понадобиться конвертация (подробности — в issues).</p>
+    <details id="faq-import-sber" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как импортировать выписку из Сбера, Т-Банка или ЮMoney?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Откройте главную, выберите банк и вставьте содержимое CSV-выписки в поле — формат банка определяется автоматически. Файл можно получить в интернет-банке; импорт файла доступен и командой <code>spendtrack import</code>. Для Сбера может понадобиться конвертация (подробности — в issues).</p>
     </details>
-    <details id="faq-import-duplicates" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Я импортировал тот же файл ещё раз — почему новых строк нет?</summary>
-      <p class="mt-2 text-sm text-slate-400">Так и должно быть: у каждой строки есть отпечаток, и повторный импорт распознаётся как дубликат. Пересекающиеся периоды не удваиваются.</p>
+    <details id="faq-import-duplicates" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Я импортировал тот же файл ещё раз — почему новых строк нет?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Так и должно быть: у каждой строки есть отпечаток, и повторный импорт распознаётся как дубликат. Пересекающиеся периоды не удваиваются.</p>
     </details>
-    <details id="faq-import-not-recognized" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Почему импорт не распознал файл, дату или сумму?</summary>
-      <p class="mt-2 text-sm text-slate-400">Чаще всего это другой формат выписки или десятичный разделитель. Попробуйте пересохранить CSV в стандартном виде (запятая или точка с запятой как разделитель, дата в формате ГГГГ-ММ-ДД). Если не помогло — пришлите обезличенный образец в issues.</p>
+    <details id="faq-import-not-recognized" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Почему импорт не распознал файл, дату или сумму?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Чаще всего это другой формат выписки или десятичный разделитель. Попробуйте пересохранить CSV в стандартном виде (запятая или точка с запятой как разделитель, дата в формате ГГГГ-ММ-ДД). Если не помогло — пришлите обезличенный образец в issues.</p>
     </details>
-    <details id="faq-import-manual" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как добавить операцию вручную или удалить ошибочную?</summary>
-      <p class="mt-2 text-sm text-slate-400">Добавить — формой на главной (сумма, описание, дата). Исправить — измените категорию в строке операции; удалить строку можно там же.</p>
+    <details id="faq-import-manual" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как добавить операцию вручную или удалить ошибочную?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Добавить — формой на главной (сумма, описание, дата). Исправить — измените категорию в строке операции; удалить строку можно там же.</p>
     </details>
   </div>
 
-  <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mt-5 mb-2">Категории и очередь</h3>
+  <h3 class="text-sm font-semibold uppercase tracking-wide text-fg-muted mt-5 mb-2">Категории и очередь</h3>
   <div class="space-y-2">
-    <details id="faq-queue-why" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Почему часть операций попала в «Подтвердить»?</summary>
-      <p class="mt-2 text-sm text-slate-400">Это операции, в категории которых ИИ не был уверен. Вы подтверждаете предложенный вариант или выбираете свою категорию — решение запоминается для этого магазина.</p>
+    <details id="faq-queue-why" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Почему часть операций попала в «Подтвердить»?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Это операции, в категории которых ИИ не был уверен. Вы подтверждаете предложенный вариант или выбираете свою категорию — решение запоминается для этого магазина.</p>
     </details>
-    <details id="faq-confidence" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Что значит число рядом с категорией, например 0.72?</summary>
-      <p class="mt-2 text-sm text-slate-400">Это уверенность модели от 0 до 1: чем ближе к 1, тем увереннее. Значение не ниже {{ threshold }} принимается автоматически, меньше — уходит в очередь.</p>
+    <details id="faq-confidence" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Что значит число рядом с категорией, например 0.72?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Это уверенность модели от 0 до 1: чем ближе к 1, тем увереннее. Значение не ниже {{ threshold }} принимается автоматически, меньше — уходит в очередь.</p>
     </details>
-    <details id="faq-source" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как понять, откуда взялась категория?</summary>
-      <p class="mt-2 text-sm text-slate-400">По источнику рядом с категорией: правило, ИИ, из выписки, вручную или исправление. Расшифровка — в <a class="text-blue-400 hover:text-blue-300" href="#legend">легенде</a>.</p>
+    <details id="faq-source" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как понять, откуда взялась категория?</summary>
+      <p class="mt-2 text-sm text-fg-muted">По источнику рядом с категорией: правило, ИИ, из выписки, вручную или исправление. Расшифровка — в <a class="text-accent hover:text-accent-hover" href="#legend">легенде</a>.</p>
     </details>
-    <details id="faq-correction-learns" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Я исправил категорию — применятся ли изменения к будущим покупкам?</summary>
-      <p class="mt-2 text-sm text-slate-400">Да: исправление запоминается за мерчантом и будет предлагаться в следующий раз. Приложение также подскажет, какие правила можно добавить.</p>
+    <details id="faq-correction-learns" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Я исправил категорию — применятся ли изменения к будущим покупкам?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Да: исправление запоминается за мерчантом и будет предлагаться в следующий раз. Приложение также подскажет, какие правила можно добавить.</p>
     </details>
   </div>
 
-  <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mt-5 mb-2">Бюджеты и отчёты</h3>
+  <h3 class="text-sm font-semibold uppercase tracking-wide text-fg-muted mt-5 mb-2">Бюджеты и отчёты</h3>
   <div class="space-y-2">
-    <details id="faq-transfers" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Что такое перевод и почему у него нет категории?</summary>
-      <p class="mt-2 text-sm text-slate-400">Перевод между своими счетами — не расход и не доход: деньги не покидают ваши счета, поэтому он вне бюджета и не учитывается в расходах.</p>
+    <details id="faq-transfers" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Что такое перевод и почему у него нет категории?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Перевод между своими счетами — не расход и не доход: деньги не покидают ваши счета, поэтому он вне бюджета и не учитывается в расходах.</p>
     </details>
-    <details id="faq-income" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как учитываются доходы и влияют ли они на бюджет?</summary>
-      <p class="mt-2 text-sm text-slate-400">Доходы (зарплата, кэшбэк) видны в списке и отчётах, но в бюджеты не входят: бюджет — это лимит расходов по категории.</p>
+    <details id="faq-income" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как учитываются доходы и влияют ли они на бюджет?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Доходы (зарплата, кэшбэк) видны в списке и отчётах, но в бюджеты не входят: бюджет — это лимит расходов по категории.</p>
     </details>
-    <details id="faq-refund" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Почему возврат из магазина уменьшил расход в бюджете?</summary>
-      <p class="mt-2 text-sm text-slate-400">Суммы знаковые: возврат (плюс) вычитается из расходов месяца, поэтому прогресс бюджета уменьшается.</p>
+    <details id="faq-refund" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Почему возврат из магазина уменьшил расход в бюджете?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Суммы знаковые: возврат (плюс) вычитается из расходов месяца, поэтому прогресс бюджета уменьшается.</p>
     </details>
-    <details id="faq-budget-set" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как задать бюджет на месяц?</summary>
-      <p class="mt-2 text-sm text-slate-400">«Настройки» → «Бюджеты»: укажите лимит по категории. Прогресс — на «Дашборде». Лимит один на все месяцы, без переноса остатка.</p>
+    <details id="faq-budget-set" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как задать бюджет на месяц?</summary>
+      <p class="mt-2 text-sm text-fg-muted">«Настройки» → «Бюджеты»: укажите лимит по категории. Прогресс — на «Дашборде». Лимит один на все месяцы, без переноса остатка.</p>
     </details>
-    <details id="faq-subscriptions" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Что такое «подписки» на дашборде и как они определяются?</summary>
-      <p class="mt-2 text-sm text-slate-400">Это регулярные списания: система ищет не меньше трёх похожих платежей одного мерчанта с близкой суммой и интервалом примерно раз в месяц. Подписки считаются по всей истории, месячный итог — только по активным.</p>
+    <details id="faq-subscriptions" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Что такое «подписки» на дашборде и как они определяются?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Это регулярные списания: система ищет не меньше трёх похожих платежей одного мерчанта с близкой суммой и интервалом примерно раз в месяц. Подписки считаются по всей истории, месячный итог — только по активным.</p>
     </details>
-    <details id="faq-anomalies" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Что означают «аномалии» в дайджесте?</summary>
-      <p class="mt-2 text-sm text-slate-400">Пометки о необычном: крупная сумма, скачок цены подписки или возможный дубликат. Это только подсказки, ничего не меняется автоматически.</p>
+    <details id="faq-anomalies" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Что означают «аномалии» в дайджесте?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Пометки о необычном: крупная сумма, скачок цены подписки или возможный дубликат. Это только подсказки, ничего не меняется автоматически.</p>
     </details>
-    <details id="faq-near-dup" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Почему появился «возможный дубликат», если импорт умеет дедупликацию?</summary>
-      <p class="mt-2 text-sm text-slate-400">Совпадение неполное — например, отличается дата или описание, поэтому строки не склеились. Проверьте операцию вручную.</p>
+    <details id="faq-near-dup" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Почему появился «возможный дубликат», если импорт умеет дедупликацию?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Совпадение неполное — например, отличается дата или описание, поэтому строки не склеились. Проверьте операцию вручную.</p>
     </details>
   </div>
 
-  <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mt-5 mb-2">Данные и приватность</h3>
+  <h3 class="text-sm font-semibold uppercase tracking-wide text-fg-muted mt-5 mb-2">Данные и приватность</h3>
   <div class="space-y-2">
-    <details id="faq-data-where" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Куда уходят мои данные? Нужен ли интернет?</summary>
-      <p class="mt-2 text-sm text-slate-400">По умолчанию данные не покидают ваш компьютер, интернет не нужен: без ключей ИИ приложение работает только на локальных правилах.</p>
+    <details id="faq-data-where" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Куда уходят мои данные? Нужен ли интернет?</summary>
+      <p class="mt-2 text-sm text-fg-muted">По умолчанию данные не покидают ваш компьютер, интернет не нужен: без ключей ИИ приложение работает только на локальных правилах.</p>
     </details>
-    <details id="faq-llm-payload" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Что именно отправляется на сервер ИИ, если я его включу?</summary>
-      <p class="mt-2 text-sm text-slate-400">Краткое описание операции (до 300 символов), сумма, дата, псевдоним счёта и примеры. Подробности — в <a class="text-blue-400 hover:text-blue-300" href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a>.</p>
+    <details id="faq-llm-payload" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Что именно отправляется на сервер ИИ, если я его включу?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Краткое описание операции (до 300 символов), сумма, дата, псевдоним счёта и примеры. Подробности — в <a class="text-accent hover:text-accent-hover" href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a>.</p>
     </details>
-    <details id="faq-llm-off" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как полностью отключить ИИ или работать офлайн?</summary>
-      <p class="mt-2 text-sm text-slate-400">Просто не настраивайте ключи — спорные операции будут ждать подтверждения. Проверить режим можно командой <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack llm-status</code>.</p>
+    <details id="faq-llm-off" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как полностью отключить ИИ или работать офлайн?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Просто не настраивайте ключи — спорные операции будут ждать подтверждения. Проверить режим можно командой <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack llm-status</code>.</p>
     </details>
-    <details id="faq-backup" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Где хранятся данные и как сделать бэкап или перенести их?</summary>
-      <p class="mt-2 text-sm text-slate-400">В файле SQLite (в папке данных; точный путь — <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack paths</code>). Бэкап — <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">python scripts/backup.py</code>; перенос — копированием файла базы.</p>
-      <p class="mt-2 text-sm text-slate-400">Копия вне компьютера (на случай поломки диска): <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">python scripts/backup.py --copy-to E:\backup</code> — скрипт откажется писать на тот же диск и проверит контрольную сумму. <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack doctor</code> следит, что копия на месте, не повреждена и свежее 7 дней.</p>
+    <details id="faq-backup" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Где хранятся данные и как сделать бэкап или перенести их?</summary>
+      <p class="mt-2 text-sm text-fg-muted">В файле SQLite (в папке данных; точный путь — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack paths</code>). Бэкап — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">python scripts/backup.py</code>; перенос — копированием файла базы.</p>
+      <p class="mt-2 text-sm text-fg-muted">Копия вне компьютера (на случай поломки диска): <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">python scripts/backup.py --copy-to E:\backup</code> — скрипт откажется писать на тот же диск и проверит контрольную сумму. <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack doctor</code> следит, что копия на месте, не повреждена и свежее 7 дней.</p>
     </details>
-    <details id="faq-share-stats" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Отправляет ли приложение статистику автору?</summary>
-      <p class="mt-2 text-sm text-slate-400">Нет, автоматически — ничего. Есть добровольная анонимная сводка: <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack doctor --share</code> печатает только счётчики (версии, ОС, режим ИИ, число операций) и ссылку — отправляете вручную, если захотите. Суммы и описания в сводку не попадают.</p>
+    <details id="faq-share-stats" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Отправляет ли приложение статистику автору?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Нет, автоматически — ничего. Есть добровольная анонимная сводка: <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack doctor --share</code> печатает только счётчики (версии, ОС, режим ИИ, число операций) и ссылку — отправляете вручную, если захотите. Суммы и описания в сводку не попадают.</p>
     </details>
-    <details id="faq-multiuser" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Можно ли вести несколько валют или несколько пользователей?</summary>
-      <p class="mt-2 text-sm text-slate-400">Пользователь — один. Основная валюта — рубль: бюджеты и итоги считаются только по операциям в ₽. Операции в других валютах можно импортировать и видеть в списке (код валюты показан рядом с суммой), но в бюджеты и рублёвые итоги они не попадают — курсы не смешиваем. Данные локальные и принадлежат только вам.</p>
+    <details id="faq-multiuser" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Можно ли вести несколько валют или несколько пользователей?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Пользователь — один. Основная валюта — рубль: бюджеты и итоги считаются только по операциям в ₽. Операции в других валютах можно импортировать и видеть в списке (код валюты показан рядом с суммой), но в бюджеты и рублёвые итоги они не попадают — курсы не смешиваем. Данные локальные и принадлежат только вам.</p>
     </details>
   </div>
 
-  <h3 class="text-sm font-semibold uppercase tracking-wide text-slate-400 mt-5 mb-2">Проблемы</h3>
+  <h3 class="text-sm font-semibold uppercase tracking-wide text-fg-muted mt-5 mb-2">Проблемы</h3>
   <div class="space-y-2">
-    <details id="faq-doctor" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Что-то не работает — с чего начать?</summary>
-      <p class="mt-2 text-sm text-slate-400">Запустите <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">spendtrack doctor</code> — он проверит целостность данных и бэкапы и подскажет, что не так. Если не помогло — создайте issue с выводом doctor (в нём нет ваших операций); добавить анонимную статистику можно флагом <code class="font-mono text-xs bg-slate-800 rounded px-1.5 py-0.5">--share</code>.</p>
+    <details id="faq-doctor" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Что-то не работает — с чего начать?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Запустите <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack doctor</code> — он проверит целостность данных и бэкапы и подскажет, что не так. Если не помогло — создайте issue с выводом doctor (в нём нет ваших операций); добавить анонимную статистику можно флагом <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">--share</code>.</p>
     </details>
-    <details id="faq-bank-format" class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Банк изменил формат выписки — что делать?</summary>
-      <p class="mt-2 text-sm text-slate-400">Сообщите в issues и приложите обезличенный образец (удалите персональные данные). Новые форматы добавляются по мере поступления образцов.</p>
+    <details id="faq-bank-format" class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Банк изменил формат выписки — что делать?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Сообщите в issues и приложите обезличенный образец (удалите персональные данные). Новые форматы добавляются по мере поступления образцов.</p>
     </details>
   </div>
 </section>
 
 <section id="privacy" class="mb-10">
-  <h2 class="text-lg font-semibold text-white mb-3">Данные и приватность</h2>
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Данные и приватность</h2>
   <div class="grid sm:grid-cols-3 gap-3 text-sm">
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Офлайн по умолчанию</div>
-      <p class="text-slate-400">Без ключей ИИ приложение не делает сетевых вызовов. Это проверяется автотестом «нулевой сети» при каждом изменении кода.</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Офлайн по умолчанию</div>
+      <p class="text-fg-muted">Без ключей ИИ приложение не делает сетевых вызовов. Это проверяется автотестом «нулевой сети» при каждом изменении кода.</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Только localhost</div>
-      <p class="text-slate-400">Сервер слушает 127.0.0.1. Телеметрии и автоматической отправки статистики нет; анонимная сводка — только вручную (`doctor --share`).</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Только localhost</div>
+      <p class="text-fg-muted">Сервер слушает 127.0.0.1. Телеметрии и автоматической отправки статистики нет; анонимная сводка — только вручную (`doctor --share`).</p>
     </div>
-    <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
-      <div class="font-medium text-slate-200 mb-1">Честные ограничения</div>
-      <p class="text-slate-400">Файл базы не шифруется — это ваш диск и ваша ответственность. Модель угроз и лимиты: SECURITY.md.</p>
+    <div class="bg-surface rounded-xl border border-line p-4">
+      <div class="font-medium text-fg mb-1">Честные ограничения</div>
+      <p class="text-fg-muted">Файл базы не шифруется — это ваш диск и ваша ответственность. Модель угроз и лимиты: SECURITY.md.</p>
     </div>
   </div>
 </section>
 
 <section id="why" class="mb-10">
-  <h2 class="text-lg font-semibold text-white mb-3">Почему так?</h2>
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Почему так?</h2>
   <div class="space-y-2 text-sm">
-    <details class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Почему ИИ не обязателен и по умолчанию выключен?</summary>
-      <p class="mt-2 text-sm text-slate-400">Большинство операций разбирается правилами и кэшем магазинов — это быстро, бесплатно и воспроизводимо. ИИ подключается только для остатка и только по вашему выбору, чтобы строки операций не уходили на чужие серверы без спроса.</p>
+    <details class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Почему ИИ не обязателен и по умолчанию выключен?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Большинство операций разбирается правилами и кэшем магазинов — это быстро, бесплатно и воспроизводимо. ИИ подключается только для остатка и только по вашему выбору, чтобы строки операций не уходили на чужие серверы без спроса.</p>
     </details>
-    <details class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как выбирается категория?</summary>
-      <p class="mt-2 text-sm text-slate-400">Каскадом: кэш ваших решений → ключевые правила → ИИ (если включён) → офлайн-правила. Если уверенность ниже порога — операция уходит в очередь подтверждения, ничего не решается «за вас».</p>
+    <details class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как выбирается категория?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Каскадом: кэш ваших решений → ключевые правила → ИИ (если включён) → офлайн-правила. Если уверенность ниже порога — операция уходит в очередь подтверждения, ничего не решается «за вас».</p>
     </details>
-    <details class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Почему переводы и доходы вне бюджета?</summary>
-      <p class="mt-2 text-sm text-slate-400">Бюджет — это лимит трат. Переводы не меняют ваше благосостояние, а доходы — не траты; поэтому они видны в отчётах, но не искажают прогресс бюджета.</p>
+    <details class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Почему переводы и доходы вне бюджета?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Бюджет — это лимит трат. Переводы не меняют ваше благосостояние, а доходы — не траты; поэтому они видны в отчётах, но не искажают прогресс бюджета.</p>
     </details>
-    <details class="bg-slate-900 border border-slate-800 rounded-xl p-4">
-      <summary class="cursor-pointer font-medium text-slate-200">Как считаются аномалии?</summary>
-      <p class="mt-2 text-sm text-slate-400">Крупная сумма — если она заметно (в разы) выше обычных трат в категории; скачок цены — первое заметное изменение цены подписки; дубликат — две очень похожие операции в один день. Всё только помечается, без автоматических действий.</p>
+    <details class="bg-surface border border-line rounded-xl p-4">
+      <summary class="cursor-pointer font-medium text-fg">Как считаются аномалии?</summary>
+      <p class="mt-2 text-sm text-fg-muted">Крупная сумма — если она заметно (в разы) выше обычных трат в категории; скачок цены — первое заметное изменение цены подписки; дубликат — две очень похожие операции в один день. Всё только помечается, без автоматических действий.</p>
     </details>
   </div>
 </section>
 
 <section id="links" class="mb-6">
-  <h2 class="text-lg font-semibold text-white mb-3">Ссылки и поддержка</h2>
-  <ul class="text-sm text-slate-400 space-y-1.5">
-    <li><a class="text-blue-400 hover:text-blue-300" href="https://github.com/ExNihil14/spend-tracker#readme" rel="noopener">README</a> — установка, настройка, команды CLI</li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> — что и когда уходит наружу</li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="https://github.com/ExNihil14/spend-tracker/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a> — модель угроз и лимиты</li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="https://github.com/ExNihil14/spend-tracker/blob/main/spec/ARCHITECTURE.md" rel="noopener">ARCHITECTURE.md</a> — как всё устроено внутри</li>
-    <li><a class="text-blue-400 hover:text-blue-300" href="https://github.com/ExNihil14/spend-tracker/issues" rel="noopener">Issues</a> — вопросы, баги, новые банки</li>
+  <h2 class="text-lg font-semibold text-fg-strong mb-3">Ссылки и поддержка</h2>
+  <ul class="text-sm text-fg-muted space-y-1.5">
+    <li><a class="text-accent hover:text-accent-hover" href="https://github.com/ExNihil14/spend-tracker#readme" rel="noopener">README</a> — установка, настройка, команды CLI</li>
+    <li><a class="text-accent hover:text-accent-hover" href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> — что и когда уходит наружу</li>
+    <li><a class="text-accent hover:text-accent-hover" href="https://github.com/ExNihil14/spend-tracker/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a> — модель угроз и лимиты</li>
+    <li><a class="text-accent hover:text-accent-hover" href="https://github.com/ExNihil14/spend-tracker/blob/main/spec/ARCHITECTURE.md" rel="noopener">ARCHITECTURE.md</a> — как всё устроено внутри</li>
+    <li><a class="text-accent hover:text-accent-hover" href="https://github.com/ExNihil14/spend-tracker/issues" rel="noopener">Issues</a> — вопросы, баги, новые банки</li>
   </ul>
 </section>
 {% endblock %}

@@ -273,6 +273,17 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - Тесты: `tests/test_help.py` (3, оффлайн) + e2e `test_help_page_nav_and_faq`; FAQPage JSON-LD не внедряем
   (Google снял rich results 07.05.2026).
 
+## Токены и цвет-семантика (дизайн-ревью, M-1/M-3)
+- `src/spendtrack/tokens.css` — 2 слоя (primitives → semantic); приложение подключает через Tailwind v4
+  (`tailwind.css`: `@import` + `@theme inline` → утилиты `bg-surface`, `text-fg-muted`, `border-line`,
+  `bg-accent-bg`, `text-income/warn/danger`); лендинг — `landing/tokens.css` (копия; синхронность проверяет
+  `tests/test_landing.py::test_tokens_copy_in_sync`).
+- **В разметке — только semantic-классы** (прямой палитры Tailwind нет; проверяется grep'ом при ревью).
+- Семантика цвета: расходы — нейтральный `text-fg` со знаком «−» (красный только перерасход/аномалии/
+  деструктив); доход — `text-income`; один primary-акцент на экран (`bg-accent-bg`); «Одобрить все»/
+  «Проверить» — secondary (границы), «Удалить» — ghost (danger только на hover); ссылки/фокус — `accent`.
+- После правок токенов/классов — пересборка CSS: `uv run python scripts/build_css.py` (CI: `--check`).
+
 ## Числа, язык и категории в UI (дизайн-ревью, M-2)
 - **Денежная форма** — `fmt_money(kopecks, currency='RUB', signed=True)` → «−155 365,18 ₽» (NBSP-разряды,
   запятая, ₽/код валюты; `signed=False` для лимитов/бюджетов — без «+»). Подписи: `fmt_month('2026-09') →

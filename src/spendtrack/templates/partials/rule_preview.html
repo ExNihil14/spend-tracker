@@ -1,9 +1,9 @@
 {% if error %}
-<div class="text-rose-400">{{ error }}</div>
+<div class="text-danger">{{ error }}</div>
 {% elif preview %}
   {% for w in preview.warnings %}
-  <div class="text-amber-400">внимание: {{ w }}</div>
+  <div class="text-warn">внимание: {{ w }}</div>
   {% else %}
-  <div class="text-emerald-400">конфликтов не найдено</div>
+  <div class="text-income">конфликтов не найдено</div>
   {% endfor %}
 {% endif %}

@@ -130,6 +130,16 @@ def test_no_misleading_supporter_claims() -> None:
     assert "лицензи" not in supporter
 
 
+def test_tokens_copy_in_sync() -> None:
+    """Общий tokens.css (дизайн-ревью M-1): копия для лендинга обязана совпадать с пакетной."""
+    def norm(path: Path) -> str:
+        return path.read_text(encoding="utf-8").replace("\r\n", "\n")
+
+    src = norm(ROOT / "src" / "spendtrack" / "tokens.css")
+    landing = norm(LANDING / "tokens.css")
+    assert src == landing
+
+
 def test_funding_has_no_live_placeholder() -> None:
     """До запуска кнопка Sponsor не должна вести на несуществующий URL (риск захвата ника)."""
     funding = (ROOT / ".github" / "FUNDING.yml").read_text(encoding="utf-8")

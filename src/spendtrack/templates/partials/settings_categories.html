@@ -1,11 +1,11 @@
 <div id="settings-categories">
 {% if error %}
-<div class="px-5 py-2 text-sm text-rose-400 border-b border-slate-800">{{ error }}</div>
+<div class="px-5 py-2 text-sm text-danger border-b border-line">{{ error }}</div>
 {% endif %}
 <div class="table-scroll overflow-x-auto" role="region" aria-label="Категории" tabindex="0">
   <table class="w-full text-sm">
     <thead>
-      <tr class="text-left text-xs uppercase tracking-wide text-slate-400 border-b border-slate-800 bg-slate-950/40">
+      <tr class="text-left text-xs uppercase tracking-wide text-fg-muted border-b border-line bg-canvas/40">
         <th class="px-5 py-2.5 font-medium">Категория</th>
         <th class="px-5 py-2.5 font-medium text-right">Использований</th>
         <th class="px-5 py-2.5 font-medium">Цвет</th>
@@ -14,20 +14,20 @@
     </thead>
     <tbody>
       {% for c in categories %}
-      <tr class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
+      <tr class="border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
         <td class="px-5 py-3">
           <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium"
                 style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ catname(c.name) }}</span>
         </td>
-        <td class="px-5 py-3 text-right text-slate-400">{{ usage.get(c.name, 0) }}</td>
+        <td class="px-5 py-3 text-right text-fg-muted">{{ usage.get(c.name, 0) }}</td>
         <td class="px-5 py-3">
           <form hx-post="/settings/categories/color" hx-target="#settings-categories" hx-swap="outerHTML"
                 class="flex items-center gap-2">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
             <input type="color" name="color" value="{{ c.color }}" aria-label="Цвет категории {{ catname(c.name) }}"
-                   class="h-8 w-10 bg-slate-800 border border-slate-700 rounded cursor-pointer">
-            <button type="submit" class="text-xs text-blue-400 hover:text-blue-300 px-1">OK</button>
+                   class="h-8 w-10 bg-surface-2 border border-line-strong rounded cursor-pointer">
+            <button type="submit" class="text-xs text-accent hover:text-accent-hover px-1">OK</button>
           </form>
         </td>
         <td class="px-5 py-3 text-right">
@@ -36,8 +36,8 @@
             <input type="hidden" name="name" value="{{ c.name }}">
             <button type="submit" {% if usage.get(c.name, 0) %}disabled title="используется — удаление запрещено"{% endif %}
                     class="text-xs rounded-lg px-3 py-1.5 transition-colors
-                           {{ 'bg-slate-800 text-slate-600 cursor-not-allowed' if usage.get(c.name, 0)
-                              else 'bg-rose-700/70 hover:bg-rose-600 text-white' }}">Удалить</button>
+                           {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if usage.get(c.name, 0)
+                              else 'border border-line text-fg-muted hover:text-danger hover:border-danger' }}">Удалить</button>
           </form>
         </td>
       </tr>
@@ -46,25 +46,25 @@
   </table>
 </div>
 <form hx-post="/settings/categories" hx-target="#settings-categories" hx-swap="outerHTML"
-      class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-slate-800">
+      class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-line">
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
   <input name="name" placeholder="новая-категория" aria-label="Имя новой категории" required
-         class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+         class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
   <input type="color" name="color" value="#9ca3af" aria-label="Цвет новой категории"
-         class="h-8 w-10 bg-slate-800 border border-slate-700 rounded cursor-pointer">
-  <button type="submit" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
+         class="h-8 w-10 bg-surface-2 border border-line-strong rounded cursor-pointer">
+  <button type="submit" class="bg-accent-bg hover:bg-accent-bg-hover text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
 </form>
 <form hx-post="/settings/categories/rename/preview" hx-target="#rename-confirm" hx-swap="innerHTML"
-      class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-slate-800">
+      class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-line">
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
-  <span class="text-xs uppercase tracking-wide text-slate-400">Переименовать:</span>
+  <span class="text-xs uppercase tracking-wide text-fg-muted">Переименовать:</span>
   <select name="name" aria-label="Категория для переименования"
-          class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
     {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
   </select>
   <input name="new_name" placeholder="новое-имя" aria-label="Новое имя категории" required
-         class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-  <button type="submit" class="bg-amber-700/70 hover:bg-amber-600 text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Проверить</button>
+         class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+  <button type="submit" class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Проверить</button>
 </form>
 <div id="rename-confirm"></div>
 </div>

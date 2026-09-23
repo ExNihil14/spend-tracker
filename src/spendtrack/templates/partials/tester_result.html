@@ -1,21 +1,21 @@
 {% if result %}
-<div class="bg-slate-950/50 border border-slate-800 rounded-lg p-4 space-y-1">
-  <div class="text-slate-400 text-xs uppercase tracking-wide">Описание</div>
-  <div class="font-mono text-xs text-slate-200 mb-2">{{ result.description }}</div>
+<div class="bg-canvas/50 border border-line rounded-lg p-4 space-y-1">
+  <div class="text-fg-muted text-xs uppercase tracking-wide">Описание</div>
+  <div class="font-mono text-xs text-fg mb-2">{{ result.description }}</div>
 
   {% if result.cached %}
-  <div class="text-emerald-400">merchant_cache: {{ result.cached }} (кэш приоритетнее правил)</div>
+  <div class="text-income">merchant_cache: {{ result.cached }} (кэш приоритетнее правил)</div>
   {% endif %}
-  <div class="text-slate-400 text-xs uppercase tracking-wide mt-2">Совпавшие правила (по порядку)</div>
+  <div class="text-fg-muted text-xs uppercase tracking-wide mt-2">Совпавшие правила (по порядку)</div>
   {% for m in result.matched %}
-  <div class="text-slate-300">#{{ m.index }} «{{ m.pattern }}» → <span class="text-slate-100">{{ m.category }}</span>{% if not m.valid %}<span class="text-rose-400"> (нет в таксономии — пропускается)</span>{% endif %}</div>
+  <div class="text-fg">#{{ m.index }} «{{ m.pattern }}» → <span class="text-fg-strong">{{ m.category }}</span>{% if not m.valid %}<span class="text-danger"> (нет в таксономии — пропускается)</span>{% endif %}</div>
   {% else %}
-  <div class="text-slate-400">правила не совпали</div>
+  <div class="text-fg-muted">правила не совпали</div>
   {% endfor %}
 
-  <div class="mt-2 pt-2 border-t border-slate-800">
-    Итог: <span class="font-medium text-slate-100">{{ result.winner or "— (уйдёт в LLM/офлайн)" }}</span>
-    <span class="text-slate-400">({{ result.source }})</span>
+  <div class="mt-2 pt-2 border-t border-line">
+    Итог: <span class="font-medium text-fg-strong">{{ result.winner or "— (уйдёт в LLM/офлайн)" }}</span>
+    <span class="text-fg-muted">({{ result.source }})</span>
   </div>
 </div>
 {% endif %}

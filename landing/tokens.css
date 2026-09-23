@@ -1,0 +1,42 @@
+/* tokens.css — дизайн-токены spend-tracker: 2 слоя (primitives → semantic).
+ *
+ * Источник: дизайн-ревью Opus-5.5 (EXPERT_REVIEW_DESIGN_OPUS55_2026-09-23.md), M-1.
+ * Правило: компоненты используют ТОЛЬКО semantic-переменные; primitives — палитра,
+ * менять которую можно одной правкой (смена hue = ребрендинг).
+ * Копия для лендинга: landing/tokens.css (синхронность проверяет tests/test_landing.py).
+ */
+
+:root {
+  /* ── primitives (палитра) ─────────────────────────────────────────── */
+  --n-975: #050b1c; --n-950: #020617; --n-900: #0f172a; --n-850: #131c31; --n-800: #1e293b; --n-700: #334155;
+  --n-500: #7c8aa0; --n-400: #94a3b8; --n-200: #e2e8f0; --n-50: #f8fafc;
+  --b-300: #93c5fd; --b-400: #60a5fa; --b-600: #2563eb; --b-700: #1d4ed8;
+  --g-400: #34d399; --a-400: #fbbf24; --r-400: #fb7185; --r-600: #e11d48;
+
+  /* ── semantic (использовать в компонентах) ────────────────────────── */
+  --canvas: var(--n-950);          /* фон страницы */
+  --surface: var(--n-900);         /* карточки/панели */
+  --surface-2: var(--n-850);       /* поля ввода, вторичные поверхности */
+  --line: var(--n-800);            /* границы, разделители, hover-подложка */
+  --line-strong: var(--n-700);     /* границы активных полей/кнопок */
+  --fg: var(--n-200);              /* основной текст и суммы (знак — U+2212/+) */
+  --fg-strong: var(--n-50);        /* заголовки, ключевые значения */
+  --fg-muted: var(--n-400);        /* вторичный текст */
+  --fg-subtle: var(--n-500);       /* подписи/disabled */
+  --accent: var(--b-400);          /* ссылки, фокус, активный пункт nav */
+  --accent-hover: var(--b-300);
+  --accent-bg: var(--b-600);       /* фон primary-кнопки (контраст с #fff 5.2:1) */
+  --accent-bg-hover: var(--b-700);
+  --on-accent: #ffffff;
+  --income: var(--g-400);          /* доход, «всё подтверждено», ok-бар */
+  --warn: var(--a-400);            /* предупреждения, уверенность, 80%-бар */
+  --danger: var(--r-400);          /* перерасход, аномалии, деструктив (текст) */
+  --danger-bg: var(--r-600);       /* фон danger-кнопки */
+  --code-bg: var(--n-975);         /* фон код-блоков (лендинг/справка) */
+  --radius-control: 8px;
+  --radius-card: 12px;
+  --radius-pill: 999px;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: dark;
+}

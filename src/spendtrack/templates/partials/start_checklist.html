@@ -1,16 +1,16 @@
 {# P2 #10: чек-лист первого запуска. Показывается, пока нет ни операций, ни импортов
    (серверное состояние `first_run`), и исчезает после первых данных — без localStorage. #}
-<div id="start-checklist" class="bg-slate-900 rounded-xl border border-indigo-900/60 mb-8 p-5">
-  <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide mb-3">Первый запуск — 4 шага</h2>
-  <ol class="space-y-2 text-sm text-slate-300 list-decimal list-inside">
-    <li><a href="#import" class="text-blue-400 hover:text-blue-300">Импортируйте CSV-выписку</a> из банка (форма ниже) —
-      или <a href="#add" class="text-blue-400 hover:text-blue-300">добавьте операцию вручную</a>.</li>
-    <li>Разберите очередь <a href="/approve" class="text-blue-400 hover:text-blue-300">«Подтвердить»</a>:
+<div id="start-checklist" class="bg-surface rounded-xl border border-line-strong mb-8 p-5">
+  <h2 class="text-sm font-semibold text-fg uppercase tracking-wide mb-3">Первый запуск — 4 шага</h2>
+  <ol class="space-y-2 text-sm text-fg list-decimal list-inside">
+    <li><a href="#import" class="text-accent hover:text-accent-hover">Импортируйте CSV-выписку</a> из банка (форма ниже) —
+      или <a href="#add" class="text-accent hover:text-accent-hover">добавьте операцию вручную</a>.</li>
+    <li>Разберите очередь <a href="/approve" class="text-accent hover:text-accent-hover">«Подтвердить»</a>:
       приложение запомнит категории за мерчантами.</li>
-    <li>Задайте лимиты по категориям в <a href="/settings" class="text-blue-400 hover:text-blue-300">«Настройках»</a>.</li>
-    <li>Смотрите <a href="/dashboard" class="text-blue-400 hover:text-blue-300">«Дашборд»</a>:
+    <li>Задайте лимиты по категориям в <a href="/settings" class="text-accent hover:text-accent-hover">«Настройках»</a>.</li>
+    <li>Смотрите <a href="/dashboard" class="text-accent hover:text-accent-hover">«Дашборд»</a>:
       бюджеты, подписки и дайджест недели.</li>
   </ol>
-  <p class="text-xs text-slate-400 mt-3">Подробнее —
-    <a href="/help#quick-start" class="text-blue-400 hover:text-blue-300">быстрый старт в справке →</a></p>
+  <p class="text-xs text-fg-muted mt-3">Подробнее —
+    <a href="/help#quick-start" class="text-accent hover:text-accent-hover">быстрый старт в справке →</a></p>
 </div>

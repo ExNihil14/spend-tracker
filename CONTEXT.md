@@ -86,6 +86,10 @@
   (`spendtrack/security.py`): чужие Origin/Host → 403/400; CLI/тесты без заголовков пропускаются.
 - **Соединение на запрос** — SQLite-соединение на HTTP-запрос через `deps.get_store()` (dependency с `yield`):
   закрытие гарантировано, `PRAGMA optimize` перед закрытием.
+- **Токены** — `src/spendtrack/tokens.css` (2 слоя: primitives → semantic) — единый источник цветов/радиусов
+  для приложения (Tailwind v4 `@theme inline`) и лендинга (копия `landing/tokens.css`); в разметке — только
+  semantic-классы (`bg-surface`, `text-fg-muted`, `bg-accent-bg`). Семантика: расходы — нейтральный `text-fg`
+  со знаком «−», красный — только перерасход/аномалии/деструктив; один primary-акцент на экран (M-1/M-3).
 - **Версия статики** — `/static/<файл>?v=<sha8>` (`assets.static_url()`, Jinja-хелпер `static`): версионированные
   URL кэшируются `immutable`, HTML — `no-store`; Chart.js грузится только на дашборде (`dashboard.js`).
 - **Дайджест недели** — read-only сводка за скользящее окно (дефолт 7 дней): расход/доход/баланс и дельты к прошлому окну, топ-5 категорий расхода, самый дорогой день, средний расход/день, очередь pending, ближайшие ожидаемые списания рекуррингов и аномалии. CLI `spendtrack digest [--days N] [--json]`, карточка на `/dashboard`; состояние не хранится.
