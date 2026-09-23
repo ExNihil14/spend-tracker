@@ -2,23 +2,12 @@
 from __future__ import annotations
 
 import re
-import sqlite3
 
 import pytest
+from helpers import seed_tx as _seed
 from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.e2e
-
-
-def _seed(db_path: str, date: str, desc: str, kop: int) -> None:
-    conn = sqlite3.connect(db_path)
-    conn.execute(
-        "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
-        " confidence, created, updated) VALUES(?,?,?, 'groceries', 'rule', 1.0,"
-        " datetime('now'), datetime('now'))",
-        (date, desc, kop))
-    conn.commit()
-    conn.close()
 
 
 def test_empty_states_teach_first_step(page: Page, live_server):

@@ -31,18 +31,21 @@ CI (`.github/workflows/ci.yml`): lint+unit, e2e (chromium), cross-browser smoke 
 contract, pip-audit, secret-scan. Перед коммитом — unit + ruff; перед отчётом о готовности — живой прогон.
 
 ## Текущее состояние (23.09.2026)
-- **499 unit + 46 e2e** (+ 40 cross-engine прогонов), все оффлайн; покрытие `src/spendtrack` — **96%**
-  (после P0-тестов аудита; было 95%).
+- **504 unit + 48 e2e** (+ cross-engine прогоны), все оффлайн; покрытие `src/spendtrack` — **96%**.
 - Полностью/почти покрыто: ядро (store/categorize/csv_import/reports/digest/recurring/export/security),
   очереди, бюджеты, калибровка, doctor, бэкапы/restore-drill/offsite, периметр, offline/BYO-LLM, лендинг,
   деплой-шаблоны, контракт.
 - **P0 аудита закрыт** (`tests/test_cli_commands.py`, ветки 4xx в `test_api.py`, роуты категорий в
   `test_settings.py`, `/health` 503, `update_merchant`/`needs_review`): cli.py 85→90%, api.py 92→97%,
   settings.py 89→95%, main.py 91→94%.
-- **Бэклог (P1/P2, из аудита):** e2e настроек категорий; e2e «Показать ещё» (keyset); e2e XLSX-скачивания;
-  e2e мультивалютности; property-based (`hypothesis` — `parse_amount`, `fingerprint`, `month_bounds`);
-  HX-ветки импорта; дедуп seed-хелперов e2e; параметризация матриц (валюты/банки); покрытие скриптов
-  (`anonymize.py`, `backup.py`); смоук конкурентных HTTP.
+- **P1/P2-малые закрыты:** HX-ветки импорта (empty/generic/лимит, `test_api.py`); e2e XLSX-скачивания
+  и мультивалютности (`test_smoke.py`); фиксированные паузы заменены детерминированными ожиданиями
+  (`wait_for_load_state("networkidle")`, `expect_response` в `test_htmx_settle.py`); seed-хелперы e2e
+  дедуплицированы в `tests/e2e/helpers.py` (через публичный `Store`, не raw SQL); `anonymize.py` 80→99%
+  (CLI + пустой ввод). `backup.py` 97% — остаток (80, 131) это `__main__`-гард и reconfigure-ветка, не тестируются.
+- **Бэклог (остаток P1/P2):** e2e настроек категорий; e2e «Показать ещё» (keyset); property-based
+  (`hypothesis` — `parse_amount`, `fingerprint`, `month_bounds`); параметризация матриц (валюты/банки);
+  смоук конкурентных HTTP; inline raw-SQL блоки в отдельных e2e (можно перевести на helpers).
 
 ## Как добавить тест
 1. Выбери **публичный интерфейс**: CLI-команда → `cli.main([...])` + `capsys`; роут → `TestClient(app)`

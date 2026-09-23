@@ -6,9 +6,9 @@
 from __future__ import annotations
 
 import contextlib
-from pathlib import Path
 
 import pytest
+from helpers import seed_smoke_data
 from playwright.sync_api import Page
 
 pytestmark = pytest.mark.e2e
@@ -17,34 +17,9 @@ PAGES = ("/", "/dashboard", "/approve", "/settings", "/help")
 AXE_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
 
 
-def _seed_txs(db_path: Path, n: int = 6) -> None:
-    """Немного данных, чтобы графики/таблицы были непустыми (320px-баг видел только пустой стенд).
-
-    Через публичный Store (миграции/контракт колонок), а не raw SQL — тест не разъедется со схемой.
-    """
-    from spendtrack.store import Store
-
-    store = Store(db_path=db_path)
-    try:
-        for i in range(n):
-            store.add_transaction(
-                date=f"2026-09-{10 + i:02d}", description=f"МАГАЗИН {i}",
-                amount_kopecks=-(10_000 + i * 1_000), category="groceries",
-                category_source="import", export_rowid=f"smoke-{i}", merchant=f"МАГАЗИН {i}",
-                statement_order=i)
-        for i in range(2):  # очередь подтверждения: покрываем разметку review-строк в axe/320px
-            store.add_transaction(
-                date=f"2026-09-{20 + i:02d}", description=f"НЕИЗВЕСТНЫЙ {i}",
-                amount_kopecks=-(20_000 + i * 500), category="other",
-                category_source="llm_pending_review", export_rowid=f"smoke-pending-{i}",
-                merchant=f"НЕИЗВЕСТНЫЙ {i}", category_llm="other", review_status="pending")
-    finally:
-        store.close()
-
-
 @pytest.fixture(autouse=True)
 def _seeded(db_path) -> None:
-    _seed_txs(db_path)
+    seed_smoke_data(db_path)
 
 
 def _open(page: Page, base: str, path: str) -> list[str]:
@@ -115,7 +90,7 @@ def test_add_form_works_under_strict_csp(page: Page, live_server: str) -> None:
 def test_chart_js_loads_only_on_dashboard(page: Page, live_server: str) -> None:
     """Chart.js (~205 КБ) не грузится на списке; на дашборде — грузится и график нарисован."""
     _open(page, live_server, "/")
-    page.wait_for_timeout(300)  # дать шанс любым поздним загрузкам
+    page.wait_for_load_state("networkidle")  # все ресурсы страницы завершены (без фикс-паузы)
     on_index = page.evaluate("() => performance.getEntriesByType('resource').map(e => e.name)")
     assert not any("chart.umd" in r for r in on_index), "Chart.js загружен на /"
 

@@ -72,6 +72,42 @@ def test_untouched_columns_reported():
     assert "Статус" in report["untouched"]
 
 
+def test_empty_input_returns_empty_report():
+    """Пустой ввод — пустой результат без исключений (аудит 23.09, P2)."""
+    text, report = _mod().anonymize_csv(b"")
+    assert text == ""
+    assert report == {"anonymized": {}, "untouched": [], "unique": {}}
+
+
+def test_cli_writes_anon_file_and_reports(tmp_path, capsys):
+    """CLI: пишет <имя>.anon.csv и печатает отчёт (аудит 23.09: main() без покрытия)."""
+    src = tmp_path / "statement.csv"
+    src.write_text(CSV, encoding="utf-8")
+    mod = _mod()
+
+    assert mod.main([str(src)]) == 0
+    dst = tmp_path / "statement.anon.csv"
+    assert dst.is_file()
+    out = capsys.readouterr().out
+    assert "Записано:" in out and "Обезличено:" in out
+
+    text = dst.read_text(encoding="utf-8")
+    assert "ЛЕНТА ПЯТЁРОЧКА" not in text
+    assert "4111111111111111" not in text
+
+
+def test_cli_custom_out_and_extra_column(tmp_path, capsys):
+    """--out и --anon-column: путь настраивается, дополнительная колонка обезличивается."""
+    src = tmp_path / "s.csv"
+    src.write_text(CSV, encoding="utf-8")
+    custom = tmp_path / "custom.csv"
+    mod = _mod()
+
+    assert mod.main([str(src), "-o", str(custom), "--anon-column", "Категория"]) == 0
+    text = custom.read_text(encoding="utf-8")
+    assert "Супермаркеты" not in text
+
+
 def test_anonymized_sample_imports_same_shape(tmp_path):
     """Образец — валидная фикстура: импортируется (sber) с теми же датами/суммами/статусами."""
     raw = gen_sber(n=8, seed=11)

@@ -6,26 +6,11 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
+from helpers import seed_pending as _seed_pending
+from helpers import seed_tx
 from playwright.sync_api import Page, expect
 
 pytestmark = pytest.mark.e2e
-
-
-def _seed_pending(conn_str: str, rows: list[tuple]) -> None:
-    """Засеять pending-транзакции напрямую в БД (обход LLM): (fp, date, desc, sum, conf, llm_cat)."""
-    conn = sqlite3.connect(conn_str)
-    for fp, day, desc, amount_kopecks, conf, llm_cat in rows:
-        conn.execute(
-            """INSERT INTO transactions
-               (fingerprint, date, description, amount_kopecks, category,
-                category_source, confidence, category_llm, review_status,
-                created, updated)
-               VALUES (?, ?, ?, ?, 'other', 'llm_pending_review', ?, ?, 'pending',
-                       datetime('now'), datetime('now'))""",
-            (fp, day, desc, amount_kopecks, conf, llm_cat),
-        )
-    conn.commit()
-    conn.close()
 
 
 def _wait_htmx(page: Page, selector: str, timeout: int = 15_000) -> None:
@@ -342,6 +327,35 @@ def test_export_csv_link_downloads(page: Page, live_server, db_path):
     data = download.path().read_bytes()
     assert data.startswith(b"\xef\xbb\xbf")
     assert "ЛЕНТА ЭКСПОРТ" in data.decode("utf-8-sig")
+
+
+def test_export_xlsx_downloads(page: Page, live_server, db_path):
+    """XLSX-выгрузка: файл скачивается и открывается openpyxl (аудит 23.09, P1)."""
+    _seed_pending(str(db_path), [("fp-xlsx", "2026-09-12", "ЛЕНТА XLSX", -12345, 0.65, "groceries")])
+    page.goto(live_server)
+    with page.expect_download() as dl:
+        page.evaluate("url => { window.location.href = url }", f"{live_server}/export.xlsx")
+    download = dl.value
+    assert download.suggested_filename.endswith(".xlsx")
+    import io
+
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(io.BytesIO(download.path().read_bytes()))
+    values = [cell for row in workbook.active.values for cell in row if isinstance(cell, str)]
+    assert any("ЛЕНТА XLSX" in value for value in values)
+
+
+def test_currency_in_list_day_total_rub_only(page: Page, live_server, db_path):
+    """Мультивалютность в UI: не-RUB с кодом и не попадает в ₽-итог дня (аудит 23.09, P1)."""
+    seed_tx(str(db_path), "2026-09-12", "ЛЕНТА РУБ", -10000)
+    seed_tx(str(db_path), "2026-09-12", "AMAZON USD", -50000, currency="USD")
+
+    page.goto(live_server)
+    table = page.locator("#tx-table")
+    expect(table).to_contain_text("−500,00 USD")
+    expect(table).to_contain_text("итог −100,00 ₽")
+    expect(table).not_to_contain_text("итог −600,00")
 
 
 def test_help_page_nav_and_faq(page: Page, live_server):

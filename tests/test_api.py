@@ -215,6 +215,39 @@ def test_import_hx_report_shows_skipped_and_suspicious(client):
     assert "банк=tinkoff" in r.text
 
 
+def test_import_hx_empty_and_generic_error(client, monkeypatch):
+    """HX-ветки импорта: пустой файл и generic-исключение (аудит 23.09, P1)."""
+    r = client.post("/api/import", data={"bank": "auto", "csv": ""},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert "Пустой файл" in r.text
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("внезапный сбой")
+
+    monkeypatch.setattr("spendtrack.routers.api.import_csv", boom)
+    r2 = client.post("/api/import", data={"bank": "auto", "csv": "x"},
+                     headers={"hx-request": "true"})
+    assert r2.status_code == 200
+    assert "Ошибка импорта" in r2.text and "внезапный сбой" in r2.text
+
+
+def test_import_limit_error_hx_and_json(client, monkeypatch):
+    """Лимит импорта: HX → понятный фрагмент, JSON → 413 (ветка api.py:280)."""
+    from spendtrack.csv_import import ImportLimitError
+
+    def too_big(*args, **kwargs):
+        raise ImportLimitError("CSV превышает лимит 10 МБ (99999999 байт)")
+
+    monkeypatch.setattr("spendtrack.routers.api.import_csv", too_big)
+    r_hx = client.post("/api/import", data={"bank": "auto", "csv": "x"},
+                       headers={"hx-request": "true"})
+    assert r_hx.status_code == 200
+    assert "Ошибка импорта" in r_hx.text
+    r_json = client.post("/api/import", json={"bank": "auto", "csv": "x"})
+    assert r_json.status_code == 413
+
+
 def _seed_tx(tmp_path, description="АЗС", category_source="llm_pending_review",
              category="other", review_status="pending") -> int:
     """Прямая запись в ту же БД, что у client-фикстуры (env SPENDTRACK_DB_PATH)."""

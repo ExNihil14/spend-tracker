@@ -57,10 +57,16 @@ def test_htmx_settle_window_input_is_ignored(page: Page, live_server) -> None:
     page.goto(f"{live_server}/settings")
     page.evaluate(SETTLE_WINDOW_JS)
 
+    def _settle_preview(response) -> bool:
+        if "/settings/rules/preview" not in response.url:
+            return False
+        body = response.request.post_data or ""
+        return parse_qs(body).get("pattern", [""])[0] == "ПОСЛЕ SETTLE"
+
     page.fill(PATTERN_INPUT, "ЭТАЛОН ПРАВИЛО")
     page.select_option('#settings-rules select[name="category"]', "other")
-    page.click('#settings-rules form[hx-post="/settings/rules"] button[type="submit"]')
-    page.wait_for_timeout(1500)
+    with page.expect_response(_settle_preview):  # детерминированно, без фикс-паузы 1500 мс
+        page.click('#settings-rules form[hx-post="/settings/rules"] button[type="submit"]')
 
     patterns = [parse_qs(body).get("pattern", [""])[0] for body in requests]
     assert "ОКНО SETTLE" not in patterns
