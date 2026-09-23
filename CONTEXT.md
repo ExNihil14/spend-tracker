@@ -5,9 +5,12 @@
 ## Термины
 - **Транзакция** — одна операция (доход/расход) из банка или CLI. Поля: date, description, amount_kopecks (INTEGER копеек), category, category_source, confidence, merchant, account_anon, import_batch, fingerprint, category_llm, review_status.
 - **Сумма** — всегда `amount_kopecks` INTEGER (копейки). −12345 = −123.45₽. НИКОГДА не REAL.
-  `parse_amount(str) → int`; `fmt_amount(int) → "-123.45"` (машинная ASCII-форма: CSV/промпты/CLI);
-  `fmt_amount_signed(int) → "−123.45"/"+123.45"` (отображаемая форма UI: типографский U+2212, явный знак,
-  ноль «0.00» — WCAG 1.4.1, цвет не единственный носитель смысла).
+  `parse_amount(str) → int` (принимает `,`/`.` и типографские минусы); `fmt_amount(int) → "-123.45"`
+  (машинная ASCII-форма: CSV/промпты/CLI); `fmt_amount_signed(int) → "−123.45"/"+123.45"` (знак-форма);
+  **UI-форма — `fmt_money(int, currency='RUB', signed=True) → "−155 365,18 ₽"`** (NBSP-разряды, десятичная
+  запятая, ₽ или код валюты; `signed=False` — лимиты/бюджеты без «+»); `fmt_month('2026-09') → "Сентябрь 2026"`;
+  `fmt_date('2026-09-13') → "13.09"` (таблицы; ISO остаётся в экспорте/API). U+2212 — WCAG 1.4.1
+  (цвет не единственный носитель смысла).
 - **Валюта** — `transactions.currency` (ISO 4217, `NOT NULL DEFAULT 'RUB'`, миграция v5). `normalize_currency()`
   понимает «₽/руб./rub/$/€/доллар»; незнакомое значение в импорте → RUB, в API/CLI (`add --currency`) — ошибка.
   Не-RUB **не участвует в ₽-агрегациях** (отчёты, бюджеты, дайджест, рекурринги, дневные итоги) и не склеивается
@@ -15,7 +18,10 @@
   в экспорте — колонка «Валюта».
 - **Бейдж категории / контраст** — цветной бейдж с названием; цвет текста подбирает `colors.badge_text_color(bg)`
   (#020617 или #ffffff по контрасту, ≥4.5:1 для всех дефолтных цветов taxonomy; тест `tests/test_colors.py`).
-- **Категория** — одна из 18 в `config/taxonomy.toml` (groceries, restaurants, transport, fuel, housing, utilities, internet-phone, subscriptions, health, education, entertainment, clothing, household, transfers, income, taxes, travel, other).
+- **Категория** — одна из 18 в `config/taxonomy.toml` (groceries, restaurants, transport, fuel, housing, utilities,
+  internet-phone, subscriptions, health, education, entertainment, clothing, household, transfers, income, taxes,
+  travel, other). У каждой — `display_name` (RU-имя для UI); слаг остаётся ключом в БД/URL/API, в интерфейсе
+  рендерится `catname(slug)` (неизвестный слаг — как есть).
 - **Источник категории** (`category_source`) — как получена: `rule` (keyword-правило), `llm` (принято от LLM, conf≥0.9), `llm_pending_review` (низкая уверенность → в очередь), `import` (из CSV банка), `manual` (создано вручную), `correction` (правка юзера).
 - **Подтверждение (review queue)** — транзакции с `review_status='pending'` (ставится при `category_source='llm_pending_review'` — LLM дал conf<0.9 или категорию вне таксономии). `category_llm` — предложение LLM (не перезаписывается → рендер-diff). `approve` → `category`=выбранная + `category_source='rule'`; `skip` → вне очереди, категория не меняется; `approve-all` → `category=COALESCE(category_llm, category, 'other')`.
 - **Мерчант** — нормализованное имя (UPPER). `merchant_cache` → связанная категория (выигрывает над правилами/LLM).

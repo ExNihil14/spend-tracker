@@ -165,9 +165,9 @@ def test_large_expense_flagged(store):
     assert a["merchant"] == "ТЕХНОГИГАНТ" and a["category"] == "groceries"
     assert a["amount_k"] == -150000
     assert a["median_k"] == 10000 and a["score"] == 15.0
-    # суммы в детали — в отображаемой форме со знаком расхода (медиана — магнитуда)
-    assert "\u22121500.00 ₽" in a["detail"]
-    assert "\u2212100.00 ₽" in a["detail"]
+    # суммы в детали — в денежной форме со знаком расхода (медиана — магнитуда)
+    assert "\u22121\u00a0500,00 ₽" in a["detail"]
+    assert "\u2212100,00 ₽" in a["detail"]
 
 
 def test_large_expense_needs_observations(store):
@@ -212,7 +212,7 @@ def test_price_jump_flagged(store):
     assert a["prev_price_k"] == 19900 and a["amount_k"] == -29900
     assert a["score"] == 1.5 and "+50%" in a["detail"]
     # и старая, и новая цена — с знаком расхода, без ложного «+» (демо-смоук 21.09)
-    assert "\u2212299.00 ₽" in a["detail"] and "\u2212199.00 ₽" in a["detail"]
+    assert "\u2212299,00 ₽" in a["detail"] and "\u2212199,00 ₽" in a["detail"]
 
 
 def test_price_jump_within_tolerance_not_flagged(store):

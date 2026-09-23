@@ -127,7 +127,7 @@ def test_budget_set_and_dashboard_bar(page: Page, live_server, db_path):
 
     page.goto(f"{live_server}/dashboard")
     expect(page.locator("body")).to_contain_text("Бюджеты месяца")
-    expect(page.locator("body")).to_contain_text("1500.00 / 2000.00 ₽")
+    expect(page.locator("body")).to_contain_text("1 500,00 ₽ / 2 000,00 ₽")
     expect(page.locator("body")).to_contain_text("75%")
 
 

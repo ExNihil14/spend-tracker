@@ -22,12 +22,15 @@ from spendtrack.reports import (
     report_daily,
     report_month,
 )
-from spendtrack.store import Store, fmt_amount, fmt_amount_signed
+from spendtrack.store import Store, fmt_amount, fmt_date, fmt_money, fmt_month
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
-templates.env.globals.update(fmt_signed=fmt_amount_signed, badge_text=badge_text_color, static=static_url)
+templates.env.globals.update(
+    fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date,
+    badge_text=badge_text_color, static=static_url,
+)
 
 PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)
 
@@ -70,6 +73,7 @@ def index(request: Request, store: Annotated[Store, Depends(get_store)], month: 
             "prev_month": _shift_month(current, -1),
             "next_month": _shift_month(current, 1),
             "cat_colors": cats,
+            "catname": taxonomy.display,
             "all_categories": [c.name for c in taxonomy.categories],
             "category": category or "",
             "q": q or "",
@@ -124,7 +128,7 @@ def approve(request: Request, store: Annotated[Store, Depends(get_store)]):
     cats = {c.name: c.color for c in taxonomy.categories}
     return templates.TemplateResponse(
         request, "approve.html",
-        {"pending": pending, "cat_colors": cats, "fmt": fmt_amount,
+        {"pending": pending, "cat_colors": cats, "fmt": fmt_amount, "catname": taxonomy.display,
          "all_categories": [c.name for c in taxonomy.categories],
          "threshold": load_settings().acceptance.auto_accept_confidence},
     )
@@ -176,6 +180,7 @@ def dashboard(request: Request, store: Annotated[Store, Depends(get_store)], mon
             "pending": store.queued_for_review(),
             "fmt": fmt_amount,
             "cat_colors": cats,
+            "catname": taxonomy.display,
             "has_data": store.has_transactions(),
             "categories_json": [dict(c) for c in report["categories"]],
             "daily_json": daily,
@@ -216,7 +221,7 @@ def more_rows(request: Request, store: Annotated[Store, Depends(get_store)], mon
     return templates.TemplateResponse(
         request, "partials/tx_rows.html",
         {"transactions": rows, "day_totals": day_totals, "group_days": True,
-         "cat_colors": cats, "fmt": fmt_amount,
+         "cat_colors": cats, "fmt": fmt_amount, "catname": taxonomy.display,
          "has_more": has_more,
          "has_any": True, "category": category or "", "q": q or "", "current": month or "",
          "more_url": _more_url(month, category, q, sort, next_after, days)},

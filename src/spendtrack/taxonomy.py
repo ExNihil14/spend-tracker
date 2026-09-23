@@ -7,9 +7,10 @@ from spendtrack.config import DEFAULTS_DIR, resolve_config_dir
 
 
 class Category:
-    def __init__(self, name: str, color: str):
+    def __init__(self, name: str, color: str, display_name: str | None = None):
         self.name = name
         self.color = color
+        self.display_name = display_name or name
 
 
 class Rule:
@@ -23,9 +24,14 @@ class Taxonomy:
         self.categories = categories
         self.rules = rules
         self._names = {c.name for c in categories}
+        self._display = {c.name: c.display_name for c in categories}
 
     def is_valid(self, name: str) -> bool:
         return name in self._names
+
+    def display(self, name: str) -> str:
+        """Отображаемое имя категории (RU); неизвестный слаг — как есть."""
+        return self._display.get(name, name)
 
 
 def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
@@ -35,6 +41,6 @@ def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
         path = DEFAULTS_DIR / "taxonomy.toml"  # установленный режим: дефолт из пакета
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    categories = [Category(c["name"], c["color"]) for c in data["categories"]]
+    categories = [Category(c["name"], c["color"], c.get("display_name")) for c in data["categories"]]
     rules = [Rule(r["pattern"], r["category"]) for r in data["rules"]]
     return Taxonomy(categories, rules)

@@ -1,73 +1,91 @@
 [[categories]]
 name = "groceries"
+display_name = "Продукты"
 color = "#22c55e"
 
 [[categories]]
 name = "restaurants"
+display_name = "Кафе и рестораны"
 color = "#f97316"
 
 [[categories]]
 name = "transport"
+display_name = "Транспорт"
 color = "#3b82f6"
 
 [[categories]]
 name = "fuel"
+display_name = "Топливо"
 color = "#ef4444"
 
 [[categories]]
 name = "housing"
+display_name = "Жильё"
 color = "#a855f7"
 
 [[categories]]
 name = "utilities"
+display_name = "Коммунальные услуги"
 color = "#06b6d4"
 
 [[categories]]
 name = "internet-phone"
+display_name = "Связь и интернет"
 color = "#8b5cf6"
 
 [[categories]]
 name = "subscriptions"
+display_name = "Подписки"
 color = "#ec4899"
 
 [[categories]]
 name = "health"
+display_name = "Здоровье"
 color = "#14b8a6"
 
 [[categories]]
 name = "education"
+display_name = "Образование"
 color = "#6366f1"
 
 [[categories]]
 name = "entertainment"
+display_name = "Развлечения"
 color = "#f59e0b"
 
 [[categories]]
 name = "clothing"
+display_name = "Одежда"
 color = "#84cc16"
 
 [[categories]]
 name = "household"
+display_name = "Быт и дом"
 color = "#0ea5e9"
 
 [[categories]]
 name = "transfers"
+display_name = "Переводы"
 color = "#64748b"
 
 [[categories]]
 name = "income"
+display_name = "Доходы"
 color = "#10b981"
 
 [[categories]]
 name = "taxes"
+display_name = "Налоги"
 color = "#dc2626"
 
 [[categories]]
 name = "travel"
+display_name = "Путешествия"
 color = "#0891b2"
 
 [[categories]]
 name = "other"
+display_name = "Прочее"
 color = "#9ca3af"
 
 [[rules]]

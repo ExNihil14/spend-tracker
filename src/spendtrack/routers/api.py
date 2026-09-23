@@ -16,12 +16,23 @@ from spendtrack.config import PKG_DIR
 from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv, summarize
 from spendtrack.deps import get_store
 from spendtrack.reports import budgets_progress
-from spendtrack.store import Store, fmt_amount, fmt_amount_signed, normalize_currency, parse_amount
+from spendtrack.store import (
+    Store,
+    fmt_amount,
+    fmt_date,
+    fmt_money,
+    fmt_month,
+    normalize_currency,
+    parse_amount,
+)
 from spendtrack.taxonomy import load_taxonomy
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
-templates.env.globals.update(fmt_signed=fmt_amount_signed, badge_text=badge_text_color, static=static_url)
+templates.env.globals.update(
+    fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date,
+    badge_text=badge_text_color, static=static_url,
+)
 
 
 class TxIn(BaseModel):
@@ -155,6 +166,7 @@ def _rows_html(request: Request, store: Store) -> str:
     return templates.TemplateResponse(
         request, "partials/review_rows.html",
         {"pending": store.queued_for_review(), "cat_colors": cats, "fmt": fmt_amount,
+         "catname": taxonomy.display,
          "all_categories": [c.name for c in taxonomy.categories]},
     ).body.decode()
 

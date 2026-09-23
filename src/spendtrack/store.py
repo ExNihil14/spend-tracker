@@ -40,6 +40,56 @@ def fmt_amount_signed(kopecks: int) -> str:
     return f"{sign}{abs(kopecks) / 100:.2f}"
 
 
+def _group_digits(digits: str) -> str:
+    """«155365» → «155 365» (неразрывные пробелы — число не рвётся переносом)."""
+    parts: list[str] = []
+    while len(digits) > 3:
+        parts.insert(0, digits[-3:])
+        digits = digits[:-3]
+    parts.insert(0, digits)
+    return "\u00a0".join(parts)
+
+
+def fmt_money(kopecks: int, currency: str = "RUB", signed: bool = True) -> str:
+    """Денежная форма для UI: «−155 365,18 ₽» / «+45 000,00 ₽» (ноль — «0,00 ₽»).
+
+    Знак — U+2212 (WCAG 1.4.1), разряды — неразрывный пробел, десятичная запятая;
+    для не-RUB вместо ₽ подставляется код валюты. `signed=False` — без «+» у положительных
+    (лимиты/суммы без направления: бюджеты, перерасход). Машинные формы — `fmt_amount`.
+    """
+    if kopecks == 0:
+        sign = ""
+    elif kopecks < 0:
+        sign = "\u2212"
+    else:
+        sign = "+" if signed else ""
+    whole, frac = divmod(abs(int(kopecks)), 100)
+    suffix = "₽" if currency == "RUB" else currency
+    return f"{sign}{_group_digits(str(whole))},{frac:02d} {suffix}"
+
+
+_MONTHS_RU = ("", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+              "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь")
+
+
+def fmt_month(month: str) -> str:
+    """«2026-09» → «Сентябрь 2026»; невалидное значение — как есть (UI-подпись месяца)."""
+    try:
+        year, num = month.split("-")
+        return f"{_MONTHS_RU[int(num)]} {year}"
+    except (ValueError, IndexError):
+        return month
+
+
+def fmt_date(iso_date: str) -> str:
+    """«2026-09-13» → «13.09» (компактно для таблиц; ISO остаётся в экспорте/API)."""
+    try:
+        _, month, day = iso_date.split("-")
+        return f"{day}.{month}"
+    except ValueError:
+        return iso_date
+
+
 def _now_iso() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
 

@@ -273,6 +273,15 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - Тесты: `tests/test_help.py` (3, оффлайн) + e2e `test_help_page_nav_and_faq`; FAQPage JSON-LD не внедряем
   (Google снял rich results 07.05.2026).
 
+## Числа, язык и категории в UI (дизайн-ревью, M-2)
+- **Денежная форма** — `fmt_money(kopecks, currency='RUB', signed=True)` → «−155 365,18 ₽» (NBSP-разряды,
+  запятая, ₽/код валюты; `signed=False` для лимитов/бюджетов — без «+»). Подписи: `fmt_month('2026-09') →
+  «Сентябрь 2026»`, `fmt_date('2026-09-13') → «13.09»` (таблицы; ISO — только экспорт/API/URL).
+  Машинные формы (`fmt_amount`, ISO-даты) не тронуты — CSV/промпты/CLI/keyset-пагинация.
+- **Категории**: `taxonomy.toml` получил `display_name` (RU) для всех 18; в UI рендерится `catname(slug)`
+  (слаг — ключ БД/URL/API, RU-имя — только отображение; неизвестный слаг показывается как есть).
+- Аномалия `near_duplicate` в UI/CLI-дайджесте называется «возможный дубль»; детали аномалий — в `fmt_money`.
+
 ## UX-полировка: пустые состояния, подсказки, знаки сумм (P2 #7–#9)
 - **Суммы в UI** — `fmt_amount_signed` (`store.py`): явный `+`/`−` (типографский U+2212), ноль «0.00» —
   знак, а не только цвет (WCAG 1.4.1). **Машинная** форма `fmt_amount` (ASCII-минус, без плюса) остаётся

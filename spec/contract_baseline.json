@@ -592,6 +592,18 @@
    "args": "kopecks: int",
    "returns": "str"
   },
+  "spendtrack.store:fmt_date": {
+   "args": "iso_date: str",
+   "returns": "str"
+  },
+  "spendtrack.store:fmt_money": {
+   "args": "kopecks: int, currency: str='RUB', signed: bool=True",
+   "returns": "str"
+  },
+  "spendtrack.store:fmt_month": {
+   "args": "month: str",
+   "returns": "str"
+  },
   "spendtrack.store:month_bounds": {
    "args": "month: str",
    "returns": "tuple[str, str]"
@@ -607,6 +619,10 @@
   "spendtrack.suggestions:suggest_rules": {
    "args": "store: Store, min_confirmations: int=MIN_CONFIRMATIONS, min_purity: float=MIN_PURITY",
    "returns": "dict"
+  },
+  "spendtrack.taxonomy:Taxonomy.display": {
+   "args": "self, name: str",
+   "returns": "str"
   },
   "spendtrack.taxonomy:Taxonomy.is_valid": {
    "args": "self, name: str",

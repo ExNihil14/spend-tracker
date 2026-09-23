@@ -22,7 +22,7 @@ import statistics
 from datetime import UTC, date, datetime, timedelta
 
 from spendtrack.recurring import detect_recurring
-from spendtrack.store import Store, fmt_amount_signed
+from spendtrack.store import Store, fmt_money
 
 DEFAULT_DAYS = 7
 TOP_CATEGORIES = 5
@@ -39,7 +39,7 @@ EXCLUDED_CATEGORIES = ("transfers",)
 ANOMALY_LABELS = {
     "large_expense": "крупная сумма",
     "price_jump": "скачок цены",
-    "near_duplicate": "near-дубль",
+    "near_duplicate": "возможный дубль",
 }
 
 _EXCLUDED = ",".join("?" * len(EXCLUDED_CATEGORIES))
@@ -211,19 +211,19 @@ def _near_duplicates(store: Store, start: str, end: str) -> list[dict]:
 
 
 def _anomaly_detail(a: dict) -> str:
-    """Текст детали для UI/CLI — суммы в отображаемой форме со знаком (fmt_amount_signed).
+    """Текст детали для UI/CLI — суммы в денежной форме (`fmt_money`: разряды, запятая, ₽).
 
     `median_k`/`prev_price_k` хранятся магнитудами (медианы |сумм|, см. `_large_expenses`,
     `_price_jumps`), поэтому знак расхода для них ставим явно.
     """
     if a["type"] == "large_expense":
-        return (f"{fmt_amount_signed(a['amount_k'])} ₽ — медиана категории"
-                f" {fmt_amount_signed(-a['median_k'])} ₽ (×{a['score']:.1f})")
+        return (f"{fmt_money(a['amount_k'])} — медиана категории"
+                f" {fmt_money(-a['median_k'])} (×{a['score']:.1f})")
     if a["type"] == "price_jump":
         pct = (a["score"] - 1) * 100
-        return (f"цена {fmt_amount_signed(a['amount_k'])} ₽ вместо"
-                f" {fmt_amount_signed(-a['prev_price_k'])} ₽ ({pct:+.0f}%)")
-    return f"{a['count']} списания по {fmt_amount_signed(a['amount_k'])} ₽ в один день"
+        return (f"цена {fmt_money(a['amount_k'])} вместо"
+                f" {fmt_money(-a['prev_price_k'])} ({pct:+.0f}%)")
+    return f"{a['count']} списания по {fmt_money(a['amount_k'])} в один день"
 
 
 def _upcoming(subscriptions: list[dict], ref: date) -> list[dict]:

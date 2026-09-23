@@ -3,19 +3,19 @@
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
     <div class="text-xs uppercase tracking-wide text-slate-400">Доход</div>
-    <div class="text-lg font-semibold text-emerald-400 mt-1">{{ fmt_signed(report.income_k) }}</div>
+    <div class="text-lg font-semibold text-emerald-400 mt-1">{{ fmt_money(report.income_k) }}</div>
   </div>
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
     <div class="text-xs uppercase tracking-wide text-slate-400">Расход</div>
-    <div class="text-lg font-semibold text-rose-400 mt-1">{{ fmt_signed(report.expense_k) }}</div>
+    <div class="text-lg font-semibold text-rose-400 mt-1">{{ fmt_money(report.expense_k) }}</div>
   </div>
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
     <div class="text-xs uppercase tracking-wide text-slate-400">Баланс</div>
-    <div class="text-lg font-semibold text-slate-100 mt-1">{{ fmt_signed(report.balance_k) }}</div>
+    <div class="text-lg font-semibold text-slate-100 mt-1">{{ fmt_money(report.balance_k) }}</div>
   </div>
   <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 flex items-center justify-between">
     <a href="/?month={{ prev_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">←</a>
-    <div class="text-sm font-medium text-slate-300">{{ current }}</div>
+    <div class="text-sm font-medium text-slate-300">{{ fmt_month(current) }}</div>
     <a href="/?month={{ next_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}" class="text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-slate-800 transition-colors">→</a>
   </div>
 </div>
@@ -56,7 +56,7 @@
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
     <input name="description" placeholder="Описание" aria-label="Описание" required
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 flex-1 min-w-40 focus:outline-none focus:ring-2 focus:ring-blue-500">
-    <input name="amount" placeholder="Сумма (-23.45)" aria-label="Сумма" required
+    <input name="amount" placeholder="Сумма, напр. −23,45" aria-label="Сумма" required
            class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-3 py-2 w-40 focus:outline-none focus:ring-2 focus:ring-blue-500">
     <button class="bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg px-5 py-2 transition-colors cursor-pointer">Добавить</button>
     <span id="add-spinner" class="htmx-indicator text-blue-400 text-sm self-center">Добавление…</span>
@@ -67,7 +67,7 @@
 
 <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
   <div class="px-5 py-3 border-b border-slate-800 flex flex-wrap items-center gap-3">
-    <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Транзакции {{ current }}</h2>
+    <h2 class="text-sm font-semibold text-slate-300 uppercase tracking-wide">Транзакции {{ fmt_month(current) }}</h2>
     <form hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
       <select name="sort" aria-label="Сортировка"
               class="bg-slate-800 text-slate-200 border border-slate-700 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

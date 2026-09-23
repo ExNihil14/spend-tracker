@@ -12,11 +12,17 @@ from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
 from spendtrack.deps import get_store
 from spendtrack.reports import BUDGET_EXCLUDED
-from spendtrack.store import Store, fmt_amount
+from spendtrack.store import Store, fmt_amount, fmt_money
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
-templates.env.globals.update(badge_text=badge_text_color, static=static_url)
+templates.env.globals.update(fmt_money=fmt_money, badge_text=badge_text_color, static=static_url)
+
+
+def _catname(data: dict):
+    """Отображаемое имя категории из TOML (display_name; fallback — слаг)."""
+    names = {c["name"]: c.get("display_name") or c["name"] for c in data.get("categories", [])}
+    return lambda slug: names.get(slug, slug)
 
 
 def _context(store: Store) -> dict:
@@ -26,6 +32,7 @@ def _context(store: Store) -> dict:
     budgets = store.budget_map()
     analysis = repo.analyze_rules(data)
     return {
+        "catname": _catname(data),
         "categories": data.get("categories", []),
         "rules": data.get("rules", []),
         "rules_view": analysis,

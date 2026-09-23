@@ -52,8 +52,8 @@ def test_amount_signs_and_badge_text_color(page: Page, live_server, db_path):
     _seed(str(db_path), "2026-09-11", "ЗАРПЛАТА ЗНАК", 1234500)
     page.goto(live_server)
     table = page.locator("#tx-table")
-    expect(table).to_contain_text("\u2212123.45")
-    expect(table).to_contain_text("+12345.00")
+    expect(table).to_contain_text("\u2212123,45 ₽")
+    expect(table).to_contain_text("+12 345,00 ₽")
     badge = page.locator('#tx-table a[href="/?category=groceries"]').first
     style = badge.get_attribute("style") or ""
     assert "background:" in style and "color:" in style
@@ -64,6 +64,6 @@ def test_month_empty_note(page: Page, live_server, db_path):
     """Пустой месяц при наличии данных: подсказка с импортом, а не пустая таблица без объяснений."""
     _seed(str(db_path), "2026-09-10", "ЛЕНТА МЕСЯЦ", -10000)
     page.goto(f"{live_server}/?month=2026-01")
-    expect(page.locator("#tx-table")).to_contain_text("За 2026-01 операций нет")
+    expect(page.locator("#tx-table")).to_contain_text("За Январь 2026 операций нет")
     page.goto(f"{live_server}/dashboard?month=2026-01")
-    expect(page.locator("body")).to_contain_text("За 2026-01 операций нет")
+    expect(page.locator("body")).to_contain_text("За Январь 2026 операций нет")

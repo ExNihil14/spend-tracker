@@ -181,8 +181,8 @@ def test_ui_shows_currency_for_non_rub_and_day_total_is_rub_only(tmp_path, monke
     store.close()
     html = TestClient(app).get("/").text
     assert "USD" in html
-    assert "\u221210.00" in html            # дневной итог — только RUB
-    assert "\u22125010.00" not in html      # USD-сумма в итог не попала
+    assert "\u221210,00 ₽" in html          # дневной итог — только RUB
+    assert "\u22125\u00a0010,00" not in html  # USD-сумма в итог не попала
 
 
 def test_cli_add_currency(monkeypatch, tmp_path, capsys):

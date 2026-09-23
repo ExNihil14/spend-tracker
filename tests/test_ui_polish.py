@@ -71,8 +71,8 @@ def test_amounts_render_with_explicit_signs_and_adaptive_badges(client):
     _add(client, "-1234.56", "ЛЕНТА")
     _add(client, "250000.00", "ЗАРАБОТНАЯ ПЛАТА")
     html = client.get("/").text
-    assert "\u22121234.56" in html          # U+2212 у расхода
-    assert "+250000.00" in html             # явный плюс у дохода
+    assert "\u22121\u00a0234,56 ₽" in html   # U+2212, разряды NBSP, запятая, ₽
+    assert "+250\u00a0000,00 ₽" in html      # явный плюс у дохода
     assert "background:#22c55e;color:#020617" in html  # светлый бейдж groceries → тёмный текст
 
 
@@ -97,4 +97,4 @@ def test_filtered_empty_state(client):
 def test_empty_month_state(client):
     _add(client, "-50.00", date="2026-09-12")
     html = client.get("/?month=2026-01").text
-    assert "За 2026-01 операций нет" in html
+    assert "За Январь 2026 операций нет" in html

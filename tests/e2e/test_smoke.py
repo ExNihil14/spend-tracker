@@ -118,7 +118,7 @@ def test_approve_queue_skip(page: Page, live_server, db_path):
     page.goto(f"{live_server}/approve")
     _wait_htmx(page, "#review-rows")
     expect(page.locator("#review-rows")).to_contain_text("АЗС ЛУКОЙЛ")
-    expect(page.locator("#review-rows")).to_contain_text("transport")
+    expect(page.locator("#review-rows")).to_contain_text("Транспорт")
 
     page.locator("#review-1 button:has-text('Пропустить')").click()
     _wait_single(page, "#review-rows")
@@ -152,7 +152,7 @@ def test_approve_queue_approve_as_proposed(page: Page, live_server, db_path):
 
     page.goto(f"{live_server}/approve")
     _wait_htmx(page, "#review-rows")
-    expect(page.locator("#review-1")).to_contain_text("household")
+    expect(page.locator("#review-1")).to_contain_text("Быт и дом")
 
     page.locator("#review-1 button:has-text('Одобрить')").click()
     _wait_single(page, "#review-rows")
@@ -179,7 +179,7 @@ def test_dashboard_month_nav_and_chart_scale(page: Page, live_server, db_path):
     page.on("pageerror", lambda e: errors.append(str(e)))
 
     page.goto(f"{live_server}/dashboard")
-    expect(page.locator("#dash-month")).to_have_text("2026-09")
+    expect(page.locator("#dash-month")).to_have_text("Сентябрь 2026")
     # стрелки ведут на АБСОЛЮТНЫЙ месяц — можно листать вглубь истории
     expect(page.locator('a[href="/dashboard?month=2026-08"]')).to_have_count(1)
     expect(page.locator('a[href="/dashboard?month=2026-10"]')).to_have_count(1)
@@ -207,19 +207,19 @@ def test_dashboard_month_nav_and_chart_scale(page: Page, live_server, db_path):
 
     page.click('a[href="/dashboard?month=2026-08"]')
     _wait_htmx(page, "#dash-month")
-    expect(page.locator("#dash-month")).to_have_text("2026-08")
+    expect(page.locator("#dash-month")).to_have_text("Август 2026")
     aug = chart_probe()
     assert aug["data"] == [-70.0] and aug["cats"] == [70.0]
     assert abs(aug["h"] - sep["h"]) <= 8  # канвас заполняет контейнер h-56 и не «утекает»
 
     page.click('a[href="/dashboard?month=2026-09"]')
     _wait_htmx(page, "#dash-month")
-    expect(page.locator("#dash-month")).to_have_text("2026-09")
+    expect(page.locator("#dash-month")).to_have_text("Сентябрь 2026")
 
     # пустой месяц: чартов нет, но страница/навигация живут
     page.click('a[href="/dashboard?month=2026-10"]')
     _wait_htmx(page, "#dash-month")
-    expect(page.locator("#dash-month")).to_have_text("2026-10")
+    expect(page.locator("#dash-month")).to_have_text("Октябрь 2026")
     assert page.evaluate(
         "() => { const el = document.getElementById('dailyChart');"
         " return !!(el && window.Chart && Chart.getChart(el)); }") is False
@@ -266,7 +266,7 @@ def test_dashboard_recurring_card(page: Page, live_server, db_path):
     page.goto(f"{live_server}/dashboard")
     expect(page.locator("body")).to_contain_text("Подписки / рекурринги")
     expect(page.locator("body")).to_contain_text("NETFLIX")
-    expect(page.locator("body")).to_contain_text("199.00 ₽ / мес")
+    expect(page.locator("body")).to_contain_text("−199,00 ₽ / мес")
     expect(page.locator("body")).to_contain_text("n=4")
     expect(page.locator("body")).to_contain_text("активных 1")
 
@@ -297,9 +297,9 @@ def test_dashboard_digest_card(page: Page, live_server, db_path):
     card = page.locator("#digest-card")
     expect(card).to_contain_text("Дайджест недели")
     expect(card).to_contain_text("7 дн")
-    expect(card).to_contain_text("\u2212270.00")   # расход окна: -150 -120, знак — часть отображения
-    expect(card).to_contain_text("groceries")
-    expect(card).to_contain_text("near-дубль")
+    expect(card).to_contain_text("\u2212270,00 ₽")   # расход окна: -150 -120, знак — часть отображения
+    expect(card).to_contain_text("Продукты")
+    expect(card).to_contain_text("возможный дубль")
     expect(card).to_contain_text("КОФЕ")
 
 

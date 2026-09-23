@@ -6,22 +6,22 @@
   <td colspan="5" class="px-5 py-2 text-xs uppercase tracking-wide text-slate-400">
     {{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}
     <span class="ml-2 normal-case font-medium {{ 'text-emerald-400' if day_totals.get(t.date, 0) > 0 else 'text-rose-400/90' }}">
-      итог {{ fmt_signed(day_totals.get(t.date, 0)) }}
+      итог {{ fmt_money(day_totals.get(t.date, 0)) }}
     </span>
   </td>
 </tr>
 {% endif %}
 <tr class="border-b border-slate-800/60 last:border-0 hover:bg-slate-800/30 transition-colors">
-  <td class="px-5 py-3 whitespace-nowrap text-slate-400">{{ t.date }}</td>
+  <td class="px-5 py-3 whitespace-nowrap text-slate-400">{{ fmt_date(t.date) }}</td>
   <td class="px-5 py-3">
     {{ t.description }}
     {% if t.merchant %}<div class="text-xs text-slate-400 mt-0.5">{{ t.merchant }}</div>{% endif %}
   </td>
-  <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-emerald-400' if t.amount_kopecks > 0 else 'text-rose-400' }}">{{ fmt_signed(t.amount_kopecks) }}{% if t.currency != 'RUB' %} <span class="text-xs text-slate-400 font-normal">{{ t.currency }}</span>{% endif %}</td>
+  <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-emerald-400' if t.amount_kopecks > 0 else 'text-rose-400' }}">{{ fmt_money(t.amount_kopecks, t.currency) }}</td>
   <td class="px-5 py-3">
     {% set badge_bg = cat_colors.get(t.category, '#9ca3af') %}
     <a href="/?category={{ t.category }}" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
-       style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">{{ t.category }}</a>
+       style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">{{ catname(t.category) }}</a>
   </td>
   <td class="px-5 py-3">
     <span class="text-slate-400 text-xs">{{ t.category_source }}
@@ -38,7 +38,7 @@
   <div class="text-slate-300">Ничего не найдено по этому фильтру.</div>
   <p class="text-xs text-slate-400 mt-1"><a href="/" class="text-blue-400 hover:text-blue-300">Сбросить фильтры и показать все →</a></p>
   {% else %}
-  <div class="text-slate-300">За {{ current or 'этот месяц' }} операций нет.</div>
+  <div class="text-slate-300">За {{ fmt_month(current) if current else 'этот месяц' }} операций нет.</div>
   <p class="text-xs text-slate-400 mt-1">Выберите другой месяц стрелками выше или <a href="/" class="text-blue-400 hover:text-blue-300">посмотрите последние операции</a>.</p>
   {% endif %}
 </td></tr>
