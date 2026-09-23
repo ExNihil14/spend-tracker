@@ -27,8 +27,13 @@ FORMAT_HINT = (
 
 # Логические поля → колонки-синонимы: хотя бы одна должна найтись (стирание пробелов/регистра — норма).
 REQUIRED_COLUMNS: dict[str, tuple[tuple[str, ...], ...]] = {
-    "sber": (("Дата операции", "Дата"), ("Описание", "Категория"), ("Сумма операции", "Сумма")),
-    "tinkoff": (("Дата", "Date"), ("Описание", "Description"), ("Сумма операции", "Сумма", "Amount")),
+    # Реальные шапки подтверждены публичными первоисточниками (RESEARCH_BANK_STATEMENT_SAMPLES.md):
+    # Сбер email-CSV: «Тип карты;Номер карты;Дата совершения операции;…;Сумма в валюте счета»;
+    # Т-Банк: «Дата операции;Дата платежа;…;Статус;…;MCC;Описание;Бонусы» (13 колонок).
+    "sber": (("Дата совершения операции", "Дата операции", "Дата"), ("Описание", "Категория"),
+             ("Сумма в валюте счета", "Сумма в валюте операции", "Сумма операции", "Сумма")),
+    "tinkoff": (("Дата операции", "Дата", "Date"), ("Описание", "Description"),
+                ("Сумма операции", "Сумма", "Amount")),
     "yandex": (("datetime", "date", "Дата"), ("description", "title", "Описание"), ("amount", "Сумма")),
 }
 
@@ -88,9 +93,13 @@ def _guess_sep(header: str) -> str:
 
 
 def missing_columns(bank: str, fieldnames: list[str]) -> list[str]:
-    """Логические поля банка, для которых в файле нет ни одной колонки-синонима."""
+    """Логические поля банка, для которых в файле нет ни одной колонки-синонима.
+
+    Возвращает группу синонимов через « / » (у банка бывает несколько форматов: email-CSV Сбера
+    и старый экспорт) — пользователю видно, какие названия колонок мы искали.
+    """
     names = {f.strip().lower() for f in fieldnames if f}
-    return [group[0] for group in REQUIRED_COLUMNS.get(bank, ())
+    return [" / ".join(group) for group in REQUIRED_COLUMNS.get(bank, ())
             if not any(alias.lower() in names for alias in group)]
 
 
@@ -116,7 +125,12 @@ def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "")
 
 
 class SberAdaptor:
-    """Sber export.csv: Тип операции, Дата, Номер карты, Статус, Сумма операции, Валюта операции, Описание."""
+    """Sber: export.csv и email-CSV («выписка на e-mail как Excel-лист», реальная шапка подтверждена).
+
+    Email-CSV: `Тип карты;Номер карты;Дата совершения операции;…;Описание;Валюта операции;
+    Сумма в валюте операции;Сумма в валюте счета`. Статуса в нём нет; расчётная сумма — «в валюте счёта»
+    (у физлиц РФ счёт рублёвый), поэтому берём её с валютой RUB; иначе — сумму/валюту операции.
+    """
 
     def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
         for r in rows:
@@ -124,19 +138,33 @@ class SberAdaptor:
             if status in ("в обработке", "отклонено", "отменено", "ошибка"):
                 yield {"_skip": "status"}
                 continue
-            yield _row_tx(_cell(r, "Дата операции", "Дата"), _cell(r, "Описание", "Категория"),
-                          _cell(r, "Сумма операции", "Сумма"), _cell(r, "Номер карты"),
-                          _cell(r, "Валюта операции", "Валюта"))
+            account_sum = _cell(r, "Сумма в валюте счета")
+            if account_sum:
+                amount, currency = account_sum, "RUB"
+            else:
+                amount = _cell(r, "Сумма в валюте операции", "Сумма операции", "Сумма")
+                currency = _cell(r, "Валюта операции", "Валюта")
+            yield _row_tx(_cell(r, "Дата совершения операции", "Дата операции", "Дата"),
+                          _cell(r, "Описание", "Категория"), amount,
+                          _cell(r, "Номер карты"), currency)
 
 
 class TinkoffAdaptor:
-    """Tinkoff export: Дата, Сумма операции, Категория, Описание, Счёт."""
+    """T-Bank (Тинькофф): реальная шапка 13 колонок (`Дата операции;…;Статус;…;MCC;Описание;Бонусы`)
+    и старый простой экспорт (`Дата;Сумма операции;Категория;Описание;Счёт`). Проведённые — `Статус=OK`.
+    """
 
     def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
         for r in rows:
-            yield _row_tx(_cell(r, "Дата", "Date"), _cell(r, "Описание", "Description"),
-                          _cell(r, "Сумма операции", "Сумма", "Amount"), _cell(r, "Счёт", "Account"),
-                          _cell(r, "Валюта", "Currency"))
+            status = _cell(r, "Статус", "Status")
+            if status and status.lower() != "ok":
+                yield {"_skip": "status"}
+                continue
+            yield _row_tx(_cell(r, "Дата операции", "Дата", "Date"),
+                          _cell(r, "Описание", "Description"),
+                          _cell(r, "Сумма операции", "Сумма", "Amount"),
+                          _cell(r, "Номер карты", "Счёт", "Account"),
+                          _cell(r, "Валюта операции", "Валюта", "Currency"))
 
 
 class YandexMoneyAdaptor:
@@ -162,9 +190,12 @@ def sniff_bank(rows: list[dict]) -> str | None:
     if not rows:
         return None
     keys = {k.strip().lower() for k in rows[0] if k}
-    # «Дата платежа» — устойчивый признак Сбера: остаётся при переименовании «Дата операции»
-    # (иначе дрейф колонки Сбера ошибочно опознавался бы как tinkoff по «Сумма операции+Описание»).
-    if "дата операции" in keys or "дата платежа" in keys:
+    # Реальный Т-Банк (13 колонок) тоже содержит «Дата операции» — его выдают MCC/кэшбэк/бонусы;
+    # проверяем их раньше Сбера, иначе реальная выписка Т-Банка опознавалась как Сбер.
+    if "mcc" in keys or "кэшбэк" in keys or "бонусы (включая кэшбэк)" in keys:
+        return "tinkoff"
+    # Сбер: «Дата совершения операции» (email-CSV), «Дата операции»/«Дата платежа» — устойчивые маркеры.
+    if "дата совершения операции" in keys or "дата операции" in keys or "дата платежа" in keys:
         return "sber"
     if "счёт" in keys or ("сумма операции" in keys and "описание" in keys):
         return "tinkoff"

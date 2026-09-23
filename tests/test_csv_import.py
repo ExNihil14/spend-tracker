@@ -15,6 +15,10 @@ TINKOFF_CSV = """Дата;Сумма операции;Категория;Опи�
 02.09.2026;-1549,00;Подписки;NETFLIX.COM;40817810000000000000
 """
 
+YANDEX_CSV = """datetime;operation;amount;currency;category;title;merchant;description
+2026-09-02T10:00:00;payment;-12.00;RUB;Транспорт;МЕТРО;МЕТРО;МЕТРО
+"""
+
 
 def _stub_classify():
     """Оффлайн-классификатор для тестов импорта: никогда не ходит в сеть."""
@@ -39,6 +43,43 @@ def test_sniff_sber():
 def test_sniff_tinkoff():
     rows = [{"Дата": "1", "Счёт": "c"}]
     assert sniff_bank(rows) == "tinkoff"
+
+
+def test_sniff_real_headers():
+    """Реальные шапки (ресёрч публичных образцов 23.09): email-Сбер → sber; 13-колоночный Т-Банк → tinkoff.
+
+    Раньше реальный Т-Банк («Дата операции» + MCC) опознавался как Сбер и импортировался случайно.
+    """
+    from synth_bank import SBER_EMAIL_HEADER, TINKOFF_REAL_HEADER
+
+    sber_email = {key: "" for key in SBER_EMAIL_HEADER.split(";")}
+    tbank = {key: "" for key in TINKOFF_REAL_HEADER.split(";")}
+    assert sniff_bank([sber_email]) == "sber"
+    assert sniff_bank([tbank]) == "tinkoff"
+
+
+def test_real_sber_email_imports(store):
+    """Golden-shape Сбера (email-CSV): реальная 12-колоночная шапка, суммы из «валюты счёта», edge `-,01`."""
+    from synth_bank import gen_sber_email
+
+    res = import_csv(gen_sber_email(n=5, seed=9), store, classify=_stub_classify())
+    assert res["status"] == "ok" and res["bank"] == "sber"
+    assert res["added"] == 9  # 5 + доход + возврат + дубль + «В обработке» (в email-CSV статуса нет)
+
+    txs = store.list_transactions(limit=1000)
+    assert all(t["currency"] == "RUB" for t in txs)
+    assert -1 in [t["amount_kopecks"] for t in txs]  # «-,01» → −1 копейка
+
+
+def test_real_tinkoff_imports_and_skips_non_ok(store):
+    """Golden-shape Т-Банка: 13 колонок (cp1251), не-OK статус пропущен с причиной."""
+    from synth_bank import gen_tinkoff_real
+
+    res = import_csv(gen_tinkoff_real(n=5, seed=11, encoding="cp1251"), store,
+                     classify=_stub_classify())
+    assert res["status"] == "ok" and res["bank"] == "tinkoff"
+    assert res["added"] == 8  # 5 + доход + возврат + дубль; «В обработке» пропущена
+    assert res["reasons"].get("status") == 1
 
 
 def test_import_sber(store):
@@ -235,7 +276,7 @@ def test_renamed_date_column_reports_format_error(store):
     csv_text = SBER_CSV.replace("Дата операции", "Дата проводки")
     res = import_csv(csv_text, store)
     assert res["status"] == "format_error"
-    assert "Дата операции" in res["missing_columns"]
+    assert any("Дата операции" in label for label in res["missing_columns"])
     assert "образец" in res["message"]
     assert res["added"] == 0 and store.list_transactions() == []
 
@@ -245,7 +286,7 @@ def test_removed_amount_column_reports_format_error(store):
                 "1;01.09.2026 10:00;1234;Выполнено;RUB;ЛЕНТА\n")
     res = import_csv(csv_text, store)
     assert res["status"] == "format_error"
-    assert "Сумма операции" in res["missing_columns"]
+    assert any("Сумма операции" in label for label in res["missing_columns"])
 
 
 def test_unknown_headers_auto_reports_format_error(store):
@@ -259,9 +300,10 @@ def test_unknown_headers_auto_reports_format_error(store):
 
 
 def test_explicit_wrong_bank_reports_format_error(store):
-    res = import_csv(SBER_CSV, store, bank="tinkoff")
+    """Явно не тот банк: Yandex-шапка с bank=sber → format_error (у Сбера нет колонок даты/суммы)."""
+    res = import_csv(YANDEX_CSV, store, bank="sber")
     assert res["status"] == "format_error"
-    assert res["bank"] == "tinkoff"
+    assert res["bank"] == "sber"
 
 
 def test_unknown_bank_name_reports_format_error(store):
@@ -293,7 +335,8 @@ def test_amount_limit_boundary(store):
 def test_missing_columns_helper():
     assert missing_columns("sber", ["Дата операции", "Описание", "Сумма операции"]) == []
     assert missing_columns("sber", ["Дата", "Категория", "Сумма"]) == []
-    assert missing_columns("sber", ["Дата операции", "Описание"]) == ["Сумма операции"]
+    assert missing_columns("sber", ["Дата операции", "Описание"]) == [
+        "Сумма в валюте счета / Сумма в валюте операции / Сумма операции / Сумма"]
 
 
 # ── Отчёт импорта «добавлено / пропущено / подозрительно» (P1 #2) ────────────

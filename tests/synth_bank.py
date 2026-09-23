@@ -15,6 +15,13 @@ SBER_HEADER = ("Номер документа;Дата операции;Дата
 TINKOFF_HEADER = "Дата;Сумма операции;Категория;Описание;Счёт"
 YANDEX_HEADER = "datetime;operation;amount;currency;category;title;merchant;description"
 
+# Реальные шапки (подтверждены публичными первоисточниками, RESEARCH_BANK_STATEMENT_SAMPLES.md):
+SBER_EMAIL_HEADER = ("Тип карты;Номер карты;Дата совершения операции;Дата обработки операции;"
+                     "Код авторизации;Тип операции;Город совершения операции;Страна совершения операции;"
+                     "Описание;Валюта операции;Сумма в валюте операции;Сумма в валюте счета")
+TINKOFF_REAL_HEADER = ("Дата операции;Дата платежа;Номер карты;Статус;Сумма операции;Валюта операции;"
+                       "Сумма платежа;Валюта платежа;Кэшбэк;Категория;MCC;Описание;Бонусы (включая кэшбэк)")
+
 
 def fmt_ru(kopecks: int) -> str:
     """-12345 → '-123,45'; -123456789 → '-1 234 567,89' (формат Сбера: пробел + запятая)."""
@@ -70,3 +77,33 @@ def gen_yandex(n: int = 8, seed: int = 2) -> str:
     for d, m, kop, _status in _base_rows(n, seed)[:-1]:
         lines.append(f"{d.isoformat()}T10:00:00;payment;{kop / 100:.2f};RUB;Прочее;{m};{m};{m}")
     return "\n".join(lines) + "\n"
+
+
+def gen_sber_email(n: int = 8, seed: int = 7) -> str:
+    """Сбер email-CSV («выписка на e-mail как Excel-лист»): реальная 12-колоночная шапка, `;`, utf-8.
+
+    Суммы — в «Сумма в валюте счета» (у физлиц счёт рублёвый), «Валюта операции» пустая;
+    edge-case `-,01` (вторая строка). Статуса в этом формате нет.
+    """
+    lines = [SBER_EMAIL_HEADER]
+    for i, (d, m, kop, _status) in enumerate(_base_rows(n, seed)):
+        code = 200000 + i
+        amount = "-0,01" if i == 1 else fmt_ru(kop)
+        lines.append(f"Основная;*6833;{d.strftime('%d.%m.%Y')};{d.strftime('%d.%m.%Y')};{code};"
+                     f"4829;MOSCOW;RUS;{m};;;{amount};")
+    return "\n".join(lines) + "\n"
+
+
+def gen_tinkoff_real(n: int = 10, seed: int = 3, encoding: str | None = None) -> str | bytes:
+    """Т-Банк: реальная 13-колоночная шапка (MCC/Кэшбэк/Бонусы), `Статус=OK` у проведённых,
+    пустая «Дата платежа» у третьей строки, «В обработке» — не проведена (адаптер пропускает).
+    """
+    lines = [TINKOFF_REAL_HEADER]
+    for i, (d, m, kop, status) in enumerate(_base_rows(n, seed)):
+        dt = f"{d.strftime('%d.%m.%Y')} {9 + i % 12:02d}:{i % 60:02d}:00"
+        pay_dt = "" if i == 2 else d.strftime("%d.%m.%Y")
+        t_status = "OK" if status == "Выполнено" else status
+        lines.append(f"{dt};{pay_dt};*8305;{t_status};{fmt_ru(kop)};RUB;{fmt_ru(kop)};RUB;"
+                     f"0;Прочее;5411;{m};0")
+    raw = "\r\n".join(lines) + "\r\n"
+    return raw.encode("cp1251") if encoding == "cp1251" else raw

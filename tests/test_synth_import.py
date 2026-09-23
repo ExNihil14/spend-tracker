@@ -79,7 +79,7 @@ def test_synth_sber_renamed_column_reports_format_error(tmp_path):
     res = import_csv(raw, s, classify=_stub)
     assert res["status"] == "format_error"
     assert res["added"] == 0
-    assert "Дата операции" in res["missing_columns"]
+    assert any("Дата операции" in label for label in res["missing_columns"])
     assert "Дата проводки" in res["found_columns"]
     assert s.list_transactions(limit=100) == []
     s.close()
@@ -91,6 +91,6 @@ def test_synth_sber_removed_column_reports_format_error(tmp_path):
     s = Store(db_path=tmp_path / "t.db")
     res = import_csv(raw, s, classify=_stub)
     assert res["status"] == "format_error"
-    assert "Сумма операции" in res["missing_columns"]
+    assert any("Сумма операции" in label for label in res["missing_columns"])
     assert s.list_transactions(limit=100) == []
     s.close()

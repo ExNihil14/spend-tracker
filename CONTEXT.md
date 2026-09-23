@@ -28,8 +28,10 @@
 - **Fingerprint** = sha1(date|kopecks|norm(desc)|account_anon|export_rowid). Дедуп импорта: повторный импорт = no-op. norm = UPPER + collapse пробелов.
 - **Партия импорта (import_batch)** — один загруженный CSV, id `b_hex`, sha256 содержимого, статус.
 - **Дрейф формата / отчёт импорта** — перед разбором проверяются обязательные колонки банка (`REQUIRED_COLUMNS`,
-  синонимы с допуском пробелов/регистра). Смена формата → `status="format_error"` (`missing_columns`/
-  `found_columns` + `message` с просьбой прислать обезличенный образец), БД не трогается. Отчёт об успехе:
+  синонимы с допуском пробелов/регистра; включают реальные шапки: Сбер email-CSV «Дата совершения операции»/
+  «Сумма в валюте счета», Т-Банк 13 колонок с MCC — `RESEARCH_BANK_STATEMENT_SAMPLES.md`). Смена формата →
+  `status="format_error"` (`missing_columns` — группы синонимов через « / », `found_columns` + `message`
+  с просьбой прислать обезличенный образец), БД не трогается. Отчёт об успехе:
   `added` / `skipped` (`reasons`: duplicate, status, missing_fields, amount_unparsed, amount_limit) /
   `suspicious` (`date_unrecognized`); человекочитаемо — `summarize()`; совместимые ключи `dupes`/`invalid`
   сохранены. CLI `spendtrack import … [--json]`.

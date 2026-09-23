@@ -157,6 +157,17 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   Тесты: `tests/test_csv_import.py`, `tests/test_synth_import.py` (переименование и удаление колонки на синтетике).
 - Битый JSON-конверт: не-JSON/не-UTF-8 тело → 400, неполные поля → 422 (`_json_payload` в `api.py`;
   live-смоук 21.09 вскрыл 500 на кривой кодировке) — и `/api/import`, и `/api/transactions`.
+- **Реальные форматы (подтверждены публичными первоисточниками 23.09, `RESEARCH_BANK_STATEMENT_SAMPLES.md`):**
+  Сбер email-CSV («выписка на e-mail как Excel-лист»: `Тип карты;Номер карты;Дата совершения операции;…;
+  Сумма в валюте счета`; `;`, utf-8, даты `%d.%m.%Y`, суммы с запятой, edge `-,01`) и Т-Банк (13 колонок:
+  `Дата операции;…;Статус;…;MCC;Описание;Бонусы`; `;`, cp1251, проведённые — `Статус=OK`). Адаптеры научены
+  этим колонкам; `sniff_bank` различает Т-Банк по MCC/кэшбэк/бонусы (раньше реальный Т-Банк опознавался как
+  Сбер и импортировался случайно). Golden-shape синтетика — `tests/synth_bank.py: gen_sber_email/gen_tinkoff_real`.
+- **Сбер XLS/XLSX у физлиц не существует** (редизайн СберБанк Онлайн 2021 → PDF; «Excel-лист» по e-mail —
+  это CSV) — Excel только у бизнес-API, структура листа публично не описана; #4 остаётся data-gated.
+- **ЮMoney CSV кошелька публично не подтверждён** (выписка — PDF, API — JSON `operation-history`) —
+  yandex-адаптер best-effort.
+- `missing_columns` возвращает группу синонимов через « / » (у банка бывает несколько форматов).
 - **Атомарность партии (фикс 23.09, ресёрч слабых слоёв):** `pseudonymize` / `merchant_cache_set` /
   LLM-кэш мерчанта больше не коммитят внутри батча (`commit=False`; сквозной параметр в
   `categorize_transaction`/`classify_with_injectable`), rollback при сбое в середине откатывает
