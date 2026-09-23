@@ -207,8 +207,16 @@
 > 4xx-ветки + reviews/count + `/health` 503 в `test_api.py`, роуты color/delete в `test_settings.py`,
 > `update_merchant`/`needs_review` в `test_store_helpers.py`. Покрытие после: **src 96%** (cli 85→90%,
 > api 92→97%, settings 89→95%, main 91→94%); контур **499 unit + 46 e2e** + ruff + contract. Организация:
-> `spec/TESTING.md` (уровни/маркеры/принципы/как добавлять/анти-скоуп) + ссылка в PIPELINE. Бэклог P1/P2 —
-> в аудите (e2e настроек/пагинации/XLSX/валют, hypothesis, HX-ветки, дедуп seed-хелперов).
+> `spec/TESTING.md` (уровни/маркеры/принципы/как добавлять/анти-скоуп) + ссылка в PIPELINE.
+> **P1/P2-малые (по «начнём с малого», 23.09) — СДЕЛАНЫ (ждут коммита):** ① HX-ветки импорта
+> (empty/generic/лимит → фрагмент/413, +2 unit); ② e2e XLSX-скачивания (openpyxl из BytesIO) и
+> мультивалютности в списке (USD с кодом, ₽-итог дня без USD, +2 e2e); ③ фикс-паузы убраны:
+> `wait_for_timeout(300)` → `wait_for_load_state("networkidle")`, `wait_for_timeout(1500)` →
+> `expect_response` (htmx-settle); ④ seed-хелперы e2e дедуплицированы в `tests/e2e/helpers.py`
+> (через публичный Store; попутный фикс: Store требует Path, не str); ⑤ `anonymize.py` 80→99%
+> (CLI + пустой ввод; `backup.py` 97% — остаток = `__main__`-гард, не тестируется). Контур:
+> **504 unit + 48 e2e** + ruff + contract + build_css. Остаток P1/P2: e2e настроек категорий,
+> «Показать ещё», hypothesis, параметризация, конкурентные HTTP — по приоритету.
 > **АКТУАЛЬНО (23.09, сессия «AgentRouter→opencode + Ollama Cloud» — dev-tooling; репо-код не менялся).**
 > Deliverable: интеграция AgentRouter в opencode + пилот Opus-5 на окне квоты; бонусом — тест Ollama Cloud
 > на важном ревью. ① **Плагин** `~/.config/opencode/plugins/agentrouter-ua.js` (авто-загрузка подтверждена):
