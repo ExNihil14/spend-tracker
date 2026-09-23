@@ -122,13 +122,23 @@ def test_budget_set_and_dashboard_bar(page: Page, live_server, db_path):
     page.goto(f"{live_server}/settings")
     form = page.locator('form[hx-post="/settings/budgets"]:has(input[value="groceries"])')
     form.locator('input[name="amount"]').fill("2000")
-    form.locator('button[type="submit"]').click()
+    form.locator('input[name="amount"]').blur()  # change → автосохранение без кнопки OK (M-7)
     _wait_single(page, "#settings-budgets")
 
     page.goto(f"{live_server}/dashboard")
     expect(page.locator("body")).to_contain_text("Бюджеты месяца")
     expect(page.locator("body")).to_contain_text("1 500,00 ₽ / 2 000,00 ₽")
     expect(page.locator("body")).to_contain_text("75%")
+
+
+def test_color_autosave_toast(page: Page, live_server):
+    """M-7: цвет сохраняется по change (кнопки OK нет), появляется тост «Сохранено»."""
+    page.goto(f"{live_server}/settings")
+    color = page.locator('#settings-categories input[type="color"]').first
+    with page.expect_response(lambda r: "/settings/categories/color" in r.url):
+        color.evaluate(
+            "el => { el.value = '#ff0000'; el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    expect(page.locator("#toast")).to_contain_text("Сохранено")
 
 
 def test_rule_dead_badge_and_preview(page: Page, live_server):

@@ -27,6 +27,7 @@ from spendtrack.store import (
     parse_amount,
 )
 from spendtrack.taxonomy import load_taxonomy
+from spendtrack.ui import oob_toast
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
@@ -198,16 +199,6 @@ def _oob_empty_state(request: Request, store: Store) -> str:
     return '<tr id="review-empty" hx-swap-oob="delete"></tr>'
 
 
-def _oob_toast(text: str) -> str:
-    """OOB-тост с подтверждением действия (aria-live; авто-скрытие — скрипт в base.html)."""
-    return (
-        '<div id="toast" hx-swap-oob="outerHTML" data-flash="1" role="status" aria-live="polite"'
-        ' class="fixed bottom-4 right-4 z-50 transition-opacity duration-200 bg-slate-800'
-        ' border border-slate-600 text-slate-100 text-sm rounded-lg px-4 py-2 shadow-xl">'
-        f"{escape(text)}</div>"
-    )
-
-
 @router.post("/reviews/{tx_id}/approve", response_class=HTMLResponse)
 async def approve_review(request: Request, tx_id: int, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
@@ -223,7 +214,7 @@ async def approve_review(request: Request, tx_id: int, store: Annotated[Store, D
     desc = str(proposal.get("description") or "")[:24]
     return HTMLResponse(
         _oob_empty_state(request, store) + _oob_approve_all(request, store) + _oob_badge(store)
-        + _oob_toast(f"Одобрено: {chosen} — {desc}"))
+        + oob_toast(f"Одобрено: {chosen} — {desc}"))
 
 
 @router.post("/reviews/{tx_id}/skip", response_class=HTMLResponse)
@@ -236,7 +227,7 @@ async def skip_review(request: Request, tx_id: int, store: Annotated[Store, Depe
     desc = str(tx.get("description") or "")[:24]
     return HTMLResponse(
         _oob_empty_state(request, store) + _oob_approve_all(request, store) + _oob_badge(store)
-        + _oob_toast(f"Пропущено: {desc}"))
+        + oob_toast(f"Пропущено: {desc}"))
 
 
 @router.post("/reviews/approve-all", response_class=HTMLResponse)
@@ -252,7 +243,7 @@ async def approve_all(request: Request, store: Annotated[Store, Depends(get_stor
     n = store.approve_all_reviews(min_confidence=min_conf)
     suffix = f" (уверенность ≥ {round(min_conf * 100)}%)" if min_conf > 0 else ""
     return HTMLResponse(_rows_html(request, store) + _oob_approve_all(request, store)
-                        + _oob_badge(store) + _oob_toast(f"Одобрено записей: {n}{suffix}"))
+                        + _oob_badge(store) + oob_toast(f"Одобрено записей: {n}{suffix}"))
 
 
 @router.patch("/transactions/{tx_id}")

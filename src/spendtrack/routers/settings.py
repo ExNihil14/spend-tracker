@@ -13,6 +13,7 @@ from spendtrack.config import PKG_DIR
 from spendtrack.deps import get_store
 from spendtrack.reports import BUDGET_EXCLUDED
 from spendtrack.store import Store, fmt_amount, fmt_money
+from spendtrack.ui import oob_toast
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
@@ -72,13 +73,14 @@ async def add_category(request: Request, store: Annotated[Store, Depends(get_sto
 
 @router.post("/settings/categories/color", response_class=HTMLResponse)
 async def set_color(request: Request, store: Annotated[Store, Depends(get_store)]):
+    """Автосохранение цвета (M-7): форма шлёт на change, ответ — фрагмент + OOB-тост «Сохранено»."""
     form = await request.form()
     try:
         repo.set_color(str(form.get("name") or ""), str(form.get("color") or ""),
                        str(form.get("file_hash") or ""))
     except repo.TaxonomyError as e:
         return _cats_fragment(request, store, str(e))
-    return _cats_fragment(request, store)
+    return HTMLResponse(_cats_fragment(request, store).body.decode() + oob_toast("Сохранено"))
 
 
 @router.post("/settings/categories/delete", response_class=HTMLResponse)
@@ -125,12 +127,13 @@ def _budgets_fragment(request: Request, store: Store, error: str | None = None) 
 
 @router.post("/settings/budgets", response_class=HTMLResponse)
 async def set_budget(request: Request, store: Annotated[Store, Depends(get_store)]):
+    """Автосохранение лимита (M-7): форма шлёт на change, ответ — фрагмент + OOB-тост «Сохранено»."""
     form = await request.form()
     try:
         repo.set_budget(str(form.get("category") or ""), str(form.get("amount") or ""), store)
     except repo.TaxonomyError as e:
         return _budgets_fragment(request, store, str(e))
-    return _budgets_fragment(request, store)
+    return HTMLResponse(_budgets_fragment(request, store).body.decode() + oob_toast("Сохранено"))
 
 
 def _rules_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:

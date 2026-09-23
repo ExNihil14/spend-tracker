@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
-  <h2 class="px-5 py-3 text-sm font-semibold text-fg uppercase tracking-wide border-b border-line">Категории</h2>
+  <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">Категории</h2>
   {% include "partials/settings_categories.html" %}
 </div>
 
 <div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
-  <h2 class="px-5 py-3 text-sm font-semibold text-fg uppercase tracking-wide border-b border-line">
+  <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">
     Правила <span class="text-fg-muted normal-case font-normal">(порядок = приоритет, первое совпадение выигрывает; ↑/↓ меняют приоритет)</span>
   </h2>
   {% include "partials/settings_rules.html" %}
 </div>
 
 <div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
-  <h2 class="px-5 py-3 text-sm font-semibold text-fg uppercase tracking-wide border-b border-line">
+  <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">
     Бюджеты <span class="text-fg-muted normal-case font-normal">(месячные лимиты; прогресс — на дашборде)</span>
   </h2>
   {% include "partials/settings_budgets.html" %}
 </div>
 
 <div class="bg-surface rounded-xl border border-line p-5">
-  <h2 class="text-sm font-semibold text-fg uppercase tracking-wide mb-3">Тестер описания</h2>
+  <h2 class="text-[15px] font-semibold text-fg mb-3">Тестер описания</h2>
   <form hx-post="/settings/test" hx-target="#tester-result" hx-swap="innerHTML" class="flex flex-wrap gap-2">
     <input name="description" placeholder="Например: ЛЕНТА 1234" aria-label="Описание для теста" required
            class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2 flex-1 min-w-48 focus:outline-none focus:ring-2 focus:ring-accent">

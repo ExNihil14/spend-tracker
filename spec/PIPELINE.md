@@ -379,6 +379,21 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - Тесты: `test_api.py` (multipart utf-8/cp1251/пустой файл), `test_ui_polish.py` (структура/скрытые панели/
   drop-zone/итоги строкой), e2e `open_panel()`-хелпер + `test_import_csv_by_file_upload`.
 
+## Навигация, /settings и типографика (M-7, дизайн-ревью)
+- **Nav:** пункты приглушены (`text-fg-muted`), активный — `text-fg-strong` + подчёркивание 2px accent
+  (`underline decoration-accent decoration-2 underline-offset-4`); активность по `request.url.path`
+  (`/` — точное совпадение, остальные `startswith`) в `base.html`.
+- **Типографика (P1-5):** UPPERCASE остался только у заголовков колонок (`thead tr`, 12px tracking);
+  заголовки карточек — sentence case 15px/600 (`text-[15px] font-semibold`); мелкие подписи (KPI-карточки,
+  тестер, «Переименовать:») без uppercase. Исключения: паттерн правила (моно-инпут — намеренно uppercase),
+  заголовок-дата в `tx_rows` (только цифры).
+- **/settings — автосохранение:** цвет категории и лимит бюджета сохраняются по `change` (`hx-trigger="change"`,
+  кнопки «OK» убраны); ответ — фрагмент + OOB-тост «Сохранено» (`spendtrack/ui.py: oob_toast`, общий с api.py;
+  заодно тост переведён с палитры slate на токены). У «Удалить» у занятой категории `disabled`
+  + `title="Используется (N) — сначала перенесите операции в другую категорию"`.
+- Тесты: `test_settings.py` (форма без OK/тост/title), `test_ui_polish.py` (активный пункт nav, sentence case),
+  e2e (бюджет — blur-автосейв, цвет — change → тост).
+
 ## Первый запуск: чек-лист 4 шага (P2 #10)
 - Главная при `first_run` (нет транзакций И нет партий импорта) показывает `#start-checklist`
   (`partials/start_checklist.html`): 4 шага со ссылками (#import/#add, /approve, /settings, /dashboard) +

@@ -739,6 +739,10 @@
   "spendtrack.taxonomy_repo:validate_pattern": {
    "args": "pattern: str",
    "returns": "str"
+  },
+  "spendtrack.ui:oob_toast": {
+   "args": "text: str",
+   "returns": "str"
   }
  },
  "routes": {

@@ -196,3 +196,35 @@ def test_index_forms_collapsed_and_totals_line(client):
     # итоги месяца — строкой, а не четырьмя KPI-карточками
     assert "Доход" in html and "Расход" in html and "Баланс" in html
     assert "grid-cols-2 sm:grid-cols-4" not in html
+
+
+def test_nav_active_state(client):
+    """M-7: активный пункт nav — text-strong + подчёркивание accent; остальные приглушены."""
+    import re as _re
+
+    def nav_classes(html: str, href: str) -> str:
+        m = _re.search(rf'<a href="{href}" class="([^"]*)"', html.split("</nav>")[0])
+        assert m, f"пункт {href} не найден в nav"
+        return m.group(1)
+
+    home = client.get("/").text
+    assert "decoration-accent" in nav_classes(home, "/")
+    assert "text-fg-muted" in nav_classes(home, "/dashboard")
+
+    dash = client.get("/dashboard").text
+    assert "decoration-accent" in nav_classes(dash, "/dashboard")
+    assert "text-fg-muted" in nav_classes(dash, "/")
+
+    assert "decoration-accent" in nav_classes(client.get("/approve").text, "/approve")
+    assert "decoration-accent" in nav_classes(client.get("/settings").text, "/settings")
+
+
+def test_card_headings_sentence_case(client):
+    """P1-5: UPPERCASE — только заголовкам колонок; заголовки карточек — sentence case 15px."""
+    index = client.get("/").text
+    assert "uppercase tracking-wide" not in index.split("<thead>")[0]
+    assert '<h2 class="text-[15px] font-semibold text-fg">Транзакции' in index
+
+    dash = client.get("/dashboard").text  # без данных таблицы нет — uppercase негде взяться
+    assert "uppercase tracking-wide" not in dash
+    assert "Бюджеты месяца" in dash or "Данных пока нет" in dash

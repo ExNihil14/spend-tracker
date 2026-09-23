@@ -1,12 +1,12 @@
 {% if result %}
 <div class="bg-canvas/50 border border-line rounded-lg p-4 space-y-1">
-  <div class="text-fg-muted text-xs uppercase tracking-wide">Описание</div>
+  <div class="text-fg-muted text-xs">Описание</div>
   <div class="font-mono text-xs text-fg mb-2">{{ result.description }}</div>
 
   {% if result.cached %}
   <div class="text-income">merchant_cache: {{ result.cached }} (кэш приоритетнее правил)</div>
   {% endif %}
-  <div class="text-fg-muted text-xs uppercase tracking-wide mt-2">Совпавшие правила (по порядку)</div>
+  <div class="text-fg-muted text-xs mt-2">Совпавшие правила (по порядку)</div>
   {% for m in result.matched %}
   <div class="text-fg">#{{ m.index }} «{{ m.pattern }}» → <span class="text-fg-strong">{{ m.category }}</span>{% if not m.valid %}<span class="text-danger"> (нет в таксономии — пропускается)</span>{% endif %}</div>
   {% else %}

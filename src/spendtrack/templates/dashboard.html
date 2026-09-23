@@ -3,7 +3,7 @@
 {% if digest and digest.anomalies %}
 <div id="anomalies-card" class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-    <h2 class="text-sm font-semibold text-fg uppercase tracking-wide">Аномалии недели</h2>
+    <h2 class="text-[15px] font-semibold text-fg">Аномалии недели</h2>
     <span class="text-xs text-fg-muted">{{ fmt_date(digest.period.from) }} → {{ fmt_date(digest.period.to) }} · {{ digest.anomalies | length }}</span>
   </div>
   <div class="space-y-2">
@@ -31,15 +31,15 @@
 {% endif %}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
   <div class="bg-surface rounded-xl p-4 border border-line">
-    <div class="text-xs uppercase tracking-wide text-fg-muted">Доход</div>
+    <div class="text-xs text-fg-muted">Доход</div>
     <div class="text-lg font-semibold text-income mt-1">{{ fmt_money(report.income_k) }}</div>
   </div>
   <div class="bg-surface rounded-xl p-4 border border-line">
-    <div class="text-xs uppercase tracking-wide text-fg-muted">Расход</div>
+    <div class="text-xs text-fg-muted">Расход</div>
     <div class="text-lg font-semibold text-fg mt-1">{{ fmt_money(report.expense_k) }}</div>
   </div>
   <div class="bg-surface rounded-xl p-4 border border-line">
-    <div class="text-xs uppercase tracking-wide text-fg-muted">Баланс</div>
+    <div class="text-xs text-fg-muted">Баланс</div>
     <div class="text-lg font-semibold text-fg-strong mt-1">{{ fmt_money(report.balance_k) }}</div>
   </div>
   <div class="bg-surface rounded-xl p-4 border border-line flex items-center justify-between">
@@ -52,7 +52,7 @@
 {% if budgets %}
 <div class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-    <h2 class="text-sm font-semibold text-fg uppercase tracking-wide">Бюджеты месяца</h2>
+    <h2 class="text-[15px] font-semibold text-fg">Бюджеты месяца</h2>
     <span class="text-xs text-fg-muted">по риску · риска — прошло {{ month_elapsed }}% месяца</span>
   </div>
   <div class="space-y-3">
@@ -79,26 +79,26 @@
 {% if digest %}
 <div id="digest-card" class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-    <h2 class="text-sm font-semibold text-fg uppercase tracking-wide">Дайджест недели</h2>
+    <h2 class="text-[15px] font-semibold text-fg">Дайджест недели</h2>
     <span class="text-xs text-fg-muted">{{ fmt_date(digest.period.from) }} → {{ fmt_date(digest.period.to) }} · {{ digest.period.days }} дн · к прошлому окну</span>
   </div>
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mb-3">
     <div>
-      <div class="text-xs uppercase tracking-wide text-fg-muted">Доход</div>
+      <div class="text-xs text-fg-muted">Доход</div>
       <div class="text-income">{{ fmt_money(digest.income_k) }}</div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-fg-muted">Расход</div>
+      <div class="text-xs text-fg-muted">Расход</div>
       <div class="text-fg">{{ fmt_money(digest.expense_k) }}
         <span class="text-xs {{ 'text-danger' if digest.expense_delta_k < 0 else 'text-income' }}">{{ delta_words(digest.expense_delta_k) }}{% if digest.expense_delta_k %} к прошлому окну{% endif %}</span>
       </div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-fg-muted">Баланс</div>
+      <div class="text-xs text-fg-muted">Баланс</div>
       <div class="text-fg-strong">{{ fmt_money(digest.balance_k) }}</div>
     </div>
     <div>
-      <div class="text-xs uppercase tracking-wide text-fg-muted">Средний/день</div>
+      <div class="text-xs text-fg-muted">Средний/день</div>
       <div class="text-fg">{{ fmt_money(digest.avg_per_day_k) }}</div>
     </div>
   </div>
@@ -120,7 +120,7 @@
 {% if recurring.subscriptions %}
 <div class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-    <h2 class="text-sm font-semibold text-fg uppercase tracking-wide">Подписки / рекурринги</h2>
+    <h2 class="text-[15px] font-semibold text-fg">Подписки / рекурринги</h2>
     <span class="text-xs text-fg-muted">по всей истории · активных {{ recurring.active_count }}, {{ fmt_money(-recurring.monthly_total_k) }} / мес</span>
   </div>
   <div class="space-y-2">
@@ -149,18 +149,18 @@
 
 <div class="grid md:grid-cols-2 gap-6 mb-8">
   <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
-    <h2 class="text-sm font-semibold text-fg mb-3 uppercase tracking-wide">Расходы по дням</h2>
+    <h2 class="text-[15px] font-semibold text-fg mb-3">Расходы по дням</h2>
     <div class="relative h-56"><canvas id="dailyChart" class="w-full h-full"></canvas></div>
   </div>
   <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
-    <h2 class="text-sm font-semibold text-fg mb-3 uppercase tracking-wide">По категориям</h2>
+    <h2 class="text-[15px] font-semibold text-fg mb-3">По категориям</h2>
     <div class="relative h-56"><canvas id="catsChart" class="w-full h-full"></canvas></div>
   </div>
 </div>
 
 {% if report.categories %}
 <div class="bg-surface rounded-xl border border-line overflow-hidden">
-  <h2 class="px-5 py-3 text-sm font-semibold text-fg uppercase tracking-wide border-b border-line">Итоги по категориям</h2>
+  <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">Итоги по категориям</h2>
   <div class="table-scroll overflow-x-auto" role="region" aria-label="Итоги по категориям" tabindex="0">
   <table class="w-full text-sm">
     <thead>
@@ -190,7 +190,7 @@
 {% endif %}
 {% else %}
 <div id="onboarding" class="bg-surface rounded-xl border border-line mb-8 p-5">
-  <h2 class="text-sm font-semibold text-fg uppercase tracking-wide mb-3">Данных пока нет</h2>
+  <h2 class="text-[15px] font-semibold text-fg mb-3">Данных пока нет</h2>
   <p class="text-sm text-fg mb-3">Начните с импорта выписки — дальше приложение само разложит операции по категориям,
     найдёт подписки и посчитает дайджест недели.</p>
   <ol class="space-y-2 text-sm text-fg list-decimal list-inside">

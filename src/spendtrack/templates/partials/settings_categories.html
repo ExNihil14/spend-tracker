@@ -22,21 +22,21 @@
         <td class="px-5 py-3 text-right text-fg-muted">{{ usage.get(c.name, 0) }}</td>
         <td class="px-5 py-3">
           <form hx-post="/settings/categories/color" hx-target="#settings-categories" hx-swap="outerHTML"
-                class="flex items-center gap-2">
+                hx-trigger="change" class="flex items-center gap-2">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
             <input type="color" name="color" value="{{ c.color }}" aria-label="Цвет категории {{ catname(c.name) }}"
                    class="h-8 w-10 bg-surface-2 border border-line-strong rounded cursor-pointer">
-            <button type="submit" class="text-xs text-accent hover:text-accent-hover px-1">OK</button>
           </form>
         </td>
         <td class="px-5 py-3 text-right">
           <form hx-post="/settings/categories/delete" hx-target="#settings-categories" hx-swap="outerHTML">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
-            <button type="submit" {% if usage.get(c.name, 0) %}disabled title="используется — удаление запрещено"{% endif %}
+            {% set n = usage.get(c.name, 0) %}
+            <button type="submit" {% if n %}disabled title="Используется ({{ n }}) — сначала перенесите операции в другую категорию"{% endif %}
                     class="text-xs rounded-lg px-3 py-1.5 transition-colors
-                           {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if usage.get(c.name, 0)
+                           {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if n
                               else 'border border-line text-fg-muted hover:text-danger hover:border-danger' }}">Удалить</button>
           </form>
         </td>
@@ -57,7 +57,7 @@
 <form hx-post="/settings/categories/rename/preview" hx-target="#rename-confirm" hx-swap="innerHTML"
       class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-line">
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
-  <span class="text-xs uppercase tracking-wide text-fg-muted">Переименовать:</span>
+  <span class="text-xs text-fg-muted">Переименовать:</span>
   <select name="name" aria-label="Категория для переименования"
           class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
     {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}

@@ -46,15 +46,19 @@
 </head>
 <body hx-boost="true" class="bg-canvas text-fg min-h-screen">
 <div class="max-w-5xl mx-auto px-4 py-6">
+  {# Nav (M-7): пункты приглушены, активный — text-strong с подчёркиванием 2px accent. #}
+  {% set path = request.url.path %}
+  {% set nav_on = 'font-medium text-fg-strong underline decoration-accent decoration-2 underline-offset-4' %}
+  {% set nav_off = 'font-medium text-fg-muted hover:text-fg' %}
   <nav class="flex flex-wrap items-center gap-5 gap-y-2 mb-8 pb-4 border-b border-line">
     <strong class="text-lg text-fg-strong tracking-tight">Spendtrack</strong>
-    <a href="/" class="font-semibold text-accent hover:text-accent-hover transition-colors">Расходы</a>
-    <a href="/dashboard" class="font-semibold text-accent hover:text-accent-hover transition-colors">Дашборд</a>
-    <a href="/settings" class="font-semibold text-accent hover:text-accent-hover transition-colors">Настройки</a>
-    <a href="/approve" class="font-semibold text-accent hover:text-accent-hover transition-colors">Подтвердить
+    <a href="/" class="{{ nav_on if path == '/' else nav_off }} transition-colors">Расходы</a>
+    <a href="/dashboard" class="{{ nav_on if path.startswith('/dashboard') else nav_off }} transition-colors">Дашборд</a>
+    <a href="/settings" class="{{ nav_on if path.startswith('/settings') else nav_off }} transition-colors">Настройки</a>
+    <a href="/approve" class="{{ nav_on if path.startswith('/approve') else nav_off }} transition-colors">Подтвердить
       <span id="pending-count" class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn/20 text-warn">{{ pending | default([]) | length }}</span>
     </a>
-    <a href="/help" class="font-semibold text-accent hover:text-accent-hover transition-colors">Помощь</a>
+    <a href="/help" class="{{ nav_on if path.startswith('/help') else nav_off }} transition-colors">Помощь</a>
   </nav>
   {% block content %}{% endblock %}
 </div>

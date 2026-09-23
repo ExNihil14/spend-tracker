@@ -527,3 +527,29 @@ def test_tester_endpoint_marks_invalid_rule(tax_env):
     client = TestClient(app)
     r = client.post("/settings/test", data={"description": "ЛЕНТА 24"})
     assert "пропускается" in r.text and "other" in r.text
+
+
+# ── M-7: автосохранение цвета, тост, title у «Удалить» ───────────────────────
+
+def test_color_autosave_form_and_toast(tax_env):
+    """M-7: цвет сохраняется по change (кнопки OK нет), ответ несёт OOB-тост «Сохранено»."""
+    client = TestClient(app)
+    html = client.get("/settings").text
+    assert 'hx-trigger="change"' in html
+    assert ">OK<" not in html
+
+    r = client.post("/settings/categories/color",
+                    data={"name": "other", "color": "#123456", "file_hash": repo.file_hash()})
+    assert r.status_code == 200
+    assert "Сохранено" in r.text and 'hx-swap-oob="outerHTML"' in r.text
+    assert {c["name"]: c["color"] for c in repo.load_raw()["categories"]}["other"] == "#123456"
+
+
+def test_delete_disabled_title_shows_usage(tax_env):
+    """M-7: у занятой категории title объясняет, сколько операций мешает удалению."""
+    s = Store(db_path=tax_env.parent / "t.db")
+    s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                      category="other", category_source="manual")
+    s.close()
+    html = TestClient(app).get("/settings").text
+    assert re.search(r'title="Используется \(\d+\) — сначала перенесите', html)
