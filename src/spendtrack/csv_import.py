@@ -193,9 +193,13 @@ def import_csv(
     bank: str = "auto",
     taxonomy: Taxonomy | None = None,
     classify=None,
+    filename: str = "unknown.csv",
 ) -> dict:
     """Импорт CSV. classify — инжектируемый (tx, store, taxonomy) -> dict с категоризацией.
-    По умолчанию — боевой categorize_transaction (может ходить в LLM)."""
+    По умолчанию — боевой categorize_transaction с commit=False (партия атомарна: ни строки,
+    ни псевдонимы счетов, ни кэш мерчанта не коммитятся посередине; rollback при сбое — здесь же).
+    Кастомный classify, если пишет в БД, обязан сам использовать commit=False.
+    `filename` — имя источника для партии (CLI передаёт реальное имя файла)."""
     raw_bytes = raw if isinstance(raw, bytes) else raw.encode("utf-8")
     if len(raw_bytes) > MAX_CSV_BYTES:  # лимит в БАЙТАХ (кириллица = 2 байта/символ), проверка первой
         raise ImportLimitError(
@@ -205,7 +209,8 @@ def import_csv(
         from spendtrack.taxonomy import load_taxonomy
         taxonomy = load_taxonomy()
     if classify is None:
-        classify = lambda tx, st, tax: categorize_transaction(tx, tax, st)
+        # commit=False: кэш мерчанта пишется в транзакции партии (атомарность импорта)
+        classify = lambda tx, st, tax: categorize_transaction(tx, tax, st, commit=False)
     if isinstance(raw, bytes):
         try:
             raw = raw.decode("utf-8-sig")
@@ -249,7 +254,7 @@ def import_csv(
                                       + ", ".join(missing) + ". " + FORMAT_HINT))
 
     sha = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-    batch_id = store.add_batch("unknown.csv", sha, len(reader_all))
+    batch_id = store.add_batch(filename, sha, len(reader_all))
 
     added = 0
     seq = 0
@@ -269,7 +274,7 @@ def import_csv(
                 suspicious[mark] += 1
             tx["statement_order"] = seq
             seq += 1
-            account_anon = store.pseudonymize(tx.pop("account", None))
+            account_anon = store.pseudonymize(tx.pop("account", None), commit=False)
             tx["account_anon"] = account_anon
             # export_rowid = индекс ПОВТОРЯЕМОСТИ (0,1,2...) одинаковых операций, а не позиция строки:
             # реэкспорт со сдвигом строк не создаёт дублей, а легитимные одинаковые покупки в один

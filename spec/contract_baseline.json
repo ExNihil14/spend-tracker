@@ -13,11 +13,11 @@
    "returns": "str | None"
   },
   "spendtrack.categorize:categorize_transaction": {
-   "args": "tx: dict, taxonomy: Taxonomy, store: Store",
+   "args": "tx: dict, taxonomy: Taxonomy, store: Store, commit: bool=True",
    "returns": "dict"
   },
   "spendtrack.categorize:classify_with_injectable": {
-   "args": "tx: dict, taxonomy: Taxonomy, store: Store, llm_getter, acceptance: float",
+   "args": "tx: dict, taxonomy: Taxonomy, store: Store, llm_getter, acceptance: float, commit: bool=True",
    "returns": "dict"
   },
   "spendtrack.checksum:sha256_file": {
@@ -157,7 +157,7 @@
    "returns": "Iterator[dict]"
   },
   "spendtrack.csv_import:import_csv": {
-   "args": "raw: str | bytes, store: Store, bank: str='auto', taxonomy: Taxonomy | None=None, classify=None",
+   "args": "raw: str | bytes, store: Store, bank: str='auto', taxonomy: Taxonomy | None=None, classify=None, filename: str='unknown.csv'",
    "returns": "dict"
   },
   "spendtrack.csv_import:missing_columns": {
@@ -565,7 +565,7 @@
    "returns": "str | None"
   },
   "spendtrack.store:Store.merchant_cache_set": {
-   "args": "self, merchant: str, category: str",
+   "args": "self, merchant: str, category: str, commit: bool=True",
    "returns": "None"
   },
   "spendtrack.store:Store.pending_count": {
@@ -573,7 +573,7 @@
    "returns": "int"
   },
   "spendtrack.store:Store.pseudonymize": {
-   "args": "self, original: str | None",
+   "args": "self, original: str | None, commit: bool=True",
    "returns": "str | None"
   },
   "spendtrack.store:Store.queued_for_review": {

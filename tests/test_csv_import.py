@@ -376,6 +376,27 @@ def test_import_commits_batch_transaction(store):
     assert store.conn.in_transaction is False
 
 
+def test_import_rolls_back_rows_and_pseudonyms_on_midbatch_failure(store):
+    """Регресс (ресёрч слоёв 23.09): pseudonymize не коммитит внутри партии — сбой в середине
+    не оставляет ни строк, ни псевдонимов счетов (раньше первый pseudonymize коммитил уже
+    добавленные строки, и rollback их не откатывал)."""
+    calls = {"n": 0}
+
+    def failing(tx, st, taxonomy):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("сбой классификатора")
+        return {"category": "other", "source": "rule", "confidence": 1.0,
+                "merchant": None, "review_status": "approved", "category_llm": None}
+
+    with pytest.raises(RuntimeError):
+        import_csv(SBER_CSV, store, classify=failing)
+
+    assert store.conn.execute("SELECT COUNT(*) c FROM transactions").fetchone()["c"] == 0
+    assert store.conn.execute("SELECT COUNT(*) c FROM account_pseudonyms").fetchone()["c"] == 0
+    assert store.conn.in_transaction is False
+
+
 def test_import_rolls_back_on_classify_error(store):
     """Сбой в середине партии: половина строк не оседает в БД, транзакция закрыта."""
     calls = {"n": 0}

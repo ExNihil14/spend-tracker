@@ -157,6 +157,15 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   Тесты: `tests/test_csv_import.py`, `tests/test_synth_import.py` (переименование и удаление колонки на синтетике).
 - Битый JSON-конверт: не-JSON/не-UTF-8 тело → 400, неполные поля → 422 (`_json_payload` в `api.py`;
   live-смоук 21.09 вскрыл 500 на кривой кодировке) — и `/api/import`, и `/api/transactions`.
+- **Атомарность партии (фикс 23.09, ресёрч слабых слоёв):** `pseudonymize` / `merchant_cache_set` /
+  LLM-кэш мерчанта больше не коммитят внутри батча (`commit=False`; сквозной параметр в
+  `categorize_transaction`/`classify_with_injectable`), rollback при сбое в середине откатывает
+  и строки, и псевдонимы счетов; кастомный `classify` обязан сам использовать `commit=False`.
+  Регресс — `tests/test_csv_import.py`, `test_store_helpers.py`, `test_categorize.py`.
+- **CLI-импорт:** файл читается как `bytes` (работает cp1251-фолбэк `import_csv`, паритет с API/UI)
+  и передаёт реальное имя файла в партию (`import_csv(..., filename=…)` → `import_batches.filename`).
+- **Форма `POST /api/transactions` без обязательного поля:** 422 (общий хелпер `_validation_422`),
+  а не 500 — паритет с JSON-веткой.
 
 ## Anonymizer выписок (P1 #3)
 - `python scripts/anonymize.py выписка.csv [-o out.csv] [--anon-column "ФИО"]`: описания/мерчанты →

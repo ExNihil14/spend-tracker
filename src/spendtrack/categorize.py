@@ -62,12 +62,14 @@ def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
 
 
 def classify_with_injectable(
-    tx: dict, taxonomy: Taxonomy, store: Store, llm_getter, acceptance: float
+    tx: dict, taxonomy: Taxonomy, store: Store, llm_getter, acceptance: float,
+    commit: bool = True,
 ) -> dict:
     """Тестируемая версия: llm_getter — функция (tx, store, taxonomy) -> dict.
 
     Возвращает dict с category/source/confidence/merchant/category_llm/review_status,
-    где источник rule|llm|llm_pending_review.
+    где источник rule|llm|llm_pending_review. `commit=False` — внутри батча импорта
+    (запись в кэш мерчанта коммитится вместе с партией, а не посередине).
     """
     rule_result = categorize_rules_only(tx, taxonomy, store)
     if rule_result:
@@ -91,7 +93,7 @@ def classify_with_injectable(
         llm_result["source"] = "llm"
         llm_result["review_status"] = "approved"
         if llm_result.get("merchant"):
-            store.merchant_cache_set(llm_result["merchant"], llm_result["category"])
+            store.merchant_cache_set(llm_result["merchant"], llm_result["category"], commit=commit)
         return llm_result
 
     llm_result["source"] = "llm_pending_review"
@@ -99,11 +101,15 @@ def classify_with_injectable(
     return llm_result
 
 
-def categorize_transaction(tx: dict, taxonomy: Taxonomy, store: Store) -> dict:
-    """Полный пайплайн (боевой): rule → merchant-cache → LLM → validation → queue."""
+def categorize_transaction(tx: dict, taxonomy: Taxonomy, store: Store, commit: bool = True) -> dict:
+    """Полный пайплайн (боевой): rule → merchant-cache → LLM → validation → queue.
+
+    `commit=False` — батч импорта: кэш мерчанта коммитится вместе с партией.
+    """
     settings = load_settings()
     return classify_with_injectable(
         tx, taxonomy, store,
         lambda t, s, tax: categorize_llm(t, s, tax),
         settings.acceptance.auto_accept_confidence,
+        commit=commit,
     )

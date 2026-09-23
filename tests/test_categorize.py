@@ -81,3 +81,16 @@ def test_clamp_confidence_edge_cases():
     assert _clamp_confidence("0.5") == 0.5
     assert _clamp_confidence(float("nan")) == 0.0
     assert _clamp_confidence(object()) == 0.0
+
+
+def test_classify_commit_false_defers_merchant_cache(store, taxonomy):
+    """commit=False (батч импорта): кэш мерчанта не коммитится посередине партии (ресёрч слоёв 23.09)."""
+    def llm(tx, s, tax):
+        return {"category": "restaurants", "confidence": 0.99, "merchant": "ДОДО",
+                "reason": "stub", "source": "llm"}
+
+    result = classify_with_injectable(_tx(), taxonomy, store, llm, 0.9, commit=False)
+    assert result["source"] == "llm"
+    assert store.conn.in_transaction is True  # запись кэша ждёт коммита партии
+    store.conn.rollback()
+    assert store.merchant_cache_get("ДОДО") is None

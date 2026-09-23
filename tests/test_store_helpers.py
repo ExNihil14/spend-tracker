@@ -31,6 +31,14 @@ def test_update_merchant_and_needs_review_filter(store):
     assert [t["description"] for t in pending] == ["КАФЕ"]
 
 
+def test_merchant_cache_set_commit_false_is_batch_atomic(store):
+    """commit=False: запись кэша откатывается вместе с партией (ресёрч слоёв 23.09)."""
+    store.merchant_cache_set("ЛЕНТА", "groceries", commit=False)
+    assert store.conn.in_transaction is True
+    store.conn.rollback()
+    assert store.merchant_cache_get("ЛЕНТА") is None
+
+
 def test_add_transaction_commit_false_defers(store):
     store.add_transaction("2026-09-01", "ЛЕНТА", parse_amount("-100"), "groceries", "manual",
                           commit=False)

@@ -60,10 +60,11 @@ def cmd_add(args) -> int:
 
 def cmd_import(args) -> int:
     store = make_store()
-    raw = Path(args.file).read_text(encoding="utf-8-sig", errors="replace")
+    # bytes, не read_text: import_csv сам пробует utf-8-sig → cp1251 (реальные RU-выписки бывают cp1251)
+    raw = Path(args.file).read_bytes()
     from spendtrack.csv_import import ImportLimitError, import_csv, summarize
     try:
-        result = import_csv(raw, store, bank=args.bank)
+        result = import_csv(raw, store, bank=args.bank, filename=Path(args.file).name)
     except ImportLimitError as e:  # лимиты импорта — понятный код 1
         print(f"ошибка импорта: {e}", file=sys.stderr)
         return 1

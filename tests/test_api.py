@@ -215,6 +215,12 @@ def test_import_hx_report_shows_skipped_and_suspicious(client):
     assert "банк=tinkoff" in r.text
 
 
+def test_form_missing_required_field_returns_422(client):
+    """Форма без обязательного поля → 422 (как JSON-ветка), а не 500 (ресёрч слоёв 23.09)."""
+    r = client.post("/api/transactions", data={"description": "БЕЗ СУММЫ"})
+    assert r.status_code == 422
+
+
 def test_import_hx_empty_and_generic_error(client, monkeypatch):
     """HX-ветки импорта: пустой файл и generic-исключение (аудит 23.09, P1)."""
     r = client.post("/api/import", data={"bank": "auto", "csv": ""},

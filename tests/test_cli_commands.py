@@ -44,6 +44,26 @@ def test_cli_count_prints_source_json(cli_db, capsys):
     assert json.loads(capsys.readouterr().out) == {"rule": 2}
 
 
+def test_cli_import_cp1251_file_and_real_filename(tmp_path, monkeypatch, capsys):
+    """CLI-импорт: cp1251-файл читается (bytes-путь), имя партии — из файла (ресёрч слоёв 23.09)."""
+    db = tmp_path / "imp.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    csv_text = ("Номер документа;Дата операции;Номер карты;Статус;Сумма операции;"
+                "Валюта операции;Категория;Описание\n"
+                "1;01.09.2026 10:00;1234;Выполнено;-100,00;RUB;X;ЛЕНТА\n")
+    path = tmp_path / "выписка_сентябрь.csv"
+    path.write_bytes(csv_text.encode("cp1251"))
+
+    assert cli.main(["import", str(path)]) == 0
+    assert "добавлено" in capsys.readouterr().out
+
+    s = Store(db_path=db)
+    assert s.conn.execute("SELECT COUNT(*) c FROM transactions").fetchone()["c"] == 1
+    filename = s.conn.execute("SELECT filename FROM import_batches").fetchone()["filename"]
+    assert filename == "выписка_сентябрь.csv"
+    s.close()
+
+
 def test_cli_confirm_updates_category_and_reports_not_found(cli_db, capsys):
     s = Store(db_path=cli_db)
     tx_id = s.conn.execute(

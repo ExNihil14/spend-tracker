@@ -324,7 +324,8 @@ class Store:
         self.conn.close()
 
     # ---- account pseudonymization ----
-    def pseudonymize(self, original: str | None) -> str | None:
+    def pseudonymize(self, original: str | None, commit: bool = True) -> str | None:
+        """Псевдоним счёта. `commit=False` — для батчей импорта (коммит делает партия, атомарность)."""
         if not original or not original.strip():
             return None
         original = original.strip()
@@ -333,7 +334,8 @@ class Store:
             return row["pseudonym"]
         p = "acc_" + uuid.uuid4().hex[:8]
         self.conn.execute("INSERT INTO account_pseudonyms(original, pseudonym) VALUES(?,?)", (original, p))
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return p
 
     # ---- transaction CRUD ----
@@ -575,14 +577,16 @@ class Store:
         row = self.conn.execute("SELECT category FROM merchant_cache WHERE key=?", (key,)).fetchone()
         return row["category"] if row else None
 
-    def merchant_cache_set(self, merchant: str, category: str) -> None:
+    def merchant_cache_set(self, merchant: str, category: str, commit: bool = True) -> None:
+        """Кэш мерчанта. `commit=False` — внутри батча импорта (коммит делает партия)."""
         key = hashlib.sha1(merchant.upper().encode()).hexdigest()
         self.conn.execute(
             "INSERT INTO merchant_cache(key, merchant, category, updated) VALUES(?,?,?,?)"
             " ON CONFLICT(key) DO UPDATE SET category=excluded.category, updated=excluded.updated",
             (key, merchant, category, _now_iso()),
         )
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
 
     def seed_merchant_cache(self, tx_id: int) -> None:
         """Запоминает категорию по мерчанту после правки юзера (few-shot loop)."""

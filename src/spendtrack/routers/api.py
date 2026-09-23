@@ -60,6 +60,16 @@ class ImportIn(BaseModel):
     csv: str
 
 
+def _validation_422(exc: ValidationError) -> HTTPException:
+    """422 с безопасными ctx (объект исключения кастомного валидатора не сериализуется → 500)."""
+    errors = [
+        {**err, "ctx": {k: str(v) for k, v in err["ctx"].items()}}
+        if isinstance(err.get("ctx"), dict) else err
+        for err in exc.errors()
+    ]
+    return HTTPException(422, detail=errors)
+
+
 async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
     """Разбор JSON-тела: битая кодировка → 400, неверные поля → 422 (а не 500 на ровном месте)."""
     try:
@@ -69,14 +79,7 @@ async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
     try:
         return model(**data)
     except ValidationError as e:
-        # ctx может содержать объект исключения кастомного валидатора — приводим к строке,
-        # иначе JSONResponse падает на сериализации (500 вместо 422).
-        errors = [
-            {**err, "ctx": {k: str(v) for k, v in err["ctx"].items()}}
-            if isinstance(err.get("ctx"), dict) else err
-            for err in e.errors()
-        ]
-        raise HTTPException(422, detail=errors) from e
+        raise _validation_422(e) from e
 
 
 @router.post("/transactions")
@@ -87,9 +90,13 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
         tx = await _json_payload(request, TxIn)
     else:
         form = await request.form()
-        tx = TxIn(**{k: str(v) for k, v in
-                     ((k, form.get(k)) for k in ("date", "description", "amount", "account", "currency"))
-                     if v is not None})
+        payload = {k: str(v) for k, v in
+                   ((k, form.get(k)) for k in ("date", "description", "amount", "account", "currency"))
+                   if v is not None}
+        try:
+            tx = TxIn(**payload)
+        except ValidationError as e:  # форма без обязательного поля → 422 (как JSON), а не 500
+            raise _validation_422(e) from e
     amount = parse_amount(tx.amount)
     account_anon = store.pseudonymize(tx.account)
     category = categorize_transaction(
