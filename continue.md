@@ -17,11 +17,15 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (24.09, актуализация публичных текстов):** README (браузеры/e2e-формулировка, `ruff check .`
-> как в CI, EN-названия банков, NSSM-права, FAQ «Обновление/удаление», «Сайт»), лендинг-FAQ (+«импорт не
-> распознал выписку» + `anonymize`), **перки-канон выровнен** (README/лендинг/`supporter.yml`: «имя в README
-> и CHANGELOG релиза», «ранний доступ» убран), бизнес-план обновлён (статус 561+51, K-роадмап, Сбер-факты,
-> комиссия 20–22%, МНС-пункт). Контур 561+51 + test_landing 11/11 — зелёные; ждёт коммита.
+> **АКТУАЛЬНО (24.09, K3 закрыт: публичные тексты + CHANGELOG):** README (браузеры/e2e-формулировка,
+> `ruff check .` как в CI, EN/названия банков, NSSM-права, FAQ «Обновление/удаление», Docker-предупреждение,
+> «Сайт»); лендинг (FAQ «импорт не распознал выписку» + `anonymize`; P1-6 — телеметрия vs `doctor --share`,
+> free-opt-in в карточке LLM; минуты — drag&drop-шаг, caption Сбера, «≥ 0.9», Netflix → нейтрально,
+> финальный CTA + macOS/Linux); **CHANGELOG `[0.2.0-beta]`** (Added/Changed/Fixed/Security + пометка
+> историчности 0.1.0); **SECURITY** — приватный канал (PVR включён фактом), «localhost ≠ один пользователь»,
+> BitLocker-заметка убрана; **PRIVACY** — free-цепочка generic; перки-канон выровнен (README/лендинг/
+> `supporter.yml`). Первая часть закоммичена (`16f17a2`), K3-часть — в дереве, ждёт коммита.
+> Контур: 561 unit + test_landing 11/11 + ruff + contract + build_css — зелёные.
 > **АКТУАЛЬНО (24.09, dev-процесс: AI-native SDLC + контекст-аудит):** разобраны playbook Anthropic
 > (`RESEARCH_AI_NATIVE_SDLC_PLAYBOOK_2026-09-24.md`) и RULE-EXTRACTION-план; внедрён
 > `D:\dev\bootstrap\scripts\agent_context_audit.py` (бюджет/пороги/битые указатели/дубли); экспертиза

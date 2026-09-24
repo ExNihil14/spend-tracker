@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- Boosty-ссылка выключена до запуска (заглушку убрали — риск захвата ника); включить реальный URL в кнопке доната. -->
 <html lang="ru">
 <head>
 <meta charset="utf-8">
@@ -67,7 +66,7 @@
       <div class="screens">
         <figure class="shot">
           <img src="assets/shot-import.png" width="990" height="314" loading="lazy" alt="Импорт выписки: выбор банка, файл или вставка CSV">
-          <figcaption><strong>1. Импорт.</strong> CSV из Т-Банка, ЮMoney или Сбера — формат определяется сам, дублей не будет.</figcaption>
+          <figcaption><strong>1. Импорт.</strong> CSV из Т-Банка, ЮMoney или Сбера (там, где CSV доступен) — формат определяется сам, дублей не будет.</figcaption>
         </figure>
         <figure class="shot">
           <img src="assets/shot-approve.png" width="990" height="452" loading="lazy" alt="Очередь подтверждения: предложение ИИ, уровень уверенности, клавиши j/k/Enter/s">
@@ -91,11 +90,11 @@
         </div>
         <div class="card">
           <h3>Сервер — только localhost</h3>
-          <p>По умолчанию слушает 127.0.0.1. Телеметрии, аналитики и «анонимной статистики» нет вообще.</p>
+          <p>По умолчанию слушает 127.0.0.1. Телеметрии и аналитики нет: приложение ничего не отправляет само. Анонимную сводку (<code>doctor --share</code>) можно отправить только вручную — по вашему явному действию.</p>
         </div>
         <div class="card">
           <h3>Что уходит к LLM</h3>
-          <p>Описание операции (≤300 символов), сумма, дата и псевдоним счёта (без номера карты), плюс до 8 примеров из ваших правок — и только если вы сами включили свой ключ или локальный Ollama.</p>
+          <p>Описание операции (≤300 символов), сумма, дата и псевдоним счёта (без номера карты), плюс до 8 примеров из ваших правок — и только если вы сами включили свой ключ или локальный Ollama. Бесплатные каналы (OpenRouter :free) — отдельный осознанный opt-in.</p>
         </div>
       </div>
       <p class="note">Честно: файл базы не шифруется — это ваш диск и ваша ответственность. Подробности: <a href="https://github.com/ExNihil14/spend-tracker/blob/main/PRIVACY.md" rel="noopener">PRIVACY.md</a> и <a href="https://github.com/ExNihil14/spend-tracker/blob/main/SECURITY.md" rel="noopener">SECURITY.md</a>.</p>
@@ -122,7 +121,7 @@
         </div>
         <div class="step">
           <h3>Загрузите выписку</h3>
-          <p>Вставьте CSV в веб-интерфейс или загрузите файл командой в терминале:</p>
+          <p>Перетащите файл выписки в веб-интерфейс (или вставьте CSV), либо импортируйте файл командой в терминале:</p>
           <div class="cmd">
             <pre><code>spendtrack import statement.csv --bank auto</code></pre>
             <button class="copy" type="button">Скопировать</button>
@@ -157,7 +156,7 @@
         </div>
         <div class="card">
           <h3>Подписки и рекурринги</h3>
-          <p>Регулярные списания находятся автоматически: цена, история, пропуски, скачок цены (например, Netflix подорожал — увидите флаг).</p>
+          <p>Регулярные списания находятся автоматически: цена, история, пропуски, скачок цены (например, подписка подорожала — увидите флаг).</p>
         </div>
         <div class="card">
           <h3>Дайджест недели</h3>
@@ -180,7 +179,7 @@
       <div>
         <h2>LLM предлагает, вы решаете</h2>
         <ul class="proof-list">
-          <li><strong>Порог уверенности:</strong> выше 0.9 — категория принимается, ниже — уходит в очередь с предложением модели.</li>
+          <li><strong>Порог уверенности:</strong> ≥ 0.9 — категория принимается, ниже — уходит в очередь с предложением модели.</li>
           <li><strong>Правка учит:</strong> ваше решение запоминается для мерчанта и попадает в примеры — LLM будет точнее в следующий раз.</li>
           <li><strong>Подсказки правил:</strong> из ваших правок система предлагает keyword-правила, которые можно применить одним нажатием.</li>
           <li><strong>Работает офлайн:</strong> без LLM очередь просто наполняется — приложение не делает ни одного сетевого вызова.</li>
@@ -287,8 +286,14 @@
     <div class="wrap">
       <h2>Поставьте за 10 минут — данные останутся у вас</h2>
       <p class="section-lead">Одна команда, никаких аккаунтов и ключей: приложение поднимется на <code>127.0.0.1</code>, выписки и база останутся на вашем диске.</p>
+      <p>Windows (PowerShell):</p>
       <div class="cmd">
         <pre><code>powershell -c "irm https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.ps1 | iex"</code></pre>
+        <button class="copy" type="button">Скопировать</button>
+      </div>
+      <p>macOS / Linux / WSL:</p>
+      <div class="cmd">
+        <pre><code>curl -LsSf https://raw.githubusercontent.com/ExNihil14/spend-tracker/main/install.sh | sh</code></pre>
         <button class="copy" type="button">Скопировать</button>
       </div>
       <div class="cta-row">
