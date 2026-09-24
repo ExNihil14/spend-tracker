@@ -76,4 +76,10 @@
     idx = rows().indexOf(tr);
     mark(tr);
   });
+
+  // Мышь вне очереди — выходим из клавиатурного режима: иначе следующий htmx-своп
+  // вернёт фокус на строку и помешает работе с select/кнопками (ревью 24.09, P2).
+  document.addEventListener('pointerdown', function (e) {
+    if (!tbody.contains(e.target)) keyboard = false;
+  });
 })();

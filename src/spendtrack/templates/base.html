@@ -52,13 +52,13 @@
   {% set nav_off = 'font-medium text-fg-muted hover:text-fg' %}
   <nav class="flex flex-wrap items-center gap-5 gap-y-2 mb-8 pb-4 border-b border-line">
     <strong class="text-lg text-fg-strong tracking-tight">Spendtrack</strong>
-    <a href="/" class="{{ nav_on if path == '/' else nav_off }} transition-colors">Расходы</a>
-    <a href="/dashboard" class="{{ nav_on if path.startswith('/dashboard') else nav_off }} transition-colors">Дашборд</a>
-    <a href="/settings" class="{{ nav_on if path.startswith('/settings') else nav_off }} transition-colors">Настройки</a>
-    <a href="/approve" class="{{ nav_on if path.startswith('/approve') else nav_off }} transition-colors">Подтвердить
+    <a href="/" class="{{ nav_on if path == '/' else nav_off }} transition-colors"{% if path == '/' %} aria-current="page"{% endif %}>Расходы</a>
+    <a href="/dashboard" class="{{ nav_on if path.startswith('/dashboard') else nav_off }} transition-colors"{% if path.startswith('/dashboard') %} aria-current="page"{% endif %}>Дашборд</a>
+    <a href="/settings" class="{{ nav_on if path.startswith('/settings') else nav_off }} transition-colors"{% if path.startswith('/settings') %} aria-current="page"{% endif %}>Настройки</a>
+    <a href="/approve" class="{{ nav_on if path.startswith('/approve') else nav_off }} transition-colors"{% if path.startswith('/approve') %} aria-current="page"{% endif %}>Подтвердить
       <span id="pending-count" class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn/20 text-warn">{{ pending | default([]) | length }}</span>
     </a>
-    <a href="/help" class="{{ nav_on if path.startswith('/help') else nav_off }} transition-colors">Помощь</a>
+    <a href="/help" class="{{ nav_on if path.startswith('/help') else nav_off }} transition-colors"{% if path.startswith('/help') %} aria-current="page"{% endif %}>Помощь</a>
   </nav>
   {% block content %}{% endblock %}
 </div>

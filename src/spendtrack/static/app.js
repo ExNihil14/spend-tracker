@@ -56,16 +56,29 @@
   window.addEventListener('hashchange', openFromHash);
 
   // Drop-zone импорта: файл можно перетащить в зону.
+  // Ревью 24.09 (P2): дроп мимо зоны не должен открывать файл в браузере, а подсветка —
+  // мигать при проходе над дочерними элементами (счётчик входов).
+  ['dragover', 'drop'].forEach(function (t) {
+    window.addEventListener(t, function (e) { e.preventDefault(); });
+  });
   var drop = document.getElementById('import-drop');
   if (drop) {
     var fileInput = drop.querySelector('input[type=file]');
-    ['dragenter', 'dragover'].forEach(function (t) {
-      drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('border-accent'); });
+    var depth = 0;
+    drop.addEventListener('dragenter', function (e) {
+      e.preventDefault();
+      depth += 1;
+      drop.classList.add('border-accent');
     });
-    ['dragleave', 'drop'].forEach(function (t) {
-      drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('border-accent'); });
+    drop.addEventListener('dragover', function (e) { e.preventDefault(); });
+    drop.addEventListener('dragleave', function () {
+      depth -= 1;
+      if (depth <= 0) { depth = 0; drop.classList.remove('border-accent'); }
     });
     drop.addEventListener('drop', function (e) {
+      e.preventDefault();
+      depth = 0;
+      drop.classList.remove('border-accent');
       if (fileInput && e.dataTransfer && e.dataTransfer.files.length) fileInput.files = e.dataTransfer.files;
     });
   }

@@ -153,7 +153,7 @@ def test_dashboard_anomalies_card_first(client, tmp_path):
     assert 'id="anomalies-card"' in html
     assert html.index('id="anomalies-card"') < html.index('id="digest-card"')  # первый блок
     assert "крупная сумма" in html and "возможный дубль" in html
-    assert 'href="/?q=' in html and ">Открыть</a>" in html
+    assert 'href="/?month=' in html and "&q=" in html and ">Открыть</a>" in html
     assert "Аномалии (" not in html  # старая подсекция дайджеста убрана
     assert "к прошлому окну" in html and "Δ" not in html  # дельты словами, знак «Δ» убран
 
@@ -177,8 +177,11 @@ def test_dashboard_budget_tempo_marker_and_risk_order(client, tmp_path):
 
     html = client.get(f"/dashboard?month={month}").text
     assert html.index("Продукты") < html.index("Топливо")  # перерасход выше (по риску, не по алфавиту)
-    assert f"left: {elapsed}%" in html
-    assert f"прошло {elapsed}% месяца" in html
+    if 0 < elapsed < 100:  # маркер/легенда — только для текущего месяца (ревью 24.09)
+        assert f"left: {elapsed}%" in html
+        assert f"прошло {elapsed}% месяца" in html
+    else:
+        assert "отметка темпа" not in html
 
 
 def test_index_forms_collapsed_and_totals_line(client):
@@ -218,6 +221,10 @@ def test_nav_active_state(client):
     assert "decoration-accent" in nav_classes(client.get("/approve").text, "/approve")
     assert "decoration-accent" in nav_classes(client.get("/settings").text, "/settings")
 
+    nav = dash.split("</nav>")[0]
+    assert nav.count('aria-current="page"') == 1  # a11y: активный пункт (ревью 24.09)
+    assert 'aria-current="page"' in nav.split('href="/dashboard"')[1].split(">")[0]
+
 
 def test_card_headings_sentence_case(client):
     """P1-5: UPPERCASE — только заголовкам колонок; заголовки карточек — sentence case 15px."""
@@ -228,3 +235,17 @@ def test_card_headings_sentence_case(client):
     dash = client.get("/dashboard").text  # без данных таблицы нет — uppercase негде взяться
     assert "uppercase tracking-wide" not in dash
     assert "Бюджеты месяца" in dash or "Данных пока нет" in dash
+
+
+def test_garbage_date_does_not_brick_pages(client):
+    """Аудит 24.09 (P0): нераспознанная дата не пишется в БД, а невалидный month не роняет страницы."""
+    csv_text = ("Номер документа;Дата операции;Номер карты;Статус;Сумма операции;"
+                "Валюта операции;Категория;Описание\n"
+                "1;05/09/2026;1234;Выполнено;-100,00;RUB;Продукты;МУСОР\n")
+    r = client.post("/api/import", json={"bank": "sber", "csv": csv_text}).json()
+    assert r["added"] == 0 and r["reasons"]["date_unrecognized"] == 1
+    assert client.get("/").status_code == 200
+    assert client.get("/dashboard").status_code == 200
+    assert client.get("/?month=abc").status_code == 200
+    assert client.get("/dashboard?month=x").status_code == 200
+    assert client.get("/export.csv?month=x").status_code == 200

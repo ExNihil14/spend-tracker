@@ -122,7 +122,7 @@ def test_budget_set_and_dashboard_bar(page: Page, live_server, db_path):
     page.goto(f"{live_server}/settings")
     form = page.locator('form[hx-post="/settings/budgets"]:has(input[value="groceries"])')
     form.locator('input[name="amount"]').fill("2000")
-    form.locator('input[name="amount"]').blur()  # change → автосохранение без кнопки OK (M-7)
+    form.locator('input[name="amount"]').press("Enter")  # change/submit → автосохранение (M-7 + ревью 24.09)
     _wait_single(page, "#settings-budgets")
 
     page.goto(f"{live_server}/dashboard")

@@ -22,7 +22,7 @@
         <span class="text-xs text-fg-muted block">{{ a.detail }}</span>
       </span>
       <span class="ml-auto whitespace-nowrap text-fg">{{ fmt_money(a.amount_k) }}</span>
-      <a href="/?q={{ a.merchant | urlencode }}" hx-boost="false"
+      <a href="/?month={{ a.date[:7] }}&q={{ a.merchant | urlencode }}" hx-boost="false"
          class="text-xs text-accent hover:text-accent-hover whitespace-nowrap">Открыть</a>
     </div>
     {% endfor %}
@@ -53,7 +53,7 @@
 <div class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
     <h2 class="text-[15px] font-semibold text-fg">Бюджеты месяца</h2>
-    <span class="text-xs text-fg-muted">по риску · риска — прошло {{ month_elapsed }}% месяца</span>
+    <span class="text-xs text-fg-muted">по риску{% if 0 < month_elapsed < 100 %} · отметка темпа: прошло {{ month_elapsed }}% месяца{% endif %}</span>
   </div>
   <div class="space-y-3">
     {% for b in budgets %}
@@ -67,8 +67,10 @@
       <div class="relative h-2 bg-surface-2 rounded-full overflow-hidden">
         <div class="h-full {{ 'bg-danger-bg' if b.over else ('bg-warn' if b.pct >= 80 else 'bg-income') }}"
              style="width: {{ 100 if b.pct > 100 else b.pct | round(0) | int }}%"></div>
+        {% if 0 < month_elapsed < 100 %}
         <div class="absolute inset-y-0 w-0.5 bg-fg-subtle" style="left: {{ month_elapsed }}%"
              title="Прошло {{ month_elapsed }}% месяца" aria-hidden="true"></div>
+        {% endif %}
       </div>
     </div>
     {% endfor %}

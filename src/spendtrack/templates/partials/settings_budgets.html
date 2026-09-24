@@ -9,7 +9,7 @@
     {% for c in budget_categories %}
     {% set b = budgets.get(c.name) %}
     <form hx-post="/settings/budgets" hx-target="#settings-budgets" hx-swap="outerHTML"
-          hx-trigger="change" class="flex flex-wrap items-center gap-3 px-5 py-2.5">
+          hx-trigger="change, submit" class="flex flex-wrap items-center gap-3 px-5 py-2.5">
       <input type="hidden" name="category" value="{{ c.name }}">
       <span class="inline-block w-40 px-2.5 py-0.5 rounded-full text-xs font-medium"
             style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ catname(c.name) }}</span>
