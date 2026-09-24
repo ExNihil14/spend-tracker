@@ -6,9 +6,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <title>Spendtrack — локальный учёт расходов по выпискам</title>
-<meta name="description" content="Локальный трекер расходов: импорт CSV Тинькофф и Яндекса (Сбер — где доступен CSV-экспорт), категории без облака, бюджеты, автодетект подписок и недельный отчёт об аномалиях. Открытый код, бесплатно.">
+<meta name="description" content="Локальный трекер расходов: импорт CSV Т-Банка и ЮMoney (Сбер — где доступен CSV-экспорт), категории без облака, бюджеты, автодетект подписок и недельный отчёт об аномалиях. Открытый код, бесплатно.">
 <meta property="og:title" content="Spendtrack — локальный учёт расходов по выпискам">
-<meta property="og:description" content="Импорт выписок Тинькофф/Яндекс (Сбер — где доступен CSV-экспорт), локальная категоризация, бюджеты и дайджест аномалий. По умолчанию данные не покидают ваш компьютер.">
+<meta property="og:description" content="Импорт выписок Т-Банка/ЮMoney (Сбер — где доступен CSV-экспорт), локальная категоризация, бюджеты и дайджест аномалий. По умолчанию данные не покидают ваш компьютер.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://exnihil14.github.io/spend-tracker/">
 <meta property="og:image" content="https://exnihil14.github.io/spend-tracker/assets/shot-dashboard.png">
@@ -250,6 +250,10 @@
           <p>Т-Банк (Тинькофф), ЮMoney (Яндекс), а также Сбер там, где есть CSV-экспорт (у физлиц Сбер присылает CSV по e-mail не у всех — выписка в приложении идёт PDF). Если формат вашего банка изменился или его нет — пришлите обезличенный образец в issue: адаптеры сообщества — самый быстрый путь к поддержке нового банка.</p>
         </details>
         <details>
+          <summary>Импорт не распознал мою выписку — что делать?</summary>
+          <p>Скорее всего, у банка изменился формат. Импорт честно скажет, каких колонок не хватает, и не тронет базу. Пришлите обезличенный образец (5–10 строк) в issue: <code>spendtrack anonymize выписка.csv</code> заменит описания и номера карт псевдонимами; даты и суммы остаются как есть — просмотрите файл перед отправкой, issue публичный.</p>
+        </details>
+        <details>
           <summary>Это замена YNAB, ZenMoney или Firefly III?</summary>
           <p>Нет, и мы не делаем вид. Это узкий локальный инструмент под русские выписки: без bank sync, без мультиюзера и семейного бюджета, без мобильных приложений. Зато без облака, подписки и передачи данных на чужие серверы.</p>
         </details>
@@ -297,7 +301,7 @@
   <div class="en">
     <div class="wrap" style="padding-top:40px;padding-bottom:40px">
       <h2>English</h2>
-      <p>Local-first personal expense tracker (FastAPI + SQLite + htmx). Import Russian bank CSV statements (Tinkoff, Yandex; Sber where CSV export is available): deterministic rule-based categorization with an optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest. Your data stays on your machine by default, the core works fully offline, and there is no cloud or telemetry. AGPLv3. See the <a href="https://github.com/ExNihil14/spend-tracker#readme" rel="noopener">README</a> for quick start.</p>
+      <p>Local-first personal expense tracker (FastAPI + SQLite + htmx). Import Russian bank CSV statements (T-Bank/Tinkoff and YooMoney/Yandex; Sber where CSV export is available): deterministic rule-based categorization with an optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest. Your data stays on your machine by default, the core works fully offline, and there is no cloud or telemetry. AGPLv3. See the <a href="https://github.com/ExNihil14/spend-tracker#readme" rel="noopener">README</a> for quick start.</p>
     </div>
   </div>
 

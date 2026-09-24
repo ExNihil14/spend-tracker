@@ -17,6 +17,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (24.09, актуализация публичных текстов):** README (браузеры/e2e-формулировка, `ruff check .`
+> как в CI, EN-названия банков, NSSM-права, FAQ «Обновление/удаление», «Сайт»), лендинг-FAQ (+«импорт не
+> распознал выписку» + `anonymize`), **перки-канон выровнен** (README/лендинг/`supporter.yml`: «имя в README
+> и CHANGELOG релиза», «ранний доступ» убран), бизнес-план обновлён (статус 561+51, K-роадмап, Сбер-факты,
+> комиссия 20–22%, МНС-пункт). Контур 561+51 + test_landing 11/11 — зелёные; ждёт коммита.
 > **АКТУАЛЬНО (24.09, dev-процесс: AI-native SDLC + контекст-аудит):** разобраны playbook Anthropic
 > (`RESEARCH_AI_NATIVE_SDLC_PLAYBOOK_2026-09-24.md`) и RULE-EXTRACTION-план; внедрён
 > `D:\dev\bootstrap\scripts\agent_context_audit.py` (бюджет/пороги/битые указатели/дубли); экспертиза

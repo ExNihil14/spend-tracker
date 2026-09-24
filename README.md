@@ -10,7 +10,7 @@
 
 ![Список транзакций](assets/screenshot-transactions.png)
 
-Сайт с демо: **<https://exnihil14.github.io/spend-tracker/>**
+Сайт: **<https://exnihil14.github.io/spend-tracker/>**
 
 ## Что умеет
 
@@ -132,6 +132,13 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 `spendtrack doctor` проверит и локальный бэкап, и внешнюю копию (файл на месте, не повреждена, свежее 7 дней).
 </details>
 
+<details>
+<summary><strong>Как обновить приложение и что будет с данными при удалении?</strong></summary>
+Обновление — `uv tool upgrade spendtrack` (перед этим стоит сделать `spendtrack backup`); удаление —
+`uv tool uninstall spendtrack`. Данные и настройки при удалении **остаются** на диске — где именно, покажет
+`spendtrack paths`. Подробнее — раздел «Обновление и удаление».
+</details>
+
 ## Демо без своих данных
 
 Синтетическая витрина (~5 месяцев): подписки со скачком цены, аномалии, бюджеты с перерасходом, очередь
@@ -207,7 +214,9 @@ Start-ScheduledTask spendtrack
 
 ### Windows — NSSM (служба, работает до входа в систему)
 
-Нужны права администратора. Один раз поставьте [NSSM](https://nssm.cc/) (`winget install nssm`), затем:
+Нужны права администратора. Служба выполняется от LocalSystem — это **избыточные права**; для одного
+пользователя безопаснее вариант с Планировщиком (выше). Один раз поставьте [NSSM](https://nssm.cc/)
+(`winget install nssm`), затем:
 
 ```powershell
 nssm install spendtrack "$env:USERPROFILE\.local\bin\spendtrack.exe" serve
@@ -300,16 +309,16 @@ loginctl enable-linger $USER    # запускать, даже когда вы �
 Ниже этих версий — best effort: страница, скорее всего, откроется, но стили и поведение не гарантируются
 (Tailwind v4 рассчитан на современные движки).
 
-**Тестирование:** e2e гоняются в Chromium, Firefox и WebKit (WebKit — не настоящий Safari, но ловит регрессии
-вёрстки); реальный Safari/iOS проверяется вручную, best effort. Плюс автоматические проверки: отсутствие
-горизонтальной прокрутки на 320px (WCAG 1.4.10) и axe (WCAG 2.1 A/AA).
+**Тестирование:** полный e2e — в Chromium; Firefox и WebKit гоняют smoke-набор (рендер страниц, отсутствие
+горизонтальной прокрутки на 320px, axe). WebKit — не настоящий Safari, но ловит регрессии вёрстки; реальный
+Safari/iOS проверяется вручную, best effort.
 
 ## Разработка
 
 ```bash
 uv run pytest              # unit-тесты (сеть не нужна, LLM подменяется)
 uv run pytest -m e2e       # браузерные тесты (Playwright)
-uv run ruff check src tests
+uv run ruff check .        # как в CI
 uv run pip-audit --skip-editable   # уязвимости зависимостей
 uv lock --check                    # lock-файл актуален
 uv run python scripts/build_css.py # пересборка CSS после правок классов
@@ -321,25 +330,26 @@ uv run python scripts/build_css.py # пересборка CSS после пра�
 
 ## English
 
-Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (Tinkoff, Yandex, and Sber
-where CSV export is available — for individuals Sber sends CSV by e-mail, while the in-app statement is PDF),
+Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV (T-Bank/Tinkoff and
+YooMoney/Yandex, plus Sber where CSV export is available — for individuals Sber sends CSV by e-mail, while the
+in-app statement is PDF),
 deterministic rule-based categorization with an
 optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest
 — all on your machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with
 synthetic data: `uv run python scripts/demo_data.py seed`. Runs as a background service too (Windows Task
 Scheduler/NSSM, macOS launchd, Linux systemd — templates in `deploy/`; see the «Работа в фоне» section).
-UI is Russian for now (English localization is on the roadmap). Support the project once (Supporter: $25 /
-1900 ₽ — your name in the thanks list or anonymous, priority attention to your issues, early access to new
-builds as beta builds appear); the Boosty link will be enabled at launch.
+Backup and anonymization are built in (`spendtrack backup`, `spendtrack anonymize`); update/uninstall notes are
+in the «Обновление и удаление» section. UI is Russian for now (English localization is on the roadmap).
+Support the project once (Supporter: $25 / 1900 ₽ — your name in the README and release CHANGELOG or anonymous,
+priority attention to your issues); the Boosty link will be enabled at launch.
 
 ## Лицензия и поддержка
 
 **AGPLv3** — см. [LICENSE](LICENSE). Почему: продукт про приватность и локальные данные — сетевой копилефт
 не даёт превратить код в закрытый облачный сервис, при этом self-host, форки и вклад остаются свободными.
 
-Проект бесплатный. **Supporter** — разовая поддержка разработки (~$25 / 1900 ₽): спасибо в списке
-поддержавших (или анонимно), приоритет внимания к вашим issue и предложениям, ранний доступ к новым
-сборкам (по мере появления бета-сборок). Ядро не кастрируется — это тот же продукт.
+Проект бесплатный. **Supporter** — разовая поддержка разработки (~$25 / 1900 ₽): имя в README и CHANGELOG
+релиза (или анонимно), приоритет внимания к вашим issue и предложениям. Ядро не урезается — это тот же продукт.
 Поддержать: Boosty — к запуску (кнопка появится здесь) ·
 интерес — [issue Supporter](https://github.com/ExNihil14/spend-tracker/issues/new?template=supporter.yml).
 
