@@ -30,6 +30,7 @@ from spendtrack.store import (
     fmt_date,
     fmt_money,
     fmt_month,
+    valid_month,
 )
 from spendtrack.taxonomy import load_taxonomy
 
@@ -105,8 +106,8 @@ def export_csv(store: Annotated[Store, Depends(get_store)], month: str | None = 
 
     Произвольный диапазон дат (`--from/--to`) доступен только в CLI.
     """
-    txs = store.export_transactions(month=month or None, category=category or None,
-                                    search=q or None)
+    txs = store.export_transactions(month=month if valid_month(month) else None,
+                                    category=category or None, search=q or None)
     return Response(
         csv_bytes(txs),
         media_type="text/csv; charset=utf-8",
@@ -118,8 +119,8 @@ def export_csv(store: Annotated[Store, Depends(get_store)], month: str | None = 
 def export_xlsx(store: Annotated[Store, Depends(get_store)], month: str | None = None, category: str | None = None,
                 q: str | None = None):
     """Та же выгрузка в XLSX (нативные дата/число, автофильтр)."""
-    txs = store.export_transactions(month=month or None, category=category or None,
-                                    search=q or None)
+    txs = store.export_transactions(month=month if valid_month(month) else None,
+                                    category=category or None, search=q or None)
     buf = io.BytesIO()
     write_xlsx(txs, buf)
     return Response(
@@ -257,13 +258,19 @@ def _shift_month(month: str, delta: int) -> str:
 
 
 def _resolve_month(store: Store, month: str | None, delta: int) -> str:
+    """Месяц страницы: явный (только валидный YYYY-MM) → MAX(date) (только валидный) → текущий.
+
+    Невалидные входы не роняют страницу (аудит 24.09): `?month=abc` и мусорный MAX(date)
+    из старых импортов больше не дают 500 на `/` и `/dashboard`.
+    """
     import datetime as dt
-    if month:
+    if valid_month(month):
         base = dt.date(int(month[:4]), int(month[5:7]), 1)
     else:
         row = store.conn.execute("SELECT MAX(date) m FROM transactions").fetchone()
         m = (row["m"] or "")[:7]
-        base = dt.date.fromisoformat(m + "-01") if m else dt.datetime.now(tz=dt.UTC).date().replace(day=1)
+        base = (dt.date.fromisoformat(m + "-01") if valid_month(m)
+                else dt.datetime.now(tz=dt.UTC).date().replace(day=1))
     target = base.replace(year=base.year + ((base.month - 1 + delta) // 12),
                           month=(base.month - 1 + delta) % 12 + 1)
     return target.strftime("%Y-%m")

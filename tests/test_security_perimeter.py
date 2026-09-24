@@ -27,6 +27,9 @@ def test_origin_allowed_matrix() -> None:
     assert origin_allowed(None, "cross-site") is False
     # Ничего нет → не браузер (CLI/тесты) — пропускаем
     assert origin_allowed(None, None) is True
+    # Известен Host запроса → Origin обязан совпасть по netloc (аудит 24.09)
+    assert origin_allowed("http://127.0.0.1:8766", None, "127.0.0.1:8766") is True
+    assert origin_allowed("http://127.0.0.1:9999", None, "127.0.0.1:8766") is False
 
 
 def test_cross_origin_post_blocked(tmp_path, monkeypatch) -> None:
@@ -41,10 +44,17 @@ def test_same_origin_and_no_header_posts_pass_perimeter(tmp_path, monkeypatch) -
     tx = {"date": "2026-09-01", "description": "ТЕСТ ПЕРИМЕТРА", "amount": "-100"}
     with _client(tmp_path, monkeypatch) as client:
         same_origin = client.post("/api/transactions", json=tx,
-                                  headers={"Origin": "http://127.0.0.1:8766"})
+                                  headers={"Origin": "http://testserver"})  # Origin == Host
         assert same_origin.status_code == 200, same_origin.text
         no_headers = client.post("/api/transactions", json=tx)  # TestClient/CLI-стиль
         assert no_headers.status_code == 200, no_headers.text
+
+
+def test_foreign_loopback_port_blocked(tmp_path, monkeypatch) -> None:
+    """Аудит 24.09: другое локальное приложение (иной порт) — не «свой origin»."""
+    with _client(tmp_path, monkeypatch) as client:
+        r = client.post("/api/transactions", json={}, headers={"Origin": "http://127.0.0.1:9999"})
+        assert r.status_code == 403
 
 
 def test_get_with_foreign_origin_not_blocked(tmp_path, monkeypatch) -> None:

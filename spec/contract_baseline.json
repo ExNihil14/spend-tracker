@@ -293,7 +293,7 @@
    "returns": ""
   },
   "spendtrack.main:health_data": {
-   "args": "",
+   "args": "fresh: int=0",
    "returns": ""
   },
   "spendtrack.main:main": {
@@ -489,7 +489,7 @@
    "returns": "str"
   },
   "spendtrack.security:origin_allowed": {
-   "args": "origin: str | None, sec_fetch_site: str | None",
+   "args": "origin: str | None, sec_fetch_site: str | None, request_host: str | None=None",
    "returns": "bool"
   },
   "spendtrack.security:trusted_hosts": {
@@ -497,7 +497,7 @@
    "returns": "list[str]"
   },
   "spendtrack.store:Store.add_batch": {
-   "args": "self, filename: str, sha: str, nrows: int",
+   "args": "self, filename: str, sha: str, nrows: int, commit: bool=True",
    "returns": "str"
   },
   "spendtrack.store:Store.add_example": {
@@ -509,7 +509,7 @@
    "returns": "int | None"
   },
   "spendtrack.store:Store.approve_all_reviews": {
-   "args": "self, min_confidence: float=0.0",
+   "args": "self, min_confidence: float=0.0, known: set[str] | None=None",
    "returns": "int"
   },
   "spendtrack.store:Store.approve_review": {
@@ -643,6 +643,10 @@
   "spendtrack.store:parse_amount": {
    "args": "value: str | float",
    "returns": "int"
+  },
+  "spendtrack.store:valid_month": {
+   "args": "month: str | None",
+   "returns": "bool"
   },
   "spendtrack.suggestions:suggest_rules": {
    "args": "store: Store, min_confirmations: int=MIN_CONFIRMATIONS, min_purity: float=MIN_PURITY",

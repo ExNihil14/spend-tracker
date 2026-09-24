@@ -553,3 +553,32 @@ def test_delete_disabled_title_shows_usage(tax_env):
     s.close()
     html = TestClient(app).get("/settings").text
     assert re.search(r'title="Используется \(\d+\) — сначала перенесите', html)
+
+
+def test_settings_edit_keeps_display_name(tmp_path, monkeypatch):
+    """Аудит 24.09: правка из /settings не стирает display_name из taxonomy.toml."""
+    tax = tmp_path / "taxonomy.toml"
+    tax.write_text('[[categories]]\nname = "other"\ndisplay_name = "Прочее"\ncolor = "#9ca3af"\n\n'
+                   '[[rules]]\npattern = "ЛЕНТА"\ncategory = "other"\n', encoding="utf-8")
+    monkeypatch.setenv("SPENDTRACK_TAXONOMY", str(tax))
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "t.db"))
+    repo.set_color("other", "#112233", repo.file_hash())
+    cats = repo.load_raw()["categories"]
+    assert cats[0]["display_name"] == "Прочее" and cats[0]["color"] == "#112233"
+
+
+def test_delete_category_cleans_merchant_cache(tmp_path, monkeypatch):
+    """Аудит 24.09: удаление категории чистит кэш мерчантов (иначе doctor refs_invalid навсегда)."""
+    tax = tmp_path / "taxonomy.toml"
+    tax.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n\n'
+                   '[[categories]]\nname = "cafe"\ncolor = "#111111"\n\n'
+                   '[[rules]]\npattern = "ЛЕНТА"\ncategory = "other"\n', encoding="utf-8")
+    monkeypatch.setenv("SPENDTRACK_TAXONOMY", str(tax))
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "t.db"))
+    s = Store(db_path=tmp_path / "t.db")
+    try:
+        s.merchant_cache_set("КАФЕ", "cafe")
+        repo.delete_category("cafe", s, repo.file_hash())
+        assert s.merchant_cache_get("КАФЕ") is None
+    finally:
+        s.close()

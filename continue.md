@@ -304,6 +304,34 @@
 > 0 ошибок консоли, 1280/375 без overflow), контур **535 unit + 51 e2e** + ruff + contract + build_css.
 > $0-ревью M-8 (gpt-oss:120b, 10 с): **GO**, находок 0 (P2 про `.cta-row` отклонён фактом — стиль есть);
 > артефакт `EXPERT_REVIEW_M8_LANDING_OSS_2026-09-24.md`. **План M-волн закрыт целиком (M-1…M-8).**
+> **Тяжёлое ревью M-4…M-8 (claude-opus-5/AgentRouter, 24.09, окно 11:00 UTC):** артефакт
+> `D:\dev\docs\machine\EXPERT_REVIEW_M_WAVES_HEAVY_OPUS5_2026-09-24.md` (2 части: код; шаблоны+лендинг;
+> адъюдикация каждой находки фактом). Вердикт модели GO; **принято 6 правок + 1 тест:** ① бюджеты — Enter в поле
+> теперь htmx-сабмит (`change, submit`), не нативный GET с потерей значения; ② approve.js — сброс клавиатурного
+> режима по pointerdown вне очереди (не крадём фокус); ③ drop-zone — window-preventDefault (дроп мимо зоны не
+> открывает файл) + счётчик входов (без мигания); ④ легенда бюджетов «отметка темпа: прошло X% месяца» и маркер
+> только для текущего месяца; ⑤ ссылка аномалии — с месяцем аномалии; ⑥ nav — `aria-current="page"`; ⑦ чистка
+> (мёртвый normal-case, kbd 12px) + тест «тот же CSV, другое имя → 0 добавлено». Ложные P1 отклонены фактами
+> (NULL confidence — NOT NULL в схеме; cat_colors — 0 совпадений; ассеты — в коммите). **Урок канала:** мост
+> AgentRouter форсирует адаптивное мышление и игнорирует thinking-budget на больших входах — для ревью давать
+> max_tokens ≈3× входа (48K хватило); попытки стоили ≈$1.57 (2 удачных из 8); `agentrouter_chat.py` получил
+> `--thinking-budget`. Контур после правок: **536 unit + 51 e2e** + ruff + contract + build_css.
+> **Полный аудит кодовой базы (claude-opus-5, 24.09, окно 11:00 UTC, ≈$0.41):** артефакт
+> `D:\dev\docs\machine\EXPERT_AUDIT_FULL_BASE_OPUS5_2026-09-24.md` (досье 230K симв. кода, max_tokens 64K).
+> Вердикт GO с правками; **внедрено 12 правок с тестами:** ① **P0** — валидация `month` (`valid_month`) +
+> устойчивый `_resolve_month` + `_iso_date` (слэш/точки-ISO; нераспознанное → `_skip`, а не мусор в date:
+> одна кривая дата раньше клала `/` и `/dashboard` навсегда); ② bulk-approve с whitelist таксономии;
+> ③ create: amount/date → 422; ④ escape описания в htmx-ответе; ⑤ `display_name` не теряется при правках
+> /settings; ⑥ LLM-парсер (не-dict, merchant null); ⑦ `add_batch(commit=False)` (пустые партии); ⑧ лимит
+> JSON-тела импорта; ⑨ TTL `/health/data` + `?fresh=1`; ⑩ Origin сверяется с Host; ⑪ few-shot `{{...}}` →
+> `{...}`; ⑫ чистка merchant_cache/examples при удалении категории. **Отложено (тикеты):** двухфазный импорт
+> (write-lock при LLM), быстрый путь Store по user_version, сноска про не-RUB, simplify-проход.
+> Контур: **547 unit + 51 e2e** + ruff + contract (baseline: +valid_month/параметры) + build_css.
+> **Сбор анализов 24.09 (режим «применяем позже», AgentRouter-пул исчерпан → Abacus Opus-5.5 ≈$0.75):**
+> `EXPERT_LAUNCH_READINESS_OPUS55_2026-09-24.md` («почти готов»; блокеры P0-2 + P1-3…P1-10 + 10 рекомендаций),
+> `EXPERT_NEXT_WAVE_OPUS55_2026-09-24.md` (волна K1–K8 + техконтуры K2/K4/K7 + метрики),
+> `RECOMMENDATIONS_APPLY_QUEUE_2026-09-24.md` (сводная очередь A–E: что в дереве, блокеры запуска, волна,
+> тикеты, решения автора). Сбор остановлен по решению юзера; применение — по `RECOMMENDATIONS_APPLY_QUEUE`.
 > **Habr-канал: скрининг дайджеста сделан (23.09, Ollama Cloud free, $0; 16/16 статей):** артефакт
 > `D:\dev\docs\habr\screen-2026-09-23.md` (рядом с `digest-2026-09-23.md` и README эксперимента).
 > **Применено из Habr пока ничего** — и это честный вывод: большинство «применить сейчас» уже покрыто

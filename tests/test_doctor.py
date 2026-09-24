@@ -486,7 +486,7 @@ def client(tmp_path, monkeypatch):
 
 
 def test_api_health_data_ok(client):
-    r = client.get("/health/data")
+    r = client.get("/health/data?fresh=1")
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"
@@ -503,7 +503,7 @@ def test_api_health_data_503_on_critical(tmp_path, monkeypatch):
     con.commit()
     con.close()
 
-    r = TestClient(app).get("/health/data")
+    r = TestClient(app).get("/health/data?fresh=1")
     assert r.status_code == 503
     assert r.json()["status"] == "critical"
 

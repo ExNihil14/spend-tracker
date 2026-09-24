@@ -141,6 +141,21 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   в очередь и видны калибровке; тесты `tests/test_cli_add.py` (3).
 - Приватность/угрозы: `PRIVACY.md`, `SECURITY.md` в корне.
 
+## Правки полного аудита 24.09 (claude-opus-5)
+
+- **Даты/месяцы (P0):** `store.valid_month()`; `_resolve_month` устойчив (явный месяц → MAX(date) → текущий);
+  `csv_import._iso_date` понимает `YYYY/MM/DD` и `YYYY.MM.DD`, нераспознанная дата → `_skip: date_unrecognized`
+  (мусор в `date` ломал `/` и `/dashboard`); `?month=x`: страницы игнорируют, `/api/budgets` → 422, экспорт — дефолт.
+- **Очередь:** `approve_all_reviews(..., known=…)` — whitelist таксономии (предложение LLM вне таксономии → `other`).
+- **Create:** `TxIn` валидирует `amount`/`date` → 422; htmx-ответ экранирует описание (`escape`).
+- **TOML:** `_dump` сохраняет `display_name`; `delete_category` чистит `merchant_cache`/`examples`.
+- **LLM:** `parse_llm_json` принимает только dict; `merchant: null` безопасен.
+- **Импорт:** `add_batch(commit=False)` (партия атомарна с партией строк); JSON-тело с `Content-Length` > 2×лимита → 413.
+- **Эксплуатация:** `/health/data` — TTL-кэш 10 с + `?fresh=1`; Origin сверяется с фактическим `Host`.
+- **Промпт:** few-shot примеры с одиночными скобками (`{{...}}` путали модель).
+- **Отложено:** двухфазный импорт при LLM (write-lock), быстрый путь `Store.__init__` по `user_version`,
+  сноска про исключённые не-RUB операции, simplify-проход.
+
 ## Импорт: дрейф формата и отчёт «добавлено / пропущено / подозрительно» (P1 #1–#2)
 - **Дрейф формата.** Перед разбором проверяются обязательные колонки банка (`REQUIRED_COLUMNS`, синонимы;
   пробелы/регистр в заголовках терпимы). Неопознанный банк в `auto` или пропавшие/переименованные колонки →
@@ -399,8 +414,13 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   кнопки «OK» убраны); ответ — фрагмент + OOB-тост «Сохранено» (`spendtrack/ui.py: oob_toast`, общий с api.py;
   заодно тост переведён с палитры slate на токены). У «Удалить» у занятой категории `disabled`
   + `title="Используется (N) — сначала перенесите операции в другую категорию"`.
-- Тесты: `test_settings.py` (форма без OK/тост/title), `test_ui_polish.py` (активный пункт nav, sentence case),
-  e2e (бюджет — blur-автосейв, цвет — change → тост).
+- Тесты: `test_settings.py` (форма без OK/тост/title), `test_ui_polish.py` (активный пункт nav + `aria-current`,
+  sentence case), e2e (бюджет — **Enter/change-автосейв**, цвет — change → тост).
+- **Правки по тяжёлому ревью 24.09 (Opus-5, адъюдикация в `EXPERT_REVIEW_M_WAVES_HEAVY_OPUS5_2026-09-24.md`):**
+  бюджетная форма `hx-trigger="change, submit"` (Enter не уходит в нативный GET); drop-zone — window-preventDefault
+  + счётчик входов; approve.js сбрасывает клавиатурный режим по pointerdown вне очереди; легенда бюджетов
+  «отметка темпа: прошло X% месяца», маркер — только для текущего месяца; ссылка аномалии — с `month=<месяц аномалии>`;
+  nav `aria-current="page"`; тест «тот же CSV, другое имя → 0 добавлено» (fingerprint без имени файла).
 
 ## Первый запуск: чек-лист 4 шага (P2 #10)
 - Главная при `first_run` (нет транзакций И нет партий импорта) показывает `#start-checklist`

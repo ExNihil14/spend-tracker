@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 import sqlite3
 import uuid
 from datetime import UTC, datetime
@@ -166,11 +167,21 @@ def _norm_desc(desc: str) -> str:
     return " ".join(desc.upper().split())
 
 
+_MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+
+
+def valid_month(month: str | None) -> bool:
+    """True для «YYYY-MM» с реальным месяцем 01..12 (query/CLI-валидация; иначе — 500, аудит 24.09)."""
+    return bool(month and _MONTH_RE.match(month))
+
+
 def month_bounds(month: str) -> tuple[str, str]:
     """Границы месяца для индексного фильтра: («2026-09-01», «2026-10-01»).
 
     `substr(date,1,7)=?` не использует индекс по `date`; диапазон — использует (замеры: bench.py).
     """
+    if not valid_month(month):
+        raise ValueError(f"некорректный месяц: {month!r} (ожидается YYYY-MM)")
     y, m = int(month[:4]), int(month[5:7])
     ny, nm = (y + 1, 1) if m == 12 else (y, m + 1)
     return f"{y:04d}-{m:02d}-01", f"{ny:04d}-{nm:02d}-01"
@@ -443,26 +454,35 @@ class Store:
         self.conn.commit()
         return cur.rowcount > 0
 
-    def approve_all_reviews(self, min_confidence: float = 0.0) -> int:
+    def approve_all_reviews(self, min_confidence: float = 0.0,
+                            known: set[str] | None = None) -> int:
         """Одобрить очередь одной транзакцией; `min_confidence` — только записи не ниже порога.
 
         Безопасная пакетная работа (дизайн-ревью M-4): UI предлагает «≥ 60 %», записи с низкой
-        уверенностью остаются человеку. few-shot-кэш учим только «неизвестными» мерчантами.
-        INSERT OR IGNORE (а не upsert): LLM-догадка из пачки не должна перетирать ручную правку
-        человека, уже лежащую в кэше (одиночный approve — осознанный выбор юзера, там upsert).
+        уверенностью остаются человеку. `known` — whitelist категорий таксономии: предложение LLM
+        вне таксономии не пишем (аудит 24.09: иначе doctor critical и строка без имени/цвета).
+        few-shot-кэш учим только «неизвестными» мерчантами. INSERT OR IGNORE (а не upsert):
+        LLM-догадка из пачки не должна перетирать ручную правку человека, уже лежащую в кэше
+        (одиночный approve — осознанный выбор юзера, там upsert).
         """
         where, extra = "review_status='pending'", []
         if min_confidence > 0:
             where += " AND confidence >= ?"
             extra.append(min_confidence)
+        cat_expr, known_params = "COALESCE(category_llm, category, 'other')", []
+        if known:
+            ph = ",".join("?" * len(known))
+            cat_expr = (f"CASE WHEN category_llm IN ({ph}) THEN category_llm"
+                        " ELSE COALESCE(category, 'other') END")
+            known_params = sorted(known)
         rows = self.conn.execute(
-            "SELECT merchant, COALESCE(category_llm, category, 'other') AS cat"
-            f" FROM transactions WHERE {where}", extra).fetchall()
+            f"SELECT merchant, {cat_expr} AS cat FROM transactions WHERE {where}",
+            [*known_params, *extra]).fetchall()
         now = _now_iso()
         cur = self.conn.execute(
-            "UPDATE transactions SET category=COALESCE(category_llm, category, 'other'),"
+            f"UPDATE transactions SET category={cat_expr},"
             f" category_source='rule', review_status='approved', updated=? WHERE {where}",
-            [now, *extra],
+            [*known_params, now, *extra],
         )
         for r in rows:
             if r["merchant"]:
@@ -657,13 +677,16 @@ class Store:
         return {r["category"]: r["amount_kopecks"] for r in rows}
 
     # ---- import batches ----
-    def add_batch(self, filename: str, sha: str, nrows: int) -> str:
+    def add_batch(self, filename: str, sha: str, nrows: int, commit: bool = True) -> str:
+        """Партия импорта; `commit=False` — в общей транзакции импорта (аудит 24.09:
+        иначе запись партии переживала rollback и копилась пустыми партиями)."""
         batch_id = "b_" + uuid.uuid4().hex[:10]
         self.conn.execute(
             "INSERT INTO import_batches(id, filename, sha, nrows, created) VALUES(?,?,?,?,?)",
             (batch_id, filename, sha, nrows, _now_iso()),
         )
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return batch_id
 
     def counts(self) -> dict:

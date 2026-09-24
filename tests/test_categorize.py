@@ -94,3 +94,21 @@ def test_classify_commit_false_defers_merchant_cache(store, taxonomy):
     assert store.conn.in_transaction is True  # запись кэша ждёт коммита партии
     store.conn.rollback()
     assert store.merchant_cache_get("ДОДО") is None
+
+def test_parse_llm_json_rejects_non_dict():
+    """Аудит 24.09: list/строка/число от LLM → None (иначе AttributeError роняет партию)."""
+    from spendtrack.llm import parse_llm_json
+
+    assert parse_llm_json("[]") is None
+    assert parse_llm_json('"строка"') is None
+    assert parse_llm_json("123") is None
+    assert parse_llm_json('{"category": "food"}') == {"category": "food"}
+
+
+def test_llm_null_merchant_does_not_crash(store, taxonomy):
+    """merchant=null в ответе LLM не роняет классификацию (аудит 24.09)."""
+    stub = lambda t, s, tax: {
+        "category": "groceries", "confidence": 0.95, "merchant": None, "reason": "r", "source": "llm"
+    }
+    result = classify_with_injectable(_tx(), taxonomy, store, stub, 0.9)
+    assert result["source"] == "llm" and result["category"] == "groceries"

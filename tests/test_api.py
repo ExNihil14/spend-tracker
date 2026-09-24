@@ -339,3 +339,43 @@ def test_import_multipart_empty_file_falls_back_to_text(client):
                     files={"file": ("", b"", "application/octet-stream")})
     assert r.status_code == 200
     assert r.json()["added"] == 1
+
+
+def test_import_same_content_different_filename_no_dupes(client):
+    """Тот же CSV с другим именем файла — no-op: fingerprint считается по строкам, не по имени (ревью 24.09)."""
+    csv_data = ("Дата;Сумма операции;Категория;Описание;Счёт\n"
+                "02.09.2026;-1200,00;Транспорт;АЗС ЛУКОЙЛ;4081781\n")
+    r1 = client.post("/api/import", data={"bank": "auto"},
+                     files={"file": ("first.csv", csv_data.encode("utf-8"), "text/csv")})
+    assert r1.json()["added"] == 1
+    r2 = client.post("/api/import", data={"bank": "auto"},
+                     files={"file": ("second.csv", csv_data.encode("utf-8"), "text/csv")})
+    body = r2.json()
+    assert body["added"] == 0 and body["dupes"] == 1
+
+
+# ── Аудит 24.09: валидация create, экранирование, лимит JSON-тела ───────────
+
+def test_create_rejects_bad_amount_and_date(client):
+    """«abc» в сумме и не-ISO дата → 422, а не 500/мусор в БД (аудит 24.09)."""
+    r1 = client.post("/api/transactions", json={"date": "2026-09-12", "description": "X", "amount": "abc"})
+    r2 = client.post("/api/transactions", json={"date": "2026/09/12", "description": "X", "amount": "-10.00"})
+    assert r1.status_code == 422 and r2.status_code == 422
+    assert client.get("/health").json()["transactions"] == 0
+
+
+def test_create_escapes_description_in_htmx(client):
+    """Описание — пользовательский ввод: в htmx-ответе экранируется (аудит 24.09)."""
+    r = client.post("/api/transactions",
+                    data={"date": "2026-09-12", "description": "<img src=x onerror=alert(1)>ЛЕНТА",
+                          "amount": "-10.00"},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert "<img" not in r.text and "&lt;img" in r.text
+
+
+def test_import_json_body_limit_413(client, monkeypatch):
+    """Огромное JSON-тело отсекается по Content-Length до разбора (аудит 24.09)."""
+    monkeypatch.setattr("spendtrack.routers.api.MAX_CSV_BYTES", 10)
+    r = client.post("/api/import", json={"bank": "auto", "csv": "x" * 100})
+    assert r.status_code == 413

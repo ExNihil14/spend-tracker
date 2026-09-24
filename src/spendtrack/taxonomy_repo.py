@@ -97,7 +97,10 @@ def _audit(action: str, key: str, old, new) -> None:
 def _dump(data: dict) -> str:
     lines: list[str] = []
     for c in data.get("categories", []):
-        lines += ["[[categories]]", f'name = "{c["name"]}"', f'color = "{c["color"]}"', ""]
+        lines += ["[[categories]]", f'name = "{c["name"]}"']
+        if c.get("display_name"):
+            lines.append(f'display_name = "{c["display_name"]}"')
+        lines += [f'color = "{c["color"]}"', ""]
     for r in data.get("rules", []):
         lines += ["[[rules]]", f'pattern = "{r["pattern"]}"', f'category = "{r["category"]}"', ""]
     return "\n".join(lines)
@@ -173,6 +176,12 @@ def delete_category(name: str, store: Store, expected_hash: str | None) -> None:
             store.clear_budget(real)
         except sqlite3.Error:
             logger.warning("budget cleanup failed for deleted category %s", real, exc_info=True)
+    try:  # аудит 24.09: кэш мерчантов/examples не должны учить удалённой категории (doctor refs_invalid)
+        store.conn.execute("DELETE FROM merchant_cache WHERE category=?", (real,))
+        store.conn.execute("DELETE FROM examples WHERE category=?", (real,))
+        store.conn.commit()
+    except sqlite3.Error:
+        logger.warning("cache cleanup failed for deleted category %s", real, exc_info=True)
 
 
 def usage_counts(store: Store) -> dict[str, int]:

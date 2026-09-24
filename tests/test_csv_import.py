@@ -348,27 +348,27 @@ def test_report_counts_skipped_and_suspicious(store):
         "2;02.09.2026 10:00;1234;В обработке;-200,00;RUB;Продукты;МАГНИТ\n"        # status
         "3;03.09.2026 10:00;1234;Выполнено;;RUB;Продукты;ПЯТЁРОЧКА\n"              # missing_fields
         "4;04.09.2026 10:00;1234;Выполнено;abc;RUB;Продукты;АШАН\n"                # amount_unparsed
-        "5;2026/09/05;1234;Выполнено;-300,00;RUB;Продукты;ОЗОН\n")                 # date_unrecognized
+        "5;05/09/2026;1234;Выполнено;-300,00;RUB;Продукты;ОЗОН\n")                # date_unrecognized
     res = import_csv(csv_text, store, classify=_stub_classify())
     assert res["status"] == "ok"
-    assert res["added"] == 2            # ЛЕНТА + ОЗОН (нераспознанная дата импортируется с пометкой)
-    assert res["skipped"] == 3
-    assert res["suspicious"] == 1
-    assert res["reasons"] == {"status": 1, "missing_fields": 1, "amount_unparsed": 1}
-    assert res["suspicious_reasons"] == {"date_unrecognized": 1}
+    assert res["added"] == 1            # только ЛЕНТА: нераспознанную дату не выдумываем (аудит 24.09)
+    assert res["skipped"] == 4
+    assert res["suspicious"] == 0
+    assert res["reasons"] == {"status": 1, "missing_fields": 1, "amount_unparsed": 1,
+                              "date_unrecognized": 1}
+    assert res["suspicious_reasons"] == {}
 
 
-def test_summarize_mentions_three_numbers(store):
+def test_summarize_mentions_counts_and_reasons(store):
     csv_text = (
         "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
         "1;01.09.2026 10:00;1234;Выполнено;-100,00;RUB;Продукты;ЛЕНТА\n"
         "2;02.09.2026 10:00;1234;В обработке;-200,00;RUB;Продукты;МАГНИТ\n"
-        "3;2026/09/05;1234;Выполнено;-300,00;RUB;Продукты;ОЗОН\n")
+        "3;05/09/2026;1234;Выполнено;-300,00;RUB;Продукты;ОЗОН\n")
     res = import_csv(csv_text, store, classify=_stub_classify())
     text = summarize(res)
-    assert "+2 добавлено" in text          # ЛЕНТА + ОЗОН (нераспознанная дата — с пометкой)
-    assert "1 пропущено" in text and "не проведены банком" in text
-    assert "1 подозрительно" in text and "нераспознанная дата" in text
+    assert "+1 добавлено" in text
+    assert "2 пропущено" in text and "не проведены банком" in text and "нераспознанная дата" in text
     assert "банк=sber" in text
 
 
@@ -437,6 +437,7 @@ def test_import_rolls_back_rows_and_pseudonyms_on_midbatch_failure(store):
 
     assert store.conn.execute("SELECT COUNT(*) c FROM transactions").fetchone()["c"] == 0
     assert store.conn.execute("SELECT COUNT(*) c FROM account_pseudonyms").fetchone()["c"] == 0
+    assert store.conn.execute("SELECT COUNT(*) c FROM import_batches").fetchone()["c"] == 0  # аудит 24.09
     assert store.conn.in_transaction is False
 
 

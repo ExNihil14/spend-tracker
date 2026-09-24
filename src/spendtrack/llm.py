@@ -192,14 +192,18 @@ def parse_llm_json(raw: str) -> dict | None:
     if not raw.strip():
         return None
     try:
-        return json.loads(raw)
+        parsed = json.loads(raw)
+        if isinstance(parsed, dict):  # аудит 24.09: list/str/int от LLM не должны ронять партию
+            return parsed
     except json.JSONDecodeError:
         pass
     import re
     m = re.search(r"\{.*\}", raw, re.DOTALL)
     if m:
         try:
-            return json.loads(m.group())
+            parsed = json.loads(m.group())
+            if isinstance(parsed, dict):
+                return parsed
         except json.JSONDecodeError:
             pass
     return None

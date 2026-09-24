@@ -27,9 +27,10 @@ def _examples_block(examples: list[dict]) -> str:
     for ex in examples:
         amt = fmt_amount(ex["amount_kopecks"])
         m = ex["description"].upper()[:20] or "UNKNOWN"
+        cat = ex["category"]
         lines.append(
             f"- {_truncate(ex['description'])} | {amt} → "
-            f"{{{{\"category\":\"{ex['category']}\",\"confidence\":0.98,\"merchant\":\"{m}\",\"reason\":\"пример\"}}}}"
+            f'{{"category":"{cat}","confidence":0.98,"merchant":"{m}","reason":"пример"}}'
         )
     return "\n".join(lines)
 

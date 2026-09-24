@@ -415,3 +415,16 @@ def test_approve_page_merchant_hidden_when_redundant(client, tmp_path):
         s.close()
     text = client.get("/approve").text
     assert text.count('mt-0.5">ФОТОЛАБ<') == 1  # только у «ОПЛАТА КАРТОЙ»
+
+
+def test_approve_all_ignores_invalid_llm_category(tmp_path):
+    """Аудит 24.09: предложение LLM вне таксономии не пишется при пакетном одобрении."""
+    s = Store(db_path=tmp_path / "w.db")
+    try:
+        s.add_transaction(date="2026-09-10", description="ХРЕНЬ", amount_kopecks=-100, category="other",
+                          category_source="llm_pending_review", confidence=0.7,
+                          category_llm="продукты", review_status="pending")
+        assert s.approve_all_reviews(min_confidence=0.6, known={"groceries", "other"}) == 1
+        assert s.list_transactions()[0]["category"] == "other"  # fallback, а не «продукты»
+    finally:
+        s.close()

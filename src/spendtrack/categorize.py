@@ -51,7 +51,7 @@ def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
                 "reason": "llm_parse_failed", "source": "llm"}
 
     confidence = _clamp_confidence(parsed.get("confidence", 0.0))
-    merchant_norm = parsed.get("merchant", "").upper().strip() or tx.get("merchant")
+    merchant_norm = str(parsed.get("merchant") or "").upper().strip() or tx.get("merchant")
     return {
         "category": parsed["category"],
         "confidence": confidence,

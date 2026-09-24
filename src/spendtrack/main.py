@@ -69,7 +69,8 @@ app.mount("/static", StaticFiles(directory=PKG_DIR / "static"), name="static")
 async def _origin_guard(request, call_next):
     """Кросс-сайтовые state-changing запросы — 403 (см. spendtrack.security)."""
     if request.method not in SAFE_METHODS and not origin_allowed(
-            request.headers.get("origin"), request.headers.get("sec-fetch-site")):
+            request.headers.get("origin"), request.headers.get("sec-fetch-site"),
+            request.headers.get("host")):
         return JSONResponse({"detail": "cross-origin request blocked"}, status_code=403)
     return await call_next(request)
 
@@ -108,12 +109,26 @@ def health():
             store.close()
 
 
+_DOCTOR_TTL_S = 10.0
+_doctor_cache: dict = {"ts": 0.0, "report": None}
+
+
 @app.get("/health/data")
-def health_data():
-    """Целостность данных (doctor): JSON {status, checks[]}; 503 при critical."""
+def health_data(fresh: int = 0):
+    """Целостность данных (doctor): JSON {status, checks[]}; 503 при critical.
+
+    TTL-кэш 10 с (аудит 24.09): неаутентифицированный GET не должен каждый раз гонять
+    quick_check по всей БД и sha256 offsite-копии; `?fresh=1` — принудительный пересчёт.
+    """
+    import time
+
     from spendtrack.doctor import run_checks
 
-    report = run_checks()
+    now = time.monotonic()
+    if fresh or _doctor_cache["report"] is None or now - _doctor_cache["ts"] > _DOCTOR_TTL_S:
+        _doctor_cache["report"] = run_checks()
+        _doctor_cache["ts"] = now
+    report = _doctor_cache["report"]
     code = 503 if report["status"] == "critical" else 200
     return JSONResponse(report, status_code=code)
 

@@ -70,3 +70,12 @@ def test_parse_json_inline():
 
 def test_parse_json_garbage():
     assert parse_llm_json("никак не жсон") is None
+
+def test_few_shot_examples_single_braces():
+    """Аудит 24.09: примеры в промпте — одиночные скобки (модель видела {{...}} и путала формат)."""
+    from spendtrack.prompts import build_system_prompt
+
+    text = build_system_prompt([{"description": "ЛЕНТА", "amount_kopecks": -2345,
+                                 "category": "groceries"}])
+    assert '{{"category"' not in text
+    assert '"category":"groceries"' in text

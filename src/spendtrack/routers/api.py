@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
+from decimal import InvalidOperation
 from html import escape
 from typing import Annotated
 
@@ -25,6 +26,7 @@ from spendtrack.store import (
     fmt_month,
     normalize_currency,
     parse_amount,
+    valid_month,
 )
 from spendtrack.taxonomy import load_taxonomy
 from spendtrack.ui import oob_toast
@@ -43,6 +45,24 @@ class TxIn(BaseModel):
     amount: str
     account: str | None = None
     currency: str = "RUB"
+
+    @field_validator("date")
+    @classmethod
+    def _valid_date(cls, v: str) -> str:
+        try:
+            date.fromisoformat(v)  # аудит 24.09: мусорная дата ломала месячные фильтры
+        except ValueError as e:
+            raise ValueError("дата — в формате ГГГГ-ММ-ДД") from e
+        return v
+
+    @field_validator("amount")
+    @classmethod
+    def _valid_amount(cls, v: str) -> str:
+        try:
+            parse_amount(v)  # аудит 24.09: «abc» давало 500 вместо 422
+        except (InvalidOperation, ValueError, OverflowError) as e:
+            raise ValueError("сумма не распознана") from e
+        return v
 
     @field_validator("currency")
     @classmethod
@@ -116,13 +136,14 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
         currency=tx.currency,
     )
     if request.headers.get("hx-request", "").lower() == "true":
-        label = category["category"]
+        desc = escape(tx.description)  # аудит 24.09: описание — пользовательский ввод, экранируем
+        label = escape(category["category"])
         if category["source"] == "llm_pending_review":
-            msg = (f"Добавлено: {tx.description} → <b>{label}</b> "
+            msg = (f"Добавлено: {desc} → <b>{label}</b> "
                    f"(conf {category['confidence']:.2f}), ждёт подтверждения.")
         else:
-            msg = f"Добавлено: {tx.description} → <b>{label}</b>"
-        return HTMLResponse(f'<p class="text-blue-400">{msg}</p>')
+            msg = f"Добавлено: {desc} → <b>{label}</b>"
+        return HTMLResponse(f'<p class="text-accent">{msg}</p>')
     return {"id": tx_id, **category}
 
 
@@ -130,6 +151,8 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
 def budgets(store: Annotated[Store, Depends(get_store)], month: str | None = None):
     """Прогресс по бюджетам за месяц (по умолчанию — месяц последней транзакции)."""
     taxonomy = load_taxonomy()
+    if month and not valid_month(month):
+        raise HTTPException(422, "month — формат YYYY-MM")  # аудит 24.09: мусор → 422, не 500
     if not month:
         row = store.conn.execute("SELECT MAX(date) m FROM transactions").fetchone()
         month = (row["m"] or datetime.now(UTC).strftime("%Y-%m-%d"))[:7]
@@ -240,7 +263,8 @@ async def approve_all(request: Request, store: Annotated[Store, Depends(get_stor
         raise HTTPException(422, "min_confidence — число от 0 до 1") from None
     if not 0 <= min_conf <= 1:
         raise HTTPException(422, "min_confidence — число от 0 до 1")
-    n = store.approve_all_reviews(min_confidence=min_conf)
+    known = {c.name for c in load_taxonomy().categories}
+    n = store.approve_all_reviews(min_confidence=min_conf, known=known)
     suffix = f" (уверенность ≥ {round(min_conf * 100)}%)" if min_conf > 0 else ""
     return HTMLResponse(_rows_html(request, store) + _oob_approve_all(request, store)
                         + _oob_badge(store) + oob_toast(f"Одобрено записей: {n}{suffix}"))
@@ -272,6 +296,12 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")
     if "application/json" in ct:
+        try:
+            clen = int(request.headers.get("content-length") or 0)
+        except ValueError:
+            clen = 0
+        if clen > 2 * MAX_CSV_BYTES:  # аудит 24.09: JSON читался целиком без лимита
+            raise HTTPException(413, detail=f"тело превышает {2 * MAX_CSV_BYTES // (1024 * 1024)} МБ")
         body = await _json_payload(request, ImportIn)
         raw: str | bytes = body.csv
         bank, filename = body.bank, "api.json"

@@ -74,12 +74,22 @@ def content_security_policy() -> str:
     )
 
 
-def origin_allowed(origin: str | None, sec_fetch_site: str | None) -> bool:
-    """True — state-changing запрос можно пропустить (проверка выполнена успешно или неприменима)."""
+def origin_allowed(origin: str | None, sec_fetch_site: str | None,
+                   request_host: str | None = None) -> bool:
+    """True — state-changing запрос можно пропустить (проверка выполнена успешно или неприменима).
+
+    Аудит 24.09: при известном `request_host` Origin обязан совпадать с фактическим адресом
+    сервера (netloc) — иначе любое другое локальное приложение могло слать POST на 8766.
+    """
     if origin:
         parts = urlsplit(origin)
         if parts.scheme.lower() not in ALLOWED_SCHEMES:
             return False  # "null"/javascript:/data: и прочий мусор
+        if request_host:
+            if (parts.netloc or "").lower() == request_host.strip().lower():
+                return True
+            host = (parts.hostname or "").lower()
+            return codespaces_enabled() and _in_codespaces_domain(host)
         host = (parts.hostname or "").lower()
         if host in ALLOWED_HOSTNAMES:
             return True

@@ -13,6 +13,7 @@ from spendtrack.taxonomy import Taxonomy
 
 _DATE_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
 _DATE_DDMMYYYY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})")
+_DATE_ISO_ALT = re.compile(r"^(\d{4})[/.](\d{1,2})[/.](\d{1,2})(?:\s|$)")  # 2026/09/05, 2026.9.5
 
 MAX_CSV_BYTES = 10 * 1024 * 1024          # 10 МБ: даже многолетняя выписка меньше; защита от OOM
 MAX_AMOUNT_KOPECKS = 100_000_000_000      # 1 млрд руб на операцию — санитарный предел (защита от мусорных строк)
@@ -38,16 +39,18 @@ REQUIRED_COLUMNS: dict[str, tuple[tuple[str, ...], ...]] = {
 }
 
 # Отчёт импорта (#2): пропущено (с причинами) и подозрительно (импортировано, но с признаками).
-SKIP_REASONS = ("duplicate", "status", "missing_fields", "amount_unparsed", "amount_limit")
-SUSPICIOUS_REASONS = ("date_unrecognized",)
+SKIP_REASONS = ("duplicate", "status", "missing_fields", "amount_unparsed", "amount_limit",
+                "date_unrecognized")
+SUSPICIOUS_REASONS: tuple[str, ...] = ()  # пока нет «подозрительных, но импортированных» причин
 REASON_LABELS = {
     "duplicate": "дубли",
     "status": "не проведены банком",
     "missing_fields": "пустые обязательные поля",
     "amount_unparsed": "не разобрана сумма",
     "amount_limit": "сумма сверх лимита",
+    "date_unrecognized": "нераспознанная дата",
 }
-SUSPICIOUS_LABELS = {"date_unrecognized": "нераспознанная дата"}
+SUSPICIOUS_LABELS: dict[str, str] = {}
 
 
 class ImportLimitError(ValueError):
@@ -71,7 +74,11 @@ def _cell(row: dict, *keys: str) -> str:
 
 
 def _iso_date(value: str) -> str:
-    """DD.MM.YYYY[ HH:MM] → YYYY-MM-DD (месячные фильтры/сортировка/дашборд — на ISO)."""
+    """DD.MM.YYYY[ HH:MM] / YYYY/MM/DD → YYYY-MM-DD (месячные фильтры/сортировка/дашборд — на ISO).
+
+    Не распознали — возвращаем "" (строка уходит в `_skip: date_unrecognized`): мусор в `date`
+    ломал месячные фильтры (MAX(date) → 500 на `/` и `/dashboard`, аудит 24.09).
+    """
     v = value.strip()
     m = _DATE_ISO.match(v)
     if m:
@@ -80,12 +87,11 @@ def _iso_date(value: str) -> str:
     if m:
         d, mo, y = m.groups()
         return f"{y}-{mo}-{d}"
-    return v[:10]
-
-
-def _date_recognized(value: str) -> bool:
-    v = value.strip()
-    return bool(_DATE_ISO.match(v) or _DATE_DDMMYYYY.match(v))
+    m = _DATE_ISO_ALT.match(v)
+    if m:
+        y, mo, d = m.groups()
+        return f"{y}-{int(mo):02d}-{int(d):02d}"
+    return ""
 
 
 def _guess_sep(header: str) -> str:
@@ -106,9 +112,9 @@ def missing_columns(bank: str, fieldnames: list[str]) -> list[str]:
 def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "") -> dict:
     """Строка выписки → tx или маркер пропуска `_skip` (общая сборка для всех адаптеров).
 
-    Непарсящаяся сумма/пустые обязательные поля не роняют импорт и не теряются молча —
-    попадают в отчёт причинами. Нераспознанная дата импортируется с пометкой `_suspicious`.
-    Незнакомая валюта трактуется как RUB (базовая): импорт не должен падать из-за неё.
+    Непарсящаяся сумма/дата/пустые обязательные поля не роняют импорт и не теряются молча —
+    попадают в отчёт причинами. Незнакомая валюта трактуется как RUB (базовая):
+    импорт не должен падать из-за неё.
     """
     if not date or not desc or not amount:
         return {"_skip": "missing_fields"}
@@ -116,12 +122,12 @@ def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "")
         kopecks = parse_amount(amount)
     except (InvalidOperation, ValueError, OverflowError):
         return {"_skip": "amount_unparsed"}
-    tx = {"date": _iso_date(date), "description": desc, "amount_kopecks": kopecks,
-          "account": account or None, "export_rowid": "",
-          "currency": normalize_currency(currency) or "RUB"}
-    if not _date_recognized(date):
-        tx["_suspicious"] = "date_unrecognized"
-    return tx
+    iso = _iso_date(date)
+    if not iso:
+        return {"_skip": "date_unrecognized"}  # не выдумываем дату: мусор ломает месячные фильтры
+    return {"date": iso, "description": desc, "amount_kopecks": kopecks,
+            "account": account or None, "export_rowid": "",
+            "currency": normalize_currency(currency) or "RUB"}
 
 
 class SberAdaptor:
@@ -285,7 +291,7 @@ def import_csv(
                                       + ", ".join(missing) + ". " + FORMAT_HINT))
 
     sha = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-    batch_id = store.add_batch(filename, sha, len(reader_all))
+    batch_id = store.add_batch(filename, sha, len(reader_all), commit=False)
 
     added = 0
     seq = 0
