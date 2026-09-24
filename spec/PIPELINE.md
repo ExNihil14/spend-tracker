@@ -19,12 +19,12 @@ uv run spendtrack doctor [--json]                # целостность дан
 uv run spendtrack recurring [--json]             # детекция рекуррингов/подписок
 uv run spendtrack suggest-rules [--json]         # подсказки keyword-правил из правок (read-only)
 uv run spendtrack digest [--days N] [--json]     # дайджест недели + флаги аномалий (read-only)
-uv run python -m scripts.backup [--keep 14] [--copy-to ПАПКА] [--force]  # бэкап + внешняя копия (offsite)
+uv run spendtrack backup [--keep 14] [--copy-to ПАПКА] [--force]  # бэкап + внешняя копия (offsite)
 uv run python -m scripts.restore_drill           # restore-drill последнего бэкапа → маркер для doctor
 uv run python scripts/contract_delta.py check    # контракт-дельта: API+схема+роуты vs baseline (exit 1 при дрейфе)
 uv run python scripts/contract_delta.py snapshot # обновить baseline после осознанного изменения контракта
 uv run python scripts/demo_data.py seed          # демо-витрина в data/demo.db (реальная БД не трогается)
-uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"]  # обезличить образец выписки
+uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО"]  # обезличить образец (dev: scripts/anonymize.py)
 ```
 
 ## Экспорт CSV/XLSX (read-only, «выход без потерь»)
@@ -72,9 +72,11 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
   разрешён, `ExecutionTimeLimit=PT1H`; прогон задачи → `LastTaskResult=0`, свежий бэкап, doctor = ok.
   Остаётся осознанно: `LogonType=Interactive` (при пропуске 03:00 задача догоняется при следующем входе в систему).
 
-## Бэкапы: локальный + offsite (#12)
-- `python -m scripts.backup [--keep N] [--copy-to ПАПКА] [--force]`: локальный снимок `VACUUM INTO`
-  (`data/backup/spend-<UTC>.db`, ротация `--keep`, дефолт 14) + опциональная внешняя копия.
+## Бэкапы: локальный + offsite (#12, K2)
+- `spendtrack backup [--keep N] [--copy-to ПАПКА] [--force]` (логика — `spendtrack/backup.py`,
+  dev-обёртка `scripts/backup.py`): локальный снимок `VACUUM INTO` (`data/backup/spend-<UTC>.db`,
+  ротация `--keep`, дефолт 14) + опциональная внешняя копия. Путь БД — `SPENDTRACK_DB_PATH` →
+  `data/` репо → user-data (`resolve_data_dir()`; доступно установкам через `uv tool`).
 - Offsite-политика: копия обязана быть на **другом томе** (`same_device` через `st_dev`; Windows — серийный
   номер тома) — иначе отказ, кроме явного `--force` (тесты/осознанное исключение). После копирования
   сверяется sha256 (`spendtrack.checksum.sha256_file`); битая копия удаляется, маркер не пишется.
@@ -193,13 +195,17 @@ uv run python scripts/anonymize.py file.csv [-o out.csv] [--anon-column "ФИО"
 - **Форма `POST /api/transactions` без обязательного поля:** 422 (общий хелпер `_validation_422`),
   а не 500 — паритет с JSON-веткой.
 
-## Anonymizer выписок (P1 #3)
-- `python scripts/anonymize.py выписка.csv [-o out.csv] [--anon-column "ФИО"]`: описания/мерчанты →
+## Anonymizer выписок (P1 #3, K2)
+- `spendtrack anonymize выписка.csv [образец.csv] [--rows N] [--anon-column "ФИО"]` (логика —
+  `spendtrack/anonymize.py`, dev-обёртка `scripts/anonymize.py`): описания/мерчанты →
   `ОПЕРАЦИЯ_0001`, карты/счета → `КАРТА_0001`, номера документов → порядковый номер; шапка, порядок строк,
-  даты, суммы, статусы и разделитель сохраняются — образец остаётся валидной фикстурой для адаптеров.
+  даты, суммы, статусы, разделитель и CRLF сохраняются — образец остаётся валидной фикстурой для адаптеров.
   Колонки определяются по синонимам (`DESC_ALIASES`/`ACCOUNT_ALIASES`/`DOC_ALIASES`); нераспознанные
   не трогаются и перечисляются в отчёте («проверьте, нет ли личных данных»). Вход utf-8/cp1251, выход utf-8.
-  Тесты: `tests/test_anonymize.py` (в т.ч. «обезличенный образец импортируется с теми же датами/суммами»).
+  Даты/суммы/категории не обезличиваются: stderr-предупреждение, по умолчанию остаются первые 5 строк
+  (`--rows 0` — все; для dev-фикстур указывать явно). Запись — bytes (text-mode Windows удвоил бы «\r»).
+  Тесты: `tests/test_anonymize.py` (в т.ч. «обезличенный образец импортируется с теми же датами/суммами»,
+  лимит строк, CRLF без удвоения, варнинг/ошибки CLI).
 
 ## Мультивалютность (#5)
 - `transactions.currency` — ISO 4217, миграция v5 (`ALTER … ADD COLUMN … DEFAULT 'RUB'`; старые строки = RUB,

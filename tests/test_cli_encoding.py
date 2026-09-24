@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from spendtrack.cli import _utf8_stdout
+from spendtrack.console import utf8_stdout as _utf8_stdout
 
 
 class _FakeStream:
@@ -45,3 +45,15 @@ def test_utf8_stdout_reconfigures_when_encoding_unknown(monkeypatch):
     _utf8_stdout()
 
     assert fake.encoding == "utf-8"
+
+
+def test_utf8_stdout_reconfigures_stderr_too(monkeypatch):
+    """Предупреждения CLI идут в stderr — он переключается вместе со stdout (K2)."""
+    out, err = _FakeStream("UTF-8"), _FakeStream("cp1251")
+    monkeypatch.setattr(sys, "stdout", out)
+    monkeypatch.setattr(sys, "stderr", err)
+
+    _utf8_stdout()
+
+    assert out.reconfigured is None
+    assert err.reconfigured == {"encoding": "utf-8", "errors": "replace"}

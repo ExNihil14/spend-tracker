@@ -35,9 +35,11 @@
   `added` / `skipped` (`reasons`: duplicate, status, missing_fields, amount_unparsed, amount_limit) /
   `suspicious` (`date_unrecognized`); человекочитаемо — `summarize()`; совместимые ключи `dupes`/`invalid`
   сохранены. CLI `spendtrack import … [--json]`.
-- **Anonymizer** — `scripts/anonymize.py`: обезличивает выписку для отправки образца (описания/мерчанты →
-  `ОПЕРАЦИЯ_0001`, карты → `КАРТА_0001`, номера документов → порядковый), сохраняя формат (шапка/даты/суммы/
-  разделитель) — образец остаётся валидной фикстурой.
+- **Anonymizer** — `spendtrack anonymize выписка.csv [образец.csv] [--rows N] [--anon-column ФИО]`
+  (`spendtrack.anonymize`, dev-обёртка `scripts/anonymize.py`): обезличивает выписку для отправки образца
+  (описания/мерчанты → `ОПЕРАЦИЯ_0001`, карты → `КАРТА_0001`, номера документов → порядковый), сохраняя
+  формат (шапка/даты/суммы/разделитель/CRLF) — образец остаётся валидной фикстурой. Даты/суммы/категории
+  не обезличиваются: предупреждение в stderr, по умолчанию остаются первые 5 строк (`--rows 0` — все).
 - **Псевдоним счёта (account_anon)** — `acc_hex8`; сырой номер карты НЕ хранится (`account_pseudonyms`).
 - **Примеры (examples)** — few-shot для LLM (правки юзера навсегда).
 - **Бюджет** — месячный лимит категории в `budgets(category, amount_kopecks)` (SQLite, не TOML). Одна константа на все месяцы, без rollover. Считаются расходы месяца (знаковая сумма: возвраты уменьшают). Доход/переводы (`BUDGET_EXCLUDED`) не бюджетируются. Пусто/0 = снят. Редактор — `/settings`, прогресс — `/dashboard`, CLI `spendtrack budget`.

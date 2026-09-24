@@ -255,7 +255,7 @@
         </details>
         <details>
           <summary>Что с моими данными при обновлении или удалении?</summary>
-          <p>Данные лежат в пользовательской папке (Windows: <code>%LOCALAPPDATA%\spendtrack</code>, Linux/macOS: <code>~/.local/share/spendtrack</code>). Экспорт в CSV/Excel — в любой момент; <code>spendtrack doctor</code> проверит целостность и подскажет состояние бэкапов.</p>
+          <p>Данные лежат в пользовательской папке (Windows: <code>%LOCALAPPDATA%\spendtrack</code>, Linux/macOS: <code>~/.local/share/spendtrack</code>; точный путь — <code>spendtrack paths</code>). Обновление: <code>uv tool upgrade spendtrack</code> (перед этим — <code>spendtrack backup</code>). Удаление: <code>uv tool uninstall spendtrack</code> — программа удалится, а данные останутся; удалить их можно вручную. Экспорт в CSV/Excel — в любой момент; <code>spendtrack doctor</code> проверит целостность и подскажет состояние бэкапов.</p>
         </details>
         <details>
           <summary>Как сообщить о баге или предложить фичу?</summary>

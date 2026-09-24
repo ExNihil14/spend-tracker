@@ -52,7 +52,7 @@
     </div>
     <div class="bg-surface rounded-xl border border-line p-4">
       <div class="font-medium text-fg mb-1">Выгрузить данные или сделать бэкап</div>
-      <p class="text-fg-muted">Кнопка «Экспорт CSV» на главной (или <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack export</code>); бэкап — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">python scripts/backup.py</code>.</p>
+      <p class="text-fg-muted">Кнопка «Экспорт CSV» на главной (или <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack export</code>); бэкап — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack backup</code>.</p>
     </div>
     <div class="bg-surface rounded-xl border border-line p-4">
       <div class="font-medium text-fg mb-1">Подключить ИИ (необязательно)</div>
@@ -224,8 +224,8 @@
     </details>
     <details id="faq-backup" class="bg-surface border border-line rounded-xl p-4">
       <summary class="cursor-pointer font-medium text-fg">Где хранятся данные и как сделать бэкап или перенести их?</summary>
-      <p class="mt-2 text-sm text-fg-muted">В файле SQLite (в папке данных; точный путь — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack paths</code>). Бэкап — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">python scripts/backup.py</code>; перенос — копированием файла базы.</p>
-      <p class="mt-2 text-sm text-fg-muted">Копия вне компьютера (на случай поломки диска): <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">python scripts/backup.py --copy-to E:\backup</code> — скрипт откажется писать на тот же диск и проверит контрольную сумму. <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack doctor</code> следит, что копия на месте, не повреждена и свежее 7 дней.</p>
+      <p class="mt-2 text-sm text-fg-muted">В файле SQLite (в папке данных; точный путь — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack paths</code>). Бэкап — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack backup</code>; перенос — копированием файла базы. Обновление программы — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">uv tool upgrade spendtrack</code>, удаление — <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">uv tool uninstall spendtrack</code> (данные при этом остаются на диске).</p>
+      <p class="mt-2 text-sm text-fg-muted">Копия вне компьютера (на случай поломки диска): <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack backup --copy-to E:\backup</code> — команда откажется писать на тот же диск и проверит контрольную сумму. <code class="font-mono text-xs bg-surface-2 rounded px-1.5 py-0.5">spendtrack doctor</code> следит, что копия на месте, не повреждена и свежее 7 дней.</p>
     </details>
     <details id="faq-share-stats" class="bg-surface border border-line rounded-xl p-4">
       <summary class="cursor-pointer font-medium text-fg">Отправляет ли приложение статистику автору?</summary>

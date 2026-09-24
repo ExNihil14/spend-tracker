@@ -78,3 +78,37 @@ def test_cli_confirm_updates_category_and_reports_not_found(cli_db, capsys):
 
     assert cli.main(["confirm", "999999", "household"]) == 1
     assert "not found" in capsys.readouterr().out
+
+
+def test_cli_backup_creates_snapshot(cli_db, capsys):
+    """`spendtrack backup` доступен установкам через uv tool (P1-3): снимок рядом с БД."""
+    assert cli.main(["backup"]) == 0
+    out = capsys.readouterr().out
+    assert "OK:" in out
+    assert len(list((cli_db.parent / "backup").glob("spend-*.db"))) == 1
+
+
+def test_cli_backup_missing_db_reports(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "nope.db"))
+    assert cli.main(["backup"]) == 1
+    assert "не найдена" in capsys.readouterr().err
+
+
+def test_cli_anonymize_writes_sample_with_warning(tmp_path, capsys):
+    """`spendtrack anonymize` — образец для issue; с датами/суммами предупреждает в stderr (K2)."""
+    src = tmp_path / "statement.csv"
+    src.write_text(
+        "Дата операции;Номер карты;Статус;Сумма операции;Описание\n"
+        "01.09.2026;4111111111111111;Выполнено;-1234,56;ЛЕНТА ПЯТЁРОЧКА\n"
+        "02.09.2026;4111111111111111;Выполнено;-500,00;КАФЕ МОЛОКО\n",
+        encoding="utf-8")
+
+    assert cli.main(["anonymize", str(src), "--rows", "1"]) == 0
+    captured = capsys.readouterr()
+    dst = tmp_path / "statement.anon.csv"
+    text = dst.read_text(encoding="utf-8")
+    assert "ЛЕНТА" not in text and "4111111111111111" not in text
+    assert len(text.splitlines()) == 2  # шапка + 1 строка
+    assert "строк 1 из 2" in captured.out
+    assert "ВНИМАНИЕ" in captured.err
+

@@ -193,7 +193,7 @@ def check_empty_batches(conn: sqlite3.Connection) -> dict:
     return _check("empty_batches", INFO, len(rows), f"партии без транзакций: {sample}")
 
 
-# ---- 9. бэкапы (scripts/backup.py → data/backup/spend-*.db) ----
+# ---- 9. бэкапы (spendtrack backup → data/backup/spend-*.db) ----
 def check_backup(db_path: Path) -> dict:
     backup_dir = db_path.parent / "backup"
     files = sorted(backup_dir.glob("spend-*.db"), key=lambda p: (p.stat().st_mtime, p.name))
@@ -257,7 +257,7 @@ def check_restore_drill(db_path: Path) -> dict:
                   f"restore-drill ok ({age.total_seconds() / 86400:.0f} дн назад, {data.get('file')})")
 
 
-# ---- 11. внешняя копия бэкапа (scripts/backup.py --copy-to → backup/last_offsite_copy.json) ----
+# ---- 11. внешняя копия бэкапа (spendtrack backup --copy-to → backup/last_offsite_copy.json) ----
 def check_offsite_backup(db_path: Path) -> dict:
     """Offsite-копия: маркер + файл по пути из маркера + sha256.
 
@@ -268,7 +268,7 @@ def check_offsite_backup(db_path: Path) -> dict:
     marker = db_path.parent / "backup" / "last_offsite_copy.json"
     if not marker.exists():
         return _check("offsite_backup", INFO, 0,
-                      "внешней копии не делали (scripts/backup.py --copy-to <папка/USB>)")
+                      "внешней копии не делали (spendtrack backup --copy-to <папка/USB>)")
     try:
         data = json.loads(marker.read_text(encoding="utf-8"))
         when = datetime.fromisoformat(str(data["time"]))

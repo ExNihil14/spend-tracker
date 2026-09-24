@@ -1,8 +1,48 @@
 {
  "api": {
+  "spendtrack.anonymize:anonymize_csv": {
+   "args": "raw: str | bytes, extra_columns: set[str] | None=None, max_rows: int | None=None",
+   "returns": "tuple[str, dict]"
+  },
+  "spendtrack.anonymize:main": {
+   "args": "argv: list[str] | None=None",
+   "returns": "int"
+  },
+  "spendtrack.anonymize:run_anonymize": {
+   "args": "src: Path | str, dst: Path | str | None=None, *, max_rows: int=DEFAULT_ROWS, extra_columns: tuple[str, ...] | set[str]=()",
+   "returns": "int"
+  },
   "spendtrack.assets:static_url": {
    "args": "name: str",
    "returns": "str"
+  },
+  "spendtrack.backup:copy_offsite": {
+   "args": "snapshot: Path, target_dir: Path, *, force: bool=False",
+   "returns": "Path"
+  },
+  "spendtrack.backup:default_db_path": {
+   "args": "",
+   "returns": "Path"
+  },
+  "spendtrack.backup:main": {
+   "args": "argv: list[str] | None=None",
+   "returns": "int"
+  },
+  "spendtrack.backup:make_snapshot": {
+   "args": "db_path: Path",
+   "returns": "Path"
+  },
+  "spendtrack.backup:rotate": {
+   "args": "backup_dir: Path, keep: int",
+   "returns": "tuple[Path, ...]"
+  },
+  "spendtrack.backup:run_backup": {
+   "args": "db_path: Path | str | None=None, *, keep: int=DEFAULT_KEEP, copy_to: str | Path | None=None, force: bool=False",
+   "returns": "int"
+  },
+  "spendtrack.backup:same_device": {
+   "args": "a: Path, b: Path",
+   "returns": "bool"
   },
   "spendtrack.categorize:categorize_llm": {
    "args": "tx: dict, store: Store, taxonomy: Taxonomy",
@@ -25,6 +65,14 @@
    "returns": "str"
   },
   "spendtrack.cli:cmd_add": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_anonymize": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_backup": {
    "args": "args",
    "returns": "int"
   },
@@ -143,6 +191,10 @@
   "spendtrack.config:user_data_dir": {
    "args": "",
    "returns": "Path"
+  },
+  "spendtrack.console:utf8_stdout": {
+   "args": "",
+   "returns": "None"
   },
   "spendtrack.csv_import:SberAdaptor.parse": {
    "args": "self, rows: Iterator[dict]",

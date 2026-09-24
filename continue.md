@@ -76,6 +76,22 @@
 - ✅ **Защита main на GitHub**: force-push запрещён, deletions запрещены, required_linear_history (только --ff-only), enforce_admins=true. PR-ритуал не обязателен для solo (см. отчёт, п.9).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (24.09, сессия «K2-минимум — жизненный цикл данных»): ✅ `spendtrack backup` и `spendtrack anonymize`
+> как CLI-команды пакета (deliverable; ждёт команды на коммит).** Логика перенесена из `scripts/` в
+> `spendtrack/backup.py`/`spendtrack/anonymize.py` (скрипты — тонкие обёртки; у установок через uv tool их не было);
+> `anonymize` — stderr-варнинг «даты/суммы/категории не обезличиваются» + `--rows` (дефолт 5, `0` — все;
+> для dev-фикстур явно `--rows 0`); `backup` — прежние `--keep/--copy-to/--force` + суффикс при коллизии
+> секунды; общий `console.utf8_stdout()` (stdout И stderr). Попутно закрыты реальные дефекты: CRLF-выписки
+> (cp1251) при записи превращались в `\r\r\n` (text-mode Windows) — теперь bytes + регресс-тест; ошибки CLI
+> («БД не найдена» и т.п.) унифицированы в stderr; отрицательный `--rows` и конфликт OUT/`-o` — явные ошибки.
+> Тексты: README §«Обновление и удаление» (P1-4), единая формула пути к БД в README/PRIVACY/SECURITY +
+> таблица команд и `/help` (P1-10, P1-3); прочие публичные хвосты (CHANGELOG/перки/лендинг-мелочи) — волна K3.
+> Ревью $0 (gpt-oss:120b, 25 с): 3 приняты, 5 отклонены фактами —
+> `EXPERT_REVIEW_K2_DATA_LIFECYCLE_OSS_2026-09-24.md`. Контур: **561 unit + 51 e2e** + ruff + contract
+> (snapshot осознанно: +12 аддитивных символов) + build_css; live: temp-CLI (backup/guard/anonymize/обёртки) +
+> прод NSSM рестартнут (health/health_data 200, doctor 13/13 OK, `/help` с новыми командами, свежий бэкап).
+> Отложено тикетом: автобэкап перед миграцией + `backup --verify` (K2-остаток в RECOMMENDATIONS_APPLY_QUEUE).
+> Следующее по очереди: K3 (тексты + CHANGELOG 0.2.0-beta) или K1 (Windows-CI/пиннинг; тег/заморозка — юзер).
 > **АКТУАЛЬНО (23.09, вечер-2, сессия «cooldown/очередь в плагине AgentRouter» — dev-tooling; репо-код не менялся).**
 > Deliverable: WAF-защита в плагине `~/.config/opencode/plugins/agentrouter-ua.js` (после бана IP 23.09):
 > ① FIFO-сериализация запросов к AgentRouter (в полёте ≤1); ② `AGENTROUTER_MIN_INTERVAL_MS`=1500 мс между

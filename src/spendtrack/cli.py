@@ -7,6 +7,7 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 
 from spendtrack.categorize import categorize_transaction
+from spendtrack.console import utf8_stdout
 from spendtrack.reports import confidence_calibration, report_month
 from spendtrack.store import Store, fmt_amount, normalize_currency, parse_amount
 from spendtrack.taxonomy import load_taxonomy
@@ -370,6 +371,19 @@ def cmd_paths(args) -> int:
     return 0
 
 
+def cmd_backup(args) -> int:
+    """Бэкап БД (VACUUM INTO) + ротация [+ внешняя копия] — доступно и при установке через uv tool."""
+    from spendtrack.backup import run_backup
+    return run_backup(keep=args.keep, copy_to=args.copy_to, force=args.force)
+
+
+def cmd_anonymize(args) -> int:
+    """Обезличить выписку для образца в issue; даты/суммы не трогаются — предупреждение в stderr."""
+    from spendtrack.anonymize import run_anonymize
+    return run_anonymize(args.file, args.output, max_rows=args.rows,
+                         extra_columns=args.anon_column)
+
+
 def cmd_confirm(args) -> int:
     store = make_store()
     ok = store.update_category(args.id, args.category, source="correction")
@@ -378,19 +392,8 @@ def cmd_confirm(args) -> int:
     return 0 if ok else 1
 
 
-def _utf8_stdout() -> None:
-    """Пайп/Git Bash на RU-Windows даёт cp1251: кириллица мазалась, а «≠» ронял печать.
-
-    Реальная консоль Windows уже UTF-8 (PEP 528) — там no-op; pytest-capture тоже UTF-8.
-    """
-    out = sys.stdout
-    enc = (getattr(out, "encoding", "") or "").lower()
-    if enc not in ("utf-8", "utf8") and hasattr(out, "reconfigure"):
-        out.reconfigure(encoding="utf-8", errors="replace")
-
-
 def main(argv: list[str] | None = None) -> int:
-    _utf8_stdout()
+    utf8_stdout()
     p = argparse.ArgumentParser(prog="spendtrack", description="Трекер расходов")
     sub = p.add_subparsers(dest="cmd")
 
@@ -408,6 +411,16 @@ def main(argv: list[str] | None = None) -> int:
     a_im.add_argument("--bank", default="auto", choices=["auto", "sber", "tinkoff", "yandex"])
     a_im.add_argument("--json", action="store_true", help="машинный JSON вместо строки отчёта")
     a_im.set_defaults(fn=cmd_import)
+
+    a_an = sub.add_parser("anonymize", help="обезличить выписку CSV для образца в issue")
+    a_an.add_argument("file", help="исходный CSV банка")
+    a_an.add_argument("output", nargs="?", default=None,
+                      help="куда записать (по умолчанию <имя>.anon.csv рядом)")
+    a_an.add_argument("--rows", type=int, default=5,
+                      help="оставить первых N строк данных (0 — все; по умолчанию 5)")
+    a_an.add_argument("--anon-column", action="append", default=[],
+                      help="доп. колонка для обезличивания (можно повторять)")
+    a_an.set_defaults(fn=cmd_anonymize)
 
     a_rp = sub.add_parser("report")
     a_rp.add_argument("--month", default=None)
@@ -461,6 +474,14 @@ def main(argv: list[str] | None = None) -> int:
     a_ex.add_argument("--to", dest="date_to", default=None, type=_date_arg, metavar="YYYY-MM-DD")
     a_ex.add_argument("--out", default=None, help="путь файла (по умолчанию spend-export-<дата>.<ext>)")
     a_ex.set_defaults(fn=cmd_export)
+
+    a_bk = sub.add_parser("backup", help="бэкап базы (VACUUM INTO) + копия на другой диск")
+    a_bk.add_argument("--keep", type=int, default=14, help="сколько локальных копий хранить")
+    a_bk.add_argument("--copy-to", default=None, metavar="ПАПКА",
+                      help="копия вне диска БД (USB/облачная папка)")
+    a_bk.add_argument("--force", action="store_true",
+                      help="разрешить копию на тот же диск (осознанное исключение)")
+    a_bk.set_defaults(fn=cmd_backup)
 
     a_srv = sub.add_parser("serve", help="запустить веб-интерфейс (127.0.0.1)")
     a_srv.add_argument("--host", default="127.0.0.1", help="по умолчанию только локально")

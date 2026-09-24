@@ -103,8 +103,9 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 <summary><strong>Банк изменил формат выписки — что делать?</strong></summary>
 Импорт честно скажет, каких колонок не хватает, и не тронет базу. Пришлите обезличенный образец (первые строки)
 в <a href="https://github.com/ExNihil14/spend-tracker/issues/new">issue</a> — адаптер обновим.
-Обезличить: <code>python scripts/anonymize.py выписка.csv</code> — описания, магазины и номера карт заменятся
-псевдонимами, а формат выписки (колонки, даты, суммы) сохранится.
+Обезличить: `spendtrack anonymize выписка.csv` — описания, магазины и номера карт заменятся псевдонимами,
+формат выписки сохранится; по умолчанию остаются первые 5 строк (`--rows 0` — весь файл). Даты и суммы
+не обезличиваются — просмотрите файл перед отправкой (issue публичный).
 </details>
 
 <details>
@@ -123,11 +124,11 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 
 <details>
 <summary><strong>Как сделать бэкап или забрать данные?</strong></summary>
-Экспорт CSV/Excel — кнопкой на главной; бэкап базы — `uv run python scripts/backup.py` (консистентный
+Экспорт CSV/Excel — кнопкой на главной; бэкап базы — `spendtrack backup` (консистентный
 снимок через `VACUUM INTO`, работает при запущенном приложении); путь к базе — `spendtrack paths`.
 
-<b>Копия вне компьютера</b> (защита от поломки диска): `uv run python scripts/backup.py --copy-to E:\spendtrack-backup`
-— скрипт откажется писать копию на тот же диск, что и база, проверит контрольную сумму и оставит отметку.
+<b>Копия вне компьютера</b> (защита от поломки диска): `spendtrack backup --copy-to E:\spendtrack-backup`
+— команда откажется писать копию на тот же диск, что и база, проверит контрольную сумму и оставит отметку.
 `spendtrack doctor` проверит и локальный бэкап, и внешнюю копию (файл на месте, не повреждена, свежее 7 дней).
 </details>
 
@@ -168,7 +169,9 @@ uv run python scripts/demo_data.py clean    # убрать демо
 
 - `config/settings.toml` — порт, порог авто-приёма категорий, адреса LLM-серверов.
 - `config/taxonomy.toml` — категории и правила (удобнее править через «Настройки» в интерфейсе).
-- `SPENDTRACK_DB_PATH` — путь к базе (по умолчанию `data/spend.db`).
+- `SPENDTRACK_DB_PATH` — путь к базе. По умолчанию: из исходников — `data/spend.db`; при установке
+  одной командой — папка данных (`%LOCALAPPDATA%\spendtrack` на Windows, `~/.local/share/spendtrack`
+  на macOS/Linux). Точный путь всегда покажет `spendtrack paths`.
 
 **ИИ — необязателен.** Три режима (проверить: `spendtrack llm-status`):
 
@@ -246,6 +249,21 @@ loginctl enable-linger $USER    # запускать, даже когда вы �
 допишите их в юнит (`systemctl --user edit spendtrack`), в `EnvironmentVariables` plist или в
 `nssm set spendtrack AppEnvironmentExtra …`. Сами ключи в `deploy/` не хранятся.
 
+## Обновление и удаление
+
+**Обновление.** Для установки одной командой: `uv tool upgrade spendtrack`, затем перезапустите приложение
+(`spendtrack serve --open` или ваша служба). Перед обновлением стоит сделать свежий бэкап — `spendtrack backup`.
+Настройки и данные обновление не затрагивает; миграции схемы базы применяются автоматически при первом
+запуске новой версии.
+
+**Удаление.** `uv tool uninstall spendtrack` — удаляет программу. Данные и настройки **остаются** на диске;
+их пути (`spendtrack paths`): Windows — `%LOCALAPPDATA%\spendtrack` (база и бэкапы) и `%APPDATA%\spendtrack`
+(настройки), macOS/Linux — `~/.local/share/spendtrack` и `~/.config/spendtrack`. Перед удалением сохраните
+историю: `spendtrack export` или `spendtrack backup`.
+
+**Из исходников.** Обновление — `git pull && uv sync` (затем перезапуск); удаление — просто удалите папку
+репозитория, база лежит в `data/spend.db` (если не переопределён `SPENDTRACK_DB_PATH`).
+
 ## Команды
 
 | Команда | Что делает |
@@ -259,7 +277,8 @@ loginctl enable-linger $USER    # запускать, даже когда вы �
 | `spendtrack digest` | дайджест недели и аномалии |
 | `spendtrack export --format csv` | выгрузка CSV/XLSX |
 | `spendtrack doctor [--share]` | проверка целостности данных (+ анонимная сводка вручную) |
-| `python scripts/backup.py --copy-to E:\backup` | бэкап базы + копия на другой диск |
+| `spendtrack backup [--copy-to E:\backup]` | бэкап базы + копия на другой диск |
+| `spendtrack anonymize выписка.csv [--rows N]` | обезличить выписку для образца в issue |
 | `spendtrack paths` | где лежат база и настройки |
 | `spendtrack llm-status` | какой режим ИИ сейчас |
 | `spendtrack confidence` | калибровка порога авто-приёма |
