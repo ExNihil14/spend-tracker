@@ -54,6 +54,15 @@ def test_add_persists_accepted_llm_result(monkeypatch, tmp_path):
     assert row["confidence"] == 0.98
 
 
+def test_add_invalid_amount_is_friendly_error(tmp_path, monkeypatch, capsys):
+    """Опечатка/не-число в сумме — понятная ошибка (exit 1), а не трейсбек (property-тесты §G)."""
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "bad.db"))
+    for bad in ("abc", "nan"):
+        assert cli.main(["add", bad, "ТЕСТ"]) == 1
+        err = capsys.readouterr().err
+        assert "не разобрана сумма" in err and bad in err
+
+
 def test_add_explicit_category_skips_llm(monkeypatch, tmp_path):
     """--category — ручной ввод: классификатор не вызывается, source=manual."""
     def explode(*args, **kwargs):

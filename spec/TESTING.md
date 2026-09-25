@@ -30,11 +30,17 @@
 CI (`.github/workflows/ci.yml`): lint+unit, e2e (chromium), cross-browser smoke (firefox+webkit),
 contract, pip-audit, secret-scan. Перед коммитом — unit + ruff; перед отчётом о готовности — живой прогон.
 
-## Текущее состояние (23.09.2026)
-- **504 unit + 48 e2e** (+ cross-engine прогоны), все оффлайн; покрытие `src/spendtrack` — **96%**.
-- Полностью/почти покрыто: ядро (store/categorize/csv_import/reports/digest/recurring/export/security),
-  очереди, бюджеты, калибровка, doctor, бэкапы/restore-drill/offsite, периметр, offline/BYO-LLM, лендинг,
-  деплой-шаблоны, контракт.
+## Текущее состояние (25.09.2026)
+- **578 unit + 51 e2e** (+ cross-engine прогоны), все оффлайн; покрытие `src/spendtrack` — **96%**.
+- **Property-based и chaos (§G, 25.09):** `tests/test_property_parsers.py` (hypothesis: `parse_amount`,
+  `sniff_bank`, `import_csv` — инвариант «любой ввод → валидная запись или `_skip` с известной причиной,
+  никогда исключение; даты в БД только ISO») и `tests/test_import_chaos.py` (CR в поле, CRLF/cp1251/битые
+  байты, 20K-описание, лимит 10 МБ, пустышки, случайные байты, параллельная UI-запись во время импорта).
+  Фикстуры миграций v3/v4 (`test_migrations.py`): данные/бюджеты сохраняются, валюта бэкфиллится,
+  повторное открытие идемпотентно. Найдены и закрыты реальные дефекты: падение csv-парсера на одиночном
+  `\r`; `parse_amount("nan"/"inf")` → контролируемая `InvalidOperation` (CLI exit 1).
+- Ядро (store/categorize/csv_import/reports/digest/recurring/export/security), очереди, бюджеты, калибровка,
+  doctor, бэкапы/restore-drill/offsite, периметр, offline/BYO-LLM, лендинг, деплой-шаблоны, контракт — покрыто.
 - **P0 аудита закрыт** (`tests/test_cli_commands.py`, ветки 4xx в `test_api.py`, роуты категорий в
   `test_settings.py`, `/health` 503, `update_merchant`/`needs_review`): cli.py 85→90%, api.py 92→97%,
   settings.py 89→95%, main.py 91→94%.
@@ -43,9 +49,18 @@ contract, pip-audit, secret-scan. Перед коммитом — unit + ruff; �
   (`wait_for_load_state("networkidle")`, `expect_response` в `test_htmx_settle.py`); seed-хелперы e2e
   дедуплицированы в `tests/e2e/helpers.py` (через публичный `Store`, не raw SQL); `anonymize.py` 80→99%
   (CLI + пустой ввод). `backup.py` 97% — остаток (80, 131) это `__main__`-гард и reconfigure-ветка, не тестируются.
-- **Бэклог (остаток P1/P2):** e2e настроек категорий; e2e «Показать ещё» (keyset); property-based
-  (`hypothesis` — `parse_amount`, `fingerprint`, `month_bounds`); параметризация матриц (валюты/банки);
+- **Бэклог (остаток P1/P2):** e2e настроек категорий; e2e «Показать ещё» (keyset);
+  property-based `fingerprint`/`month_bounds`; параметризация матриц (валюты/банки);
   смоук конкурентных HTTP; inline raw-SQL блоки в отдельных e2e (можно перевести на helpers).
+
+## Property-based (hypothesis)
+- `hypothesis` — dev-зависимость; файлы: `tests/test_property_parsers.py`, `tests/test_import_chaos.py`.
+- Пишем **инварианты, не примеры**: «любой ввод → валидная запись или `_skip` с известной причиной, никогда
+  исключение»; «даты в БД только ISO (`GLOB '____-__-__'`)»; roundtrip `parse_amount(fmt_amount(k)) == k`.
+- Настройки: `max_examples=60–80`, `deadline=None`; для функциональных фикстур — suppress
+  `function_scoped_fixture`; лимиты входа защищать `assume(len(blob) < MAX_CSV_BYTES)`.
+- Свойство, найденное багом, сначала закрепляем обычным регресс-тестом, затем фикс (пример: CR в поле,
+  «nan» в сумме).
 
 ## Как добавить тест
 1. Выбери **публичный интерфейс**: CLI-команда → `cli.main([...])` + `capsys`; роут → `TestClient(app)`

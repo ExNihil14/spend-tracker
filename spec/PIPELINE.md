@@ -172,6 +172,12 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   добавлены `skipped`/`suspicious`/`reasons`/`suspicious_reasons`.
 - CLI: `spendtrack import file.csv [--bank …] [--json]` (по умолчанию человекочитаемая строка).
   Тесты: `tests/test_csv_import.py`, `tests/test_synth_import.py` (переименование и удаление колонки на синтетике).
+- **Property-based и chaos (§G, 25.09):** `tests/test_property_parsers.py` (hypothesis: любой ввод →
+  валидная запись или `_skip` с известной причиной; даты в БД только ISO) и `tests/test_import_chaos.py`
+  (CR в поле, CRLF/cp1251/битые байты, 20K-описание, лимит, пустышки, случайные байты, параллельная
+  UI-запись). Найдены и закрыты: падение csv-парсера на одиночном `\r` (нормализация переводов строк в
+  `import_csv`/`anonymize_csv`) и `parse_amount("nan"/"inf")` → контролируемая `InvalidOperation`
+  (CLI `add` — exit 1). Фикстуры миграций v3/v4 — `tests/test_migrations.py`.
 - Битый JSON-конверт: не-JSON/не-UTF-8 тело → 400, неполные поля → 422 (`_json_payload` в `api.py`;
   live-смоук 21.09 вскрыл 500 на кривой кодировке) — и `/api/import`, и `/api/transactions`.
 - **Реальные форматы (подтверждены публичными первоисточниками 23.09, `RESEARCH_BANK_STATEMENT_SAMPLES.md`):**

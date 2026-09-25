@@ -4,6 +4,7 @@ import argparse
 import json
 import sys
 from datetime import UTC, date, datetime
+from decimal import InvalidOperation
 from pathlib import Path
 
 from spendtrack.categorize import categorize_transaction
@@ -26,9 +27,15 @@ def _currency_arg(value: str) -> str:
 
 
 def cmd_add(args) -> int:
+    try:
+        amount = parse_amount(args.amount)
+    except (InvalidOperation, ValueError, OverflowError) as e:
+        # Опечатка в сумме — понятная ошибка, а не трейсбек (property-тесты §G: «nan»/«abc»);
+        # проверяем до открытия Store, чтобы не оставлять соединение при ошибке (ревью $0, P1).
+        print(f"не разобрана сумма: {args.amount!r} ({e})", file=sys.stderr)
+        return 1
     store = make_store()
     taxonomy = load_taxonomy()
-    amount = parse_amount(args.amount)
     if args.category:
         category, source = args.category, "manual"
         confidence, category_llm, review_status = 1.0, None, "approved"

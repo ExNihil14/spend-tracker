@@ -57,6 +57,13 @@ def test_parse_amount_rejects_garbage():
         parse_amount("")
 
 
+def test_parse_amount_rejects_non_finite():
+    """«nan»/«inf» Decimal принимает, но это не деньги: контролируемая InvalidOperation (§G)."""
+    for bad in ("nan", "NaN", "inf", "-Infinity", "sNaN"):
+        with pytest.raises(InvalidOperation):
+            parse_amount(bad)
+
+
 def test_delta_words_expense_direction():
     """Дельта расходов словами (M-5): рост трат — ↑, снижение — ↓, ноль — без изменений."""
     from spendtrack.store import delta_words

@@ -96,6 +96,11 @@ def anonymize_csv(
         text = raw.lstrip("\ufeff")
     if max_rows is not None and max_rows < 0:
         raise ValueError("max_rows не может быть отрицательным (0 — все строки)")
+    # csv-парсер падает на одиночном `\r` в незакавыченном поле — нормализуем перевод строки
+    # (см. csv_import.import_csv; property-тест §G ловил падение на CR-выгрузках).
+    # Терминатор вывода фиксируем ДО нормализации, чтобы CRLF-выписки остались CRLF.
+    crlf = "\r\n" in text
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = text.splitlines()
     if not lines:
         return "", {"anonymized": {}, "untouched": [], "unique": {},
@@ -121,7 +126,7 @@ def anonymize_csv(
             for name in fieldnames
         })
 
-    terminator = "\r\n" if "\r\n" in text else "\n"
+    terminator = "\r\n" if crlf else "\n"
     buf = StringIO()
     writer = csv.DictWriter(buf, fieldnames=fieldnames, delimiter=delimiter,
                             lineterminator=terminator)

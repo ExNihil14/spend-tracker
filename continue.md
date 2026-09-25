@@ -17,6 +17,14 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (25.09, §G-1..3 — регресс-хардненинг):** property-based (`hypothesis`):
+> `tests/test_property_parsers.py` (инвариант «любой ввод → запись или `_skip` с причиной; даты в БД только ISO»),
+> `tests/test_import_chaos.py` (CR/CRLF/cp1251/битые байты, 20K-описание, лимит, пустышки, случайные байты,
+> параллельная UI-запись), фикстуры миграций v3/v4. **Property-тесты нашли 2 реальных дефекта (закрыты):**
+> csv падал на одиночном `\r` (нормализация переводов строк); `parse_amount("nan"/"inf")` → контролируемая
+> `InvalidOperation` (CLI `add` — exit 1). Контур: **578 unit + 51 e2e** + ruff + contract + build_css;
+> ревью $0 — 2 приняты / 8 отклонены фактами (`EXPERT_REVIEW_G_HARDENING_OSS_2026-09-25.md`);
+> live: `add nan` → exit 1, CR-выгрузка → `+1 добавлено`. Ждёт коммита.
 > **АКТУАЛЬНО (24.09, K3 закрыт: публичные тексты + CHANGELOG):** README (браузеры/e2e-формулировка,
 > `ruff check .` как в CI, EN/названия банков, NSSM-права, FAQ «Обновление/удаление», Docker-предупреждение,
 > «Сайт»); лендинг (FAQ «импорт не распознал выписку» + `anonymize`; P1-6 — телеметрия vs `doctor --share`,

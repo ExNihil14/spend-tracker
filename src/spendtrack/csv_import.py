@@ -254,6 +254,10 @@ def import_csv(
         except UnicodeDecodeError:
             raw = raw.decode("cp1251", errors="replace")
     raw = raw.lstrip("\ufeff")
+    # Единый перевод строки: csv-парсер падает на одиночном `\r` в незакавыченном поле
+    # (`_csv.Error: new-line character seen in unquoted field`) — реальные выгрузки бывают
+    # с CR/CRLF (Excel, старые Mac). Нормализация до разбора, property-тест §G ловил падение.
+    raw = raw.replace("\r\n", "\n").replace("\r", "\n")
 
     lines = raw.splitlines()
     if not lines:

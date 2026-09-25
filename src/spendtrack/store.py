@@ -5,7 +5,7 @@ import re
 import sqlite3
 import uuid
 from datetime import UTC, datetime
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
 
@@ -14,12 +14,19 @@ from spendtrack.config import settings as load_settings
 
 
 def parse_amount(value: str | float) -> int:
-    """Сумма в копейках (INTEGER). -123.45 руб → -12345. Округление HALF_UP."""
+    """Сумма в копейках (INTEGER). -123.45 руб → -12345. Округление HALF_UP.
+
+    Неразбираемое/не-число (включая NaN/Infinity из текста) — контролируемая `InvalidOperation`:
+    вызывающие (API/импорт/CLI) переводят её в 422/пропуск/ошибку, а не в трейсбек.
+    """
     if isinstance(value, int) and not isinstance(value, bool):
         return value * 100
     s = str(value).replace(",", ".").replace(" ", "").replace("\u00a0", "")
     s = s.replace("\u2212", "-").replace("\u2013", "-").replace("\u2014", "-")
-    d = Decimal(s).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    d = Decimal(s)
+    if not d.is_finite():  # «nan», «inf», «-infinity» — Decimal их принимает, но это не деньги
+        raise InvalidOperation(f"не число: {value!r}")
+    d = d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return int(d * 100)
 
 
