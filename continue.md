@@ -17,6 +17,22 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (25.09, Q2 — дедуп глобального AGENTS.md): ✅ сделан (dev-процесс, вне репо).** Глобальный
+> `AGENTS.md`: 59 стр / ≈1 907 ток (было 86 / ≈3 412, −44%); факты → раздел «СРЕДА» `AGENT_ENVIRONMENT_PLAN.md`,
+> роутинг-детали → `MODEL_ROUTING_OPENCODE_GO.md` §14; бэкап —
+> `D:\dev\docs\machine\archive\AGENTS_global_2026-09-25_pre-Q2.md`; `agent_context_audit.py` — OK
+> (28 указателей, 0 битых). Следующие deliverable: §I M7–M11 (Gotchas-скиллы, лог скиллов, ratchet-метрики,
+> contradiction-check), Q5.2 (плагин-гейт protected paths), Q6 (`PROCESS_METRICS.md`), §I-S4/S5.
+> AgentRouter-поллер: окно 22:55 UTC → результат в `C:\Users\HP\AppData\Local\Temp\opencode\agentrouter_review\`
+> (проверить в начале следующей сессии).
+> **АКТУАЛЬНО (25.09, АВАРИЙНЫЙ HANDOFF — сессия падает с 400):** `AI_APICallError: Bad Request`
+> (opencode-go/deepseek-v4.1-flash). Факты: изображений нет, сессия переросла (514 сообщений, 4.6 МБ частей,
+> компакции не было) → диагноз `D:\dev\docs\machine\OPENCODE_400_DIAGNOSIS_2026-09-25.md`; **дальше работать
+> в НОВОЙ сессии по `D:\dev\docs\machine\SESSION_START_PROMPT.md`**. Git: `main` = **`2681a5f`**, ahead 6,
+> дерево чистое. §G закрыт целиком (1–7, включая GIF `landing/assets/demo.gif`); §I-S1/S2/S3/S6 применены;
+> **Q2 (дедуп глобального AGENTS.md) НЕ начат** — следующий deliverable (план в стартере); затем §I M7–M11,
+> Q5.2, Q6 и K1 (тег/заморозка — за юзером). Контур: **588 unit + 52 e2e** + ruff/contract/build_css;
+> прод NSSM актуален.
 > **АКТУАЛЬНО (25.09, §G-1..3 — регресс-хардненинг):** property-based (`hypothesis`):
 > `tests/test_property_parsers.py` (инвариант «любой ввод → запись или `_skip` с причиной; даты в БД только ISO»),
 > `tests/test_import_chaos.py` (CR/CRLF/cp1251/битые байты, 20K-описание, лимит, пустышки, случайные байты,
@@ -33,7 +49,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > «не учтено N операций в валюте» (`report_month`/`digest` + `foreign_transactions_count`; `/`, `/dashboard`,
 > CLI `report`; показывается при N>0). Контур: **584 unit + 52 e2e**; ревью $0 — 0 принято / 2 отклонены
 > фактами; live-факт на временном стенде.
-> **§G-7 (K5-минимум) — в дереве, ждёт коммита:** GIF «импорт → подтвердить → дайджест»
+> **§G-7 (K5-минимум) — ✅ закоммичено `2681a5f`:** GIF «импорт → подтвердить → дайджест»
 > (`scripts/record_demo_gif.py`: изолированная копия demo-БД → временный uvicorn → 4 кадра Playwright →
 > Pillow-подписи → `landing/assets/demo.gif`, 960px/~272 КБ) + `tests/test_demo_gif.py`, лид-кадр в `#screens`,
 > README-ссылка; ревью $0 — 5 принято/2 отклонены (`EXPERT_REVIEW_GIF_DEMO_OSS_2026-09-25.md`).
