@@ -146,6 +146,16 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
 - Базлайн 25.09: отчёт — **2** запроса; импорт 100 строк — **435** запросов (~4.35/строку — кандидат в K7).
 - Тесты: `tests/test_ratchet.py` (3, оффлайн: форма baseline, детект регресса, CLI `check` зелёный).
 
+## Contradiction-check публичных доков (M11)
+- **Машино-проверяемые каноны (гейт, в общем прогоне pytest):** `tests/test_docs_consistency.py` — цена/перки
+  (README ↔ лендинг), порог из `config/settings.toml` ↔ лендинг, лицензия (LICENSE ↔ README ↔ лендинг),
+  банки (`BANKS` ↔ README ↔ лендинг), выключенный `FUNDING.yml` до запуска, совпадение URL установки.
+- **Семантический прогон (LLM, вручную, рекомендательный):** покрывает то, что не выражается тестом —
+  CHANGELOG/PRIVACY/SECURITY и соответствие доков фактическому поведению. Промпт: «Review README, landing,
+  CHANGELOG, PRIVACY and SECURITY against each other and against actual behavior. Quote each problem and say
+  where it is. List only contradictions you can point to; mark anything you couldn't confirm and say where you
+  looked». Каденс: перед тегом (K1) и раз в месяц; находки — адъюдикация фактами, тег семантический прогон не блокирует.
+
 ## Офлайн-first, лимиты импорта, очередь (фаза 0 аудита 19.09)
 - LLM по умолчанию **выключен**. Резолв — `resolve_providers()`; режимы: BYO (`SPENDTRACK_LLM_BASE_URL/MODEL/API_KEY`,
   любой OpenAI-совместимый сервер), Ollama (`SPENDTRACK_LLM_PROVIDER=ollama`, air-gap), free-цепочка (ключи;

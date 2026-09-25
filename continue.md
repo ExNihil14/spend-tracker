@@ -17,6 +17,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (25.09, §I M11 — contradiction-check публичных доков): ✅ сделано (в дереве, ждёт коммита).**
+> `tests/test_docs_consistency.py` (7 оффлайн: цена/перки README↔лендинг, порог config↔лендинг, лицензия
+> LICENSE↔README↔лендинг, банки `BANKS`↔README↔лендинг, выключенный FUNDING, совпадение install-URL);
+> семантический промпт (Opus 5.5) и каденс — `spec/PIPELINE.md` §Contradiction-check (перед тегом K1 и раз
+> в месяц; рекомендательный — тег не блокирует); шаг добавлен в скилл `release`. Контур: **605 unit + 52 e2e**
+> + ruff; ревью $0 — все 5 находок приняты (`EXPERT_REVIEW_DOCS_CONSISTENCY_OSS_2026-09-25.md`).
+> Остаток §I: S4/S5; далее Q6-остаток, K1 (юзер).
 > **АКТУАЛЬНО (25.09, §I M10 — ratchet-метрики): ✅ сделано (в репо, ждёт коммита).** `scripts/ratchet.py`
 > (temp-БД, прод не трогает): SQL-запросы на `report_month` = **2**, на импорт 100 строк = **435**
 > (≈4.35/строку — кандидат в K7), медиана времени правил-категоризации — инфо (вне гейта). Baseline

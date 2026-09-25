@@ -8,7 +8,10 @@ description: Релизный контур spend-tracker: тег vX.Y.Z, CHANGEL
 Порядок: контур → тексты → пиннинг → тег → заморозка → ручные прогоны. Коммит, push и тег — только по явной команде юзера; тег и заморозка необратимы.
 
 ## Шаги
-1. **Контур зелёный:** `uv run pytest`, `uv run pytest tests/e2e -m e2e`, `uv run ruff check .`, `uv run python scripts/contract_delta.py check`, `uv run python scripts/build_css.py --check`. При осознанном изменении контракта — `contract_delta.py snapshot` в том же коммите.
+1. **Контур зелёный:** `uv run pytest`, `uv run pytest tests/e2e -m e2e`, `uv run ruff check .`, `uv run python scripts/contract_delta.py check`, `uv run python scripts/ratchet.py check`, `uv run python scripts/build_css.py --check`. При осознанном изменении контракта — `contract_delta.py snapshot` в том же коммите.
+2. **Доки без противоречий:** `tests/test_docs_consistency.py` — гейт (машино-проверяемые каноны);
+   семантический contradiction-прогон по `spec/PIPELINE.md` §Contradiction-check — рекомендательный
+   (проверяет CHANGELOG/PRIVACY/SECURITY и соответствие поведению; находки — адъюдикация фактами, правки тем же коммитом).
 2. **CHANGELOG** `[X.Y.Z]` — Added/Changed/Fixed/Security + дата; версия SemVer `0.x.y`; историчные разделы не переписывать.
 3. **Пиннинг установщиков:** команды в `install.ps1`/`install.sh`, README и лендинге — на тег/релиз-ветку (`raw.githubusercontent.com/.../vX.Y.Z/...`), не на `main`; рядом с `irm | iex` — ссылка «посмотреть скрипт».
 4. **Тег:** аннотированный `git tag -a vX.Y.Z -m "..."` (push — по команде юзера).
