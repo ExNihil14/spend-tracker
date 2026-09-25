@@ -17,6 +17,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (25.09, §I M9 + Q6-каркас): ✅ M9 / 🔶 Q6 (dev-tooling, вне репо).** Плагин `skill-log.js`
+> (канон bootstrap, копия в `~\.config\opencode\plugins\`; тест `skill_log_test.mjs` — 3 сценария/8 проверок,
+> ревью $0 — 1 P1 принят, 6 отклонены фактами) пишет JSONL `D:\dev\docs\machine\metrics\skill-usage.jsonl`
+> (ts/skill/session/cwd). `PROCESS_METRICS.md`: precision ревью **14/30 ≈ 47%**, rework **28/174 ≈ 16%**;
+> «недотриггер» — из журнала после рестарта; стоимость/CI/уроки — ждут данных. Активация — рестарт opencode.
 > **АКТУАЛЬНО (25.09, §I M8+Q5.2 — гейт деструктива/protected paths): ✅ сделано (dev-tooling, вне репо).**
 > Плагин `safety-gate.js` (канон `D:\dev\bootstrap\config\plugins\`, копия в `~\.config\opencode\plugins\`):
 > `.env`/`spec/contract_baseline.json`/`data/**` — hard-deny для edit/write/multiedit/patch; деструктив
