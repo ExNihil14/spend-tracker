@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "measured_at": "2026-09-25",
+  "metrics": {
+    "report_month_queries": 2,
+    "import_100_queries": 435,
+    "categorize_100_ms": 1.789
+  }
+}

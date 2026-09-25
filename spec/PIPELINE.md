@@ -138,6 +138,14 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   расхождение check = блокер (LLM молча выкидывают функциональность; happy-path тесты это не ловят).
 - Тесты: `tests/test_contract_delta.py` (6, оффлайн, герметичные — tmp-пакеты/файлы baseline).
 
+## Ratchet-метрики (M10, «только вниз»)
+- `scripts/ratchet.py` — детерминированные метрики на temp-БД (прод не трогает): SQL-запросы на месячный
+  отчёт (`report_month`), SQL-запросы на импорт 100 строк, медиана времени 100 правил-категоризаций (инфо).
+  Baseline — `spec/ratchet_baseline.json`; для счётчиков гейт «только вниз»; `snapshot` повышает значение
+  только с `--force`. CI-шаг «Ratchet metrics» в `lint-and-test` (рядом с contract-дельтой).
+- Базлайн 25.09: отчёт — **2** запроса; импорт 100 строк — **435** запросов (~4.35/строку — кандидат в K7).
+- Тесты: `tests/test_ratchet.py` (3, оффлайн: форма baseline, детект регресса, CLI `check` зелёный).
+
 ## Офлайн-first, лимиты импорта, очередь (фаза 0 аудита 19.09)
 - LLM по умолчанию **выключен**. Резолв — `resolve_providers()`; режимы: BYO (`SPENDTRACK_LLM_BASE_URL/MODEL/API_KEY`,
   любой OpenAI-совместимый сервер), Ollama (`SPENDTRACK_LLM_PROVIDER=ollama`, air-gap), free-цепочка (ключи;

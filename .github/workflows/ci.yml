@@ -43,6 +43,9 @@ jobs:
       - name: Contract delta (public API + DB schema + routes)
         run: uv run python scripts/contract_delta.py check
 
+      - name: Ratchet metrics (только вниз)
+        run: uv run python scripts/ratchet.py check
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15

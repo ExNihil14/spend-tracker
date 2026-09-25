@@ -54,7 +54,8 @@
   (CI-шаг; блокер при расхождении сигнатур/полей БД/роутов с `spec/contract_baseline.json`); при осознанном
   изменении контракта — `snapshot` и baseline в том же коммите;
   правило «дисциплины данных» и чек-лист ревью — `D:\dev\docs\machine\REVIEW_CHECKLIST.md`
-- **Protected paths:** `spec/contract_baseline.json` (только через `contract_delta.py snapshot`), `data/**`, `.env` —
+- **Protected paths:** `spec/contract_baseline.json` (только через `contract_delta.py snapshot`),
+  `spec/ratchet_baseline.json` (только через `scripts/ratchet.py snapshot`), `data/**`, `.env` —
   агентский гейт-плагин `safety-gate.js` блокирует прямые правки; деструктив (force-push/`reset --hard`/`rm -rf`/
   NSSM remove) — только после `/careful` (окно 10 мин)
 

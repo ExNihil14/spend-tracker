@@ -17,6 +17,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (25.09, §I M10 — ratchet-метрики): ✅ сделано (в репо, ждёт коммита).** `scripts/ratchet.py`
+> (temp-БД, прод не трогает): SQL-запросы на `report_month` = **2**, на импорт 100 строк = **435**
+> (≈4.35/строку — кандидат в K7), медиана времени правил-категоризации — инфо (вне гейта). Baseline
+> `spec/ratchet_baseline.json` — гейт «только вниз» (повышение лишь `snapshot --force`; путь в protected
+> paths гейта), CI-шаг «Ratchet metrics» рядом с contract-дельтой; `tests/test_ratchet.py` (3).
+> Контур: **598 unit + 52 e2e** + ruff + contract + build_css; ревью $0 — 1 P0+1 P1 приняты, 5 отклонены
+> фактами (`EXPERT_REVIEW_RATCHET_OSS_2026-09-25.md`). Далее: §I M11 (contradiction-check), Q6-остаток, S4/S5.
 > **АКТУАЛЬНО (25.09, §I M9 + Q6-каркас): ✅ M9 / 🔶 Q6 (dev-tooling, вне репо).** Плагин `skill-log.js`
 > (канон bootstrap, копия в `~\.config\opencode\plugins\`; тест `skill_log_test.mjs` — 3 сценария/8 проверок,
 > ревью $0 — 1 P1 принят, 6 отклонены фактами) пишет JSONL `D:\dev\docs\machine\metrics\skill-usage.jsonl`
