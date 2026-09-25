@@ -178,6 +178,15 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   UI-запись). Найдены и закрыты: падение csv-парсера на одиночном `\r` (нормализация переводов строк в
   `import_csv`/`anonymize_csv`) и `parse_amount("nan"/"inf")` → контролируемая `InvalidOperation`
   (CLI `add` — exit 1). Фикстуры миграций v3/v4 — `tests/test_migrations.py`.
+
+## Golden-набор мерчантов (§G-4)
+- `tests/golden/merchants.csv` (`description,expected_category,bank`) — курируемые реалистичные формулировки;
+  строки без ожидания (пустой `expected_category`) держат метрику «нерешённых» живой.
+- `scripts/golden_report.py` (не тест-гейт, read-only): `rule_hit_share`, `misclassified`, `unresolved`,
+  `surprise` → `reports/golden.json`. База 25.09 (синтетика): **34/34 rule-хитов, 6/40 нерешённых, 0 ошибок**.
+  Основа калибровки порога 0.9 на реальных фикстурах (K4): набор расширяется без кода.
+- Тест `tests/test_golden_report.py`: контракт метрик (чистая функция, стаб) + консистентность набора
+  (слаги таксономии; 0 ошибок/сюрпризов; ≥5 нерешённых).
 - Битый JSON-конверт: не-JSON/не-UTF-8 тело → 400, неполные поля → 422 (`_json_payload` в `api.py`;
   live-смоук 21.09 вскрыл 500 на кривой кодировке) — и `/api/import`, и `/api/transactions`.
 - **Реальные форматы (подтверждены публичными первоисточниками 23.09, `RESEARCH_BANK_STATEMENT_SAMPLES.md`):**

@@ -31,7 +31,11 @@ CI (`.github/workflows/ci.yml`): lint+unit, e2e (chromium), cross-browser smoke 
 contract, pip-audit, secret-scan. Перед коммитом — unit + ruff; перед отчётом о готовности — живой прогон.
 
 ## Текущее состояние (25.09.2026)
-- **578 unit + 51 e2e** (+ cross-engine прогоны), все оффлайн; покрытие `src/spendtrack` — **96%**.
+- **581 unit + 52 e2e** (+ cross-engine прогоны), все оффлайн; покрытие `src/spendtrack` — **96%**.
+- **§G-4/5 (25.09):** golden-набор `tests/golden/merchants.csv` + `scripts/golden_report.py` (read-only,
+  `reports/golden.json`; база: 34/34 rule-хитов, 6 нерешённых, 0 ошибок) — `tests/test_golden_report.py`;
+  конкурентный HTTP-смоук (`tests/test_concurrent_http.py`); e2e жизненного цикла категории
+  (`test_settings_e2e.py`).
 - **Property-based и chaos (§G, 25.09):** `tests/test_property_parsers.py` (hypothesis: `parse_amount`,
   `sniff_bank`, `import_csv` — инвариант «любой ввод → валидная запись или `_skip` с известной причиной,
   никогда исключение; даты в БД только ISO») и `tests/test_import_chaos.py` (CR в поле, CRLF/cp1251/битые
@@ -49,9 +53,9 @@ contract, pip-audit, secret-scan. Перед коммитом — unit + ruff; �
   (`wait_for_load_state("networkidle")`, `expect_response` в `test_htmx_settle.py`); seed-хелперы e2e
   дедуплицированы в `tests/e2e/helpers.py` (через публичный `Store`, не raw SQL); `anonymize.py` 80→99%
   (CLI + пустой ввод). `backup.py` 97% — остаток (80, 131) это `__main__`-гард и reconfigure-ветка, не тестируются.
-- **Бэклог (остаток P1/P2):** e2e настроек категорий; e2e «Показать ещё» (keyset);
-  property-based `fingerprint`/`month_bounds`; параметризация матриц (валюты/банки);
-  смоук конкурентных HTTP; inline raw-SQL блоки в отдельных e2e (можно перевести на helpers).
+- **Бэклог (остаток P1/P2):** property-based `fingerprint`/`month_bounds`; параметризация матриц
+  (валюты/банки); e2e «Показать ещё» (keyset, активируется в многомесячном режиме); inline raw-SQL блоки
+  в отдельных e2e (можно перевести на helpers).
 
 ## Property-based (hypothesis)
 - `hypothesis` — dev-зависимость; файлы: `tests/test_property_parsers.py`, `tests/test_import_chaos.py`.

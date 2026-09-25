@@ -1,0 +1,41 @@
+description,expected_category,bank
+"ООО ЛЕНТА 1234",groceries,sber
+"ЛЕНТА СУПЕРМАРКЕТ МОСКВА",groceries,sber
+"лента супермаркет",groceries,tinkoff
+"МАГНИТ У ДОМА 77",groceries,tinkoff
+"ПЯТЁРОЧКА 8172",groceries,sber
+"ПЯТЕРОЧКА-12",groceries,tinkoff
+"АШАН СИТИ",groceries,synthetic
+"ВКУСВИЛЛ 221",groceries,tinkoff
+"ВКУС ВИЛЛ МОСКВА",groceries,synthetic
+"АЗС ЛУКОЙЛ 22",fuel,sber
+"ТАТНЕФТЬ АЗС 15",fuel,tinkoff
+"РОСНЕФТЬ АЗС 7",fuel,sber
+"ГАЗПРОМНЕФТЬ 402",fuel,sber
+"GAZPROMNEFT AZS 12",fuel,tinkoff
+"ЯНДЕКС GO TRIP",transport,yandex
+"YANDEX GO",transport,yandex
+"ЯНДЕКС ТАКСИ",transport,yandex
+"UBER *TRIP",transport,tinkoff
+"МЕТРО ТУРНИКЕТ",transport,sber
+"TRANSFER TO CARD 1234",transfers,tinkoff
+"TRANSFER FROM CARD",transfers,tinkoff
+"ПЕРЕВОД НА КАРТУ",transfers,sber
+"ВОЗВРАТ ПОКУПКИ",transfers,sber
+"ЗАРАБОТНАЯ ПЛАТА ОКТЯБРЬ",income,sber
+"ЗАРПЛАТА",income,sber
+"SALARY PAYMENT",income,synthetic
+"NETFLIX.COM",subscriptions,tinkoff
+"SPOTIFY AB",subscriptions,tinkoff
+"YOUTUBE PREMIUM",subscriptions,yandex
+"KINOPOISK HD",subscriptions,sber
+"ИВИ.RU",subscriptions,yandex
+"ОЗОН 123",household,sber
+"WILDBERRIES",household,tinkoff
+"ВБ МАРКЕТ",household,sber
+"АПТЕКА 36.6",,sber
+"KOFEINYA NA LENINA",,tinkoff
+"ЦВЕТОЧНЫЙ МАГАЗИН",,synthetic
+"ONLINE PAYMENT SBERBANK",,sber
+"GOODS 4990",,tinkoff
+"КНИЖНЫЙ МАГАЗИН",,yandex

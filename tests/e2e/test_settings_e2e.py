@@ -153,3 +153,32 @@ def test_rule_dead_badge_and_preview(page: Page, live_server):
     body = _preview(page, BROAD)
     assert "дубль" in body, body
     expect(page.locator("#rule-preview")).to_contain_text("дубль", timeout=10_000)
+
+
+def test_category_lifecycle_add_color_delete(page: Page, live_server, taxonomy_path):
+    """§G-5: полный цикл категории из UI — добавить → цвет (автосейв + тост) → удалить;
+    файл таксономии меняется на каждом шаге."""
+    name = "e2e-cat"
+    page.goto(f"{live_server}/settings")
+
+    add_form = page.locator('#settings-categories form[hx-post="/settings/categories"]')
+    add_form.locator('input[name="name"]').fill(name)
+    add_form.locator('button[type="submit"]').click()
+    _wait_single(page, "#settings-categories")
+    row = page.locator("#settings-categories tbody tr").filter(
+        has=page.locator(f'input[name="name"][value="{name}"]'))
+    assert row.count() == 1
+    assert name in taxonomy_path.read_text(encoding="utf-8")
+
+    with page.expect_response(lambda r: "/settings/categories/color" in r.url):
+        row.locator('input[type="color"]').evaluate(
+            "el => { el.value = '#ff0000'; el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    _wait_single(page, "#settings-categories")
+    expect(page.locator("#toast")).to_contain_text("Сохранено")
+    assert "#ff0000" in taxonomy_path.read_text(encoding="utf-8")
+
+    page.on("dialog", lambda d: d.accept())
+    row.locator('button[type="submit"]').click()
+    _wait_single(page, "#settings-categories")
+    expect(page.locator(f'#settings-categories input[name="name"][value="{name}"]')).to_have_count(0)
+    assert name not in taxonomy_path.read_text(encoding="utf-8")
