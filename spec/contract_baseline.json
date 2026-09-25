@@ -380,6 +380,10 @@
    "args": "store: Store, current_threshold: float=0.9, candidates: tuple[float, ...]=(0.4, 0.5, 0.6, 0.7, 0.8, 0.9), target_error: float=CALIBRATION_TARGET_ERROR, min_sample: int=CALIBRATION_MIN_SAMPLE",
    "returns": "dict"
   },
+  "spendtrack.reports:foreign_transactions_count": {
+   "args": "store: Store, start: str, end: str",
+   "returns": "int"
+  },
   "spendtrack.reports:report_daily": {
    "args": "store: Store, month: str",
    "returns": "list[dict]"

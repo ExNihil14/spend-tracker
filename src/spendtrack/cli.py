@@ -96,6 +96,8 @@ def cmd_report(args) -> int:
           f"expense {fmt_amount(report['expense_k'])} | balance {fmt_amount(report['balance_k'])}")
     for c in report["categories"]:
         print(f"  {c['category']:<18} {fmt_amount(c['total_k']):>12}  n={c['count']}")
+    if report.get("foreign_count"):  # K6: не молчим про операции, выпавшие из ₽-итогов
+        print(f"  не учтено операций в валюте: {report['foreign_count']} (курсы не смешиваем)")
     return 0
 
 

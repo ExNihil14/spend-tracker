@@ -4,6 +4,7 @@
   <span class="text-fg-muted">Доход <span class="text-income font-medium">{{ fmt_money(report.income_k) }}</span></span>
   <span class="text-fg-muted">Расход <span class="text-fg font-medium">{{ fmt_money(report.expense_k) }}</span></span>
   <span class="text-fg-muted">Баланс <span class="text-fg-strong font-medium">{{ fmt_money(report.balance_k) }}</span></span>
+  {% if report.foreign_count %}<span class="text-fg-muted" title="Курсы валют не смешиваем">не учтено операций в валюте: {{ report.foreign_count }}</span>{% endif %}
   <span class="ml-auto flex items-center gap-1">
     <a href="/?month={{ prev_month }}{% if sort and sort != 'recent' %}&sort={{ sort }}{% endif %}"
        class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors" aria-label="Предыдущий месяц">←</a>

@@ -232,6 +232,10 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   `budgets_progress`, digest (все окна и аномалии), `detect_recurring`, дневные итоги списка. Курсы не смешиваются.
 - UI: код валюты рядом с суммой в списке и очереди (для RUB — как раньше, без кода); экспорт CSV/XLSX —
   колонка «Валюта» после «Суммы» (аддитивно); FAQ `/help` обновлён (основная валюта — ₽, не-RUB не в бюджетах).
+- **K6 (25.09): сноска «не учтено N операций в валюте».** `reports.foreign_transactions_count(store, start, end)`
+  (end exclusive) → `report_month["foreign_count"]`, `digest["foreign_count"]` (окно `[start, ref]`,
+  передаём `ref+1 день`); видна на `/` (итоги строкой), `/dashboard` (карточка «Баланс» и дайджест) и в CLI
+  `report` — только при N>0. Считаются операции, а не суммы; очередь включается так же, как в ₽-агрегатах.
 - Импорт: адаптеры читают колонку валюты (Sber «Валюта операции», Tinkoff «Валюта», Yandex «currency»);
   колонки нет → RUB.
 - Тесты: `tests/test_currency.py` (15, оффлайн: алиасы, миграция v4→v5, fingerprint/дедуп, бюджеты/отчёт/

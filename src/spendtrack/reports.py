@@ -26,6 +26,14 @@ def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, flo
     return max(0.0, center - half), min(1.0, center + half)
 
 
+def foreign_transactions_count(store: Store, start: str, end: str) -> int:
+    """Операции не в ₽ за [start, end) — в ₽-агрегаты не входят (честная сноска, K6)."""
+    row = store.conn.execute(
+        "SELECT COUNT(*) c FROM transactions WHERE currency != 'RUB' AND date >= ? AND date < ?",
+        (start, end)).fetchone()
+    return int(row["c"])
+
+
 def report_month(store: Store, month: str) -> dict:
     start, end = month_bounds(month)
     rows = store.conn.execute(
@@ -41,6 +49,8 @@ def report_month(store: Store, month: str) -> dict:
         "income_k": income,
         "expense_k": expense,
         "balance_k": income + expense,
+        # K6: сколько операций не в ₽ молча выпало из итогов (курсы не смешиваем) — для сноски в UI/CLI
+        "foreign_count": foreign_transactions_count(store, start, end),
         "categories": [
             {"category": r["category"], "total_k": r["total_k"], "count": r["n"]}
             for r in rows

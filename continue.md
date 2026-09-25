@@ -25,10 +25,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > `InvalidOperation` (CLI `add` — exit 1). Контур: **578 unit + 51 e2e** + ruff + contract + build_css;
 > ревью $0 — 2 приняты / 8 отклонены фактами (`EXPERT_REVIEW_G_HARDENING_OSS_2026-09-25.md`);
 > live: `add nan` → exit 1, CR-выгрузка → `+1 добавлено`. **Закоммичено `2c4c4ce`, прод рестартнут.**
-> **§G-4/5 (в дереве, ждёт коммита):** golden-набор `tests/golden/merchants.csv` + `scripts/golden_report.py`
+> **§G-4/5 — ✅ закоммичено `33b5966`:** golden-набор `tests/golden/merchants.csv` + `scripts/golden_report.py`
 > (read-only, `reports/golden.json`; база 34/34 rule-хитов, 6 нерешённых, 0 ошибок — основа калибровки 0.9),
 > конкурентный HTTP-смоук (`test_concurrent_http.py`), e2e жизненного цикла категории. Контур:
 > **581 unit + 52 e2e** + ruff + contract + build_css.
+> **§G-6 (K6) — в дереве, ждёт коммита:** сноска «не учтено N операций в валюте» (`report_month`/`digest` +
+> `foreign_transactions_count`; `/`, `/dashboard`, CLI `report`; показывается при N>0). Контур:
+> **584 unit + 52 e2e**; ревью $0 — 0 принято / 2 отклонены фактами; live-факт на временном стенде.
 > **АКТУАЛЬНО (24.09, K3 закрыт: публичные тексты + CHANGELOG):** README (браузеры/e2e-формулировка,
 > `ruff check .` как в CI, EN/названия банков, NSSM-права, FAQ «Обновление/удаление», Docker-предупреждение,
 > «Сайт»); лендинг (FAQ «импорт не распознал выписку» + `anonymize`; P1-6 — телеметрия vs `doctor --share`,

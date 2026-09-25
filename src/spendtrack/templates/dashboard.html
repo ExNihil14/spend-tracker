@@ -41,6 +41,7 @@
   <div class="bg-surface rounded-xl p-4 border border-line">
     <div class="text-xs text-fg-muted">Баланс</div>
     <div class="text-lg font-semibold text-fg-strong mt-1">{{ fmt_money(report.balance_k) }}</div>
+    {% if report.foreign_count %}<div class="text-xs text-fg-muted mt-1">не учтено в валюте: {{ report.foreign_count }}</div>{% endif %}
   </div>
   <div class="bg-surface rounded-xl p-4 border border-line flex items-center justify-between">
     <a href="/dashboard?month={{ prev_month }}" class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors">←</a>
@@ -104,6 +105,9 @@
       <div class="text-fg">{{ fmt_money(digest.avg_per_day_k) }}</div>
     </div>
   </div>
+  {% if digest.foreign_count %}
+  <p class="text-xs text-fg-muted mb-3">Не учтено в ₽-итогах: операций в валюте — {{ digest.foreign_count }} (курсы не смешиваем).</p>
+  {% endif %}
   {% if digest.top_categories %}
   <div class="flex flex-wrap gap-2 text-xs mb-3">
     {% for c in digest.top_categories %}

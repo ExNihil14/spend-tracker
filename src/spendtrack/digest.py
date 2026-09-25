@@ -22,6 +22,7 @@ import statistics
 from datetime import UTC, date, datetime, timedelta
 
 from spendtrack.recurring import detect_recurring
+from spendtrack.reports import foreign_transactions_count
 from spendtrack.store import Store, fmt_money
 
 DEFAULT_DAYS = 7
@@ -287,6 +288,9 @@ def build_digest(store: Store, days: int = DEFAULT_DAYS, today: date | None = No
         },
         "avg_per_day_k": round(totals["expense_k"] / days),
         "transaction_count": totals["count"],
+        # K6: операции не в ₽ в окне — не входят в итоги (честная сноска в UI/CLI)
+        "foreign_count": foreign_transactions_count(
+            store, start_s, (ref + timedelta(days=1)).isoformat()),
         "top_categories": _top_categories(store, start_s, end_s, prev_start_s, prev_end_s),
         "top_day": _top_day(store, start_s, end_s),
         "pending_count": store.pending_count(),

@@ -115,6 +115,41 @@ def test_digest_ignores_non_rub(store):
     assert d["transaction_count"] == 1
 
 
+def test_foreign_count_in_report_and_digest(store):
+    """K6: операции не в ₽ честно посчитаны для сносок (в итоги не входят)."""
+    _add(store, "ЛЕНТА", -1_000, category="groceries", day="20")
+    _add(store, "AMAZON", -500, currency="USD", category="other", day="20")
+    assert report_month(store, MONTH)["foreign_count"] == 1
+    d = build_digest(store, days=7, today=date(2026, 9, 21))
+    assert d["foreign_count"] == 1
+
+
+def test_cli_report_prints_foreign_note(monkeypatch, tmp_path, capsys):
+    """K6: CLI-отчёт не молчит про выпавшие из ₽-итогов операции."""
+    db = tmp_path / "cli_foreign.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    s = Store(db_path=db)
+    _add(s, "ЛЕНТА", -1_000, category="groceries", day="20")
+    _add(s, "AMAZON", -500, currency="USD", category="other", day="20")
+    s.close()
+    assert cli.main(["report", "--month", MONTH]) == 0
+    assert "не учтено операций в валюте: 1" in capsys.readouterr().out
+
+
+def test_ui_foreign_note_on_index_and_dashboard(tmp_path, monkeypatch):
+    """K6: сноска видна на главной (итоги строкой) и на дашборде (карточка «Баланс»)."""
+    db = tmp_path / "ui_foreign.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    client = TestClient(app)
+    client.post("/api/transactions", json={"date": "2026-09-10", "description": "ЛЕНТА",
+                                           "amount": "-100.00"})
+    client.post("/api/transactions", json={"date": "2026-09-11", "description": "AMAZON",
+                                           "amount": "-10.00", "currency": "USD"})
+    for url in ("/?month=2026-09", "/dashboard?month=2026-09"):
+        body = client.get(url).text
+        assert "в валюте: 1" in body, url
+
+
 def test_recurring_ignores_non_rub(store):
     for d in ("2026-07-01", "2026-08-01", "2026-09-01"):
         store.add_transaction(date=d, description="NETFLIX", amount_kopecks=-999,
