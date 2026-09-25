@@ -145,6 +145,8 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 Синтетическая витрина (~5 месяцев): подписки со скачком цены, аномалии, бюджеты с перерасходом, очередь
 подтверждения. Реальная база не затрагивается.
 
+![Демо за 15 секунд: импорт выписки → подтверждение очереди → дайджест недели](landing/assets/demo.gif)
+
 ```bash
 uv run python scripts/demo_data.py seed     # данные в data/demo.db
 uv run python scripts/demo_data.py status   # что засеяно

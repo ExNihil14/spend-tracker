@@ -162,6 +162,15 @@ def test_m8_section_order_and_final_cta() -> None:
     for caption in ("1. Импорт.", "2. Спорное — на подтверждение.", "3. Дайджест недели."):
         assert caption in html
 
+
+def test_demo_gif_lead_in_screens() -> None:
+    """§G-7: GIF «импорт → подтвердить → дайджест» — лид-кадр секции (размеры заданы, lazy)."""
+    html, _ = _parse_index()
+    assert "assets/demo.gif" in html
+    assert 'width="960" height="600" loading="lazy"' in html
+    assert "15 секунд:" in html
+    assert (LANDING / "assets" / "demo.gif").is_file()
+
     final = html.index('class="final-cta"')
     footer = html.index("<footer>")
     assert html.index('id="roadmap"') < final < footer

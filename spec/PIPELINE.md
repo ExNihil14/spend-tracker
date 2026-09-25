@@ -52,6 +52,16 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
 - Стенд: `SPENDTRACK_DB_PATH=data/demo.db uv run uvicorn spendtrack.main:app --port 8767`.
 - Тесты: `tests/test_demo_data.py` (4, оффлайн; фиксированная дата → детерминированные окна дайджеста).
 
+## GIF лендинга (§G-7)
+- `scripts/record_demo_gif.py` (dev): берёт **изолированную копию** `data/demo.db` (или сеет), поднимает
+  временный uvicorn, снимает 4 кадра (импорт → отчёт → очередь → дайджест) в Chromium, накладывает подписи
+  (Pillow) и собирает `landing/assets/demo.gif` (960px, ~272 КБ, палитра 256, цикл). Guard: только БД
+  с именем `demo.db`; прод и реальные БД не трогаются.
+- Лендинг: лид-кадр в `#screens` (`.screens-lead`, `width/height` + `loading="lazy"`), README ссылается
+  на GIF; тесты `tests/test_demo_gif.py` (guard + `assemble_gif`: resize/кадры/пустой вход),
+  `test_landing.py::test_demo_gif_lead_in_screens`.
+- Пересборка после UI-правок: `uv run python scripts/record_demo_gif.py` (Playwright/Pillow — dev-зависимости).
+
 ## Doctor (целостность данных)
 - CLI `spendtrack doctor` — таблица чеков; `--json` — машинный JSON; exit 0 = ok/warn, 1 = critical.
 - API `GET /health/data` → `{status, checks:[{id, severity, count, detail}]}`; 503 при critical.

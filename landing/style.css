@@ -117,6 +117,7 @@ footer { padding: 40px 0 56px; color: var(--fg-subtle); font-size: 13.5px; }
 /* «Что увидите»: три кадра пути (M-8) */
 .screens { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
 .screens .shot { margin: 0; }
+.screens-lead { margin: 0 0 18px; }
 .screens .shot figcaption strong { color: var(--fg); display: block; margin-bottom: 2px; }
 
 /* Финальный CTA перед футером (M-8) */

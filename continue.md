@@ -33,6 +33,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > «не учтено N операций в валюте» (`report_month`/`digest` + `foreign_transactions_count`; `/`, `/dashboard`,
 > CLI `report`; показывается при N>0). Контур: **584 unit + 52 e2e**; ревью $0 — 0 принято / 2 отклонены
 > фактами; live-факт на временном стенде.
+> **§G-7 (K5-минимум) — в дереве, ждёт коммита:** GIF «импорт → подтвердить → дайджест»
+> (`scripts/record_demo_gif.py`: изолированная копия demo-БД → временный uvicorn → 4 кадра Playwright →
+> Pillow-подписи → `landing/assets/demo.gif`, 960px/~272 КБ) + `tests/test_demo_gif.py`, лид-кадр в `#screens`,
+> README-ссылка; ревью $0 — 5 принято/2 отклонены (`EXPERT_REVIEW_GIF_DEMO_OSS_2026-09-25.md`).
+> Контур: **588 unit + 52 e2e** + ruff + contract; live: лендинг 200, gif 200 `image/gif`.
 > **§I (блог claude.dev) — инструкции применены:** `scripts/review.py` (только merge-blocking + «как показать,
 > что падает» + неподтверждённое), `REVIEW_CHECKLIST.md`, глобальный `AGENTS.md` (итог «Нужно от тебя/Изменено/
 > Найдено» + стоп-правило deliverable-скоупа), skill `research` (метки [П]/[Ч]/[?]). Осталось: §I-S4/S5, M7-M11.

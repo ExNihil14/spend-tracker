@@ -31,7 +31,9 @@ CI (`.github/workflows/ci.yml`): lint+unit, e2e (chromium), cross-browser smoke 
 contract, pip-audit, secret-scan. Перед коммитом — unit + ruff; перед отчётом о готовности — живой прогон.
 
 ## Текущее состояние (25.09.2026)
-- **581 unit + 52 e2e** (+ cross-engine прогоны), все оффлайн; покрытие `src/spendtrack` — **96%**.
+- **588 unit + 52 e2e** (+ cross-engine прогоны), все оффлайн; покрытие `src/spendtrack` — **96%**.
+- **§G-7 (25.09):** GIF-генератор `scripts/record_demo_gif.py` — `tests/test_demo_gif.py` (guard demo-БД,
+  сборка GIF: resize/кадры/пустой вход) + лид-кадр на лендинге (`test_demo_gif_lead_in_screens`).
 - **§G-4/5 (25.09):** golden-набор `tests/golden/merchants.csv` + `scripts/golden_report.py` (read-only,
   `reports/golden.json`; база: 34/34 rule-хитов, 6 нерешённых, 0 ошибок) — `tests/test_golden_report.py`;
   конкурентный HTTP-смоук (`tests/test_concurrent_http.py`); e2e жизненного цикла категории

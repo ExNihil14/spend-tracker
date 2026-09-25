@@ -42,6 +42,7 @@ dev = [
     "axe-playwright-python>=0.1.8",
     "httpx>=0.28.1",
     "hypothesis>=6.168.1",
+    "pillow>=12.3.0",
     "pip-audit>=2.10.1",
     "playwright>=1.62.0",
     "pytest>=9.1.1",
