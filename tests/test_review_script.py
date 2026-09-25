@@ -35,7 +35,9 @@ def test_render_prompt_contains_checklist_plan_and_artifacts():
 
     assert "# Что ревьюится: Тестовая задача" in prompt
     assert "1. Проверить границы" in prompt
-    assert "P0/P1 **планом пунктами**" in prompt
+    assert "P0/P1" in prompt
+    assert "только блокирующие мерж" in prompt
+    assert "не удалось подтвердить" in prompt
     assert "проверено фактом: 275 unit зелёные" in prompt
     assert "+new line" in prompt
     assert "new_module.py" in prompt

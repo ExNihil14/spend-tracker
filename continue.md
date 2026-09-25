@@ -29,9 +29,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (read-only, `reports/golden.json`; база 34/34 rule-хитов, 6 нерешённых, 0 ошибок — основа калибровки 0.9),
 > конкурентный HTTP-смоук (`test_concurrent_http.py`), e2e жизненного цикла категории. Контур:
 > **581 unit + 52 e2e** + ruff + contract + build_css.
-> **§G-6 (K6) — в дереве, ждёт коммита:** сноска «не учтено N операций в валюте» (`report_month`/`digest` +
-> `foreign_transactions_count`; `/`, `/dashboard`, CLI `report`; показывается при N>0). Контур:
-> **584 unit + 52 e2e**; ревью $0 — 0 принято / 2 отклонены фактами; live-факт на временном стенде.
+> **§G-6 (K6) — ✅ закоммичено `608952d` (+ `1ce6c4f` стабилизация концуррентного теста):** сноска
+> «не учтено N операций в валюте» (`report_month`/`digest` + `foreign_transactions_count`; `/`, `/dashboard`,
+> CLI `report`; показывается при N>0). Контур: **584 unit + 52 e2e**; ревью $0 — 0 принято / 2 отклонены
+> фактами; live-факт на временном стенде.
+> **§I (блог claude.dev) — инструкции применены:** `scripts/review.py` (только merge-blocking + «как показать,
+> что падает» + неподтверждённое), `REVIEW_CHECKLIST.md`, глобальный `AGENTS.md` (итог «Нужно от тебя/Изменено/
+> Найдено» + стоп-правило deliverable-скоупа), skill `research` (метки [П]/[Ч]/[?]). Осталось: §I-S4/S5, M7-M11.
 > **АКТУАЛЬНО (24.09, K3 закрыт: публичные тексты + CHANGELOG):** README (браузеры/e2e-формулировка,
 > `ruff check .` как в CI, EN/названия банков, NSSM-права, FAQ «Обновление/удаление», Docker-предупреждение,
 > «Сайт»); лендинг (FAQ «импорт не распознал выписку» + `anonymize`; P1-6 — телеметрия vs `doctor --share`,
