@@ -23,6 +23,8 @@
 - `config/taxonomy.toml` — 18 категорий + keyword-правила (править БЕЗ кода)
 - `src/spendtrack/` — `store.py` (SQLite, копейки INTEGER), `categorize.py` (rule→llm→validation→queue), `csv_import.py` (BANKS-адаптеры), `reports.py`, `export.py` (CSV/XLSX), `llm.py`+`prompts.py`, `routers/`, `cli.py`
 - `data/spend.db` — автосоздаётся (WAL)
+- `.opencode/skills/` — проектные скиллы (`bank-adapter` / `release` / `verify-spendtrack`); структура и живые
+  указатели — `tests/test_skills.py`
 - `tests/` — все оффлайн, LLM стабится (injectable classify/llm_getter), не трогать контракты тестов без причины
 
 ## Ключевые решения (не менять без ревью)

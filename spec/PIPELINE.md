@@ -537,6 +537,8 @@ uv run --with coverage coverage run -m pytest -q && uv run --with coverage cover
                                 # замер покрытия (без постоянной зависимости); сейчас src ~96%
 ```
 **Стратегия и организация тестов — `spec/TESTING.md`** (уровни/маркеры, принципы, как добавлять, анти-скоуп).
+- Проектные скиллы агента — `.opencode/skills/` (`bank-adapter`, `release`, `verify-spendtrack`): структура,
+  Gotchas и живые указатели — `tests/test_skills.py` (оффлайн, авто-дискавери каталогов).
 Аудит тестирования и функциональности (QA-лид, 23.09): `D:\dev\docs\machine\AUDIT_TESTING_SPENDTRACKER.md`
 (покрытие по модулям, матрица «функция→тесты→пробел», P0/P1/P2; P0 закрыт — 499 unit, покрытие 96%).
 Правила Фазы 2 (контур верификации):

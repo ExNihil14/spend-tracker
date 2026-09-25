@@ -17,6 +17,14 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (25.09, §I M7 — проектные скиллы): ✅ сделано (в дереве, ждёт коммита).** `.opencode/skills/`:
+> `bank-adapter` (маршрут адаптер→фикстура→тест→golden + Gotchas реальных выписок), `release` (K1-контур:
+> тег/CHANGELOG/пиннинг/заморозка/Windows-CI), `verify-spendtrack` (DoD-шаг live-прогона: сценарий из diff +
+> 2 соседних потока, отчёт без правок). Регресс — `tests/test_skills.py` (7: name=каталог, description,
+> Gotchas, живые указатели, авто-дискавери каталогов); указатели — AGENTS.md Layout + `spec/PIPELINE.md`.
+> Контур: **595 unit + 52 e2e** + ruff + contract + build_css; ревью $0 (nemotron-3-ultra, 122 с) — 3 P1
+> приняты, 2 P0 отклонены фактами (`EXPERT_REVIEW_M7_SKILLS_OSS_2026-09-25.md`). Канон = репо (opencode читает
+> `.opencode/skills/` напрямую); срабатывание триггеров — после рестарта opencode. Коммит — по команде юзера.
 > **АКТУАЛЬНО (25.09, Q2 — дедуп глобального AGENTS.md): ✅ сделан (dev-процесс, вне репо).** Глобальный
 > `AGENTS.md`: 59 стр / ≈1 907 ток (было 86 / ≈3 412, −44%); факты → раздел «СРЕДА» `AGENT_ENVIRONMENT_PLAN.md`,
 > роутинг-детали → `MODEL_ROUTING_OPENCODE_GO.md` §14; бэкап —
