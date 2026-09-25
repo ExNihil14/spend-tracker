@@ -54,6 +54,9 @@
   (CI-шаг; блокер при расхождении сигнатур/полей БД/роутов с `spec/contract_baseline.json`); при осознанном
   изменении контракта — `snapshot` и baseline в том же коммите;
   правило «дисциплины данных» и чек-лист ревью — `D:\dev\docs\machine\REVIEW_CHECKLIST.md`
+- **Protected paths:** `spec/contract_baseline.json` (только через `contract_delta.py snapshot`), `data/**`, `.env` —
+  агентский гейт-плагин `safety-gate.js` блокирует прямые правки; деструктив (force-push/`reset --hard`/`rm -rf`/
+  NSSM remove) — только после `/careful` (окно 10 мин)
 
 ## Git-процесс (обязательно, из GIT_WORKFLOW_RECOMMENDATIONS.md)
 - Стратегия: trunk-based + короткие feature-ветки. `main` — единственная долгоживущая, всегда зелёная. НЕ создавать develop/release/*/hotfix/*.

@@ -17,6 +17,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (25.09, §I M8+Q5.2 — гейт деструктива/protected paths): ✅ сделано (dev-tooling, вне репо).**
+> Плагин `safety-gate.js` (канон `D:\dev\bootstrap\config\plugins\`, копия в `~\.config\opencode\plugins\`):
+> `.env`/`spec/contract_baseline.json`/`data/**` — hard-deny для edit/write/multiedit/patch; деструктив
+> (force-push/`reset --hard`/`rm -rf`/NSSM remove/…) — только при свежем маркере careful-режима. `/careful`
+> (команда + `scripts/careful_gate.mjs`, окно 10 мин); оффлайн-тест `safety_gate_test.mjs` — 4 сценария /
+> 29 проверок (+sync канона); ревью $0 ×2 — 3 P0+1 P1 приняты, 2 P0+1 P1 отклонены фактами. Protected-actions —
+> в `AGENTS.md` проекта (в дереве, ждёт команды на коммит). Активация гейта и триггеров скиллов — после рестарта opencode.
 > **АКТУАЛЬНО (25.09, §I M7 — проектные скиллы): ✅ сделано (в дереве, ждёт коммита).** `.opencode/skills/`:
 > `bank-adapter` (маршрут адаптер→фикстура→тест→golden + Gotchas реальных выписок), `release` (K1-контур:
 > тег/CHANGELOG/пиннинг/заморозка/Windows-CI), `verify-spendtrack` (DoD-шаг live-прогона: сценарий из diff +
