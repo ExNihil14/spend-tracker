@@ -33,7 +33,7 @@
    "returns": "Path"
   },
   "spendtrack.backup:rotate": {
-   "args": "backup_dir: Path, keep: int",
+   "args": "backup_dir: Path, keep: int, *, current: Path | None=None",
    "returns": "tuple[Path, ...]"
   },
   "spendtrack.backup:run_backup": {

@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -142,3 +143,79 @@ def test_run_backup_reports_unreadable_db(tmp_path, capsys):
     junk.write_text("это не база", encoding="utf-8")
     assert backup.run_backup(junk) == 1
     assert "ошибка бэкапа" in capsys.readouterr().err
+
+
+def test_keep_zero_rejected_without_deleting(db_path, capsys):
+    """`--keep 0` раньше уничтожал все снимки, включая свежий; теперь — отказ до снимка и ротации."""
+    backup_dir = _backup_dir(db_path)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    old = backup_dir / "spend-20260901-000000.db"
+    old.write_bytes(b"old")
+    assert backup.main(["--keep", "0"]) == 1
+    assert "keep" in capsys.readouterr().err
+    assert [p.name for p in backup_dir.glob("spend-*.db")] == [old.name]
+
+
+def test_keep_negative_rejected(db_path, capsys):
+    assert backup.main(["--keep", "-1"]) == 1
+    assert "keep" in capsys.readouterr().err
+    assert not _backup_dir(db_path).exists()
+
+
+def test_offsite_failure_happens_before_rotation(db_path, tmp_path, monkeypatch, capsys):
+    """Копия делается ДО ротации: отказ копии (тот же диск) не удаляет старые снимки."""
+    backup_dir = _backup_dir(db_path)
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    for h in range(3):
+        (backup_dir / f"spend-2026090{h + 1}-000000.db").write_bytes(b"x")
+    monkeypatch.setattr(backup, "same_device", lambda a, b: True)
+    assert backup.main(["--keep", "1", "--copy-to", str(tmp_path / "usb")]) == 1
+    assert "тот же диск" in capsys.readouterr().err
+    assert len(list(backup_dir.glob("spend-*.db"))) == 4  # 3 старых + свежий, ротации не было
+
+
+def test_rotation_oserror_is_warning_not_crash(db_path, tmp_path, monkeypatch, capsys):
+    """Занятый файл при ротации (Windows) — предупреждение, а не трейсбек; offsite-копия уже сделана."""
+    monkeypatch.setattr(backup, "same_device", lambda a, b: False)
+
+    def _locked(*_args, **_kwargs):
+        raise OSError("файл занят другим процессом")
+
+    monkeypatch.setattr(backup, "rotate", _locked)
+    usb = tmp_path / "usb"
+    assert backup.main(["--copy-to", str(usb)]) == 0
+    captured = capsys.readouterr()
+    assert "вне диска" in captured.out
+    assert "ротация" in captured.err
+    assert len(list(usb.glob("spend-*.db"))) == 1
+    assert (_backup_dir(db_path) / "last_offsite_copy.json").exists()
+
+
+def test_rotate_sorts_by_mtime_not_name(tmp_path):
+    """Дубль секунды «…-1.db» новее по mtime, хотя по имени лексикографически меньше."""
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+    older = backup_dir / "spend-20260926-120000.db"
+    newer = backup_dir / "spend-20260926-120000-1.db"
+    older.write_bytes(b"a")
+    newer.write_bytes(b"b")
+    os.utime(older, (1_700_000_000, 1_700_000_000))
+    os.utime(newer, (1_700_000_001, 1_700_000_001))
+    removed = backup.rotate(backup_dir, 1)
+    assert [p.name for p in removed] == [older.name]
+    assert newer.exists()
+
+
+def test_rotate_never_removes_fresh_snapshot(tmp_path):
+    """Свежий снимок защищён явно и занимает слот keep, даже если по mtime он «старее» чужих."""
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+    fresh = backup_dir / "spend-20260926-120000.db"
+    fresh.write_bytes(b"fresh")
+    stale_clock = backup_dir / "spend-20260925-090000.db"
+    stale_clock.write_bytes(b"x")
+    os.utime(fresh, (1_700_000_000, 1_700_000_000))
+    os.utime(stale_clock, (1_800_000_000, 1_800_000_000))  # «будущее» по системным часам
+    removed = backup.rotate(backup_dir, 1, current=fresh)
+    assert fresh.exists()
+    assert [p.name for p in removed] == [stale_clock.name]

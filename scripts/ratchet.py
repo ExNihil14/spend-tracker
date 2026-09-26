@@ -34,6 +34,12 @@ GATES = {
     "import_100_queries": 1.0,
 }
 
+# Параметры замера — часть контракта метрики: ассерты в measure() ловят их изменение
+# (уменьшил seed/строки импорта — метрика «улучшилась» без улучшения кода).
+SEED_MONTHS = 12
+SEED_PER_MONTH = 40
+IMPORT_ROWS = 100
+
 
 class QueryCounter:
     """Счётчик выполненных SQL-операторов через sqlite3 trace callback."""
@@ -49,7 +55,7 @@ class QueryCounter:
         self.count = 0
 
 
-def _seed(store, months: int = 12, per_month: int = 40) -> None:
+def _seed(store, months: int = SEED_MONTHS, per_month: int = SEED_PER_MONTH) -> None:
     """Детерминированные данные: 12 месяцев, 40 операций в месяц, фиксированные суммы/мерчанты."""
     for month in range(1, months + 1):
         for i in range(per_month):
@@ -80,7 +86,11 @@ def _gen_sber_email(n: int = 100, seed: int = 7) -> str:
 
 
 def measure() -> dict[str, float]:
-    """Снять все метрики на изолированной temp-БД. Прод не трогает."""
+    """Снять все метрики на изолированной temp-БД. Прод не трогает.
+
+    Ассерты-инварианты: без реальной работы счётчики SQL падают (упавший импорт = меньше
+    запросов), а гейт «только вниз» наградил бы поломку. Замер с пустым результатом невалиден.
+    """
     from spendtrack.categorize import categorize_rules_only
     from spendtrack.csv_import import import_csv
     from spendtrack.reports import report_month
@@ -93,15 +103,27 @@ def measure() -> dict[str, float]:
         store = Store(db_path=Path(tmp) / "ratchet.db")
         try:
             _seed(store)
+            seeded = store.conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+            assert seeded == SEED_MONTHS * SEED_PER_MONTH, (
+                f"seed: ожидалось {SEED_MONTHS * SEED_PER_MONTH} строк, в БД {seeded} — замер отброшен"
+            )
             counter = QueryCounter(store.conn)
 
             counter.reset()
-            report_month(store, "2026-06")
+            report = report_month(store, "2026-06")
             report_queries = counter.count
+            assert report["expense_k"] != 0, "отчёт за 2026-06 пуст — замер отброшен"
 
             counter.reset()
-            import_csv(_gen_sber_email(100, 7), store, bank="auto", taxonomy=taxonomy, filename="ratchet.csv")
+            imported = import_csv(_gen_sber_email(IMPORT_ROWS, 7), store, bank="auto",
+                                   taxonomy=taxonomy, filename="ratchet.csv")
             import_queries = counter.count
+            # 104 строки в синтетике: 100 базовых + зарплата/возврат/дубль в день/«В обработке»
+            # (email-CSV статуса не имеет, поэтому приняты все).
+            assert imported.get("status") == "ok" and imported.get("added") == IMPORT_ROWS + 4, (
+                f"импорт: status={imported.get('status')!r}, added={imported.get('added')!r}"
+                f" (ожидалось 'ok'/{IMPORT_ROWS + 4}) — замер отброшен"
+            )
 
             txs = [
                 {
@@ -134,37 +156,80 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _is_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
 def compare(baseline: dict, current: dict, gates: dict | None = None) -> list[str]:
-    """Вернуть список нарушений «только вниз» (пусто — всё в пределах гейта)."""
-    gates = gates or GATES
+    """Вернуть список нарушений «только вниз» (пусто — всё в пределах гейта).
+
+    Ложные гарантии — тоже нарушение: метрика, отсутствующая в базлайне или замере (или не число),
+    означает, что гейт не может сработать, — это FAIL, а не молчаливый пропуск. Подозрительно
+    низкое значение (0 или < 0.5×базлайна) — FAIL: так выглядит поломка замера, а не оптимизация.
+    """
+    gates = GATES if gates is None else gates
     failures: list[str] = []
+    base_metrics = baseline.get("metrics") or {}
+    current_metrics = current or {}
     for metric, limit in gates.items():
-        base = baseline.get("metrics", {}).get(metric)
-        now = current.get(metric)
-        if base is None or now is None:
+        base = base_metrics.get(metric)
+        now = current_metrics.get(metric)
+        if not _is_number(base):
+            failures.append(
+                f"{metric}: метрика отсутствует или не число в базлайне ({base!r}) — гейт не может сработать"
+            )
+            continue
+        if not _is_number(now):
+            failures.append(
+                f"{metric}: метрика отсутствует или не число в замере ({now!r}) — гейт не может сработать"
+            )
             continue
         if now > base * limit:
             failures.append(
                 f"{metric}: {now} > {base} × {limit} (базлайн {base}) — рост метрики, CI-гейт «только вниз»"
             )
+        elif now <= 0 or now < base * 0.5:
+            failures.append(
+                f"{metric}: {now} при базлайне {base} — «слишком хорошо» (< 0.5×базлайна): "
+                "похоже на поломку замера, а не оптимизацию; осознанно — `snapshot`"
+            )
     return failures
 
 
+def _fmt_num(value: object, width: int = 8) -> str:
+    """Число для текстового отчёта; не-число — «—» (текстовый режим не падает там, где --json даёт FAIL)."""
+    return f"{value:>{width}}" if _is_number(value) else f"{'—':>{width}}"
+
+
 def _cmd_check(as_json: bool) -> int:
-    baseline = load_baseline()
-    current = measure()
-    failures = compare(baseline, current)
+    failures: list[str] = []
+    baseline: dict = {}
+    try:
+        baseline = load_baseline(BASELINE_PATH)
+    except (OSError, ValueError) as e:
+        failures.append(f"базлайн недоступен или битый ({BASELINE_PATH.name}): {e} — гейт не может сработать")
+    if baseline and baseline.get("version") != 1:
+        failures.append(
+            f"базлайн: неизвестная версия схемы {baseline.get('version')!r} (ожидается 1) — гейт не может сработать"
+        )
+    current: dict = {}
+    try:
+        current = measure()
+    except AssertionError as e:
+        failures.append(f"замер не сработал: {e}")
+    if baseline:
+        failures += compare(baseline, current)
     if as_json:
         print(json.dumps({"baseline": baseline.get("metrics"), "current": current, "failures": failures},
                          ensure_ascii=False, indent=2))
     else:
         print("Ratchet-метрики (только вниз; время — инфо):")
-        for metric in ("report_month_queries", "import_100_queries"):
-            base = baseline.get("metrics", {}).get(metric)
-            print(f"  {metric:<22} текущее {current.get(metric):>8}  базлайн {base:>8}  гейт ×{GATES[metric]}")
-        base_ms = baseline.get("metrics", {}).get("categorize_100_ms")
-        print(f"  {'categorize_100_ms':<22} текущее {current.get('categorize_100_ms'):>8}  "
-              f"базлайн {base_ms:>8}  (инфо)")
+        metrics = baseline.get("metrics") or {}
+        for metric, limit in GATES.items():
+            print(f"  {metric:<22} текущее {_fmt_num(current.get(metric))}  "
+                  f"базлайн {_fmt_num(metrics.get(metric))}  гейт ×{limit}")
+        print(f"  {'categorize_100_ms':<22} текущее {_fmt_num(current.get('categorize_100_ms'))}  "
+              f"базлайн {_fmt_num(metrics.get('categorize_100_ms'))}  (инфо)")
         for failure in failures:
             print(f"  FAIL {failure}")
     return 1 if failures else 0

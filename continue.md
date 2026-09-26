@@ -17,6 +17,27 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (26.09, §J-2 critical — ложные гарантии гейтов): ✅ сделано (в дереве, ждёт команды на коммит).**
+> `scripts/ratchet.py`: гейт больше не выключается молча — нет метрики/не число в базлайне или замере, битый
+> или отсутствующий базлайн, неизвестная версия схемы и упавший `measure()` = FAIL в обоих режимах (было:
+> `exit 0` в `--json` / `TypeError` в текстовом); порог «слишком хорошо» (0 или < 0.5×базлайна = FAIL);
+> ассерты замера (seed 480 строк, отчёт 2026-06 непустой, импорт `ok`/104: 100 базовых строк + 4 фикстуры).
+> `backup.py`: `--keep < 1` — отказ (rc=1) до создания снимка; offsite-копия **до** ротации; свежий снимок
+> защищён и занимает слот `keep`; сортировка по `(mtime, name)` — критерий `doctor.check_backup`; `OSError`
+> ротации (Windows: файл занят) — предупреждение, rc=0. Live-репро аудита: порча базлайна → exit 1
+> (было 0/TypeError), мусорный импорт → `AssertionError` (было «улучшение» 435→2); temp-БД CLI — 4 сценария
+> (keep 0/-1, копия-до-ротации, `--force`, залоченный файл). Контур: **619 unit + 52 e2e** + ruff + contract
+> (snapshot: `rotate(*, current)` — осознанно) + ratchet 2/435 + build_css. Ревью $0 (nemotron-3-ultra:free,
+> 215 с, $0) — **GO, блокирующих нет** (`D:\dev\docs\machine\EXPERT_REVIEW_J2_GATES_OSS_2026-09-26.md`);
+> 4 «не подтверждено» проверены фактами (вне диффа/покрыто тестами; других вызовов `rotate` нет).
+> Прод NSSM рестартнут (health 200, `/health/data` 13/13 ok). Остаток §J-2 (should): anonymize
+> (усечение/PII/`dst==src`), контракт исключений `parse_amount`, K6 NULL/регистр валют, golden BOM/пути,
+> CI-сравнение базлайна с `origin/main`, версии окружения в снимке.
+> **АКТУАЛЬНО (26.09, аудит v2 на Opus-5 через AgentRouter).** Артефакты
+> `EXPERT_AUDIT_V2_SRC_OPUS5_AGENTROUTER_2026-09-26.md` и `EXPERT_AUDIT_V2_SCRIPTS_OPUS5_AGENTROUTER_2026-09-26.md`
+> (2+2 critical, 20+ should): бэкап `--keep 0`/ротация без OSError-защиты; ratchet-гейт молча выключается и
+> «премирует» поломки; контракт `parse_amount`; `anonymize` (усечение/PII-опечатки/перезапись src); K6 NULL-валют.
+> Пункты — очередь §J-2; применение отложено юзером — исправления делать следующим deliverable'ом.
 > **АКТУАЛЬНО (26.09, гигиена секретов — в дереве, ждёт коммита).** Ключ Go-консоли перенесён из
 > `<repo>\.opencode\go_key.txt` (файл был **не** в `.gitignore` и светился как untracked!) в User-env
 > `OPENCODE_GO_KEY`; файл удалён; `.gitignore` дополнен `.opencode/*.txt` и `.opencode/*.key`.

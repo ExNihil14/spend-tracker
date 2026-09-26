@@ -9,7 +9,8 @@ Dev:  python -m spendtrack.backup … / scripts/backup.py (тонкая обёр
 --copy-to дополнительно копирует свежий снимок наружу (USB/другой диск/папка облака):
 отказ, если копия на том же томе, что и БД (исключение — --force); проверка sha256 после
 копирования и маркер backup/last_offsite_copy.json (его читает doctor-чек offsite_backup).
-Ротация --keep касается только локальной папки.
+Ротация --keep (>= 1) касается только локальной папки и идёт ПОСЛЕ offsite-копии; свежий снимок
+не удаляется никогда, порядок файлов — по mtime (тот же критерий, что у doctor).
 """
 from __future__ import annotations
 
@@ -97,9 +98,19 @@ def make_snapshot(db_path: Path) -> Path:
     return target
 
 
-def rotate(backup_dir: Path, keep: int) -> tuple[Path, ...]:
-    """Удаляет старые локальные снимки сверх keep (внешнюю папку ротация не трогает)."""
-    files = sorted(Path(backup_dir).glob("spend-*.db"), reverse=True)
+def rotate(backup_dir: Path, keep: int, *, current: Path | None = None) -> tuple[Path, ...]:
+    """Удаляет старые локальные снимки сверх keep; порядок — по mtime (как doctor), не по имени.
+
+    `current` (свежий снимок) не удаляется никогда и занимает один из слотов keep: при keep=1
+    локально остаётся ровно он (внешние копии — вне этой папки). Имена в UTC + суффикс дубля
+    секунды ломали сортировку по имени; mtime — единый критерий с doctor.check_backup.
+    """
+    files = sorted(Path(backup_dir).glob("spend-*.db"),
+                   key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
+    current = Path(current) if current is not None else None
+    if current is not None and current in files:
+        files.remove(current)
+        files.insert(0, current)
     removed: list[Path] = []
     for old in files[keep:]:
         old.unlink(missing_ok=True)
@@ -116,6 +127,10 @@ def run_backup(
 ) -> int:
     """Локальный снимок + ротация [+ внешняя копия]. 0 — успех, 1 — понятная ошибка в stderr."""
     utf8_stdout()
+    if keep < 1:
+        print(f"--keep должен быть >= 1 (получено {keep}): единственный снимок не удаляем",
+              file=sys.stderr, flush=True)
+        return 1
     db = Path(db_path).expanduser() if db_path else default_db_path()
     if not db.exists():
         print(f"БД не найдена: {db}", file=sys.stderr, flush=True)
@@ -127,9 +142,8 @@ def run_backup(
         return 1
     print(f"OK: {target} ({target.stat().st_size} байт)", flush=True)
 
-    for old in rotate(target.parent, keep):
-        print(f"удалён старый: {old}", flush=True)
-
+    # Offsite-копия — ДО ротации: при её отказе старые снимки остаются нетронутыми,
+    # а «--keep 0» больше не может уничтожить только что созданный снимок до копирования.
     if copy_to:
         try:
             dest = copy_offsite(target, Path(copy_to), force=force)
@@ -139,6 +153,14 @@ def run_backup(
         digest = sha256_file(dest)
         print(f"OK (вне диска): {dest} ({dest.stat().st_size} байт, sha256 {digest[:12]}…)",
               flush=True)
+
+    # Ротация после снимка и копии; OSError (Windows: файл занят антивирусом/индексатором) —
+    # предупреждение, а не трейсбек: бэкап уже создан и важнее удаления старых.
+    try:
+        for old in rotate(target.parent, keep, current=target):
+            print(f"удалён старый: {old}", flush=True)
+    except OSError as e:
+        print(f"предупреждение: ротация не завершена ({e})", file=sys.stderr, flush=True)
     return 0
 
 
