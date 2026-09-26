@@ -24,6 +24,9 @@ spend-export-*.xlsx
 .env
 .env.*
 !.env.example
+# локальные файлы с ключами (напр. go_key.txt) — никогда в репо
+.opencode/*.txt
+.opencode/*.key
 
 # Serena MCP local state
 .serena/

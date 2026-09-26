@@ -17,6 +17,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (26.09, гигиена секретов — в дереве, ждёт коммита).** Ключ Go-консоли перенесён из
+> `<repo>\.opencode\go_key.txt` (файл был **не** в `.gitignore` и светился как untracked!) в User-env
+> `OPENCODE_GO_KEY`; файл удалён; `.gitignore` дополнен `.opencode/*.txt` и `.opencode/*.key`.
+> Проверено: `git check-ignore` ловит, `git status` без файла; `go-usage.ps1` работает (мес 48%, режим STOP).
+> Инцидент-контекст — `D:\dev\docs\machine\OPENCODE_V2_INCIDENT_2026-09-26.md`; процедура ключа — bootstrap README.
 > **АКТУАЛЬНО (25.09, §I M11 — contradiction-check публичных доков): ✅ сделано (в дереве, ждёт коммита).**
 > `tests/test_docs_consistency.py` (7 оффлайн: цена/перки README↔лендинг, порог config↔лендинг, лицензия
 > LICENSE↔README↔лендинг, банки `BANKS`↔README↔лендинг, выключенный FUNDING, совпадение install-URL);
