@@ -364,6 +364,15 @@ def test_create_rejects_bad_amount_and_date(client):
     assert client.get("/health").json()["transactions"] == 0
 
 
+@pytest.mark.parametrize("bad", ["nan", "inf", "1e400", "", "abc"])
+def test_create_rejects_unparseable_amount(client, bad):
+    """§J-2 (контракт parse_amount): не-число/переполнение/пусто → 422, не 500 и не срыв запроса."""
+    r = client.post("/api/transactions",
+                    json={"date": "2026-09-12", "description": "X", "amount": bad})
+    assert r.status_code == 422, r.text
+    assert client.get("/health").json()["transactions"] == 0
+
+
 def test_create_escapes_description_in_htmx(client):
     """Описание — пользовательский ввод: в htmx-ответе экранируется (аудит 24.09)."""
     r = client.post("/api/transactions",

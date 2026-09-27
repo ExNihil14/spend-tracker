@@ -359,6 +359,17 @@ def test_report_counts_skipped_and_suspicious(store):
     assert res["suspicious_reasons"] == {}
 
 
+@pytest.mark.parametrize("bad_amount", ["nan", "inf", "1e400"])
+def test_import_skips_unparseable_amounts(store, bad_amount):
+    """§J-2 (контракт parse_amount): 'nan'/'inf'/'1e400' — строка в amount_unparsed, импорт не падает."""
+    csv_text = (
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
+        f"1;01.09.2026 10:00;1234;Выполнено;{bad_amount};RUB;Продукты;ЛЕНТА\n")
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["status"] == "ok" and res["added"] == 0
+    assert res["reasons"] == {"amount_unparsed": 1}
+
+
 def test_summarize_mentions_counts_and_reasons(store):
     csv_text = (
         "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
