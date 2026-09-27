@@ -55,9 +55,15 @@
   изменении контракта — `snapshot` и baseline в том же коммите;
   правило «дисциплины данных» и чек-лист ревью — `D:\dev\docs\machine\REVIEW_CHECKLIST.md`
 - **Protected paths:** `spec/contract_baseline.json` (только через `contract_delta.py snapshot`),
-  `spec/ratchet_baseline.json` (только через `scripts/ratchet.py snapshot`), `data/**`, `.env` —
+  `spec/ratchet_baseline.json` (только через `scripts/ratchet.py snapshot`),
+  `spec/cc_baseline.json` (только через `scripts/cc_ratchet.py update`), `data/**`, `.env` —
   агентский гейт-плагин `safety-gate.js` блокирует прямые правки; деструктив (force-push/`reset --hard`/`rm -rf`/
   NSSM remove) — только после `/careful` (окно 10 мин)
+- Не гонять итерации «вхолостую» (анти-«пустой цикл»): новая итерация — только с новой вводной
+  (лог/замечание/новый тест); сигнатура падений не меняется — стоп и эскалация (см. `spec/PIPELINE.md` §AI-контур)
+- Не отправлять в каналы ревью реальные выписки/фикстуры: наружу не уходят `data/**`, `tests/fixtures/**`,
+  `*.csv/*.sqlite/*.db` (фильтр в `review.py`); фикстуры — только синтетические; `done` в ревью-артефакте —
+  только после verify с привязкой к `base_sha`/`diff_sha`
 
 ## Git-процесс (обязательно, из GIT_WORKFLOW_RECOMMENDATIONS.md)
 - Стратегия: trunk-based + короткие feature-ветки. `main` — единственная долгоживущая, всегда зелёная. НЕ создавать develop/release/*/hotfix/*.

@@ -79,7 +79,7 @@ PENDING_ROWS = 200
 CURRENCIES = ("RUB", "RUB", "RUB", "USDT", "USD", "EUR")
 
 
-def seed(db_path: Path, n: int, months: int = MONTHS) -> dict:
+def seed(db_path: Path, n: int, months: int = MONTHS) -> dict:  # noqa: C901 — см. cc_ratchet.py
     """Детерминированная синтетика: n операций за `months` месяцев, ~200 pending, бюджеты/examples.
 
     Вставка — одним executemany в одной транзакции (быстро); приложение для сева не используется,

@@ -291,7 +291,7 @@ def get_one(tx_id: int, store: Annotated[Store, Depends(get_store)]):
 
 
 @router.post("/import")
-async def do_import(request: Request, store: Annotated[Store, Depends(get_store)]):
+async def do_import(request: Request, store: Annotated[Store, Depends(get_store)]):  # noqa: C901 — см. cc_ratchet.py
     """JSON | form-urlencoded | multipart (file=CSV-файл, M-6) — единый результат ImportOut/htmx."""
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")

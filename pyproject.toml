@@ -33,6 +33,13 @@ markers = [
 line-length = 100
 target-version = "py313"
 
+[tool.ruff.lint]
+# C901 включён; legacy-функции >10 помечены noqa, за ними следит scripts/cc_ratchet.py (--ignore-noqa)
+extend-select = ["C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
 [build-system]
 requires = ["uv_build>=0.12.13,<0.13.0"]
 build-backend = "uv_build"

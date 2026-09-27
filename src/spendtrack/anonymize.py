@@ -78,7 +78,7 @@ def _classify(header: str, extra: set[str]) -> str | None:
     return None
 
 
-def anonymize_csv(
+def anonymize_csv(  # noqa: C901 — см. cc_ratchet.py
     raw: str | bytes,
     extra_columns: set[str] | None = None,
     max_rows: int | None = None,

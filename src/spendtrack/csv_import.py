@@ -258,7 +258,7 @@ def _format_error(bank: str | None, fieldnames: list[str], rows: int, message: s
             "rows": rows, "message": message}
 
 
-def import_csv(
+def import_csv(  # noqa: C901 — legacy-функция, за ней следит cc_ratchet.py
     raw: str | bytes,
     store: Store,
     bank: str = "auto",

@@ -51,7 +51,7 @@ def _place(store, day: date, desc: str, amount: int, category: str, seq,
         review_status=review_status)
 
 
-def build(store, today: date) -> dict:
+def build(store, today: date) -> dict:  # noqa: C901 — см. cc_ratchet.py
     """Синтетическая история; возвращает {batch, fingerprints, budgets, examples, merchant_cache}."""
     rng = random.Random(SEED)
     seq = count(1)

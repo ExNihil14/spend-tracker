@@ -1,8 +1,8 @@
 """CI-гейт: изменение базлайнов допустимо только с трейлером `Contract-Change: <причина>`.
 
-Проверяет диапазон коммитов `--base .. --head`: если в нём изменён `spec/contract_baseline.json`
-или `spec/ratchet_baseline.json`, то хотя бы один коммит диапазона обязан содержать трейлер
-`Contract-Change: <причина>` в теле. Закрывает обход «дрейф контракта + snapshot в одном коммите»
+Проверяет диапазон коммитов `--base .. --head`: если в нём изменён `spec/contract_baseline.json`,
+`spec/ratchet_baseline.json` или `spec/cc_baseline.json`, то хотя бы один коммит диапазона обязан содержать
+трейлер `Contract-Change: <причина>` в теле. Закрывает обход «дрейф контракта + snapshot в одном коммите»
 (ревью Opus 5.5, C5): локальная команда snapshot больше не «самоутверждает» гейт.
 
 Использование:
@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-BASELINES = ("spec/contract_baseline.json", "spec/ratchet_baseline.json")
+BASELINES = ("spec/contract_baseline.json", "spec/ratchet_baseline.json", "spec/cc_baseline.json")
 TRAILER = re.compile(r"^Contract-Change:\s*\S+", re.MULTILINE)
 
 

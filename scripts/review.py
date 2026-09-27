@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -33,6 +34,9 @@ EMBEDDED_CHECKLIST = """1. Границы: репозитории возвращ
 9. История/undo: откат к консистентному состоянию, не посимвольно?
 10. Контракт-дельта: публичные сигнатуры/поля БД до/после совпадают?"""
 EXTRAS_LIMIT = 120_000
+# Дефолт 1500 строк ≈ 40–60K символов диффа: комфортно для бесплатных каналов (nemotron-3-ultra, 1M ctx, 20 RPM)
+# с запасом на чек-лист и untracked-файлы; переопределяется --max-diff-lines или REVIEW_MAX_DIFF_LINES.
+MAX_DIFF_LINES = 1500
 
 
 def _utf8() -> None:
@@ -90,19 +94,49 @@ SENSITIVE_PATTERNS = (
     re.compile(r"Bearer\s+[A-Za-z0-9_\-.]{20,}"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)"),  # похоже на номер карты (PII; 13–19 цифр)
 )
 
 
 def _is_sensitive(rel: str) -> bool:
-    """Пути, которые не отправляем наружу (реальные фикстуры/локальные конфиги/секреты)."""
+    """Пути, которые не отправляем наружу (реальные выписки/фикстуры/локальные конфиги/секреты)."""
     name = rel.lower()
     return (
-        name.startswith(".env")
+        name.startswith((".env", "data/"))
         or "/.env" in name
         or "fixtures/real" in name
+        or "tests/fixtures/" in name
         or ".local." in name
-        or name.endswith((".pem", ".key", ".pfx"))
+        or name.endswith((".pem", ".key", ".pfx", ".csv", ".sqlite", ".db"))
     )
+
+
+def _is_generated(rel: str) -> bool:
+    """Сгенерированное/вендорное — не считаем в лимит диффа (но секрет-скан остаётся)."""
+    name = rel.lower()
+    return (
+        name == "uv.lock"
+        or name.endswith(".min.js")
+        or Path(name).name == "app.css"  # prebuilt Tailwind (имя файла, не путь — устойчиво к переносу)
+        or (name.startswith("spec/") and name.endswith("_baseline.json"))
+    )
+
+
+def summarize_numstat(text: str) -> tuple[int, list[tuple[int, str]]]:
+    """`git diff --numstat` → (всего строк без сгенерированного, [(строк, путь)] по убыванию)."""
+    rows: list[tuple[int, str]] = []
+    for line in text.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        added, deleted, path = parts
+        if added == "-" or deleted == "-":  # бинарный файл
+            continue
+        if _is_generated(path):
+            continue
+        rows.append((int(added) + int(deleted), path))
+    rows.sort(reverse=True)
+    return sum(n for n, _ in rows), rows
 
 
 def secret_hits(text: str) -> list[str]:
@@ -196,13 +230,27 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--max-tokens", type=int, default=8000)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--dry-run", action="store_true", help="только собрать промпт, без вызова модели")
+    ap.add_argument("--max-diff-lines", type=int,
+                    default=int(os.environ.get("REVIEW_MAX_DIFF_LINES", MAX_DIFF_LINES)),
+                    help="лимит строк диффа (без сгенерированного) для одного ревью; выше — отказ (rc=4)")
     args = ap.parse_args(argv)
 
     notes = args.notes.read_text(encoding="utf-8") if args.notes and args.notes.exists() else ""
     diff_stat, diff, extras, skipped = collect_artifacts(args.repo)
+    total_lines, rows = summarize_numstat(_git(args.repo, "diff", "HEAD", "--numstat"))
+    if total_lines > args.max_diff_lines:
+        top = ", ".join(f"{path} ({n})" for n, path in rows[:5]) or "(нет текстовых файлов)"
+        print(f"review: дифф слишком большой для одного ревью — {total_lines} строк > "
+              f"{args.max_diff_lines} (сгенерированное не считаем). Крупнейшие: {top}. "
+              "Режьте по модулям (отдельные прогоны/ветки), иначе модель увидит часть диффа и выдаст «OK».",
+              file=sys.stderr, flush=True)
+        if not args.dry_run:
+            return 4
     prompt = render_prompt(args.title, load_checklist(args.checklist), notes, diff_stat, diff,
                            extras, skipped)
     out = args.out or Path(tempfile.gettempdir()) / f"spendtrack-review-{int(time.time())}.md"
+    base_sha = _git(args.repo, "rev-parse", "--short", "HEAD").strip() or "?"
+    diff_sha = hashlib.sha1(diff.encode("utf-8", "replace")).hexdigest()[:12]
 
     if not diff.strip() and not extras:
         print("review: нечего ревьюить (пустой дифф против HEAD и нет untracked-файлов) — "
@@ -218,12 +266,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         out.write_text(prompt, encoding="utf-8")
-        print(f"dry-run: промпт {len(prompt)} символов → {out}")
+        print(f"dry-run: промпт {len(prompt)} символов → {out} (base_sha={base_sha}, diff_sha={diff_sha})")
         return 0
 
     t0 = time.time()
     content, usage = call_openrouter(prompt, args.model, args.max_tokens)
     header = (f"# Ревью: {args.title} — {args.model} (OpenRouter :free)\n"
+              f"- base_sha: {base_sha}; diff_sha: {diff_sha}\n"
               f"- время: {time.time() - t0:.0f}s; usage: {json.dumps(usage, ensure_ascii=False)}\n\n---\n\n")
     out.write_text(header + content + "\n", encoding="utf-8")
     print(f"DONE {time.time() - t0:.0f}s → {out}")

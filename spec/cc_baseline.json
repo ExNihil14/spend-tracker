@@ -1,0 +1,10 @@
+{
+ "schema": 1,
+ "functions": {
+  "scripts/bench.py::seed": 13,
+  "scripts/demo_data.py::build": 21,
+  "src/spendtrack/anonymize.py::anonymize_csv": 12,
+  "src/spendtrack/csv_import.py::import_csv": 20,
+  "src/spendtrack/routers/api.py::do_import": 12
+ }
+}
