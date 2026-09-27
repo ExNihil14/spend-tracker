@@ -46,6 +46,12 @@ jobs:
       - name: Ratchet metrics (только вниз)
         run: uv run python scripts/ratchet.py check
 
+      - name: Ratchet baseline guard (PR: базлайн не вырос)
+        if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'ratchet-raise')
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
+          uv run python scripts/ratchet.py guard --base "origin/${{ github.base_ref }}"
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15

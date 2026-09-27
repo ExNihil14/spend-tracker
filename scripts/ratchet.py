@@ -4,6 +4,12 @@
 любой рост — красный CI (рядом с contract-дельтой). Базлайн — `spec/ratchet_baseline.json`,
 обновляется только `snapshot`; повышение записанного значения требует `--force` (осознанное решение).
 
+Ложные гарантии закрыты (§J-2): нет метрики/не число в базлайне или замере, битый базлайн,
+неизвестная версия и упавший `measure()` — FAIL; «слишком хорошо» (0 или < 0.5×базлайна) — FAIL.
+`guard` (CI, PR) ловит рост базлайна против базовой ветки — обход `snapshot --force` невозможен
+без метки `ratchet-raise` в PR. В снимок пишутся версии окружения (python/sqlite), при расхождении
+с базлайном `check` печатает WARN (метрика может сдвинуться от смены версий, а не кода).
+
 Метрики:
   report_month_queries — SQL-запросов на месячный отчёт (стоимость страницы /).
   import_100_queries   — SQL-запросов на импорт 100 строк выписки.
@@ -13,12 +19,16 @@
 Запуск:
   uv run python scripts/ratchet.py check [--json]
   uv run python scripts/ratchet.py snapshot [--force]
+  uv run python scripts/ratchet.py guard --base origin/main   # рост базлайна против ветки — FAIL
 """
 from __future__ import annotations
 
 import argparse
 import json
+import platform
+import sqlite3
 import statistics
+import subprocess
 import sys
 import tempfile
 import time
@@ -26,6 +36,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_PATH = ROOT / "spec" / "ratchet_baseline.json"
+BASELINE_REL = "spec/ratchet_baseline.json"  # путь в git-дереве (для `git show <ref>:…`)
 
 # Гейт: во сколько раз допустимо превысить записанное значение (1.0 = «только вниз»).
 # Время не гейтится (машино-зависимо, флейки в CI) — пишется в снимок для тренда.
@@ -156,6 +167,22 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def env_info() -> dict[str, str]:
+    """Версии окружения, влияющие на счётчики SQL (§J-2): неявные BEGIN/COMMIT и sqlite-версия
+    меняются между Python/SQLite — без фиксации сдвиг метрики не отличить от регрессии кода."""
+    return {"python": platform.python_version(), "sqlite": sqlite3.sqlite_version,
+            "platform": sys.platform}
+
+
+def load_baseline_from_ref(ref: str) -> dict:
+    """Базлайн из git-ссылки (CI: origin/main): `git show <ref>:spec/ratchet_baseline.json`."""
+    result = subprocess.run(["git", "show", f"{ref}:{BASELINE_REL}"], cwd=ROOT,
+                            capture_output=True, text=True, encoding="utf-8", check=False)
+    if result.returncode != 0:
+        raise ValueError(f"не удалось прочитать базлайн из {ref}: {(result.stderr or '').strip()[:200]}")
+    return json.loads(result.stdout)
+
+
 def _is_number(value: object) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
@@ -201,6 +228,40 @@ def _fmt_num(value: object, width: int = 8) -> str:
     return f"{value:>{width}}" if _is_number(value) else f"{'—':>{width}}"
 
 
+def baseline_drift(base: dict, current: dict, gates: dict | None = None) -> list[str]:
+    """Рост гейтируемых метрик в базлайне PR против базлайна базовой ветки (CI-гейт, §J-2).
+
+    `snapshot --force` защищает только локальный запуск: в PR базлайн мог быть поднят вместе с кодом.
+    Осознанный рост — метка `ratchet-raise` в PR (шаг CI пропускается). Пропажа метрики — тоже FAIL.
+    """
+    gates = GATES if gates is None else gates
+    failures: list[str] = []
+    base_metrics = base.get("metrics") or {}
+    cur_metrics = current.get("metrics") or {}
+    for metric in gates:
+        old = base_metrics.get(metric)
+        new = cur_metrics.get(metric)
+        if not _is_number(old):
+            continue  # в базовой ветке метрики нет — сверять нечего
+        if not _is_number(new):
+            failures.append(f"{metric}: метрика пропала из базлайна PR — гейт не сможет сработать")
+        elif new > old:
+            failures.append(f"{metric}: {old} → {new} — рост базлайна (осознанно — метка `ratchet-raise` в PR)")
+    return failures
+
+
+def env_warnings(baseline: dict, env: dict | None = None) -> list[str]:
+    """Предупреждения о смене версий окружения против снимка (не FAIL: сдвиг объясняется версией)."""
+    base_env = baseline.get("env") or {}
+    env = env or env_info()
+    out: list[str] = []
+    for key in ("python", "sqlite"):
+        if base_env.get(key) and env.get(key) and base_env[key] != env[key]:
+            out.append(f"{key}: {base_env[key]} → {env[key]} — метрика может сдвинуться; "
+                       "осознанно пере-снять `snapshot`")
+    return out
+
+
 def _cmd_check(as_json: bool) -> int:
     failures: list[str] = []
     baseline: dict = {}
@@ -219,8 +280,11 @@ def _cmd_check(as_json: bool) -> int:
         failures.append(f"замер не сработал: {e}")
     if baseline:
         failures += compare(baseline, current)
+    env = env_info()
+    warnings = env_warnings(baseline, env) if baseline else []
     if as_json:
-        print(json.dumps({"baseline": baseline.get("metrics"), "current": current, "failures": failures},
+        print(json.dumps({"baseline": baseline.get("metrics"), "current": current, "failures": failures,
+                          "env": env, "env_warnings": warnings},
                          ensure_ascii=False, indent=2))
     else:
         print("Ratchet-метрики (только вниз; время — инфо):")
@@ -230,6 +294,8 @@ def _cmd_check(as_json: bool) -> int:
                   f"базлайн {_fmt_num(metrics.get(metric))}  гейт ×{limit}")
         print(f"  {'categorize_100_ms':<22} текущее {_fmt_num(current.get('categorize_100_ms'))}  "
               f"базлайн {_fmt_num(metrics.get('categorize_100_ms'))}  (инфо)")
+        for warning in warnings:
+            print(f"  ВНИМАНИЕ {warning}")
         for failure in failures:
             print(f"  FAIL {failure}")
     return 1 if failures else 0
@@ -247,9 +313,33 @@ def _cmd_snapshot(force: bool) -> int:
     if raised and not force:
         print(f"snapshot отказ: рост метрик {raised} — допустимо только вниз; осознанно — `--force`")
         return 2
-    payload = {"version": 1, "measured_at": time.strftime("%Y-%m-%d"), "metrics": current}
+    payload = {"version": 1, "measured_at": time.strftime("%Y-%m-%d"), "env": env_info(),
+               "metrics": current}
     BASELINE_PATH.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"snapshot: {BASELINE_PATH.relative_to(ROOT)} ← {current}")
+    shown = BASELINE_PATH.relative_to(ROOT) if BASELINE_PATH.is_relative_to(ROOT) else BASELINE_PATH
+    print(f"snapshot: {shown} ← {current}")
+    return 0
+
+
+def _cmd_guard(base_ref: str) -> int:
+    """CI-гейт: базлайн PR не выше базлайна базовой ветки (кроме метки `ratchet-raise` в PR)."""
+    try:
+        base = load_baseline_from_ref(base_ref)
+    except (OSError, ValueError) as e:
+        print(f"guard: {e}", file=sys.stderr, flush=True)
+        return 2
+    try:
+        current = load_baseline(BASELINE_PATH)
+    except (OSError, ValueError) as e:
+        print(f"guard: базлайн PR не прочитан ({BASELINE_PATH.name}): {e}", file=sys.stderr, flush=True)
+        return 2
+    failures = baseline_drift(base, current)
+    if failures:
+        print(f"ratchet guard: базлайн вырос против {base_ref}:")
+        for failure in failures:
+            print(f"  FAIL {failure}")
+        return 1
+    print(f"ratchet guard: базлайн не вырос против {base_ref} — ok")
     return 0
 
 
@@ -263,10 +353,15 @@ def main(argv: list[str] | None = None) -> int:
     check.add_argument("--json", action="store_true")
     snap = sub.add_parser("snapshot", help="обновить базлайн измерениями (рост — только с --force)")
     snap.add_argument("--force", action="store_true")
+    guard = sub.add_parser("guard", help="CI: базлайн PR не выше базлайна ветки (--base origin/main)")
+    guard.add_argument("--base", required=True, metavar="REF",
+                       help="git-ссылка базовой ветки (например, origin/main)")
     args = parser.parse_args(argv)
 
     if args.command == "check":
         return _cmd_check(args.json)
+    if args.command == "guard":
+        return _cmd_guard(args.base)
     return _cmd_snapshot(args.force)
 
 

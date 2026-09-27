@@ -135,3 +135,69 @@ def test_cli_check_green():
         check=False,
     )
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+# ── §J-2: guard (рост базлайна в PR) и версии окружения в снимке ─────────────
+
+def test_baseline_drift_detects_raise_and_missing():
+    mod = _module()
+    base = {"metrics": {"report_month_queries": 2, "import_100_queries": 435}}
+    same = {"metrics": {"report_month_queries": 2, "import_100_queries": 435}}
+    assert mod.baseline_drift(base, same) == []
+    assert mod.baseline_drift(base, {"metrics": {"report_month_queries": 2, "import_100_queries": 436}})
+    dropped = mod.baseline_drift(base, {"metrics": {"report_month_queries": 2}})
+    assert dropped and "пропала" in dropped[0]
+    assert mod.baseline_drift({"metrics": {}}, {"metrics": {}}) == []  # в базовой ветке метрики нет
+
+
+def test_env_info_and_warnings():
+    mod = _module()
+    env = mod.env_info()
+    assert set(env) == {"python", "sqlite", "platform"}
+    assert mod.env_warnings({"env": env}, env) == []
+    warn = mod.env_warnings({"env": {**env, "sqlite": "0.0.0"}}, env)
+    assert warn and "sqlite" in warn[0]
+
+
+def test_snapshot_writes_env_and_check_warns_on_mismatch(tmp_path, monkeypatch, capsys):
+    mod = _module()
+    monkeypatch.setattr(mod, "measure",
+                        lambda: {"report_month_queries": 2, "import_100_queries": 435,
+                                 "categorize_100_ms": 1.0})
+    baseline = tmp_path / "rb.json"
+    monkeypatch.setattr(mod, "BASELINE_PATH", baseline)
+
+    assert mod._cmd_snapshot(False) == 0
+    capsys.readouterr()  # сбросить вывод snapshot перед разбором JSON от check
+    payload = json.loads(baseline.read_text(encoding="utf-8"))
+    assert payload["env"] == mod.env_info()
+
+    assert mod._cmd_check(True) == 0
+    assert json.loads(capsys.readouterr().out)["env_warnings"] == []
+
+    payload["env"]["sqlite"] = "0.0.0"
+    baseline.write_text(json.dumps(payload), encoding="utf-8")
+    assert mod._cmd_check(True) == 0  # WARN, не FAIL
+    body = json.loads(capsys.readouterr().out)
+    assert body["env_warnings"] and "sqlite" in body["env_warnings"][0]
+
+
+def test_guard_detects_raised_baseline(tmp_path, monkeypatch, capsys):
+    mod = _module()
+    baseline = tmp_path / "rb.json"
+    baseline.write_text(json.dumps({"version": 1, "metrics": {"report_month_queries": 3,
+                                                              "import_100_queries": 435}}),
+                        encoding="utf-8")
+    monkeypatch.setattr(mod, "BASELINE_PATH", baseline)
+    monkeypatch.setattr(mod, "load_baseline_from_ref",
+                        lambda ref: {"version": 1, "metrics": {"report_month_queries": 2,
+                                                               "import_100_queries": 435}})
+    assert mod._cmd_guard("origin/main") == 1
+    out = capsys.readouterr().out
+    assert "ratchet-raise" in out and "report_month_queries" in out
+
+    monkeypatch.setattr(mod, "load_baseline_from_ref",
+                        lambda ref: {"version": 1, "metrics": {"report_month_queries": 3,
+                                                               "import_100_queries": 435}})
+    assert mod._cmd_guard("origin/main") == 0
+    assert "не вырос" in capsys.readouterr().out
