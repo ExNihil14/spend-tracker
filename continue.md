@@ -17,7 +17,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (27.09, §J-2 tail — CI-гейт базлайна + версии окружения): ✅ сделано (в дереве, ждёт коммита).**
+> **АКТУАЛЬНО (27.09, §J-2 tail — CI-гейт базлайна + версии окружения): ✅ закоммичено (`3c52466`/`f039837`), ждёт push.**
 > `ratchet.py`: ① подкоманда `guard --base origin/main` — рост гейтируемой метрики в базлайне PR против
 > базовой ветки = FAIL (обход `snapshot --force` закрыт; осознанный рост — метка `ratchet-raise` в PR);
 > CI-шаг «Ratchet baseline guard» (только `pull_request`, shallow-fetch base_ref); ② в снимок пишутся версии
