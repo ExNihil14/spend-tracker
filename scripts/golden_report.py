@@ -13,21 +13,33 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import sys
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
 from spendtrack.categorize import categorize_rules_only
-from spendtrack.config import ROOT
+from spendtrack.console import utf8_stdout
 from spendtrack.store import Store
 from spendtrack.taxonomy import load_taxonomy
 
-GOLDEN = ROOT / "tests" / "golden" / "merchants.csv"
+# Якорь — сам репозиторий (скрипт лежит в scripts/), а не spendtrack.config.ROOT: в install-режиме
+# ROOT может указывать вне репо, и набор/таксономия не находились (аудит §J-2).
+REPO_ROOT = Path(__file__).resolve().parents[1]
+GOLDEN = REPO_ROOT / "tests" / "golden" / "merchants.csv"
+REQUIRED_COLUMNS = ("description", "expected_category")
 
 
 def load_rows(path: Path = GOLDEN) -> list[dict]:
-    with path.open(encoding="utf-8", newline="") as f:
-        raw = list(csv.DictReader(f))
+    """Читает набор; BOM (Excel) не ломает шапку, отсутствие обязательных колонок — ValueError."""
+    with path.open(encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        fieldnames = reader.fieldnames or []
+        missing = [c for c in REQUIRED_COLUMNS if c not in fieldnames]
+        if missing:
+            raise ValueError(f"в наборе нет обязательных колонок: {', '.join(missing)}"
+                             f" (есть: {', '.join(fieldnames) or '—'})")
+        raw = list(reader)
     rows: list[dict] = []
     for r in raw:
         desc = (r.get("description") or "").strip()
@@ -68,13 +80,26 @@ def compute(rows: list[dict], classify) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    utf8_stdout()
     ap = argparse.ArgumentParser(description="Отчёт по golden-набору мерчантов (read-only)")
-    ap.add_argument("--out", type=Path, default=ROOT / "reports" / "golden.json")
+    ap.add_argument("--out", type=Path, default=REPO_ROOT / "reports" / "golden.json")
     ap.add_argument("--golden", type=Path, default=GOLDEN)
     args = ap.parse_args(argv)
 
-    taxonomy = load_taxonomy()
-    rows = load_rows(args.golden)
+    taxonomy = load_taxonomy(REPO_ROOT / "config")
+    try:
+        rows = load_rows(args.golden)
+    except (OSError, ValueError) as e:
+        print(f"golden: {e}", file=sys.stderr, flush=True)
+        return 1
+    if not rows:
+        print("golden: набор пуст (0 строк с описанием) — проверьте файл", file=sys.stderr, flush=True)
+        return 1
+    valid = {c.name for c in taxonomy.categories}
+    unknown = sorted({r["expected"] for r in rows if r["expected"] and r["expected"] not in valid})
+    if unknown:
+        print(f"golden: ожидания вне таксономии: {', '.join(unknown)}", file=sys.stderr, flush=True)
+        return 1
     with tempfile.TemporaryDirectory(prefix="golden-") as tmp:
         store = Store(db_path=Path(tmp) / "golden.db")
         try:

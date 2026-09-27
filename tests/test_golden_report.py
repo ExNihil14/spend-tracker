@@ -64,3 +64,29 @@ def test_golden_set_well_formed_and_rules_consistent(tmp_path):
     assert report["surprise"] == 0, report["details"]["surprise"]
     assert report["rule_hit_share"] >= 0.9, report["details"]["missed"]
     assert report["unresolved"] >= 5  # есть строки для LLM/очереди — набор не «самоподтверждающийся»
+
+
+def test_main_hardening_bom_columns_empty_and_taxonomy(tmp_path, capsys):
+    """§J-2: BOM (Excel) не ломает набор; нет колонок/пусто/категория вне таксономии — FAIL (rc 1)."""
+    mod = _mod()
+    out = tmp_path / "golden.json"
+
+    good = tmp_path / "good.csv"
+    good.write_bytes("\ufeffdescription,expected_category,bank\nЛЕНТА,groceries,sber\n".encode("utf-8"))
+    assert mod.main(["--golden", str(good), "--out", str(out)]) == 0
+    assert out.is_file()
+
+    bad = tmp_path / "bad.csv"
+    bad.write_text("foo,bar\n1,2\n", encoding="utf-8")
+    assert mod.main(["--golden", str(bad), "--out", str(out)]) == 1
+    assert "обязательных колонок" in capsys.readouterr().err
+
+    empty = tmp_path / "empty.csv"
+    empty.write_text("description,expected_category\n", encoding="utf-8")
+    assert mod.main(["--golden", str(empty), "--out", str(out)]) == 1
+    assert "набор пуст" in capsys.readouterr().err
+
+    wrong = tmp_path / "wrong.csv"
+    wrong.write_text("description,expected_category\nX,no_such_category\n", encoding="utf-8")
+    assert mod.main(["--golden", str(wrong), "--out", str(out)]) == 1
+    assert "вне таксономии" in capsys.readouterr().err
