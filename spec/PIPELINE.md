@@ -220,6 +220,10 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   UI-запись). Найдены и закрыты: падение csv-парсера на одиночном `\r` (нормализация переводов строк в
   `import_csv`/`anonymize_csv`) и `parse_amount("nan"/"inf")` → контролируемая `InvalidOperation`
   (CLI `add` — exit 1). Фикстуры миграций v3/v4 — `tests/test_migrations.py`.
+- **Контракт `parse_amount` (§J-2, 27.09):** неразбираемое/не-число (`nan`/`inf`/`1e400`/``/`abc`) —
+  контролируемая `InvalidOperation`; все швы её ловят: импорт → `_skip: amount_unparsed` (импорт не падает),
+  API (JSON и форма) → 422, CLI → exit 1. Закрыто регресс-тестами: `test_csv_import` ×3, `test_api` ×5
+  (parametrize), `test_amounts`, `test_cli_add`.
 
 ## Golden-набор мерчантов (§G-4)
 - `tests/golden/merchants.csv` (`description,expected_category,bank`) — курируемые реалистичные формулировки;
@@ -229,6 +233,10 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   Основа калибровки порога 0.9 на реальных фикстурах (K4): набор расширяется без кода.
 - Тест `tests/test_golden_report.py`: контракт метрик (чистая функция, стаб) + консистентность набора
   (слаги таксономии; 0 ошибок/сюрпризов; ≥5 нерешённых).
+- **Хардненинг скрипта (§J-2, 27.09):** чтение `utf-8-sig` (BOM из Excel не ломает шапку); обязательные
+  колонки `description`/`expected_category` — иначе FAIL (`rc=1`); пустой набор и ожидания вне таксономии —
+  FAIL; якорь путей — сам репозиторий (`Path(__file__).resolve().parents[1]`), таксономия — `config/` репо
+  (в install-режиме `spendtrack.config.ROOT` мог указывать вне репо); `utf8_stdout()` в `main()`.
 - Битый JSON-конверт: не-JSON/не-UTF-8 тело → 400, неполные поля → 422 (`_json_payload` в `api.py`;
   live-смоук 21.09 вскрыл 500 на кривой кодировке) — и `/api/import`, и `/api/transactions`.
 - **Реальные форматы (подтверждены публичными первоисточниками 23.09, `RESEARCH_BANK_STATEMENT_SAMPLES.md`):**
@@ -263,6 +271,11 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   (`--rows 0` — все; для dev-фикстур указывать явно). Запись — bytes (text-mode Windows удвоил бы «\r»).
   Тесты: `tests/test_anonymize.py` (в т.ч. «обезличенный образец импортируется с теми же датами/суммами»,
   лимит строк, CRLF без удвоения, варнинг/ошибки CLI).
+- **Формат — позиционно (§J-2, 27.09):** обработка через `csv.reader/writer` по индексам — пустые и
+  дублирующиеся заголовки, хвостовой разделитель и поля сверх шапки сохраняются (DictReader их терял);
+  опечатка в `--anon-column` → ошибка `rc=1` без записи файла (нельзя молча опубликовать PII);
+  `dst == src` запрещён (безвозвратная перезапись выписки); предупреждение о колонках без заголовка;
+  `utf8_stdout()` в начале `main()` (argparse-тексты под cp1251). Тесты: +5 (формат/ошибки/перезапись).
 
 ## Мультивалютность (#5)
 - `transactions.currency` — ISO 4217, миграция v5 (`ALTER … ADD COLUMN … DEFAULT 'RUB'`; старые строки = RUB,
@@ -278,6 +291,12 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   (end exclusive) → `report_month["foreign_count"]`, `digest["foreign_count"]` (окно `[start, ref]`,
   передаём `ref+1 день`); видна на `/` (итоги строкой), `/dashboard` (карточка «Баланс» и дайджест) и в CLI
   `report` — только при N>0. Считаются операции, а не суммы; очередь включается так же, как в ₽-агрегатах.
+- **Предикат валюты — зеркальный (§J-2, 27.09):** ₽-агрегаты и сноска используют один предикат
+  `COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB'` / `<> 'RUB'` (`reports`/`digest`/`recurring`;
+  дневные итоги списка — та же нормализация в Python): `'rub'`/`'Rub'`/пустая строка считаются ₽, а не
+  выпадают из итогов; NULL невозможен (схема `NOT NULL DEFAULT 'RUB'`, миграция v5 бэкфиллит) — закреплено
+  тестом. Раньше `currency != 'RUB'` терял NULL и путал регистр: строка молча выпадала и из агрегата,
+  и из сноски (ревью §J-2: SQL и Python нормализовали пустую строку по-разному — выровнено `NULLIF`).
 - Импорт: адаптеры читают колонку валюты (Sber «Валюта операции», Tinkoff «Валюта», Yandex «currency»);
   колонки нет → RUB.
 - Тесты: `tests/test_currency.py` (15, оффлайн: алиасы, миграция v4→v5, fingerprint/дедуп, бюджеты/отчёт/
