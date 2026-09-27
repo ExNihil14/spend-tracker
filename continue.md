@@ -17,6 +17,18 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (27.09, §J-2 tail — CI-гейт базлайна + версии окружения): ✅ сделано (в дереве, ждёт коммита).**
+> `ratchet.py`: ① подкоманда `guard --base origin/main` — рост гейтируемой метрики в базлайне PR против
+> базовой ветки = FAIL (обход `snapshot --force` закрыт; осознанный рост — метка `ratchet-raise` в PR);
+> CI-шаг «Ratchet baseline guard» (только `pull_request`, shallow-fetch base_ref); ② в снимок пишутся версии
+> окружения (`env`: python/sqlite/platform), `check` при расхождении печатает WARN (не FAIL); реальный
+> базлайн пере-снят (`snapshot` — env в файле, метрики те же 2/435). Live: guard против origin/main — ok;
+> поднятая копия — rc=1 с подсказкой о метке; битая ссылка — rc=2. Контур: **638 unit + 52 e2e** + ruff +
+> contract + ratchet + build_css. Остаток §J-2 (опционально): отвязать метрику от `tests/synth_bank.py`
+> (зафиксированная фикстура-файл вместо импорта тест-хелпера). ✅ Ревью $0 (nemotron-3-ultra:free, 87 с):
+> NO-GO → **обе находки (P0 «двойной compare» и P1 «str в current») отклонены фактами**: `compare()`
+> вызывается один раз (стр. 282), `isinstance(current…)` в коде нет, при сбое `measure()` `current`
+> остаётся `{}`; живой `check --json` — `failures: []` без дублей (`EXPERT_REVIEW_J2_TAIL_OSS_2026-09-27.md`).
 > **АКТУАЛЬНО (27.09, §J-2 should — «контракт/формат/валюты/golden»): ✅ закоммичено (`1ebede4`…`e3edff4`), ждёт push.**
 > ① `parse_amount`: адъюдикация фактами — контракт `InvalidOperation` уже ловится всеми швами (импорт →
 > `amount_unparsed`, API → 422, CLI → exit 1); закрыто регресс-тестами (`nan`/`inf`/`1e400`/пусто/`abc`).
