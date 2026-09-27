@@ -165,6 +165,7 @@ def run_backup(
 
 
 def main(argv: list[str] | None = None) -> int:
+    utf8_stdout()
     ap = argparse.ArgumentParser(description="Бэкап БД (VACUUM INTO) + внешняя копия")
     ap.add_argument("--keep", type=int, default=DEFAULT_KEEP, help="сколько локальных копий хранить")
     ap.add_argument("--copy-to", default=None, metavar="ПАПКА",
