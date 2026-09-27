@@ -52,15 +52,20 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
 - Стенд: `SPENDTRACK_DB_PATH=data/demo.db uv run uvicorn spendtrack.main:app --port 8767`.
 - Тесты: `tests/test_demo_data.py` (4, оффлайн; фиксированная дата → детерминированные окна дайджеста).
 
-## GIF лендинга (§G-7)
+## GIF лендинга (§G-7) и скриншоты README
 - `scripts/record_demo_gif.py` (dev): берёт **изолированную копию** `data/demo.db` (или сеет), поднимает
   временный uvicorn, снимает 4 кадра (импорт → отчёт → очередь → дайджест) в Chromium, накладывает подписи
-  (Pillow) и собирает `landing/assets/demo.gif` (960px, ~272 КБ, палитра 256, цикл). Guard: только БД
+  (Pillow) и собирает `landing/assets/demo.gif` (960px, палитра 256, цикл). Guard: только БД
   с именем `demo.db`; прод и реальные БД не трогаются.
+- `scripts/record_readme_screens.py` (dev): тот же контур стенда, три кадра 1280px для README —
+  `assets/screenshot-transactions.png` (видоискатель 1500px), `screenshot-settings.png`, `screenshot-dashboard.png`.
+  Guard — тоже только `demo.db`; запуск `uv run python scripts/record_readme_screens.py`.
 - Лендинг: лид-кадр в `#screens` (`.screens-lead`, `width/height` + `loading="lazy"`), README ссылается
   на GIF; тесты `tests/test_demo_gif.py` (guard + `assemble_gif`: resize/кадры/пустой вход),
-  `test_landing.py::test_demo_gif_lead_in_screens`.
-- Пересборка после UI-правок: `uv run python scripts/record_demo_gif.py` (Playwright/Pillow — dev-зависимости).
+  `test_landing.py::test_demo_gif_lead_in_screens`, `tests/test_readme_screens.py` (ссылки README на картинки
+  существуют; план съёмки == `assets/screenshot-*.png` из README).
+- Пересборка после UI-правок: `uv run python scripts/record_demo_gif.py` + `uv run python scripts/record_readme_screens.py`
+  (Playwright/Pillow — dev-зависимости).
 
 ## Doctor (целостность данных)
 - CLI `spendtrack doctor` — таблица чеков; `--json` — машинный JSON; exit 0 = ok/warn, 1 = critical.

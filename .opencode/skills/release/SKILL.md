@@ -12,13 +12,16 @@ description: Релизный контур spend-tracker: тег vX.Y.Z, CHANGEL
 2. **Доки без противоречий:** `tests/test_docs_consistency.py` — гейт (машино-проверяемые каноны);
    семантический contradiction-прогон по `spec/PIPELINE.md` §Contradiction-check — рекомендательный
    (проверяет CHANGELOG/PRIVACY/SECURITY и соответствие поведению; находки — адъюдикация фактами, правки тем же коммитом).
-2. **CHANGELOG** `[X.Y.Z]` — Added/Changed/Fixed/Security + дата; версия SemVer `0.x.y`; историчные разделы не переписывать.
-3. **Пиннинг установщиков:** команды в `install.ps1`/`install.sh`, README и лендинге — на тег/релиз-ветку (`raw.githubusercontent.com/.../vX.Y.Z/...`), не на `main`; рядом с `irm | iex` — ссылка «посмотреть скрипт».
-4. **Тег:** аннотированный `git tag -a vX.Y.Z -m "..."` (push — по команде юзера).
-5. **Заморозка `main`** на окно релиза (фиксация SHA, чужие merge — нет), затем снять.
-6. **Windows-CI:** джоб `windows-latest` (смоук `uv tool install --from .` + `serve`) в `.github/workflows/ci.yml`.
-7. **Ручные прогоны (за юзером):** чистые Windows/macOS/Linux — install → первый дайджест ≤10 мин; 0 issues «установка не удалась».
-8. **Pages:** лендинг деплоится workflow при push в `main` — после релиза открыть живой URL.
+3. **CHANGELOG** `[X.Y.Z]` — Added/Changed/Fixed/Security + дата; версия SemVer `0.x.y`; историчные разделы не переписывать.
+4. **Визуальные ассеты актуальны:** после UI-правок пересняты GIF и README-скриншоты
+   (`uv run python scripts/record_demo_gif.py`, `uv run python scripts/record_readme_screens.py`);
+   зелёные `tests/test_demo_gif.py`, `tests/test_readme_screens.py`.
+5. **Пиннинг установщиков:** команды в `install.ps1`/`install.sh`, README и лендинге — на тег/релиз-ветку (`raw.githubusercontent.com/.../vX.Y.Z/...`), не на `main`; рядом с `irm | iex` — ссылка «посмотреть скрипт».
+6. **Тег:** аннотированный `git tag -a vX.Y.Z -m "..."` (push — по команде юзера).
+7. **Заморозка `main`** на окно релиза (фиксация SHA, чужие merge — нет), затем снять.
+8. **Windows-CI:** джоб `windows-latest` (смоук `uv tool install --from .` + `serve`) в `.github/workflows/ci.yml`.
+9. **Ручные прогоны (за юзером):** чистые Windows/macOS/Linux — install → первый дайджест ≤10 мин; 0 issues «установка не удалась».
+10. **Pages:** лендинг деплоится workflow при push в `main` — после релиза открыть живой URL.
 
 ## Gotchas
 - Trunk-based: длинных веток нет (только `feature|fix|chore/<slug>` от `main`); merge — `--ff-only` после `rebase`.
