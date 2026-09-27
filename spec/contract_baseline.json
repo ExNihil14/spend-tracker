@@ -156,6 +156,78 @@
    "args": "color: str",
    "returns": "float"
   },
+  "spendtrack.config:AcceptanceSettings.auto_accept_confidence": {
+   "args": "float = 0.9",
+   "returns": ""
+  },
+  "spendtrack.config:LLMEndpoint.base_url": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.config:LLMEndpoint.model": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.config:LLMSettings.deepseek": {
+   "args": "LLMEndpoint = ",
+   "returns": ""
+  },
+  "spendtrack.config:LLMSettings.fallback": {
+   "args": "LLMEndpoint = ",
+   "returns": ""
+  },
+  "spendtrack.config:LLMSettings.max_tokens": {
+   "args": "int = 400",
+   "returns": ""
+  },
+  "spendtrack.config:LLMSettings.offline": {
+   "args": "LLMEndpoint = ",
+   "returns": ""
+  },
+  "spendtrack.config:LLMSettings.primary": {
+   "args": "LLMEndpoint = ",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.acceptance": {
+   "args": "AcceptanceSettings = AcceptanceSettings()",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.db_path": {
+   "args": "Path | None = None",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.freel_llm_api_key": {
+   "args": "str = ''",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.llm": {
+   "args": "LLMSettings = ",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.llm_api_key": {
+   "args": "str = ''",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.llm_base_url": {
+   "args": "str = ''",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.llm_model": {
+   "args": "str = ''",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.llm_provider": {
+   "args": "str = ''",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.openrouter_api_key": {
+   "args": "str = ''",
+   "returns": ""
+  },
+  "spendtrack.config:Settings.port": {
+   "args": "int = 8766",
+   "returns": ""
+  },
   "spendtrack.config:ensure_config_dir": {
    "args": "",
    "returns": "Path"
@@ -324,6 +396,30 @@
    "args": "txs: Iterable[dict], path_or_stream: str | Path | io.BytesIO",
    "returns": "int"
   },
+  "spendtrack.llm:LLMProvider.__decorators__": {
+   "args": "@dataclass(frozen=True)",
+   "returns": ""
+  },
+  "spendtrack.llm:LLMProvider.api_key": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.llm:LLMProvider.base_url": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.llm:LLMProvider.local": {
+   "args": "bool = False",
+   "returns": ""
+  },
+  "spendtrack.llm:LLMProvider.model": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.llm:LLMProvider.source": {
+   "args": "str = ",
+   "returns": ""
+  },
   "spendtrack.llm:call_llm": {
    "args": "system_prompt: str, user_prompt: str, max_tokens: int=400, temperature: float=0.1, endpoint_override: str | None=None, model_override: str | None=None",
    "returns": "dict[str, Any]"
@@ -407,6 +503,38 @@
   "spendtrack.resilience:CircuitBreaker.report_success": {
    "args": "self",
    "returns": "None"
+  },
+  "spendtrack.routers.api:ConfirmIn.category": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:ImportIn.bank": {
+   "args": "str = 'auto'",
+   "returns": ""
+  },
+  "spendtrack.routers.api:ImportIn.csv": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxIn.account": {
+   "args": "str | None = None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxIn.amount": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxIn.currency": {
+   "args": "str = 'RUB'",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxIn.date": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxIn.description": {
+   "args": "str = ",
+   "returns": ""
   },
   "spendtrack.routers.api:approve_all": {
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
@@ -806,84 +934,88 @@
   }
  },
  "routes": {
-  "GET /": "",
-  "GET /api/budgets": "",
-  "GET /api/pending-count": "",
-  "GET /api/reviews": "",
-  "GET /api/reviews/count": "",
-  "GET /api/transactions/{tx_id}": "",
-  "GET /approve": "",
-  "GET /dashboard": "",
-  "GET /export.csv": "",
-  "GET /export.xlsx": "",
-  "GET /health": "",
-  "GET /health/data": "",
-  "GET /help": "",
-  "GET /settings": "",
-  "GET /transactions/more": "",
-  "PATCH /api/transactions/{tx_id}": "",
-  "POST /api/import": "",
-  "POST /api/reviews/approve-all": "",
-  "POST /api/reviews/{tx_id}/approve": "",
-  "POST /api/reviews/{tx_id}/skip": "",
-  "POST /api/transactions": "",
-  "POST /settings/budgets": "",
-  "POST /settings/categories": "",
-  "POST /settings/categories/color": "",
-  "POST /settings/categories/delete": "",
-  "POST /settings/categories/rename": "",
-  "POST /settings/categories/rename/preview": "",
-  "POST /settings/rules": "",
-  "POST /settings/rules/delete": "",
-  "POST /settings/rules/move": "",
-  "POST /settings/rules/preview": "",
-  "POST /settings/test": ""
+  "GET /": "a1f2bf0e581d",
+  "GET /api/budgets": "25b35f00574b",
+  "GET /api/pending-count": "3f945ca0cf6b",
+  "GET /api/reviews": "8c19c725fd2c",
+  "GET /api/reviews/count": "8c19c725fd2c",
+  "GET /api/transactions/{tx_id}": "2717fc8e3fad",
+  "GET /approve": "8c19c725fd2c",
+  "GET /dashboard": "b67aa5b64d75",
+  "GET /export.csv": "faec837bb47f",
+  "GET /export.xlsx": "faec837bb47f",
+  "GET /health": "3f945ca0cf6b",
+  "GET /health/data": "1ca08b2f9205",
+  "GET /help": "8c19c725fd2c",
+  "GET /settings": "8c19c725fd2c",
+  "GET /transactions/more": "115a21cad54f",
+  "PATCH /api/transactions/{tx_id}": "d9157cd8f817",
+  "POST /api/import": "3f945ca0cf6b",
+  "POST /api/reviews/approve-all": "8c19c725fd2c",
+  "POST /api/reviews/{tx_id}/approve": "dfe579b5cfce",
+  "POST /api/reviews/{tx_id}/skip": "dfe579b5cfce",
+  "POST /api/transactions": "3f945ca0cf6b",
+  "POST /settings/budgets": "8c19c725fd2c",
+  "POST /settings/categories": "8c19c725fd2c",
+  "POST /settings/categories/color": "8c19c725fd2c",
+  "POST /settings/categories/delete": "8c19c725fd2c",
+  "POST /settings/categories/rename": "8c19c725fd2c",
+  "POST /settings/categories/rename/preview": "8c19c725fd2c",
+  "POST /settings/rules": "8c19c725fd2c",
+  "POST /settings/rules/delete": "8c19c725fd2c",
+  "POST /settings/rules/move": "8c19c725fd2c",
+  "POST /settings/rules/preview": "8c19c725fd2c",
+  "POST /settings/test": "8c19c725fd2c"
  },
  "schema": {
-  "account_pseudonyms.original": "TEXT|notnull=0|pk=1",
-  "account_pseudonyms.pseudonym": "TEXT|notnull=1|pk=0",
-  "budgets.amount_kopecks": "INTEGER|notnull=1|pk=0",
-  "budgets.category": "TEXT|notnull=0|pk=1",
-  "budgets.updated": "TEXT|notnull=1|pk=0",
-  "categories.color": "TEXT|notnull=1|pk=0",
-  "categories.name": "TEXT|notnull=0|pk=1",
-  "examples.amount_kopecks": "INTEGER|notnull=1|pk=0",
-  "examples.category": "TEXT|notnull=1|pk=0",
-  "examples.description": "TEXT|notnull=1|pk=0",
-  "examples.id": "INTEGER|notnull=0|pk=1",
-  "import_batches.created": "TEXT|notnull=1|pk=0",
-  "import_batches.filename": "TEXT|notnull=1|pk=0",
-  "import_batches.id": "TEXT|notnull=0|pk=1",
-  "import_batches.nrows": "INTEGER|notnull=1|pk=0",
-  "import_batches.sha": "TEXT|notnull=1|pk=0",
-  "import_batches.status": "TEXT|notnull=1|pk=0",
-  "merchant_cache.category": "TEXT|notnull=1|pk=0",
-  "merchant_cache.confidence": "REAL|notnull=1|pk=0",
-  "merchant_cache.key": "TEXT|notnull=0|pk=1",
-  "merchant_cache.merchant": "TEXT|notnull=1|pk=0",
-  "merchant_cache.updated": "TEXT|notnull=1|pk=0",
-  "rules.category": "TEXT|notnull=1|pk=0",
-  "rules.id": "INTEGER|notnull=0|pk=1",
-  "rules.pattern": "TEXT|notnull=1|pk=0",
-  "schema_migrations.applied_at": "TEXT|notnull=1|pk=0",
-  "schema_migrations.version": "INTEGER|notnull=0|pk=1",
-  "transactions.account_anon": "TEXT|notnull=0|pk=0",
-  "transactions.amount_kopecks": "INTEGER|notnull=1|pk=0",
-  "transactions.category": "TEXT|notnull=1|pk=0",
-  "transactions.category_llm": "TEXT|notnull=0|pk=0",
-  "transactions.category_source": "TEXT|notnull=1|pk=0",
-  "transactions.confidence": "REAL|notnull=1|pk=0",
-  "transactions.created": "TEXT|notnull=1|pk=0",
-  "transactions.currency": "TEXT|notnull=1|pk=0",
-  "transactions.date": "TEXT|notnull=1|pk=0",
-  "transactions.description": "TEXT|notnull=1|pk=0",
-  "transactions.fingerprint": "TEXT|notnull=0|pk=0",
-  "transactions.id": "INTEGER|notnull=0|pk=1",
-  "transactions.import_batch": "TEXT|notnull=0|pk=0",
-  "transactions.merchant": "TEXT|notnull=0|pk=0",
-  "transactions.review_status": "TEXT|notnull=1|pk=0",
-  "transactions.statement_order": "INTEGER|notnull=0|pk=0",
-  "transactions.updated": "TEXT|notnull=1|pk=0",
+  "account_pseudonyms.original": "TEXT|notnull=0|pk=1|dflt=None",
+  "account_pseudonyms.pseudonym": "TEXT|notnull=1|pk=0|dflt=None",
+  "budgets.amount_kopecks": "INTEGER|notnull=1|pk=0|dflt=None",
+  "budgets.category": "TEXT|notnull=0|pk=1|dflt=None",
+  "budgets.updated": "TEXT|notnull=1|pk=0|dflt=None",
+  "categories.color": "TEXT|notnull=1|pk=0|dflt='#9ca3af'",
+  "categories.name": "TEXT|notnull=0|pk=1|dflt=None",
+  "examples.amount_kopecks": "INTEGER|notnull=1|pk=0|dflt=None",
+  "examples.category": "TEXT|notnull=1|pk=0|dflt=None",
+  "examples.description": "TEXT|notnull=1|pk=0|dflt=None",
+  "examples.id": "INTEGER|notnull=0|pk=1|dflt=None",
+  "import_batches.created": "TEXT|notnull=1|pk=0|dflt=None",
+  "import_batches.filename": "TEXT|notnull=1|pk=0|dflt=None",
+  "import_batches.id": "TEXT|notnull=0|pk=1|dflt=None",
+  "import_batches.nrows": "INTEGER|notnull=1|pk=0|dflt=0",
+  "import_batches.sha": "TEXT|notnull=1|pk=0|dflt=None",
+  "import_batches.status": "TEXT|notnull=1|pk=0|dflt='ok'",
+  "index:idx_tx_category": "CREATE INDEX idx_tx_category ON transactions(category)",
+  "index:idx_tx_date": "CREATE INDEX idx_tx_date ON transactions(date)",
+  "index:idx_tx_merchant": "CREATE INDEX idx_tx_merchant ON transactions(merchant)",
+  "index:idx_tx_pending": "CREATE INDEX idx_tx_pending ON transactions(review_status) WHERE review_status='pending'",
+  "merchant_cache.category": "TEXT|notnull=1|pk=0|dflt=None",
+  "merchant_cache.confidence": "REAL|notnull=1|pk=0|dflt=1.0",
+  "merchant_cache.key": "TEXT|notnull=0|pk=1|dflt=None",
+  "merchant_cache.merchant": "TEXT|notnull=1|pk=0|dflt=None",
+  "merchant_cache.updated": "TEXT|notnull=1|pk=0|dflt=None",
+  "rules.category": "TEXT|notnull=1|pk=0|dflt=None",
+  "rules.id": "INTEGER|notnull=0|pk=1|dflt=None",
+  "rules.pattern": "TEXT|notnull=1|pk=0|dflt=None",
+  "schema_migrations.applied_at": "TEXT|notnull=1|pk=0|dflt=None",
+  "schema_migrations.version": "INTEGER|notnull=0|pk=1|dflt=None",
+  "transactions.account_anon": "TEXT|notnull=0|pk=0|dflt=None",
+  "transactions.amount_kopecks": "INTEGER|notnull=1|pk=0|dflt=None",
+  "transactions.category": "TEXT|notnull=1|pk=0|dflt=None",
+  "transactions.category_llm": "TEXT|notnull=0|pk=0|dflt=None",
+  "transactions.category_source": "TEXT|notnull=1|pk=0|dflt=None",
+  "transactions.confidence": "REAL|notnull=1|pk=0|dflt=1.0",
+  "transactions.created": "TEXT|notnull=1|pk=0|dflt=None",
+  "transactions.currency": "TEXT|notnull=1|pk=0|dflt='RUB'",
+  "transactions.date": "TEXT|notnull=1|pk=0|dflt=None",
+  "transactions.description": "TEXT|notnull=1|pk=0|dflt=None",
+  "transactions.fingerprint": "TEXT|notnull=0|pk=0|dflt=None",
+  "transactions.id": "INTEGER|notnull=0|pk=1|dflt=None",
+  "transactions.import_batch": "TEXT|notnull=0|pk=0|dflt=None",
+  "transactions.merchant": "TEXT|notnull=0|pk=0|dflt=None",
+  "transactions.review_status": "TEXT|notnull=1|pk=0|dflt='approved'",
+  "transactions.statement_order": "INTEGER|notnull=0|pk=0|dflt=None",
+  "transactions.updated": "TEXT|notnull=1|pk=0|dflt=None",
   "user_version": "5"
  }
 }

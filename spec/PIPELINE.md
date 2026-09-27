@@ -144,6 +144,13 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
 - Поток при осознанном изменении контракта: изменить код → `snapshot` → baseline в том же коммите. При AI-рефакторинге
   расхождение check = блокер (LLM молча выкидывают функциональность; happy-path тесты это не ловят).
 - Тесты: `tests/test_contract_delta.py` (6, оффлайн, герметичные — tmp-пакеты/файлы baseline).
+- **Расширение и guard (ревью Opus 5.5, 27.09):** snapshot включает индексы/триггеры/VIEW и `dflt` колонок,
+  поля/декораторы классов и `__init__.py`, хэш операции маршрута (`parameters/requestBody/responses`) —
+  снятие UNIQUE-индекса или поля ответа больше не проходят незамеченными; CI-шаг «Baseline guard»
+  (`scripts/baseline_guard.py`) требует трейлер **`Contract-Change: <причина>`** в коммитах диапазона при
+  изменении `spec/*_baseline.json` (PR — `origin/<base_ref>`, push — `event.before`; checkout `fetch-depth: 0`) —
+  «дрейф + snapshot в одном коммите» больше не даёт зелёный CI; `uv sync --locked --dev` (шаг `uv lock --check`
+  после sync убран — он проверял уже перезаписанный lock).
 
 ## Ratchet-метрики (M10, «только вниз»)
 - `scripts/ratchet.py` — детерминированные метрики на temp-БД (прод не трогает): SQL-запросы на месячный
@@ -622,7 +629,10 @@ uv run --with coverage coverage run -m pytest -q && uv run --with coverage cover
 - Брифы субагентам — по шаблону `D:\dev\docs\machine\TASK_BRIEF_TEMPLATE.md` (чек-лист задачи внутри:
   контракт-дельта, миграции, usage-first тесты, дисциплина данных, гейт, доки).
 - Ревью WIP автоматизировано: `uv run python scripts/review.py --title "..." [--notes facts.md] [--out review.md]`
-  — сам собирает чек-лист + план-формат + `git diff` (+untracked) и вызывает OpenRouter :free ($0);
+  — сам собирает чек-лист + план-формат + `git diff HEAD` (видит и staged, и unstaged; пустой дифф → rc=2)
+  (+untracked: расширения .py/.md/.js/.mjs/.html/.css/.sql/.ps1; чувствительные пути `.env*`/`fixtures/real*`/
+  `*.local.*`/`*.pem|key|pfx` и превышение лимита помечаются в промпте) и вызывает OpenRouter :free ($0);
+  перед отправкой — секрет-скан (regex; находка → rc=3, наружу не уходит);
   для длинных прогонов запускать через `start-detached.ps1`. Прогресс/готовность — по файлу `--out`.
 - e2e + htmx: после AJAX-swap НЕЛЬЗЯ ждать `.htmx-request` как признак готовности — он снимается до settle,
   а новый контент получает обработчики htmx только через `defaultSettleDelay=20ms` (`makeAjaxLoadTask` → `processNode`).

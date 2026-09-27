@@ -31,6 +31,7 @@ def test_render_prompt_contains_checklist_plan_and_artifacts():
         diff_stat=" a.py | 2 +-",
         diff="diff --git a/a.py b/a.py\n+new line",
         extras={"new_module.py": "def f() -> int:\n    return 1\n"},
+        skipped=["secret.env"],
     )
 
     assert "# Что ревьюится: Тестовая задача" in prompt
@@ -41,3 +42,16 @@ def test_render_prompt_contains_checklist_plan_and_artifacts():
     assert "проверено фактом: 275 unit зелёные" in prompt
     assert "+new line" in prompt
     assert "new_module.py" in prompt
+    assert "не включены файлы" in prompt and "secret.env" in prompt
+
+
+def test_secret_hits_masked_and_clean():
+    """§C4/S7: перед отправкой наружу промпт сканируется на секрет-паттерны."""
+    m = _mod()
+    assert m.secret_hits("обычный текст без секретов") == []
+    hits = m.secret_hits("token sk-" + "a" * 24 + " конец")
+    assert hits and hits[0].startswith("sk-") and "…" in hits[0]
+    assert m._is_sensitive(".env")
+    assert m._is_sensitive("tests/fixtures/real_statement.csv")
+    assert m._is_sensitive("settings.local.toml")
+    assert not m._is_sensitive("src/spendtrack/store.py")

@@ -14,6 +14,8 @@ jobs:
     steps:
       # Actions пиннуты по commit SHA (иммутабельный релиз), версия — в комментарии
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+        with:
+          fetch-depth: 0  # нужны origin/<base_ref> и event.before для baseline-guard
       - name: Install uv
         uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86  # v5
         with:
@@ -23,10 +25,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --dev
-
-      - name: Lockfile check
-        run: uv lock --check
+        run: uv sync --locked --dev
 
       - name: Ruff (lint)
         run: uv run ruff check .
@@ -42,6 +41,15 @@ jobs:
 
       - name: Contract delta (public API + DB schema + routes)
         run: uv run python scripts/contract_delta.py check
+
+      - name: Baseline guard (изменение базлайнов — только с трейлером Contract-Change)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="origin/${{ github.base_ref }}"
+          else
+            BASE="${{ github.event.before }}"
+          fi
+          uv run python scripts/baseline_guard.py --base "$BASE"
 
       - name: Ratchet metrics (только вниз)
         run: uv run python scripts/ratchet.py check
@@ -66,7 +74,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --locked --dev
 
       - name: Install Playwright (chromium)
         run: uv run playwright install --with-deps chromium
@@ -88,7 +96,7 @@ jobs:
         run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync --dev
+        run: uv sync --locked --dev
 
       - name: Install Playwright (firefox, webkit)
         run: uv run playwright install --with-deps firefox webkit

@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -43,6 +44,7 @@ def load_checklist(path: Path) -> str:
     try:
         return path.read_text(encoding="utf-8").strip() or EMBEDDED_CHECKLIST
     except OSError:
+        print(f"review: чек-лист не найден ({path}) — использую встроенный", file=sys.stderr, flush=True)
         return EMBEDDED_CHECKLIST
 
 
@@ -54,29 +56,67 @@ def _git(repo: Path, *args: str) -> str:
         return ""
 
 
-def collect_artifacts(repo: Path) -> tuple[str, str, dict[str, str]]:
-    diff_stat = _git(repo, "diff", "--stat")
-    diff = _git(repo, "diff")
-    untracked = [p for p in _git(repo, "ls-files", "--others", "--exclude-standard").split() if p]
+def collect_artifacts(repo: Path) -> tuple[str, str, dict[str, str], list[str]]:
+    """→ (diff_stat, diff, extras, skipped). Дифф — против HEAD (ловит и staged, и unstaged)."""
+    diff_stat = _git(repo, "diff", "HEAD", "--stat")
+    diff = _git(repo, "diff", "HEAD")
+    untracked = [p for p in _git(repo, "ls-files", "--others", "--exclude-standard").splitlines() if p]
     extras: dict[str, str] = {}
+    skipped: list[str] = []
     total = 0
     for rel in untracked:
         path = repo / rel
-        if path.suffix not in (".py", ".md", ".toml", ".yml", ".yaml", ".json"):
+        if path.suffix not in (".py", ".md", ".toml", ".yml", ".yaml", ".json",
+                               ".js", ".mjs", ".html", ".css", ".sql", ".ps1"):
+            continue
+        if _is_sensitive(rel):
+            skipped.append(rel)
             continue
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             continue
         if total + len(text) > EXTRAS_LIMIT:
-            break
+            skipped.append(rel)
+            continue
         extras[rel] = text
         total += len(text)
-    return diff_stat, diff, extras
+    return diff_stat, diff, extras, skipped
+
+
+SENSITIVE_PATTERNS = (
+    re.compile(r"sk-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"gh[pous]_[A-Za-z0-9]{20,}"),
+    re.compile(r"Bearer\s+[A-Za-z0-9_\-.]{20,}"),
+    re.compile(r"AKIA[0-9A-Z]{16}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+)
+
+
+def _is_sensitive(rel: str) -> bool:
+    """Пути, которые не отправляем наружу (реальные фикстуры/локальные конфиги/секреты)."""
+    name = rel.lower()
+    return (
+        name.startswith(".env")
+        or "/.env" in name
+        or "fixtures/real" in name
+        or ".local." in name
+        or name.endswith((".pem", ".key", ".pfx"))
+    )
+
+
+def secret_hits(text: str) -> list[str]:
+    """Совпадения секрет-паттернов (маскированные) — для abort перед отправкой во внешний канал."""
+    hits: list[str] = []
+    for pat in SENSITIVE_PATTERNS:
+        for m in pat.finditer(text):
+            val = m.group(0)
+            hits.append(f"{val[:8]}…({len(val)} симв)")
+    return hits
 
 
 def render_prompt(title: str, checklist: str, notes: str, diff_stat: str,
-                  diff: str, extras: dict[str, str]) -> str:
+                  diff: str, extras: dict[str, str], skipped: list[str] | None = None) -> str:
     parts = [
         ("# Роль\nТы — строгий ревьюер Python/SQLite/FastAPI-кода (соло-проект). Оцениваешь по фактам,"
          " без теории и похвал. Не выдумывай; при нехватке данных пиши «недостаточно данных».\n"),
@@ -97,6 +137,9 @@ def render_prompt(title: str, checklist: str, notes: str, diff_stat: str,
         parts.append("# Артефакт: untracked-файлы (полный текст)\n")
         for rel, text in extras.items():
             parts.append(f"## {rel}\n```\n{text}\n```\n")
+    if skipped:
+        parts.append("# ВНИМАНИЕ: не включены файлы (лимит размера или чувствительные пути)\n"
+                     + "\n".join(f"- {s}" for s in skipped) + "\n")
     return "".join(parts)
 
 
@@ -156,9 +199,22 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     notes = args.notes.read_text(encoding="utf-8") if args.notes and args.notes.exists() else ""
-    diff_stat, diff, extras = collect_artifacts(args.repo)
-    prompt = render_prompt(args.title, load_checklist(args.checklist), notes, diff_stat, diff, extras)
+    diff_stat, diff, extras, skipped = collect_artifacts(args.repo)
+    prompt = render_prompt(args.title, load_checklist(args.checklist), notes, diff_stat, diff,
+                           extras, skipped)
     out = args.out or Path(tempfile.gettempdir()) / f"spendtrack-review-{int(time.time())}.md"
+
+    if not diff.strip() and not extras:
+        print("review: нечего ревьюить (пустой дифф против HEAD и нет untracked-файлов) — "
+              "сначала изменения, затем ревью", file=sys.stderr, flush=True)
+        return 2
+    hits = secret_hits(prompt)
+    if hits:
+        print("review: СТОП — в промпте похожие на секреты строки (наружу не отправляю): "
+              + ", ".join(hits[:5]), file=sys.stderr, flush=True)
+        return 3
+    if skipped:
+        print(f"review: не включены файлы: {', '.join(skipped)}", flush=True)
 
     if args.dry_run:
         out.write_text(prompt, encoding="utf-8")

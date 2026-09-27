@@ -17,6 +17,16 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (27.09, ревью-гейты по Opus 5.5 — C4/C5/S1–S3/S7): ✅ сделано (в дереве, ждёт коммита).**
+> `review.py`: дифф против `HEAD` (видит staged), пустой дифф → rc=2, пометка обрезок, расширения файлов,
+> секрет-скан перед отправкой наружу (rc=3). `contract_delta.py`: индексы/триггеры/VIEW/`dflt` в schema,
+> поля/декораторы классов и `__init__.py` в api, хэш операции в routes; baseline пере-снят (49/233/32).
+> Новый `baseline_guard.py` + CI: изменение `spec/*_baseline.json` только с трейлером `Contract-Change:`
+> (PR — `origin/<base_ref>`, push — `event.before`; `fetch-depth: 0`); `uv sync --locked --dev`.
+> Контур: **642 unit + 52 e2e** + ruff + contract + ratchet + build_css. Окружение (bootstrap-коммит):
+> safety-gate v3 (fail-closed, shell-protected, защита маркера), кап careful 15 мин, S4-фикс agentrouter,
+> `check-opencode` v2 (бэкапы/канон/конфиг), ночной батч AgentRouter переведён на задачи Планировщика
+> (mutex + guard, WakeToRun) — детали в плане/очереди.
 > **АКТУАЛЬНО (27.09, тяжёлое ревью Opus 5.5 «деньги и целостность данных» через Abacus): ✅ сделано
 > (`07598cf`, ждёт push).** Область — самый дорогой класс ошибок (тихие ошибки копеек/дедупа/валют);
 > промпт по формуле claude.dev (одна задача + критерий «готово» + только merge-blocking + «как показать,

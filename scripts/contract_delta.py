@@ -1,9 +1,9 @@
 """Контракт-дельта: снапшот публичных контрактов и автоматическая проверка дрейфа.
 
 Снапшот:
-* schema — user_version + таблицы/колонки (из свежей tmp-БД Store);
-* api — публичные сигнатуры модулей `src/spendtrack` (AST, без импорта кода);
-* routes — публичные HTTP-маршруты FastAPI.
+* schema — user_version + таблицы/колонки (тип/notnull/pk/dflt) + индексы/триггеры/VIEW (нормализованный SQL);
+* api — публичные сигнатуры модулей `src/spendtrack` (AST, без импорта кода) + поля/декораторы классов;
+* routes — публичные HTTP-маршруты FastAPI (метод+путь → хэш операции: parameters/requestBody/responses).
 
 Использование:
     uv run python scripts/contract_delta.py snapshot [--out spec/contract_baseline.json]
@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import hashlib
 import json
 import sys
 import tempfile
@@ -37,10 +38,10 @@ def _sig(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> dict:
 
 
 def api_snapshot(src_dir: Path = SRC) -> dict:
-    """Публичные функции/классы (без ведущего `_`) из пакета, по AST (без импорта)."""
+    """Публичные функции/классы (без ведущего `_`, кроме `__init__.py`) из пакета, по AST (без импорта)."""
     out: dict[str, dict] = {}
     for path in sorted(src_dir.rglob("*.py")):
-        if path.name.startswith("_"):
+        if path.name.startswith("_") and path.name != "__init__.py":
             continue
         tree = ast.parse(path.read_text(encoding="utf-8"))
         mod = path.relative_to(src_dir.parent).as_posix().removesuffix(".py").replace("/", ".")
@@ -48,14 +49,26 @@ def api_snapshot(src_dir: Path = SRC) -> dict:
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
                 out[f"{mod}:{node.name}"] = _sig(node)
             elif isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
+                if node.decorator_list:  # @dataclass(frozen=True) и пр. — часть контракта (дисциплина данных)
+                    out[f"{mod}:{node.name}.__decorators__"] = {
+                        "args": ", ".join(f"@{ast.unparse(d)}" for d in node.decorator_list),
+                        "returns": "",
+                    }
                 for item in node.body:
                     if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and not item.name.startswith("_"):
                         out[f"{mod}:{node.name}.{item.name}"] = _sig(item)
+                    elif (isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name)
+                          and not item.target.id.startswith("_")):
+                        value = ast.unparse(item.value) if item.value is not None else ""
+                        out[f"{mod}:{node.name}.{item.target.id}"] = {
+                            "args": f"{ast.unparse(item.annotation)} = {value}",
+                            "returns": "",
+                        }
     return dict(sorted(out.items()))
 
 
 def schema_snapshot() -> dict:
-    """user_version + колонки всех таблиц из свежей временной БД."""
+    """user_version + колонки (тип/notnull/pk/dflt) + индексы/триггеры/VIEW из свежей временной БД."""
     from spendtrack.store import Store
 
     with tempfile.TemporaryDirectory(prefix="contract-") as tmp:
@@ -70,23 +83,37 @@ def schema_snapshot() -> dict:
             for table in tables:
                 for col in conn.execute(f"PRAGMA table_info({table})"):
                     out[f"{table}.{col['name']}"] = (
-                        f"{col['type']}|notnull={col['notnull']}|pk={col['pk']}")
+                        f"{col['type']}|notnull={col['notnull']}|pk={col['pk']}|dflt={col['dflt_value']}")
+            # Индексы/триггеры/VIEW: нормализованный SQL — снятие UNIQUE/индекса тоже дрейф.
+            for obj_type, name, sql in conn.execute(
+                    "SELECT type, name, sql FROM sqlite_master"
+                    " WHERE type IN ('index','trigger','view')"
+                    " AND name NOT LIKE 'sqlite_autoindex_%' ORDER BY type, name"):
+                if sql:
+                    out[f"{obj_type}:{name}"] = " ".join(str(sql).split())
         finally:
             store.close()
     return dict(sorted(out.items()))
 
 
 def routes_snapshot() -> dict:
-    """Публичные HTTP-маршруты из OpenAPI-схемы (app.routes отдаёт ленивые _IncludedRouter)."""
+    """Публичные HTTP-маршруты из OpenAPI-схемы; значение — хэш операции (params/body/responses)."""
     from spendtrack.main import app
 
     out: dict[str, str] = {}
     for path, methods in app.openapi().get("paths", {}).items():
-        for method in methods:
+        for method, spec in methods.items():
             upper = method.upper()
             if upper in ("HEAD", "OPTIONS", "PARAMETERS"):
                 continue
-            out[f"{upper} {path}"] = ""
+            payload = {
+                "parameters": spec.get("parameters"),
+                "requestBody": spec.get("requestBody"),
+                "responses": spec.get("responses"),
+            }
+            digest = hashlib.sha1(
+                json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
+            out[f"{upper} {path}"] = digest
     return dict(sorted(out.items()))
 
 
