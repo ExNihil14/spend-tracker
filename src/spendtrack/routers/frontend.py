@@ -63,7 +63,7 @@ def index(request: Request, store: Annotated[Store, Depends(get_store)], month: 
     day_totals: dict[str, int] = {}
     if group_days:
         for t in transactions:
-            if t["currency"] == "RUB":  # дневной итог — только ₽ (валюты не смешиваем)
+            if ((t["currency"] or "").upper() or "RUB") == "RUB":  # ₽-итог (K6 §J-2: зеркало SQL)
                 day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
     pending = store.queued_for_review()
     report = report_month(store, current)
@@ -238,7 +238,7 @@ def more_rows(request: Request, store: Annotated[Store, Depends(get_store)], mon
         days=days, after_date=after or None)
     day_totals: dict[str, int] = {}
     for t in rows:
-        if t["currency"] == "RUB":  # дневной итог — только ₽ (валюты не смешиваем)
+        if ((t["currency"] or "").upper() or "RUB") == "RUB":  # ₽-итог (K6 §J-2: зеркало SQL)
             day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
     cats = {c.name: c.color for c in taxonomy.categories}
     return templates.TemplateResponse(

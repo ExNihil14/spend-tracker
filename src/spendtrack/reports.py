@@ -27,9 +27,14 @@ def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, flo
 
 
 def foreign_transactions_count(store: Store, start: str, end: str) -> int:
-    """Операции не в ₽ за [start, end) — в ₽-агрегаты не входят (честная сноска, K6)."""
+    """Операции не в ₽ за [start, end) — в ₽-агрегаты не входят (честная сноска, K6).
+
+    Предикат — зеркальный ₽-агрегатам (§J-2): NULL/пустая строка трактуются как RUB (схема NOT NULL,
+    страховка для легаси), 'rub'/'Rub' — тоже RUB; иначе строка молча выпадала и из итогов, и из сноски.
+    """
     row = store.conn.execute(
-        "SELECT COUNT(*) c FROM transactions WHERE currency != 'RUB' AND date >= ? AND date < ?",
+        "SELECT COUNT(*) c FROM transactions"
+        " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') <> 'RUB' AND date >= ? AND date < ?",
         (start, end)).fetchone()
     return int(row["c"])
 
@@ -38,7 +43,7 @@ def report_month(store: Store, month: str) -> dict:
     start, end = month_bounds(month)
     rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS total_k, COUNT(*) AS n"
-        " FROM transactions WHERE date >= ? AND date < ? AND currency='RUB'"
+        " FROM transactions WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB'"
         " GROUP BY category ORDER BY total_k",
         (start, end),
     ).fetchall()
@@ -60,7 +65,7 @@ def report_month(store: Store, month: str) -> dict:
 
 def categories_with_totals(store: Store, month: str | None = None) -> list[dict]:
     sql = ("SELECT category, COUNT(*) n, SUM(amount_kopecks) total_k FROM transactions"
-           " WHERE currency='RUB'")
+           " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB'")
     params: list[str] = []
     if month:
         sql += " AND date >= ? AND date < ?"
@@ -75,7 +80,7 @@ def report_daily(store: Store, month: str) -> list[dict]:
     start, end = month_bounds(month)
     rows = store.conn.execute(
         "SELECT date, SUM(amount_kopecks) AS total_k FROM transactions"
-        " WHERE date >= ? AND date < ? AND currency='RUB' GROUP BY date ORDER BY date",
+        " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB' GROUP BY date ORDER BY date",
         (start, end),
     ).fetchall()
     return [{"date": r["date"], "total_k": r["total_k"]} for r in rows]
@@ -95,7 +100,7 @@ def budgets_progress(store: Store, month: str, known: set[str] | None = None) ->
     start, end = month_bounds(month)
     spent_rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS s FROM transactions"
-        " WHERE date >= ? AND date < ? AND currency='RUB' GROUP BY category",
+        " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB' GROUP BY category",
         (start, end),
     ).fetchall()
     spent = {r["category"]: -r["s"] for r in spent_rows}  # расход = минус знаковая сумма

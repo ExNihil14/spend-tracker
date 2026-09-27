@@ -162,6 +162,26 @@ def test_recurring_ignores_non_rub(store):
     assert [s["merchant"] for s in subs] == ["NETFLIX"]
 
 
+def test_rub_case_in_aggregates_and_note_are_mirrored(store):
+    """K6 §J-2: 'rub'/'' — это ₽ (агрегат и сноска зеркальны); NULL не пролезает (NOT NULL в схеме)."""
+    _add(store, "ЛЕНТА", -1_000, day="10")
+    _add(store, "ПЯТЁРОЧКА", -300, day="10")
+    _add(store, "AMAZON", -500, currency="USD", day="11")
+    store.conn.execute("UPDATE transactions SET currency='rub' WHERE description='ЛЕНТА'")
+    store.conn.execute("UPDATE transactions SET currency='' WHERE description='ПЯТЁРОЧКА'")
+    store.conn.commit()
+
+    rep = report_month(store, MONTH)
+    assert rep["expense_k"] == -1_300  # 'rub' и '' посчитаны как ₽, а не выпали из итогов
+    assert rep["foreign_count"] == 1   # не-₽ — только USD
+
+    digest = build_digest(store, days=30, today=date(2026, 9, 20))
+    assert digest["expense_k"] == -1_300 and digest["foreign_count"] == 1
+
+    with pytest.raises(sqlite3.IntegrityError):  # схема: currency TEXT NOT NULL DEFAULT 'RUB'
+        store.conn.execute("UPDATE transactions SET currency=NULL WHERE description='ЛЕНТА'")
+
+
 def test_import_reads_currency_column(store):
     res = import_csv(SBER_USD, store, bank="sber", classify=_classify)
     assert res["added"] == 1
