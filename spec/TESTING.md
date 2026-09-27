@@ -24,7 +24,7 @@
 | Кросс-браузерный смоук | `uv run pytest tests/e2e/test_crossbrowser_smoke.py -m e2e --browser firefox --browser webkit` | рендер/консоль 5 страниц, 320px reflow, axe critical+serious=0 |
 | Perf | `uv run pytest -m perf` | `test_digest_20k_synthetic` (порог 2 с) → `reports/perf.json` |
 | Контракт | `uv run python scripts/contract_delta.py check` | дрейф схемы/сигнатур/роутов |
-| Статика | `uv run ruff check src tests scripts`, `uv run python scripts/build_css.py --check` | lint, CSS-артефакт |
+| Статика | `uv run ruff check .`, `uv run python scripts/build_css.py --check` | lint, CSS-артефакт |
 | Покрытие (по запросу) | `uv run --with coverage coverage run -m pytest -q` + `coverage report --include="src/spendtrack/*"` | замер, без постоянной зависимости |
 
 CI (`.github/workflows/ci.yml`): lint+unit, e2e (chromium), cross-browser smoke (firefox+webkit),

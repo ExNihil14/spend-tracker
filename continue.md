@@ -9,15 +9,27 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Контур (24.09): **561 unit + 51 e2e** + ruff + contract-дельта (`scripts/contract_delta.py check`) +
-  `build_css --check` — зелёные. Прод NSSM 8766: схема v5, doctor 13/13, LLM off, 8 tx.
-- Последнее закоммичено: `36bc0ea` (K2 — `spendtrack backup`/`anonymize` как CLI пакета, README «Обновление
-  и удаление»; push — по команде юзера). Перед ним: `afce062` (правки полного аудита), `60dc8ff` (ревью M-4…M-8).
+- Контур (27.09): **642 unit + 52 e2e** + ruff + contract-дельта (`scripts/contract_delta.py check`, 49/233/32) +
+  ratchet (2/435) + `build_css --check` — зелёные. Прод NSSM 8766: схема v5, doctor 13/13, LLM off, 8 tx.
+- Последнее закоммичено: `82728b8` (process-гейты по ревью Opus 5.5: review.py/contract_delta/baseline_guard/CI) —
+  запушено; дерево чистое, main = origin/main. Перед ним: `2bf5379` (статусы ревью), `07598cf` (фиксы
+  «деньги/целостность»), `3c52466`/`f039837`/`9b08118` (§J-2 tail) — всё запушено.
 - Волны дизайна M-1…M-8 закрыты; релизные блокеры — K1 (контур) / K3 (тексты + CHANGELOG 0.2.0-beta);
   решения автора (#15, МНС, Boosty) — за юзером.
 
 ## Что активно / в работе
-> **АКТУАЛЬНО (27.09, ревью-гейты по Opus 5.5 — C4/C5/S1–S3/S7): ✅ сделано (в дереве, ждёт коммита).**
+> **АКТУАЛЬНО (27.09, вечер — адъюдикация батча Abacus «монетизация + процессы»): ✅ применено (ждёт команды на коммит).**
+> Монетизация: C1–C4 + S1–S15 подтверждены — правки в 7 доках (`MONETIZATION_*`, `MNS_*`, `BUSINESS_PLAN`, `ANALYSIS`,
+> `RESEARCH_BY_MARKETING_PROMO`): канон перков без «раннего доступа», возврат силами автора (Boosty не возвращает),
+> gross-база чека ≈$18–19.5 чистыми, порог минимума ≈6 продаж (НПД выгоднее декларации от ≈5), эквайринг физлицу
+> недоступен → ЕРИП/E-POS 1.2%, W4-proxy, письмо МНС Q1–Q7, «лицензия»→«услуги», день 0 = вторник.
+> Процессы (bootstrap-остаток): read-hard-deny `.env`/маркера в safety-gate (+3 проверки, 69/69),
+> `integrity_check` бэкапа + флоу «backup→update→check-opencode» в `check-opencode`, `ratchet_baseline` в protected.
+> Артефакты: `agentrouter_review/2026-09-27/ADJUDICATION_{MONETIZATION,PROCESS}_ABACUS_2026-09-27.md`.
+> Репо-правки этой сессии: только доки (`AGENTS.md`, `spec/TESTING.md` — lint `ruff check .` как в CI). За юзером:
+> команды на коммит; решения монетизации (горизонт, mailto, kill-criteria, тестовые платежи); AgentRouter-пул —
+> 8 ревью ждут окна 02:00 (иначе — решение: добить ключевые области Abacus-резервом или ждать).
+> **АКТУАЛЬНО (27.09, ревью-гейты по Opus 5.5 — C4/C5/S1–S3/S7): ✅ закоммичено и запушено (`82728b8`).**
 > `review.py`: дифф против `HEAD` (видит staged), пустой дифф → rc=2, пометка обрезок, расширения файлов,
 > секрет-скан перед отправкой наружу (rc=3). `contract_delta.py`: индексы/триггеры/VIEW/`dflt` в schema,
 > поля/декораторы классов и `__init__.py` в api, хэш операции в routes; baseline пере-снят (49/233/32).
@@ -28,7 +40,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > `check-opencode` v2 (бэкапы/канон/конфиг), ночной батч AgentRouter переведён на задачи Планировщика
 > (mutex + guard, WakeToRun) — детали в плане/очереди.
 > **АКТУАЛЬНО (27.09, тяжёлое ревью Opus 5.5 «деньги и целостность данных» через Abacus): ✅ сделано
-> (`07598cf`, ждёт push).** Область — самый дорогой класс ошибок (тихие ошибки копеек/дедупа/валют);
+> (`07598cf`, запушен).** Область — самый дорогой класс ошибок (тихие ошибки копеек/дедупа/валют);
 > промпт по формуле claude.dev (одна задача + критерий «готово» + только merge-blocking + «как показать,
 > что падает» + известные адъюдикации). Ревью (98 с, 50.5K in/9.5K out): 4 P1 → **3 приняты и исправлены**:
 > ① Т-Банк — пара «Сумма платежа/Валюта платежа» (зарубеж по рублёвой карте больше не выпадает из ₽-итогов);
@@ -39,7 +51,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > ratchet 2/435 + build_css; live temp-БД (CLI: −95000 ₽ / «1 пропущено (незнакомая валюта)» / «2 пропущено
 > (нераспознанная дата)»); $0-ревью фиксов — GO. Артефакты: `EXPERT_REVIEW_MONEY_INTEGRITY_OPUS55_ABACUS_2026-09-27.md`,
 > `EXPERT_REVIEW_OPUS55_FIXES_OSS_2026-09-27.md`.
-> **АКТУАЛЬНО (27.09, §J-2 tail — CI-гейт базлайна + версии окружения): ✅ закоммичено (`3c52466`/`f039837`), ждёт push.**
+> **АКТУАЛЬНО (27.09, §J-2 tail — CI-гейт базлайна + версии окружения): ✅ закоммичено и запушено (`3c52466`/`f039837`).**
 > `ratchet.py`: ① подкоманда `guard --base origin/main` — рост гейтируемой метрики в базлайне PR против
 > базовой ветки = FAIL (обход `snapshot --force` закрыт; осознанный рост — метка `ratchet-raise` в PR);
 > CI-шаг «Ratchet baseline guard» (только `pull_request`, shallow-fetch base_ref); ② в снимок пишутся версии
@@ -51,7 +63,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > NO-GO → **обе находки (P0 «двойной compare» и P1 «str в current») отклонены фактами**: `compare()`
 > вызывается один раз (стр. 282), `isinstance(current…)` в коде нет, при сбое `measure()` `current`
 > остаётся `{}`; живой `check --json` — `failures: []` без дублей (`EXPERT_REVIEW_J2_TAIL_OSS_2026-09-27.md`).
-> **АКТУАЛЬНО (27.09, §J-2 should — «контракт/формат/валюты/golden»): ✅ закоммичено (`1ebede4`…`e3edff4`), ждёт push.**
+> **АКТУАЛЬНО (27.09, §J-2 should — «контракт/формат/валюты/golden»): ✅ закоммичено и запушено (`1ebede4`…`e3edff4`).**
 > ① `parse_amount`: адъюдикация фактами — контракт `InvalidOperation` уже ловится всеми швами (импорт →
 > `amount_unparsed`, API → 422, CLI → exit 1); закрыто регресс-тестами (`nan`/`inf`/`1e400`/пусто/`abc`).
 > ② `anonymize`: позиционная обработка `csv.reader/writer` — пустые/дублирующиеся заголовки, хвостовой `;`
@@ -69,7 +81,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > `test_crlf_terminator_not_doubled`; cp1251-декодинг с `errors="replace"` не падает; `REPO_ROOT` — для
 > документированного запуска из репо; поля сверх шапки round-trip'ятся) —
 > `EXPERT_REVIEW_J2_SHOULD_OSS_2026-09-27.md`.
-> **АКТУАЛЬНО (26.09, §J-2 critical — ложные гарантии гейтов): ✅ закоммичено (`f35c5db`/`522c416`), ждёт push.**
+> **АКТУАЛЬНО (26.09, §J-2 critical — ложные гарантии гейтов): ✅ закоммичено и запушено (`f35c5db`/`522c416`).**
 > `scripts/ratchet.py`: гейт больше не выключается молча — нет метрики/не число в базлайне или замере, битый
 > или отсутствующий базлайн, неизвестная версия схемы и упавший `measure()` = FAIL в обоих режимах (было:
 > `exit 0` в `--json` / `TypeError` в текстовом); порог «слишком хорошо» (0 или < 0.5×базлайна = FAIL);
@@ -90,7 +102,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (2+2 critical, 20+ should): бэкап `--keep 0`/ротация без OSError-защиты; ratchet-гейт молча выключается и
 > «премирует» поломки; контракт `parse_amount`; `anonymize` (усечение/PII-опечатки/перезапись src); K6 NULL-валют.
 > Пункты — очередь §J-2; применение отложено юзером — исправления делать следующим deliverable'ом.
-> **АКТУАЛЬНО (26.09, гигиена секретов — закоммичено `f35c5db`, ждёт push).** Ключ Go-консоли перенесён из
+> **АКТУАЛЬНО (26.09, гигиена секретов — закоммичено и запушено `f35c5db`).** Ключ Go-консоли перенесён из
 > `<repo>\.opencode\go_key.txt` (файл был **не** в `.gitignore` и светился как untracked!) в User-env
 > `OPENCODE_GO_KEY`; файл удалён; `.gitignore` дополнен `.opencode/*.txt` и `.opencode/*.key`.
 > Проверено: `git check-ignore` ловит, `git status` без файла; `go-usage.ps1` работает (мес 48%, режим STOP).
