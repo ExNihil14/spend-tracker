@@ -85,7 +85,10 @@ def anonymize_csv(
 ) -> tuple[str, dict]:
     """→ (обезличенный CSV, отчёт). `extra_columns` — имена колонок, которые тоже обезличить.
 
-    `max_rows` — оставить первые N строк данных (0/None — все). Даты и суммы не меняются.
+    Формат сохраняется ПОЗИЦИОННО (csv.reader/writer по индексам, §J-2): пустые и дублирующиеся
+    заголовки, хвостовой разделитель и лишние поля строк не теряются — образец остаётся валидной
+    фикстурой для адаптеров. Неизвестная колонка из `extra_columns` → ValueError (нельзя молча
+    опубликовать PII). `max_rows` — оставить первые N строк данных (0/None — все).
     """
     if isinstance(raw, bytes):
         try:
@@ -103,39 +106,49 @@ def anonymize_csv(
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     lines = text.splitlines()
     if not lines:
-        return "", {"anonymized": {}, "untouched": [], "unique": {},
+        return "", {"anonymized": {}, "untouched": [], "empty_headers": [], "unique": {},
                     "rows_total": 0, "rows_written": 0}
 
     delimiter = ";" if lines[0].count(";") >= lines[0].count(",") else ","
-    reader = csv.DictReader(StringIO(text), delimiter=delimiter)
-    fieldnames = [f for f in (reader.fieldnames or []) if f]
+    reader = csv.reader(StringIO(text), delimiter=delimiter)
+    header = next(reader, None)
+    if header is None:
+        return "", {"anonymized": {}, "untouched": [], "empty_headers": [], "unique": {},
+                    "rows_total": 0, "rows_written": 0}
     extra = {c.strip().lower() for c in (extra_columns or set())}
-    kinds = {name: _classify(name, extra) for name in fieldnames}
+    known = {h.strip().lower() for h in header}
+    missing = sorted(extra - known)
+    if missing:
+        raise ValueError("колонка не найдена: " + ", ".join(missing))
+    kinds = [_classify(name, extra) for name in header]
     pseudonyms = _Pseudonyms()
     limit = max_rows if max_rows and max_rows > 0 else None
 
-    out_rows: list[dict[str, str]] = []
+    out_rows: list[list[str]] = []
     total = 0
     for row in reader:
         total += 1
         if limit is not None and total > limit:
             continue
-        out_rows.append({
-            name: (pseudonyms.get(kinds[name], _strip(row.get(name)))
-                   if kinds[name] and _strip(row.get(name)) else _strip(row.get(name)))
-            for name in fieldnames
-        })
+        new_row = list(row)
+        for i, kind in enumerate(kinds):
+            if kind is None or i >= len(new_row):
+                continue  # короткая строка/лишние поля — сохраняем как есть, не выдумываем колонки
+            value = _strip(new_row[i])
+            if value:
+                new_row[i] = pseudonyms.get(kind, value)
+        out_rows.append(new_row)
 
     terminator = "\r\n" if crlf else "\n"
     buf = StringIO()
-    writer = csv.DictWriter(buf, fieldnames=fieldnames, delimiter=delimiter,
-                            lineterminator=terminator)
-    writer.writeheader()
+    writer = csv.writer(buf, delimiter=delimiter, lineterminator=terminator)
+    writer.writerow(header)
     writer.writerows(out_rows)
 
     report = {
-        "anonymized": {name: kind for name, kind in kinds.items() if kind},
-        "untouched": [name for name in fieldnames if not kinds[name]],
+        "anonymized": {name: kind for name, kind in zip(header, kinds) if kind},
+        "untouched": [name for name, kind in zip(header, kinds) if not kind and name.strip()],
+        "empty_headers": [i for i, name in enumerate(header) if not name.strip()],
         "unique": pseudonyms.unique,
         "rows_total": total,
         "rows_written": len(out_rows),
@@ -161,8 +174,16 @@ def run_anonymize(
     except OSError as e:
         print(f"не удалось прочитать файл: {e}", file=sys.stderr, flush=True)
         return 1
-    text, report = anonymize_csv(raw, set(extra_columns), max_rows=max_rows)
     dst = Path(dst) if dst else src.with_name(src.stem + ".anon" + src.suffix)
+    if dst.resolve() == src.resolve():
+        print("исходный и выходной файл совпадают — перезапись выписки запрещена; укажите другой путь",
+              file=sys.stderr, flush=True)
+        return 1
+    try:
+        text, report = anonymize_csv(raw, set(extra_columns), max_rows=max_rows)
+    except ValueError as e:
+        print(f"ошибка обезличивания: {e}", file=sys.stderr, flush=True)
+        return 1
     try:
         # bytes, а не write_text: терминатор строк выписки (CRLF в cp1251-файлах) сохраняется
         # как есть — text-mode на Windows превратил бы «\r\n» в «\r\r\n».
@@ -184,11 +205,14 @@ def run_anonymize(
     ]
     if written < total:
         warn.append(f"Строк в файле: {total}, оставлено: {written} (--rows 0 — все).")
+    if report.get("empty_headers"):
+        warn.append("ВНИМАНИЕ: есть колонки без заголовка — проверьте их вручную (могут содержать PII).")
     print("\n".join(warn), file=sys.stderr, flush=True)
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
+    utf8_stdout()
     parser = argparse.ArgumentParser(description="Обезличить выписку CSV для отправки образца")
     parser.add_argument("file", help="исходный CSV банка")
     parser.add_argument("output", nargs="?", default=None,

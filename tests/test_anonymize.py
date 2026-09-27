@@ -69,7 +69,7 @@ def test_empty_input_returns_empty_report():
     """Пустой ввод — пустой результат без исключений (аудит 23.09, P2)."""
     text, report = anonymize_csv(b"")
     assert text == ""
-    assert report == {"anonymized": {}, "untouched": [], "unique": {},
+    assert report == {"anonymized": {}, "untouched": [], "empty_headers": [], "unique": {},
                       "rows_total": 0, "rows_written": 0}
 
 
@@ -210,3 +210,50 @@ def test_anonymized_sample_imports_same_shape(tmp_path):
             == sorted(map(key, sample.list_transactions(limit=1000))))
     original.close()
     sample.close()
+
+
+# ── §J-2: позиционное сохранение формата (csv.reader/writer, пустые/дублирующиеся шапки) ──
+
+def test_trailing_delimiter_and_empty_header_preserved():
+    """Хвостовой `;` и колонка без заголовка не теряются (раньше DictWriter выбрасывал пустую шапку)."""
+    out, report = anonymize_csv("Дата;Описание;Сумма;\n01.09.2026;ЛЕНТА;-100;\n")
+    assert out.splitlines()[0] == "Дата;Описание;Сумма;"
+    assert "ЛЕНТА" not in out
+    assert report["empty_headers"] == [3]
+
+
+def test_duplicate_headers_both_anonymized():
+    """Дублирующиеся заголовки: DictReader схлопывал колонки — теперь каждая обезличена позиционно."""
+    out, _report = anonymize_csv("Описание;Сумма;Описание\nЛЕНТА;-100;МАГНИТ\n")
+    cells = out.splitlines()[1].split(";")
+    assert cells[0].startswith("ОПЕРАЦИЯ_") and cells[2].startswith("ОПЕРАЦИЯ_")
+    assert cells[0] != cells[2]  # разные значения → разные псевдонимы
+    assert cells[1] == "-100"
+    assert "ЛЕНТА" not in out and "МАГНИТ" not in out
+
+
+def test_extra_fields_beyond_header_preserved():
+    """Поля сверх шапки не отбрасываются (DictReader клал их в restkey и терял)."""
+    out, _report = anonymize_csv("Дата;Описание\n01.09.2026;ЛЕНТА;ХВОСТ\n")
+    assert out.splitlines()[1].endswith(";ХВОСТ")
+
+
+def test_missing_anon_column_is_error(tmp_path, capsys):
+    """Опечатка в --anon-column не публикует PII молча: ValueError + rc 1, файл не пишется."""
+    with pytest.raises(ValueError, match="колонка не найдена"):
+        anonymize_csv(CSV, {"неттакой"})
+
+    src = tmp_path / "s.csv"
+    src.write_text(CSV, encoding="utf-8")
+    assert run_anonymize(src, extra_columns=("Ф.И.О.",)) == 1
+    assert "колонка не найдена" in capsys.readouterr().err
+    assert not (tmp_path / "s.anon.csv").exists()
+
+
+def test_dst_equal_src_rejected(tmp_path, capsys):
+    """Перезапись исходной выписки запрещена (безвозвратная потеря данных пользователя)."""
+    src = tmp_path / "s.csv"
+    src.write_text(CSV, encoding="utf-8")
+    assert run_anonymize(src, src) == 1
+    assert "совпадают" in capsys.readouterr().err
+    assert src.read_text(encoding="utf-8") == CSV
