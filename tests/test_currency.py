@@ -194,11 +194,14 @@ def test_import_without_currency_column_defaults_rub(store):
     assert store.conn.execute("SELECT currency FROM transactions").fetchone()["currency"] == "RUB"
 
 
-def test_import_unknown_currency_value_falls_back_to_rub(store):
+def test_import_unknown_currency_value_skips_row(store):
+    """Незнакомая НЕПУСТАЯ валюта — строка пропускается с причиной, а не подменяется на ₽ молча
+    (ревью Opus 5.5, P1-3: тихая подмена искажала суммы)."""
     csv_text = SBER_USD.replace(";USD;", ";долл;")
     res = import_csv(csv_text, store, bank="sber", classify=_classify)
-    assert res["added"] == 1
-    assert store.conn.execute("SELECT currency FROM transactions").fetchone()["currency"] == "RUB"
+    assert res["status"] == "ok" and res["added"] == 0
+    assert res["reasons"] == {"currency_unknown": 1}
+    assert store.conn.execute("SELECT COUNT(*) c FROM transactions").fetchone()["c"] == 0
 
 
 def test_export_has_currency_column(store):

@@ -231,6 +231,18 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   контролируемая `InvalidOperation`; все швы её ловят: импорт → `_skip: amount_unparsed` (импорт не падает),
   API (JSON и форма) → 422, CLI → exit 1. Закрыто регресс-тестами: `test_csv_import` ×3, `test_api` ×5
   (parametrize), `test_amounts`, `test_cli_add`.
+- **Ревью Opus 5.5 «деньги/целостность» (27.09) — принятые фиксы:**
+  ① **Т-Банк:** сумма — `Сумма платежа`/`Валюта платежа` (реально списанное со счёта), при отсутствии —
+     `Сумма операции`/`Валюта операции`; зарубежная покупка по рублёвой карте больше не выпадает из ₽-итогов
+     как USD-операция (`test_tinkoff_foreign_purchase_uses_payment_amount`);
+  ② **календарная дата:** `_iso_date` валидирует `date.fromisoformat` — `31.02.2026`/`15.13.2026` →
+     `_skip: date_unrecognized` (раньше «добавлено», но невидимо во всех отчётах);
+  ③ **незнакомая непустая валюта** → `_skip: currency_unknown` (см. §Мультивалютность).
+  Отклонено фактами: Сбер «Валюта счёта» (в формате нет такой колонки; допущение «счёт рублёвый» документировано);
+  «общее соединение между потоками» (`deps.get_store` — соединение на запрос); дата со временем в API/CLI
+  (обе точки валидируют `date.fromisoformat`). Ноты (не блокеры): `digest.avg_per_day_k` — `round()`,
+  `recurring.price_k` — `int()` (дисплейные копейки); `report_month` (нетто категорий) vs `digest` (знак операции)
+  — разные агрегаты by design.
 
 ## Golden-набор мерчантов (§G-4)
 - `tests/golden/merchants.csv` (`description,expected_category,bank`) — курируемые реалистичные формулировки;
@@ -286,8 +298,9 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
 
 ## Мультивалютность (#5)
 - `transactions.currency` — ISO 4217, миграция v5 (`ALTER … ADD COLUMN … DEFAULT 'RUB'`; старые строки = RUB,
-  схема fresh-DB тоже содержит колонку). `normalize_currency()` понимает «₽/руб./rub/$/€/доллар»; незнакомое
-  значение в импорте → RUB (не роняем импорт), в API → 422, в CLI (`add --currency`) → argparse-ошибка.
+  схема fresh-DB тоже содержит колонку). `normalize_currency()` понимает «₽/руб./rub/$/€/доллар»;
+  **пустое** значение в импорте → RUB (базовая); **незнакомая непустая** валюта → строка пропускается с причиной
+  `currency_unknown` (не подменяем на ₽ молча — ревью Opus 5.5, P1-3); в API → 422, в CLI (`add --currency`) → argparse-ошибка.
 - Дедуп: `fingerprint(..., currency='RUB')` — код добавляется к отпечатку **только для не-RUB**: рублёвые
   отпечатки не изменились (реэкспорт старой выписки = no-op), а равные суммы в разных валютах не склеиваются.
 - «Не ломаться»: не-RUB не участвует в ₽-агрегациях — `report_month`/`categories_with_totals`/`report_daily`,

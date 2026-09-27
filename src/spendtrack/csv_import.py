@@ -4,6 +4,7 @@ import csv
 import hashlib
 import re
 from collections.abc import Iterator
+from datetime import date
 from decimal import InvalidOperation
 from io import StringIO
 
@@ -40,7 +41,7 @@ REQUIRED_COLUMNS: dict[str, tuple[tuple[str, ...], ...]] = {
 
 # Отчёт импорта (#2): пропущено (с причинами) и подозрительно (импортировано, но с признаками).
 SKIP_REASONS = ("duplicate", "status", "missing_fields", "amount_unparsed", "amount_limit",
-                "date_unrecognized")
+                "date_unrecognized", "currency_unknown")
 SUSPICIOUS_REASONS: tuple[str, ...] = ()  # пока нет «подозрительных, но импортированных» причин
 REASON_LABELS = {
     "duplicate": "дубли",
@@ -49,6 +50,7 @@ REASON_LABELS = {
     "amount_unparsed": "не разобрана сумма",
     "amount_limit": "сумма сверх лимита",
     "date_unrecognized": "нераспознанная дата",
+    "currency_unknown": "незнакомая валюта",
 }
 SUSPICIOUS_LABELS: dict[str, str] = {}
 
@@ -73,24 +75,38 @@ def _cell(row: dict, *keys: str) -> str:
     return ""
 
 
+def _valid_iso(iso: str) -> str:
+    """Календарная проверка ISO-даты: «31.02»/13-й месяц — мусор, а не «февраль/никогда».
+
+    Ревью Opus 5.5 (§J-2 follow-up): регэкспы проверяли только форму — `2026-02-31` попадал в февраль,
+    а `2026-13-15` не попадал ни в один месяц: строка «добавлена», но невидима во всех отчётах.
+    """
+    try:
+        date.fromisoformat(iso)
+    except ValueError:
+        return ""
+    return iso
+
+
 def _iso_date(value: str) -> str:
     """DD.MM.YYYY[ HH:MM] / YYYY/MM/DD → YYYY-MM-DD (месячные фильтры/сортировка/дашборд — на ISO).
 
-    Не распознали — возвращаем "" (строка уходит в `_skip: date_unrecognized`): мусор в `date`
-    ломал месячные фильтры (MAX(date) → 500 на `/` и `/dashboard`, аудит 24.09).
+    Не распознали (или дата не существует в календаре) — возвращаем "" (строка уходит в
+    `_skip: date_unrecognized`): мусор в `date` ломал месячные фильтры (MAX(date) → 500 на `/` и
+    `/dashboard`, аудит 24.09).
     """
     v = value.strip()
     m = _DATE_ISO.match(v)
     if m:
-        return m.group(1)
+        return _valid_iso(m.group(1))
     m = _DATE_DDMMYYYY.match(v)
     if m:
         d, mo, y = m.groups()
-        return f"{y}-{mo}-{d}"
+        return _valid_iso(f"{y}-{mo}-{d}")
     m = _DATE_ISO_ALT.match(v)
     if m:
         y, mo, d = m.groups()
-        return f"{y}-{int(mo):02d}-{int(d):02d}"
+        return _valid_iso(f"{y}-{int(mo):02d}-{int(d):02d}")
     return ""
 
 
@@ -125,9 +141,14 @@ def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "")
     iso = _iso_date(date)
     if not iso:
         return {"_skip": "date_unrecognized"}  # не выдумываем дату: мусор ломает месячные фильтры
+    code = normalize_currency(currency)
+    if code is None and (currency or "").strip():
+        # Незнакомая НЕПУСТАЯ валюта: молчаливая подмена на ₽ искажала бы суммы (ревью Opus 5.5);
+        # строка видимо пропускается с причиной. Пустое значение — по-прежнему RUB (базовая).
+        return {"_skip": "currency_unknown"}
     return {"date": iso, "description": desc, "amount_kopecks": kopecks,
             "account": account or None, "export_rowid": "",
-            "currency": normalize_currency(currency) or "RUB"}
+            "currency": code or "RUB"}
 
 
 class SberAdaptor:
@@ -158,6 +179,10 @@ class SberAdaptor:
 class TinkoffAdaptor:
     """T-Bank (Тинькофф): реальная шапка 13 колонок (`Дата операции;…;Статус;…;MCC;Описание;Бонусы`)
     и старый простой экспорт (`Дата;Сумма операции;Категория;Описание;Счёт`). Проведённые — `Статус=OK`.
+
+    Сумма — «Сумма платежа»/«Валюта платежа» (то, что реально списано со счёта), при отсутствии —
+    «Сумма операции»/«Валюта операции»: у рублёвой карты зарубежная покупка иначе выпадала из ₽-итогов
+    как USD-операция (ревью Opus 5.5, P1-1). Для рублёвых покупок обе пары совпадают.
     """
 
     def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
@@ -166,11 +191,20 @@ class TinkoffAdaptor:
             if status and status.lower() != "ok":
                 yield {"_skip": "status"}
                 continue
+            amount = _cell(r, "Сумма платежа")
+            currency = _cell(r, "Валюта платежа")
+            if not amount or not currency:
+                # Неполная пара «платежа» (битый/нестандартный экспорт) — берём ПАРУ операции целиком,
+                # чтобы не смешать сумму платежа с чужой валютой (ревью $0, «не подтверждено»).
+                op_amount = _cell(r, "Сумма операции", "Сумма", "Amount")
+                op_currency = _cell(r, "Валюта операции", "Валюта", "Currency")
+                amount = op_amount or amount
+                currency = op_currency or currency
             yield _row_tx(_cell(r, "Дата операции", "Дата", "Date"),
                           _cell(r, "Описание", "Description"),
-                          _cell(r, "Сумма операции", "Сумма", "Amount"),
+                          amount,
                           _cell(r, "Номер карты", "Счёт", "Account"),
-                          _cell(r, "Валюта операции", "Валюта", "Currency"))
+                          currency)
 
 
 class YandexMoneyAdaptor:

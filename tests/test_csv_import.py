@@ -370,6 +370,45 @@ def test_import_skips_unparseable_amounts(store, bad_amount):
     assert res["reasons"] == {"amount_unparsed": 1}
 
 
+# ── Ревью Opus 5.5 (деньги/целостность): календарная дата и Т-Банк «Сумма платежа» ──
+
+def test_import_rejects_invalid_calendar_date(store):
+    """31.02/13-й месяц — не «добавлено невидимо»: date_unrecognized (ревью Opus 5.5, P1-4)."""
+    csv_text = (
+        "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
+        "1;31.02.2026 10:00;1234;Выполнено;-100,00;RUB;Продукты;ЛЕНТА\n"
+        "2;15.13.2026 10:00;1234;Выполнено;-200,00;RUB;Продукты;МАГНИТ\n")
+    res = import_csv(csv_text, store, classify=_stub_classify())
+    assert res["status"] == "ok" and res["added"] == 0
+    assert res["reasons"] == {"date_unrecognized": 2}
+
+
+def test_tinkoff_foreign_purchase_uses_payment_amount(store):
+    """Зарубежная покупка по рублёвой карте: в ₽-итоги идёт «Сумма платежа» (−950 ₽), не USD-операция
+    (ревью Opus 5.5, P1-1)."""
+    csv_text = (
+        "Дата операции;Дата платежа;Номер карты;Статус;Сумма операции;Валюта операции;"
+        "Сумма платежа;Валюта платежа;Кэшбэк;Категория;MCC;Описание;Бонусы (включая кэшбэк)\n"
+        "01.09.2026 10:00;01.09.2026;*8305;OK;-10,00;USD;-950,00;RUB;0;Прочее;5411;AMAZON;0\n")
+    res = import_csv(csv_text, store, bank="auto", classify=_stub_classify())
+    assert res["added"] == 1
+    row = store.conn.execute("SELECT amount_kopecks, currency FROM transactions").fetchone()
+    assert (row["amount_kopecks"], row["currency"]) == (-95000, "RUB")
+
+
+def test_tinkoff_incomplete_payment_pair_falls_back_to_operation(store):
+    """Неполная пара «платежа» (есть сумма, нет валюты) — берём пару операции целиком, не смешивая
+    сумму платежа с чужой валютой (ревью $0, «не подтверждено»)."""
+    csv_text = (
+        "Дата операции;Дата платежа;Номер карты;Статус;Сумма операции;Валюта операции;"
+        "Сумма платежа;Валюта платежа;Кэшбэк;Категория;MCC;Описание;Бонусы (включая кэшбэк)\n"
+        "01.09.2026 10:00;01.09.2026;*8305;OK;-10,00;USD;-950,00;;0;Прочее;5411;AMAZON;0\n")
+    res = import_csv(csv_text, store, bank="auto", classify=_stub_classify())
+    assert res["added"] == 1
+    row = store.conn.execute("SELECT amount_kopecks, currency FROM transactions").fetchone()
+    assert (row["amount_kopecks"], row["currency"]) == (-1000, "USD")
+
+
 def test_summarize_mentions_counts_and_reasons(store):
     csv_text = (
         "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
