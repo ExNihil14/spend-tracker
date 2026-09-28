@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from spendtrack.categorize import _clamp_confidence, classify_with_injectable
+from spendtrack.categorize import _clamp_confidence, categorize_rules_only, classify_with_injectable
 from spendtrack.store import parse_amount
 
 
@@ -44,6 +44,29 @@ def test_rule_takes_priority_over_llm(store, taxonomy, sample_txs):
     )
     assert result["source"] == "rule"
     assert result["category"] == "groceries"
+
+
+def test_income_rule_skipped_for_outflow(store, taxonomy):
+    """S6 (ревью 28.09): keyword-правило income не применяется к расходной операции."""
+    got = categorize_rules_only(
+        {"description": "ЗАРАБОТНАЯ ПЛАТА", "amount_kopecks": parse_amount("-50000")}, taxonomy, store)
+    assert got is None
+
+
+def test_salary_transfer_positive_is_income(store, taxonomy):
+    """S6: «ПЕРЕВОД ЗАРАБОТНОЙ ПЛАТЫ» — доход (income-правила выше transfers), а не перевод."""
+    got = categorize_rules_only(
+        {"description": "ПЕРЕВОД ЗАРАБОТНОЙ ПЛАТЫ", "amount_kopecks": parse_amount("120000")},
+        taxonomy, store)
+    assert got == "income"
+
+
+def test_rules_match_merchant_field_too(store, taxonomy):
+    """S7: правила смотрят и на merchant — банки кладут имя ТСП в отдельное поле."""
+    got = categorize_rules_only(
+        {"description": "Покупка товаров и услуг", "merchant": "ЛЕНТА",
+         "amount_kopecks": parse_amount("-500")}, taxonomy, store)
+    assert got == "groceries"
 
 
 def _stub_conf(value):

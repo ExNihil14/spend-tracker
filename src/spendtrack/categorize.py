@@ -30,9 +30,14 @@ def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | N
     if cached and taxonomy.is_valid(cached):
         return cached
 
-    desc_upper = tx["description"].upper()
+    # S7 (ревью 28.09): правила ищут и в merchant — банки кладут имя ТСП в отдельное поле
+    haystack = f"{tx['description']} {tx.get('merchant') or ''}".upper()
+    amount = tx.get("amount_kopecks") or 0
     for rule in taxonomy.rules:
-        if rule.pattern in desc_upper and taxonomy.is_valid(rule.category):
+        if rule.pattern in haystack and taxonomy.is_valid(rule.category):
+            if rule.category == "income" and amount < 0:
+                # S6: доход на расходной операции — правило не применяем, решает LLM/очередь
+                continue
             return rule.category
     return None
 

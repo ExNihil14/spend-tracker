@@ -156,6 +156,19 @@ category = "transport"
 pattern = "ЯНДЕКС ТАКСИ"
 category = "transport"
 
+# income-правила выше transfers: «ПЕРЕВОД ЗАРАБОТНОЙ ПЛАТЫ» — доход, а не перевод (ревью 28.09, S6)
+[[rules]]
+pattern = "ЗАРАБОТН"
+category = "income"
+
+[[rules]]
+pattern = "ЗАРПЛАТА"
+category = "income"
+
+[[rules]]
+pattern = "SALARY"
+category = "income"
+
 [[rules]]
 pattern = "TRANSFER TO"
 category = "transfers"
@@ -171,22 +184,6 @@ category = "transfers"
 [[rules]]
 pattern = "ВОЗВРАТ"
 category = "transfers"
-
-[[rules]]
-pattern = "ЗАРАБОТНАЯ"
-category = "income"
-
-[[rules]]
-pattern = "ЗАРПЛАТА"
-category = "income"
-
-[[rules]]
-pattern = "ЗАРАБОТНАЯ ПЛАТА"
-category = "income"
-
-[[rules]]
-pattern = "SALARY"
-category = "income"
 
 [[rules]]
 pattern = "NETFLIX"
