@@ -13,6 +13,8 @@
 
 ## Команды
 - Тест: `uv run pytest`
+- Тяжёлые прогоны (pytest/e2e/логи) — через токен-раннер: `python D:\dev\bootstrap\scripts\compact_run.py -- uv run pytest -q`
+  (полный вывод в `.logs/`, в контекст — только ошибки/хвост; playbook `D:\dev\docs\machine\TOKEN_OPTIMIZATION_PLAYBOOK.md`)
 - Линт: `uv run ruff check .` (как в CI — покрывает и `scripts/`)
 - Запуск: `uv run spendtrack serve` / `uv run uvicorn spendtrack.main:app --port 8766` (или `.\run.ps1`)
 - CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии) / `llm-status` (режим LLM: off/byo/ollama/free) / `export` (CSV/XLSX) / `backup` (снимок + offsite-копия) / `anonymize` (обезличить образец для issue)
@@ -49,6 +51,8 @@
 - UI-изменение готово только с базовым a11y: у полей есть accessible-имя (label/aria-label), фокус видим (`:focus-visible`)
 - Новые тесты — на публичный интерфейс (CLI/роутер/Store-метод), не на внутренние структуры: смена реализации не красит тесты;
   тест-дизайн usage-first: сначала примеры вызова, затем тесты «чтобы это не развалилось»
+- Не фиксить баг без падающего регресс-теста: сначала красный тест (в том же коммите/до фикса), затем фикс «не трогая тест»
+  (TDD-порядок, практика mattpocock `tdd`; см. `D:\dev\docs\machine\MATTPOCOCK_SKILLS_AUDIT.md`)
 - Не менять сигнатуры ядра (`store.py`/`categorize.py`, контракты копеек/fingerprint/очереди) без явного тикета и ревью;
   после AI-рефакторинга обязательна контракт-дельта — автопроверка `uv run python scripts/contract_delta.py check`
   (CI-шаг; блокер при расхождении сигнатур/полей БД/роутов с `spec/contract_baseline.json`); при осознанном

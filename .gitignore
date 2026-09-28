@@ -41,6 +41,9 @@ playwright-report/
 .playwright/
 .playwright-mcp/
 
+# compact_run: полные логи тяжёлых прогонов (в контекст агента идёт только сводка)
+.logs/
+
 # coverage-артефакты (замер по запросу: uv run --with coverage ...)
 .coverage
 .coverage.*
