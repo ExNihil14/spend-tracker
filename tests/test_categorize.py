@@ -36,6 +36,28 @@ def test_llm_low_conf_goes_queue(store, taxonomy):
     assert result["confidence"] == 0.4
 
 
+def test_llm_low_conf_does_not_write_guess_into_category(store, taxonomy):
+    """C4 (ревью 28.09): гипотеза при низкой уверенности живёт в category_llm, не в боевом category."""
+    stub = lambda t, s, tax: {
+        "category": "restaurants", "confidence": 0.4, "merchant": "X", "reason": "r", "source": "llm"
+    }
+    result = classify_with_injectable(_tx(), taxonomy, store, stub, 0.9)
+    assert result["review_status"] == "pending"
+    assert result["category"] == "other"
+    assert result["category_llm"] == "restaurants"
+
+
+def test_llm_income_on_outflow_goes_queue(store, taxonomy):
+    """S6: income на расходной операции — авто-приём запрещён, гипотеза уходит в очередь."""
+    stub = lambda t, s, tax: {
+        "category": "income", "confidence": 0.95, "merchant": "X", "reason": "r", "source": "llm"
+    }
+    result = classify_with_injectable(_tx(), taxonomy, store, stub, 0.9)
+    assert result["source"] == "llm_pending_review"
+    assert result["category"] == "other"
+    assert result["category_llm"] == "income"
+
+
 def test_rule_takes_priority_over_llm(store, taxonomy, sample_txs):
     """ЛЕНТА детектится правилом — LLM не вызывается."""
     stub = lambda t, s, tax: {"category": "entertainment", "confidence": 1.0, "merchant": None, "source": "llm"}
@@ -75,10 +97,11 @@ def _stub_conf(value):
     }
 
 
-def test_confidence_above_one_is_clamped(store, taxonomy):
+def test_confidence_above_one_goes_queue(store, taxonomy):
+    """S12: значение вне [0,1] — сломанный вывод, авто-приём запрещён (было: clamp до 1.0)."""
     result = classify_with_injectable(_tx(), taxonomy, store, _stub_conf(1.5), 0.9)
-    assert result["confidence"] == 1.0
-    assert result["source"] == "llm"
+    assert result["confidence"] == 0.0
+    assert result["source"] == "llm_pending_review"
 
 
 def test_confidence_below_zero_is_clamped(store, taxonomy):
@@ -99,10 +122,27 @@ def test_confidence_non_numeric_goes_queue(store, taxonomy):
     assert result["source"] == "llm_pending_review"
 
 
+def test_confidence_bool_goes_queue(store, taxonomy):
+    """S12: bool — не уверенность (float(True)=1.0 не должен давать авто-приём)."""
+    result = classify_with_injectable(_tx(), taxonomy, store, _stub_conf(True), 0.9)
+    assert result["confidence"] == 0.0
+    assert result["source"] == "llm_pending_review"
+
+
+def test_confidence_inf_goes_queue(store, taxonomy):
+    """S12: inf (json.loads принимает 1e400/Infinity) — сломанный вывод, не авто-приём."""
+    result = classify_with_injectable(_tx(), taxonomy, store, _stub_conf(float("inf")), 0.9)
+    assert result["confidence"] == 0.0
+    assert result["source"] == "llm_pending_review"
+
+
 def test_clamp_confidence_edge_cases():
     assert _clamp_confidence(0.9) == 0.9
     assert _clamp_confidence("0.5") == 0.5
     assert _clamp_confidence(float("nan")) == 0.0
+    assert _clamp_confidence(float("inf")) == 0.0
+    assert _clamp_confidence(True) == 0.0
+    assert _clamp_confidence(1.5) == 0.0
     assert _clamp_confidence(object()) == 0.0
 
 
@@ -135,3 +175,16 @@ def test_llm_null_merchant_does_not_crash(store, taxonomy):
     }
     result = classify_with_injectable(_tx(), taxonomy, store, stub, 0.9)
     assert result["source"] == "llm" and result["category"] == "groceries"
+
+
+def test_llm_decision_log_does_not_leak_description(store, taxonomy, caplog):
+    """S8 (ревью 28.09): INFO-лог решения не содержит сырого описания (приватность офлайн-first)."""
+    import logging
+
+    secret = "ОПЛАТА ОТ ИВАНОВ И.И. 4276"
+    stub = lambda t, s, tax: {
+        "category": "groceries", "confidence": 0.95, "merchant": "X", "reason": "r", "source": "llm"
+    }
+    with caplog.at_level(logging.INFO, logger="spendtrack.categorize"):
+        classify_with_injectable(_tx(desc=secret), taxonomy, store, stub, 0.9)
+    assert all(secret not in r.getMessage() for r in caplog.records if r.levelno >= logging.INFO)

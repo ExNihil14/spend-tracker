@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import logging
 import math
 
@@ -13,14 +14,21 @@ logger = logging.getLogger(__name__)
 
 
 def _clamp_confidence(value: object) -> float:
-    """LLM может вернуть None/строку/NaN/выход за [0,1] — приводим к валидному float."""
+    """Мусор (bool/NaN/inf/вне [0,1]) → 0.0.
+
+    S12 (ревью 28.09): значение вне диапазона — признак сломанного вывода, а не уверенность;
+    `json.loads` принимает `1e400`/`Infinity`, а `float(True) == 1.0` — авто-приём на таком
+    значении запрещён.
+    """
+    if isinstance(value, bool):
+        return 0.0
     try:
         conf = float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return 0.0
-    if math.isnan(conf):
+    if not math.isfinite(conf) or not 0.0 <= conf <= 1.0:
         return 0.0
-    return min(1.0, max(0.0, conf))
+    return conf
 
 
 def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | None:
@@ -87,11 +95,20 @@ def classify_with_injectable(
     llm_result["confidence"] = conf
     cat = llm_result.get("category", "")
     bucket = f"{int(conf * 10) / 10:.1f}"
-    logger.info("llm_decision: conf=%.3f bucket=%s accepted=%s desc=%s",
-                conf, bucket, conf >= acceptance, tx.get("description", "")[:40])
+    desc = tx.get("description", "")
+    # S8: в INFO — только хэш описания (сырое описание уезжает в issue/поддержку); полный текст — DEBUG
+    logger.info("llm_decision: conf=%.3f bucket=%s accepted=%s desc_hash=%s",
+                conf, bucket, conf >= acceptance, hashlib.sha1(desc.encode()).hexdigest()[:8])
+    logger.debug("llm_decision desc=%s", desc[:40])
     if not taxonomy.is_valid(cat):
         llm_result.update({"category": "other", "confidence": 0.0, "source": "llm_pending_review",
                            "category_llm": cat or None, "review_status": "pending"})
+        return llm_result
+    if cat == "income" and (tx.get("amount_kopecks") or 0) < 0:
+        # S6: доход возможен только для поступлений — гипотеза уходит в очередь, а не в боевые поля
+        llm_result.update({"category": "other", "source": "llm_pending_review",
+                           "category_llm": cat, "review_status": "pending",
+                           "reason": "income_sign_mismatch"})
         return llm_result
     llm_result["category_llm"] = cat
     if conf >= acceptance:
@@ -101,8 +118,10 @@ def classify_with_injectable(
             store.merchant_cache_set(llm_result["merchant"], llm_result["category"], commit=commit)
         return llm_result
 
+    # C4: гипотеза при низкой уверенности живёт только в category_llm — дашборд не считает догадку фактом
     llm_result["source"] = "llm_pending_review"
     llm_result["review_status"] = "pending"
+    llm_result["category"] = "other"
     return llm_result
 
 
