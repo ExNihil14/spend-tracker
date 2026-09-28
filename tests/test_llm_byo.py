@@ -119,7 +119,7 @@ def test_override_key_matches_url(monkeypatch):
     monkeypatch.setenv("SPENDTRACK_OPENROUTER_API_KEY", "sk-or")
     captured: dict = {}
 
-    def fake_openai(base_url, api_key="", timeout=...):
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
         mock = MagicMock()
 
         def create(**kwargs):
@@ -147,7 +147,7 @@ def test_byo_failure_does_not_fall_back_to_free(monkeypatch):
     monkeypatch.setenv("SPENDTRACK_OPENROUTER_API_KEY", "sk-or")
     attempted: list[str] = []
 
-    def fake_openai(base_url, api_key="", timeout=...):
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
         mock = MagicMock()
 
         def create(**kwargs):
@@ -170,7 +170,7 @@ def test_byo_success_reports_source(monkeypatch):
     monkeypatch.setenv("SPENDTRACK_LLM_MODEL", "byo-model")
     monkeypatch.setenv("SPENDTRACK_LLM_API_KEY", "sk-byo")
 
-    def fake_openai(base_url, api_key="", timeout=...):
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
         mock = MagicMock()
         resp = MagicMock()
         resp.choices[0].message.content = OK_JSON
@@ -181,6 +181,48 @@ def test_byo_success_reports_source(monkeypatch):
         res = call_llm("sys", "usr", max_tokens=10)
 
     assert res == {"content": OK_JSON, "model": "byo-model", "source": "byo"}
+
+
+def test_client_disables_sdk_retries(monkeypatch):
+    """S1 (ревью 28.09): SDK-ретраи выключены — за повторы отвечают цепочка провайдеров и брейкер."""
+    monkeypatch.setenv("SPENDTRACK_LLM_BASE_URL", "https://llm.example/v1")
+    monkeypatch.setenv("SPENDTRACK_LLM_MODEL", "byo-model")
+    monkeypatch.setenv("SPENDTRACK_LLM_API_KEY", "sk-byo")
+    captured: dict = {}
+
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
+        captured["max_retries"] = max_retries
+        mock = MagicMock()
+        resp = MagicMock()
+        resp.choices[0].message.content = OK_JSON
+        mock.chat.completions.create.return_value = resp
+        return mock
+
+    with patch.object(llm_mod, "OpenAI", fake_openai):
+        call_llm("sys", "usr", max_tokens=10)
+
+    assert captured["max_retries"] == 0
+
+
+def test_provider_failure_is_logged(monkeypatch, caplog):
+    """S2 (ревью 28.09): сбой провайдера виден в логе (тип ошибки, без тела ответа)."""
+    monkeypatch.setenv("SPENDTRACK_LLM_BASE_URL", "https://llm.example/v1")
+    monkeypatch.setenv("SPENDTRACK_LLM_MODEL", "byo-model")
+    monkeypatch.setenv("SPENDTRACK_LLM_API_KEY", "sk-byo")
+
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
+        mock = MagicMock()
+        mock.chat.completions.create.side_effect = RuntimeError("boom")
+        return mock
+
+    with (
+        caplog.at_level(logging.WARNING, logger="spendtrack"),
+        patch.object(llm_mod, "OpenAI", fake_openai),
+    ):
+        res = call_llm("sys", "usr", max_tokens=10)
+
+    assert res["source"] == "failed"
+    assert any("RuntimeError" in r.getMessage() for r in caplog.records)
 
 
 def test_free_chain_key_matches_endpoint(monkeypatch):

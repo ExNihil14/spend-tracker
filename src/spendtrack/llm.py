@@ -166,8 +166,10 @@ def call_llm(
             log.info("llm[%s]: circuit open — пропуск без вызова", provider.source)
             continue
         try:
+            # S1 (ревью 28.09): SDK-ретраи выключены — повторы делает цепочка провайдеров + брейкер,
+            # иначе один провайдер = до 3 запросов × timeout и «тройной» износ лимитов free-канала.
             client = OpenAI(base_url=provider.base_url, api_key=provider.api_key,
-                            timeout=REQUEST_TIMEOUT_S)
+                            timeout=REQUEST_TIMEOUT_S, max_retries=0)
             resp = client.chat.completions.create(
                 model=provider.model,
                 messages=[
@@ -180,7 +182,9 @@ def call_llm(
             content = resp.choices[0].message.content or ""
             br.report_success()
             return {"content": content, "model": provider.model, "source": provider.source}
-        except Exception:  # noqa: BLE001
+        except Exception as e:  # noqa: BLE001
+            # S2: сбой виден в логе (тип ошибки; тело ответа не логируем — там может быть эхо промпта)
+            log.warning("llm[%s]: %s", provider.source, type(e).__name__)
             br.report_failure()
             continue
 

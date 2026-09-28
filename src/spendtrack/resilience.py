@@ -21,14 +21,22 @@ class CircuitBreaker:
         self._fails = 0
         self._state = "closed"
         self._opened_at = 0.0
+        self._probe_at = 0.0
         self._lock = threading.Lock()
 
     def allowed(self) -> bool:
         with self._lock:
+            now = time.monotonic()
             if self._state == "closed":
                 return True
-            if self._state == "open" and time.monotonic() - self._opened_at >= self.recovery_s:
+            if self._state == "open" and now - self._opened_at >= self.recovery_s:
                 self._state = "half-open"  # ровно одна пробная попытка
+                self._probe_at = now
+                return True
+            if self._state == "half-open" and now - self._probe_at >= self.recovery_s:
+                # S3 (ревью 28.09): проба не отчиталась (зависла/BaseException) — разрешаем новую,
+                # иначе half-open блокирует LLM навсегда до рестарта процесса
+                self._probe_at = now
                 return True
             return False  # open или half-open (кто-то уже пробует)
 

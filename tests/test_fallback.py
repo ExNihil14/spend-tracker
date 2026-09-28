@@ -27,7 +27,7 @@ def test_fallback_order_primary_fallback_deepseek(monkeypatch):
     cfg = load_settings()
     call_order: list[str] = []
 
-    def fake_openai(base_url, api_key="", timeout=20.0):
+    def fake_openai(base_url, api_key="", timeout=20.0, max_retries=None):
         mock = MagicMock()
 
         def create(**kwargs):
@@ -75,7 +75,7 @@ def test_circuit_breaker_skips_dead_primary(monkeypatch):
     llm_mod._breakers.clear()
     called: list[str] = []
 
-    def fake_openai(base_url, api_key="", timeout=...):
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
         mock = MagicMock()
 
         def create(**kwargs):

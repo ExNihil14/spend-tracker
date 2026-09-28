@@ -23,6 +23,19 @@ def test_half_open_single_probe_then_recovery():
     assert br.allowed() is True  # сброс в closed
 
 
+def test_half_open_rearms_when_probe_never_reports():
+    """S3 (ревью 28.09): проба half-open не отчиталась (зависла/BaseException) — по таймауту
+    разрешается новая, иначе LLM остаётся мёртвым до рестарта процесса."""
+    br = CircuitBreaker("t", fail_threshold=1, recovery_s=0.05)
+    br.report_failure()
+    assert br.allowed() is False
+    time.sleep(0.06)
+    assert br.allowed() is True   # half-open: проба
+    assert br.allowed() is False  # проба «в полёте»
+    time.sleep(0.06)
+    assert br.allowed() is True   # зависла → новая проба
+
+
 def test_success_resets_fail_count():
     br = CircuitBreaker("t", fail_threshold=3, recovery_s=60)
     br.report_failure()
