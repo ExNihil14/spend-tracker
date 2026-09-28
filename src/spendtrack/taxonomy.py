@@ -41,6 +41,7 @@ def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
         path = DEFAULTS_DIR / "taxonomy.toml"  # установленный режим: дефолт из пакета
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    categories = [Category(c["name"], c["color"], c.get("display_name")) for c in data["categories"]]
-    rules = [Rule(r["pattern"], r["category"]) for r in data["rules"]]
+    categories = [Category(c["name"], c.get("color", "#9ca3af"), c.get("display_name"))
+                  for c in data.get("categories", [])]
+    rules = [Rule(r["pattern"], r["category"]) for r in data.get("rules", [])]
     return Taxonomy(categories, rules)

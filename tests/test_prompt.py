@@ -5,16 +5,25 @@ from spendtrack.prompts import build_system_prompt, build_user_prompt
 from spendtrack.store import parse_amount
 
 
-def test_system_prompt_contains_taxonomy():
-    prompt = build_system_prompt([])
+def test_system_prompt_contains_taxonomy(taxonomy):
+    prompt = build_system_prompt([], taxonomy)
     assert "groceries" in prompt
     assert "fuel" in prompt
 
 
-def test_system_prompt_embeds_examples():
+def test_system_prompt_lists_exactly_taxonomy_categories():
+    """C1 (ревью 28.09): список категорий в промпте — ровно из taxonomy, а не из константы."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    tax = Taxonomy([Category("alpha", "#111111"), Category("beta", "#222222")], [])
+    line = next(l for l in build_system_prompt([], tax).splitlines() if l.startswith("Категории:"))
+    assert line == "Категории: alpha, beta."
+
+
+def test_system_prompt_embeds_examples(taxonomy):
     prompt = build_system_prompt([
         {"description": "NETFLIX.COM", "amount_kopecks": parse_amount("-1549"), "category": "subscriptions"}
-    ])
+    ], taxonomy)
     assert "NETFLIX.COM" in prompt
     assert "subscriptions" in prompt
 
@@ -48,10 +57,10 @@ def test_user_prompt_keeps_short_description():
     assert "…" not in prompt
 
 
-def test_system_prompt_truncates_long_example():
+def test_system_prompt_truncates_long_example(taxonomy):
     prompt = build_system_prompt([
         {"description": "Y" * 400, "amount_kopecks": parse_amount("-100"), "category": "other"}
-    ])
+    ], taxonomy)
     assert "Y" * 300 in prompt
     assert "Y" * 301 not in prompt
 
@@ -71,11 +80,11 @@ def test_parse_json_inline():
 def test_parse_json_garbage():
     assert parse_llm_json("никак не жсон") is None
 
-def test_few_shot_examples_single_braces():
+def test_few_shot_examples_single_braces(taxonomy):
     """Аудит 24.09: примеры в промпте — одиночные скобки (модель видела {{...}} и путала формат)."""
     from spendtrack.prompts import build_system_prompt
 
     text = build_system_prompt([{"description": "ЛЕНТА", "amount_kopecks": -2345,
-                                 "category": "groceries"}])
+                                 "category": "groceries"}], taxonomy)
     assert '{{"category"' not in text
     assert '"category":"groceries"' in text

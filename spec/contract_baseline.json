@@ -449,7 +449,7 @@
    "returns": "None"
   },
   "spendtrack.prompts:build_system_prompt": {
-   "args": "examples: list[dict]",
+   "args": "examples: list[dict], taxonomy: Taxonomy",
    "returns": "str"
   },
   "spendtrack.prompts:build_user_prompt": {

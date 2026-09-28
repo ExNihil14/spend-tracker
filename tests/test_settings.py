@@ -64,6 +64,55 @@ def test_delete_guard_usage(tax_env):
     s.close()
 
 
+def test_delete_category_refuses_last_one(tmp_path, monkeypatch):
+    """C2 (ревью LLM-шва, 28.09): удаление последней категории запрещено — иначе конфиг без
+    [[categories]] роняет load_taxonomy и все страницы."""
+    tax = tmp_path / "taxonomy.toml"
+    tax.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n', encoding="utf-8")
+    monkeypatch.setenv("SPENDTRACK_TAXONOMY", str(tax))
+    s = Store(db_path=tmp_path / "t.db")
+    with pytest.raises(repo.TaxonomyError, match="последнюю"):
+        repo.delete_category("other", s, None)
+    s.close()
+
+
+def test_load_taxonomy_tolerates_ui_made_configs(tmp_path):
+    """C2: конфиг без [[rules]], без color и совсем пустой не должен ронять приложение."""
+    from spendtrack.taxonomy import load_taxonomy
+
+    only_cats = tmp_path / "a" / "taxonomy.toml"
+    only_cats.parent.mkdir()
+    only_cats.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n', encoding="utf-8")
+    tax = load_taxonomy(only_cats.parent)
+    assert [c.name for c in tax.categories] == ["other"]
+    assert tax.rules == []
+
+    no_color = tmp_path / "b" / "taxonomy.toml"
+    no_color.parent.mkdir()
+    no_color.write_text('[[categories]]\nname = "other"\n', encoding="utf-8")
+    assert load_taxonomy(no_color.parent).categories[0].color == "#9ca3af"
+
+    empty = tmp_path / "c" / "taxonomy.toml"
+    empty.parent.mkdir()
+    empty.write_text("", encoding="utf-8")
+    tax = load_taxonomy(empty.parent)
+    assert tax.categories == [] and tax.rules == []
+
+
+def test_prompt_categories_follow_taxonomy(tax_env):
+    """C1: после переименования категории промпт берёт список из taxonomy, а не из константы."""
+    from spendtrack.prompts import build_system_prompt
+    from spendtrack.taxonomy import load_taxonomy
+
+    s = Store(db_path=tax_env.parent / "t.db")
+    repo.rename_category("other", "general", s, repo.file_hash())
+    prompt = build_system_prompt([], load_taxonomy(tax_env.parent))
+    line = next(l for l in prompt.splitlines() if l.startswith("Категории:"))
+    assert "general" in line
+    assert "other" not in line
+    s.close()
+
+
 def test_set_color(tax_env):
     repo.set_color("other", "#FFFFFF", None)
     assert repo.load_raw()["categories"][0]["color"] == "#ffffff"
@@ -181,7 +230,9 @@ def test_set_budget_excluded_category(tax_env):
 
 
 def test_delete_category_removes_budget(tax_env):
-    tax_env.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n', encoding="utf-8")
+    # C2 (ревью 28.09): последнюю категорию удалять нельзя — удаляем одну из двух
+    tax_env.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n\n'
+                       '[[categories]]\nname = "cafe"\ncolor = "#112233"\n', encoding="utf-8")
     s = Store(db_path=tax_env.parent / "t.db")
     repo.set_budget("other", "20000", s)
     repo.delete_category("other", s, repo.file_hash())

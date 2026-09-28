@@ -40,7 +40,7 @@ def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | N
 def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
     """Step 2: LLM-классификация. Возвращает {'category', 'confidence', 'merchant', 'reason', 'source'}."""
     examples = store.list_examples()
-    system_prompt = build_system_prompt(examples)
+    system_prompt = build_system_prompt(examples, taxonomy)
     user_prompt = build_user_prompt(tx)
 
     llm_result = call_llm(system_prompt, user_prompt, max_tokens=400)

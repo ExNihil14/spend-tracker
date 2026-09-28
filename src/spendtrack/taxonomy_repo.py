@@ -164,6 +164,9 @@ def delete_category(name: str, store: Store, expected_hash: str | None) -> None:
     data = load_raw()
     cat = _find_category(data, name)
     real = cat["name"]
+    if len(data.get("categories", [])) <= 1:
+        # C2 (ревью 28.09): конфиг без [[categories]] не должен существовать — load_taxonomy упал бы
+        raise TaxonomyError("нельзя удалить последнюю категорию — приложение останется без таксономии")
     used = usage_counts(store).get(real, 0)
     if used:
         raise TaxonomyError(f"категория используется ({used}) — удаление запрещено")

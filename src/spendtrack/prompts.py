@@ -1,12 +1,7 @@
 from __future__ import annotations
 
 from spendtrack.store import fmt_amount
-
-CATEGORY_LIST = (
-    "groceries, restaurants, transport, fuel, housing, utilities, "
-    "internet-phone, subscriptions, health, education, entertainment, "
-    "clothing, household, transfers, income, taxes, travel, other"
-)
+from spendtrack.taxonomy import Taxonomy
 
 _DESCRIPTION_LIMIT = 300
 
@@ -35,11 +30,12 @@ def _examples_block(examples: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def build_system_prompt(examples: list[dict]) -> str:
+def build_system_prompt(examples: list[dict], taxonomy: Taxonomy) -> str:
+    categories = ", ".join(c.name for c in taxonomy.categories)
     return f"""Ты классификатор банковских транзакций. Возвращай ТОЛЬКО валидный JSON:
 {{"category": "...", "confidence": 0.0-1.0, "merchant": "...", "reason": "..."}}
 
-Категории: {CATEGORY_LIST}.
+Категории: {categories}.
 Правила:
 - merchant = нормализованное имя (UPPER, обрезанное).
 - income — ТОЛЬКО для поступлений (положительная сумма).
