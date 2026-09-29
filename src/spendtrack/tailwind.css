@@ -99,8 +99,32 @@ button:active:not(:disabled),
 .heat-cell[data-level="2"] { background: color-mix(in srgb, var(--accent) 36%, var(--surface-2)); }
 .heat-cell[data-level="3"] { background: color-mix(in srgb, var(--accent) 58%, var(--surface-2)); }
 .heat-cell[data-level="4"] { background: color-mix(in srgb, var(--accent) 85%, var(--surface-2)); }
-.sparkline { width: 6rem; height: 1.75rem; display: block; }
-.sparkline polyline { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sparkline { width: 7.5rem; height: 2rem; display: block; }
+/* Wave 1-preview: спарклайн — мягкая сглаженная area-кривая (цвет/градиент из токенов) */
+.sparkline stop { stop-color: var(--accent); }
+.spark-area { fill: url(#spark-grad); }
+.spark-line { fill: none; stroke: var(--accent); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.spark-ink { animation: spark-in 400ms var(--ease-decelerate) both; }
+@keyframes spark-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+/* Wave 1-preview: hover-подъём карточек (KPI) — только там, где есть hover */
+@media (hover: hover) {
+  .lift {
+    transition: transform var(--dur-2) var(--ease-standard),
+                border-color var(--dur-2) var(--ease-standard),
+                box-shadow var(--dur-2) var(--ease-standard);
+  }
+  .lift:hover {
+    transform: translateY(-2px);
+    border-color: var(--line-strong);
+    box-shadow: var(--shadow-1);
+  }
+}
+/* Wave 1-preview: карта дней — микро-отклик (ячейки декоративные, aria-hidden) */
+.heat-cell { transition: transform var(--dur-1) var(--ease-spring); }
+.heat-cell:hover { transform: scale(1.18); }
 @media (prefers-reduced-motion: reduce) {
   button.transition-colors,
   [role="button"].transition-colors {
@@ -113,6 +137,10 @@ button:active:not(:disabled),
   .budget-bar {
     transition: none;
   }
+  /* Wave 1-preview: микро-моушен выключен */
+  .lift, .lift:hover { transform: none; transition: none; box-shadow: none; }
+  .heat-cell, .heat-cell:hover { transition: none; transform: none; }
+  .spark-ink { animation: none; }
   /* View Transitions (включаются точечно на htmx-свапах): глушим анимации переходов */
   ::view-transition-group(*),
   ::view-transition-old(*),

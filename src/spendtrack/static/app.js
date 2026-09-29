@@ -13,6 +13,46 @@
     window.__toastTimer = setTimeout(function () { t.classList.add('opacity-0'); }, 1800);
   });
 
+  // Wave 1-preview: count-up ЦЕЛЫХ счётчиков (счётчик очереди). Деньги не анимируем —
+  // их формат живёт только на сервере (fmt_money: U+2212/NBSP); клиентская интерполяция
+  // денежной строки может разойтись с серверной (дефект доверия). Reduced-motion → сразу значение.
+  function animateCount(el, from, to) {
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (from === to || reduce || !window.requestAnimationFrame) {
+      el.textContent = String(to);
+      return;
+    }
+    var start = null;
+    var dur = 400;
+    function frame(ts) {
+      if (start === null) start = ts;
+      var p = Math.min(1, (ts - start) / dur);
+      var eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      el.textContent = String(Math.round(from + (to - from) * eased));
+      if (p < 1) requestAnimationFrame(frame); else el.textContent = String(to);
+    }
+    requestAnimationFrame(frame);
+    if (el.animate) { // лёгкий «поп» без layout-сдвига (transform)
+      el.animate(
+        [{ transform: 'scale(0.92)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }],
+        { duration: 260, easing: 'ease-out' });
+    }
+  }
+
+  var prevPending = null;
+  document.body.addEventListener('htmx:oobBeforeSwap', function () {
+    var cnt = document.getElementById('pending-count');
+    prevPending = cnt ? parseInt(cnt.textContent, 10) : null;
+  });
+  document.body.addEventListener('htmx:oobAfterSwap', function () {
+    var cnt = document.getElementById('pending-count');
+    if (!cnt) return;
+    var to = parseInt(cnt.textContent, 10);
+    if (isNaN(to)) return;
+    var from = (prevPending === null || isNaN(prevPending)) ? to : prevPending;
+    animateCount(cnt, from, to);
+  });
+
   // После запросов форм главной: обновить список и счётчик очереди
   document.body.addEventListener('htmx:afterRequest', function (e) {
     var el = e.detail && e.detail.elt;
@@ -24,7 +64,9 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           var cnt = document.getElementById('pending-count');
-          if (cnt) cnt.textContent = d.count;
+          if (!cnt) return;
+          var from = parseInt(cnt.textContent, 10);
+          animateCount(cnt, isNaN(from) ? d.count : from, d.count);
         })
         .catch(function () { /* счётчик не критичен */ });
       htmx.trigger('body', 'refresh-list');

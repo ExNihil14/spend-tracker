@@ -30,22 +30,33 @@
 </div>
 {% endif %}
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-  <div class="bg-surface rounded-xl p-4 border border-line">
+  <div class="lift bg-surface rounded-xl p-4 border border-line">
     <div class="text-xs text-fg-muted">Доход</div>
     <div class="text-lg font-semibold text-income mt-1">{{ fmt_money(report.income_k) }}</div>
   </div>
-  <div class="bg-surface rounded-xl p-4 border border-line">
+  <div class="lift bg-surface rounded-xl p-4 border border-line">
     <div class="text-xs text-fg-muted">Расход</div>
     <div class="text-lg font-semibold text-fg mt-1">{{ fmt_money(report.expense_k) }}</div>
-    <svg class="sparkline mt-2" id="spark-expense" viewBox="0 0 96 28" role="img"
-         aria-label="Динамика расходов по дням"><polyline points=""></polyline></svg>
+    <svg class="sparkline mt-2" id="spark-expense" viewBox="0 0 120 32" role="img"
+         aria-label="Динамика расходов по дням">
+      <defs>
+        <linearGradient id="spark-grad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-opacity="0.32"></stop>
+          <stop offset="100%" stop-opacity="0"></stop>
+        </linearGradient>
+      </defs>
+      <g class="spark-ink">
+        <path class="spark-area" d=""></path>
+        <path class="spark-line" d=""></path>
+      </g>
+    </svg>
   </div>
-  <div class="bg-surface rounded-xl p-4 border border-line">
+  <div class="lift bg-surface rounded-xl p-4 border border-line">
     <div class="text-xs text-fg-muted">Баланс</div>
     <div class="text-lg font-semibold text-fg-strong mt-1">{{ fmt_money(report.balance_k) }}</div>
     {% if report.foreign_count %}<div class="text-xs text-fg-muted mt-1">не учтено в валюте: {{ report.foreign_count }}</div>{% endif %}
   </div>
-  <div class="bg-surface rounded-xl p-4 border border-line flex items-center justify-between">
+  <div class="lift bg-surface rounded-xl p-4 border border-line flex items-center justify-between">
     <a href="/dashboard?month={{ prev_month }}" class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors">←</a>
     <div id="dash-month" class="text-sm font-medium text-fg">{{ fmt_month(current) }}</div>
     <a href="/dashboard?month={{ next_month }}" class="text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-line transition-colors">→</a>
@@ -162,7 +173,10 @@
         aria-label="Диаграмма расходов по дням за {{ fmt_month(current) }}"></canvas></div>
   </div>
   <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
-    <h2 class="text-[15px] font-semibold text-fg mb-3">По категориям</h2>
+    <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+      <h2 class="text-[15px] font-semibold text-fg">По категориям</h2>
+      <span class="text-xs text-fg-muted">клик по категории — скрыть/показать; по сектору — список операций</span>
+    </div>
     <div class="relative h-56"><canvas id="catsChart" class="w-full h-full" role="img"
         aria-label="Диаграмма расходов по категориям за {{ fmt_month(current) }}; значения — в таблице «Итоги по категориям» ниже"></canvas></div>
   </div>

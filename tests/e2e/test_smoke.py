@@ -208,7 +208,8 @@ def test_dashboard_month_nav_and_chart_scale(page: Page, live_server, db_path):
 
     sep = chart_probe()
     assert sep["data"] == [-150.0]        # сентябрь: -150 ₽ (не -1.50 и не -15000)
-    assert sep["tick"] == "-70.00 ₽"      # ось в рублях, без двойного деления на 100
+    # ось в рублях, без двойного деления на 100; формат — как fmt_money: U+2212, запятая (Wave 1-preview)
+    assert sep["tick"] == "\u221270,00 ₽"
     assert sep["cats"] == [150.0]         # doughnut: расходы положительные, тоже в рублях
 
     page.click('a[href="/dashboard?month=2026-08"]')

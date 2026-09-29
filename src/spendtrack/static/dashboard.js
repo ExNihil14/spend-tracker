@@ -65,16 +65,90 @@
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
-  // Спарклайн «Расход» (SVG polyline) и карта дней (heat strip) — из data-daily, без Chart.js.
+  // Формат денег для canvas (в DOM — только fmt_money сервером): запятая, NBSP-разряды, U+2212.
+  function fmtRub(v) {
+    var parts = Math.abs(v).toFixed(2).split('.');
+    var int = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
+    return (v < 0 ? '\u2212' : '') + int + ',' + parts[1];
+  }
+
+  // Wave 1-preview: тултип в семантических токенах (фон — fg-strong, текст — surface;
+  // контраст ≥15:1 в обеих темах). Интерактив чартов не заменяет данные: значения дублируются
+  // в таблицах/подписях (SC 1.4.1), тултип — дополнение.
+  function makeTooltip(callbacks) {
+    return {
+      backgroundColor: cssVar('--fg-strong', '#0b1220'),
+      titleColor: cssVar('--surface', '#ffffff'),
+      bodyColor: cssVar('--surface', '#ffffff'),
+      borderColor: cssVar('--line-strong', '#7c8ba1'),
+      borderWidth: 1,
+      padding: 10,
+      cornerRadius: 10,
+      displayColors: false,
+      titleFont: { weight: '600' },
+      callbacks: callbacks
+    };
+  }
+
+  // Попадание курсора в элемент легенды не нужно: Chart.js зовёт chart-level onHover только внутри
+  // plot-area, а легенда обрабатывается собственными onHover/onLeave плагина (см. draw ниже).
+
+  // Спарклайн «Расход» — мягкая сглаженная area-кривая (SVG, без Chart.js); карта дней — ниже.
+  // Монотонная кубическая интерполяция (Fritsch–Carlson): без «зубцов» и перехлёстов —
+  // профиль читается как мягкая динамика, а не как кардиограмма.
+  function smoothPath(pts) {
+    var n = pts.length;
+    if (n < 2) return '';
+    if (n === 2) {
+      return 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1)
+        + 'L' + pts[1][0].toFixed(1) + ',' + pts[1][1].toFixed(1);
+    }
+    var dx = [], m = [];
+    for (var i = 0; i < n - 1; i++) {
+      dx.push(pts[i + 1][0] - pts[i][0]);
+      m.push((pts[i + 1][1] - pts[i][1]) / dx[i]);
+    }
+    var t = [m[0]];
+    for (var j = 1; j < n - 1; j++) {
+      if (m[j - 1] * m[j] <= 0) {
+        t.push(0);
+      } else {
+        var w1 = 2 * dx[j] + dx[j - 1];
+        var w2 = dx[j] + 2 * dx[j - 1];
+        t.push((w1 + w2) / (w1 / m[j - 1] + w2 / m[j]));
+      }
+    }
+    t.push(m[n - 2]);
+    var d = 'M' + pts[0][0].toFixed(1) + ',' + pts[0][1].toFixed(1);
+    for (var k = 0; k < n - 1; k++) {
+      var x1 = pts[k][0] + dx[k] / 3;
+      var y1 = pts[k][1] + (t[k] * dx[k]) / 3;
+      var x2 = pts[k + 1][0] - dx[k] / 3;
+      var y2 = pts[k + 1][1] - (t[k + 1] * dx[k]) / 3;
+      d += 'C' + x1.toFixed(1) + ',' + y1.toFixed(1) + ' ' + x2.toFixed(1) + ',' + y2.toFixed(1)
+         + ' ' + pts[k + 1][0].toFixed(1) + ',' + pts[k + 1][1].toFixed(1);
+    }
+    return d;
+  }
+
   function drawSparkline(daily) {
-    var el = document.querySelector('#spark-expense polyline');
-    if (!el || !daily.length) return;
-    var vals = daily.map(function (d) { return d.total_k / 100; });
+    var svg = document.getElementById('spark-expense');
+    var line = svg ? svg.querySelector('path.spark-line') : null;
+    var area = svg ? svg.querySelector('path.spark-area') : null;
+    if (!line || !daily.length) return;
+    // «Динамика расходов» — расход дня (доходные дни = 0), а не знаковый итог.
+    var vals = daily.map(function (d) { return Math.max(0, -d.total_k) / 100; });
     var max = Math.max.apply(null, vals) || 1;
-    var stepX = 96 / Math.max(vals.length - 1, 1);
-    el.setAttribute('points', vals.map(function (v, i) {
-      return (i * stepX).toFixed(1) + ',' + (26 - (v / max) * 24).toFixed(1);
-    }).join(' '));
+    var n = vals.length;
+    var top = 3, base = 30;
+    var pts = vals.map(function (v, i) {
+      return [n > 1 ? (i * 120) / (n - 1) : 0, base - (v / max) * (base - top)];
+    });
+    var d = smoothPath(pts);
+    line.setAttribute('d', d);
+    if (area) {
+      area.setAttribute('d', d + 'L' + pts[n - 1][0].toFixed(1) + ',' + base + 'L0,' + base + 'Z');
+    }
   }
 
   function drawHeat(daily) {
@@ -117,10 +191,12 @@
     var catColorMap = data.colors;
     var fg = cssVar('--fg', '#e2e8f0');
     var fgMuted = cssVar('--fg-muted', '#94a3b8');
-    var accentBg = cssVar('--accent-bg', '#2563eb');
-    var canvasBg = cssVar('--canvas', '#0b1220');
+    var accent = cssVar('--accent', '#0e7490');
+    var accentBg = cssVar('--accent-bg', '#0e7490');
+    var surfaceBg = cssVar('--surface', '#ffffff');
+    var lineStrong = cssVar('--line-strong', '#7c8ba1');
     var reduce = prefersReducedMotion();
-    var tick = function (v) { return v.toFixed(2) + ' ₽'; }; // в datasets уже рубли (total_k/100 ниже)
+    var tick = function (v) { return fmtRub(v) + ' ₽'; }; // в datasets уже рубли (total_k/100 ниже)
 
     if (daily.length) {
       new Chart(dailyEl, {
@@ -142,14 +218,33 @@
             },
             borderColor: accentBg,
             borderWidth: 1,
-            borderRadius: 6
+            borderRadius: 6,
+            hoverBorderColor: accent, // hover: кромка «аква/неон» из токена
+            hoverBorderWidth: 2
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false, // иначе чарт перерастает контейнер h-56 при перерисовке
-          animation: reduce ? false : { duration: 300, easing: 'easeOutQuart' },
-          plugins: { legend: { display: false } },
+          // каскадное появление баров (только первичная отрисовка, не hover/resize)
+          animation: reduce ? false : {
+            duration: 400,
+            easing: 'easeOutQuart',
+            delay: function (ctx) {
+              return ctx.type === 'data' && ctx.mode === 'default' ? ctx.dataIndex * 18 : 0;
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: makeTooltip({
+              title: function (items) {
+                var l = items.length ? String(items[0].label) : '';
+                var p = l.split('-');
+                return p.length === 2 ? p[1] + '.' + p[0] : l;
+              },
+              label: function (ctx) { return 'Сумма: ' + fmtRub(ctx.parsed.y) + ' ₽'; }
+            })
+          },
           scales: { y: { ticks: { callback: tick, color: fgMuted } },
                     x: { ticks: { color: fgMuted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
         }
@@ -170,14 +265,53 @@
           datasets: [{
             data: expenses.map(function (e) { return e.value; }),
             backgroundColor: expenses.map(function (e) { return catColorMap[e.key] || '#9ca3af'; }),
-            borderColor: canvasBg,
-            borderWidth: 2
+            borderColor: surfaceBg,   // граница секторов по поверхности карточки (v2 §4.5)
+            borderWidth: 2,
+            hoverOffset: 6,           // hover: сектор «выдвигается» (декор, значения не меняются)
+            hoverBorderColor: lineStrong
           }]
         },
         options: {
           maintainAspectRatio: false,
-          animation: reduce ? false : { duration: 300, easing: 'easeOutQuart' },
-          plugins: { legend: { labels: { color: fg } } }
+          animation: reduce ? false : { duration: 400, easing: 'easeOutQuart' },
+          // Клик по сектору → список операций с фильтром категории (тот же маршрут, что у бейджей
+          // категорий: /?month=YYYY-MM&category=slug). Легенда кликабельна штатно (скрыть/показать
+          // категорию) — курсор над ней ставится её собственными onHover/onLeave (ниже): chart-level
+          // onHover вызывается только внутри plot-area и легенду не видит.
+          onHover: function (event, elements) {
+            var t = event.native && event.native.target;
+            if (t) t.style.cursor = elements && elements.length ? 'pointer' : 'default';
+          },
+          onClick: function (event, elements) {
+            if (!elements || !elements.length) return;
+            var seg = expenses[elements[0].index];
+            if (!seg) return;
+            var month = new URLSearchParams(window.location.search).get('month') || '';
+            window.location.href = '/?category=' + encodeURIComponent(seg.key)
+              + (month ? '&month=' + encodeURIComponent(month) : '');
+          },
+          plugins: {
+            legend: {
+              labels: { color: fg },
+              // Легенда кликабельна (скрыть/показать категорию) — это неочевидно, поэтому даём
+              // явный курсор-указатель; подсказка — в шапке карточки (dashboard.html).
+              onHover: function (event) {
+                var t = event.native && event.native.target;
+                if (t) t.style.cursor = 'pointer';
+              },
+              onLeave: function (event) {
+                var t = event.native && event.native.target;
+                if (t) t.style.cursor = 'default';
+              }
+            },
+            tooltip: makeTooltip({
+              label: function (ctx) {
+                var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0) || 1;
+                var pct = Math.round((ctx.parsed / total) * 100);
+                return ctx.label + ': ' + fmtRub(ctx.parsed) + ' ₽ (' + pct + '%)';
+              }
+            })
+          }
         }
       });
     }

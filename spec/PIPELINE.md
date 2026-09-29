@@ -483,6 +483,16 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
 - **Чарты дашборда:** подписи — `display_name` категорий (`categories_json[*].label`), цвета — из
   semantic-токенов через CSS-переменные (`dashboard.js` читает `--accent-bg/--fg/--fg-muted`), цвета
   категорий — по слагу (`cat_colors`). Тест: `tests/test_ui_polish.py::test_dashboard_chart_data_has_display_labels`.
+- **Wave 1-preview (29.09, интерактив):** тултипы Chart.js в токенах (фон `--fg-strong`, текст `--surface`;
+  формат `−7 870,60 ₽` — U+2212/NBSP/запятая, как `fmt_money`), hover-кромка баров (`--accent`), `hoverOffset`
+  секторов пончика и границы по `--surface`, каскадное появление баров; **пончик интерактивен**: легенда —
+  подсказка в шапке карточки + `cursor:pointer` (её собственные `onHover`/`onLeave`; chart-level `onHover`
+  вызывается только внутри plot-area и легенду не видит), клик по категории — тоггл, клик по сектору →
+  `/?category=…&month=…`; спарклайн — **мягкая сглаженная area-кривая** (монотонная кубическая интерполяция,
+  Fritsch–Carlson + градиентная заливка; цвет/градиент из токенов) от расхода дня; count-up счётчика очереди
+  (только целые; деньги не анимируются) и «поп»; `.lift` (hover-подъём KPI) и heat-hover — все
+  с reduced-motion-гардами. Тесты:
+  `tests/e2e/test_rebrand_a11y_e2e.py::{test_charts_have_themed_tooltips_and_hover, test_doughnut_click_opens_filtered_list, test_sparkline_and_heat_strip_built}`.
 
 ## Токены и цвет-семантика (дизайн-ревью, M-1/M-3)
 - `src/spendtrack/tokens.css` — 2 слоя (primitives → semantic); приложение подключает через Tailwind v4
