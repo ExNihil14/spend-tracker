@@ -176,7 +176,7 @@ def reviews_count(request: Request, store: Annotated[Store, Depends(get_store)])
     n = store.pending_count()
     body = (
         '<span id="pending-count" hx-swap-oob="true"'
-        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300">'
+        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">'
         f"{n}</span>"
     )
     return HTMLResponse(body)
@@ -186,7 +186,7 @@ def _oob_badge(store: Store) -> str:
     n = store.pending_count()
     return (
         '<span id="pending-count" hx-swap-oob="true"'
-        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-500/20 text-amber-300">'
+        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">'
         f"{n}</span>"
     )
 
@@ -320,17 +320,17 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
         result = import_csv(raw, store, bank=bank, taxonomy=taxonomy, filename=filename)
     except ImportLimitError as e:  # лимиты импорта — понятный 413; прочие ValueError остаются багами (500)
         if is_hx:
-            return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')
+            return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(str(e))}</p>')
         raise HTTPException(413, detail=str(e)) from None
     except Exception as e:
         if is_hx:
-            return HTMLResponse(f'<p class="text-red-400">Ошибка импорта: {escape(str(e))}</p>')
+            return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(str(e))}</p>')
         raise
     if is_hx:
         if result["status"] == "format_error":
             return HTMLResponse(
-                f'<p class="text-red-400">Ошибка импорта: {escape(str(result["message"]))}</p>')
+                f'<p class="text-danger">Ошибка импорта: {escape(str(result["message"]))}</p>')
         if result["status"] == "empty":
-            return HTMLResponse('<p class="text-red-400">Пустой файл</p>')
-        return HTMLResponse(f'<p class="text-blue-400">Импортировано: {escape(summarize(result))}</p>')
+            return HTMLResponse('<p class="text-danger">Пустой файл</p>')
+        return HTMLResponse(f'<p class="text-info">Импортировано: {escape(summarize(result))}</p>')
     return result

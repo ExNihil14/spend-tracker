@@ -23,14 +23,46 @@
   --color-accent-bg: var(--accent-bg);
   --color-accent-bg-hover: var(--accent-bg-hover);
   --color-on-accent: var(--on-accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-bg: var(--accent-2-bg);
+  --color-accent-2-soft: var(--accent-2-soft);
+  --color-accent-soft: var(--accent-soft);
   --color-focus-ring: var(--focus-ring);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
   --color-income: var(--income);
+  --color-income-soft: var(--income-soft);
   --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
   --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --color-danger-bg: var(--danger-bg);
-  /* радиусы — из токенов (ребрендинг одной правкой): rounded-lg → control, rounded-xl → card */
+  /* радиусы — из токенов (ребрендинг одной правкой): rounded-lg → control, rounded-xl → card, 2xl → poster */
   --radius-lg: var(--radius-control);
   --radius-xl: var(--radius-card);
+  --radius-2xl: var(--radius-poster);
+}
+
+@layer base {
+  /* v2 (29.09): единое кольцо фокуса для ссылок/кнопок/полей — ориентир SC 2.4.13 (2px, ≥3:1);
+     точечные focus:outline-none + ring у полей остаются (утилиты перекрывают base-слой). */
+  :focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Постер (v2 «Стикербук»): ОДИН градиентный бренд-момент на экран (пустые состояния/онбординг);
+     текст — только --on-accent (стопы посчитаны: DESIGN_DIRECTION_V2 §3.5). */
+  .poster {
+    background-image: linear-gradient(135deg, var(--grad-from), var(--grad-to));
+    color: var(--on-accent);
+    border-radius: var(--radius-poster);
+  }
+  @media (forced-colors: active) {
+    .poster { background-image: none; background-color: var(--accent-bg); }
+  }
 }
 
 /* Очередь /approve: строка, выбранная клавиатурой (M-4). Класс ставит approve.js —
@@ -62,7 +94,7 @@ button:active:not(:disabled),
 ::view-transition-old(root) { animation-duration: var(--dur-2); }
 ::view-transition-new(root) { animation-duration: var(--dur-3); }
 /* Карта дней (heat strip) и спарклайн: интенсивность — color-mix с --accent */
-.heat-cell { width: 1.375rem; height: 1.375rem; border-radius: 5px; background: var(--surface-2); }
+.heat-cell { width: 1.375rem; height: 1.375rem; border-radius: var(--radius-cell); background: var(--surface-2); }
 .heat-cell[data-level="1"] { background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); }
 .heat-cell[data-level="2"] { background: color-mix(in srgb, var(--accent) 36%, var(--surface-2)); }
 .heat-cell[data-level="3"] { background: color-mix(in srgb, var(--accent) 58%, var(--surface-2)); }

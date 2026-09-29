@@ -1,7 +1,10 @@
-"""Контраст UI-цветов (WCAG 2.2): бейджи категорий и счётчик очереди — оффлайн.
+"""Контраст UI-цветов (WCAG 2.2): бейджи категорий — оффлайн.
 
 Источник требований: `D:\\dev\\docs\\machine\\RESEARCH_HELP_FAQ_BEST_PRACTICES.md` §4
 (1.4.1 Use of Color, 1.4.3 Contrast Minimum, 1.4.11 Non-text Contrast).
+
+Счётчик очереди с v2 (29.09) — на семантических soft-токенах (`bg-warn-soft text-warn`),
+его контрасты считает `tests/test_tokens_contrast.py` (Приложение B DESIGN_DIRECTION_V2).
 """
 from __future__ import annotations
 
@@ -43,12 +46,6 @@ def test_default_taxonomy_badges_pass_aa():
     for category in load_taxonomy().categories:
         ratio = contrast_ratio(category.color, badge_text_color(category.color))
         assert ratio >= WCAG_TEXT_MIN, f"{category.name} ({category.color}): {ratio:.2f}"
-
-
-def test_queue_counter_badge_passes_aa():
-    """Счётчик очереди: amber-300 на bg-amber-500/20 поверх slate-950."""
-    background = composite("#f59e0b", "#020617", 0.2)
-    assert contrast_ratio("#fcd34d", background) >= WCAG_TEXT_MIN
 
 
 def test_composite_blends_channels():

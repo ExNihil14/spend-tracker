@@ -1,27 +1,36 @@
 /* tokens.css — дизайн-токены spend-tracker: 2 слоя (primitives → semantic), 2 темы.
  *
- * Тема по умолчанию — светлая тёплая; тёмная включается атрибутом `[data-theme="dark"]`
- * (ставит static/theme.js: light → dark → system). Контрасты ОБЕИХ тем — тест
- * tests/test_tokens_contrast.py (WCAG 2.2, без округления). Источник: RESEARCH_REBRANDING_2026-09-29.md
- * (§1.2 «warm dark», §1.4 светлая тема), дизайн-ревью M-1.
+ * v2 «Стикербук» (29.09.2026): светлая «Аква-день» (белый лист + аква-акцент) и тёмная
+ * «Ночной стол» (чернильный фон + неон-аква; глубина — светлотной лестницей, без теней).
+ * Направление и все посчитанные контрасты — DESIGN_DIRECTION_V2_2026-09-29.md §3.3–3.5;
+ * тест — tests/test_tokens_contrast.py (обе темы, пороги 4.5/3.0).
+ * Тема по умолчанию — светлая; тёмная включается атрибутом `[data-theme="dark"]`
+ * (ставит static/theme.js: light → dark → system).
  * Правило: компоненты используют ТОЛЬКО semantic-переменные; primitives — палитра,
  * менять которую можно одной правкой (смена hue = ребрендинг).
  * Копия для лендинга: landing/tokens.css (синхронность проверяет tests/test_landing.py).
  */
 
 :root {
-  /* ── primitives: светлая тёплая палитра (тема по умолчанию) ────────── */
-  --l-canvas: #fbf6f0; --l-surface: #fffdfa; --l-surface-2: #f4ede5; --l-surface-3: #ece1d6;
-  --l-line: #e5d9cc; --l-line-strong: #cdbba8;
-  --l-fg: #3a2f27; --l-fg-strong: #241c16; --l-fg-muted: #6e5f52; --l-fg-subtle: #7a6a5a;
-  --l-accent: #a8542b; --l-accent-hover: #8a4520;
-  --l-income: #047857; --l-warn: #b45309; --l-danger: #be123c;
+  /* ── primitives: светлая палитра «Аква-день» (тема по умолчанию) ─────── */
+  --l-canvas: #f6f8fb; --l-surface: #ffffff; --l-surface-2: #eef2f7; --l-surface-3: #e2e8f0;
+  --l-line: #e4e9f1; --l-line-strong: #7c8ba1;
+  --l-fg: #172033; --l-fg-strong: #0b1220; --l-fg-muted: #47536b; --l-fg-subtle: #5c6a84;
+  --l-accent: #0e7490; --l-accent-hover: #155e75; --l-accent-2: #6d28d9;
+  --l-info: #0369a1; --l-income: #047857; --l-warn: #b45309; --l-danger: #be123c;
+  --l-accent-soft: #e2f4f8; --l-accent-2-soft: #efe9fe; --l-info-soft: #e3f0fb;
+  --l-income-soft: #e4f6ee; --l-warn-soft: #fef6ea; --l-danger-soft: #fdeaee;
 
-  /* ── primitives: тёмная тёплая палитра ─────────────────────────────── */
-  --n-975: #0c0a08; --n-950: #16120f; --n-900: #201b17; --n-850: #2a241f; --n-875: #322b25;
-  --n-800: #3a322b; --n-700: #55483e; --n-500: #918478; --n-400: #b3a79b; --n-200: #e9e3dc; --n-50: #fbf8f4;
-  --c-300: #f2be97; --c-400: #e8a87c; --c-600: #b4552d; --c-700: #96431f;
-  --g-400: #34d399; --y-400: #fbbf24; --r-400: #fb7185; --r-600: #e11d48;
+  /* ── primitives: тёмная палитра «Ночной стол» ────────────────────────── */
+  --d-canvas: #0b1220; --d-surface: #121b2d; --d-surface-2: #19253c; --d-surface-3: #213050;
+  --d-line: #243149; --d-line-strong: #5a6b8f;
+  --d-fg: #d7e0f0; --d-fg-strong: #f2f6ff; --d-fg-muted: #9aa8c4; --d-fg-subtle: #828fae;
+  --d-accent: #67e8f9; --d-accent-hover: #a5f3fc; --d-accent-2: #c4b5fd;
+  --d-info: #7dd3fc; --d-income: #34d399; --d-warn: #fbbf24; --d-danger: #fb7185;
+  --d-accent-bg: #0e7490; --d-accent-bg-hover: #0f7893; --d-accent-2-bg: #7c3aed; --d-danger-bg: #e11d48;
+  --d-accent-soft: #0f2c3a; --d-accent-2-soft: #241c44; --d-info-soft: #102a43;
+  --d-income-soft: #0f2e26; --d-warn-soft: #33260f; --d-danger-soft: #3a1622;
+  --d-code-bg: #0a0f1c;
 
   /* ── semantic: светлая тема (по умолчанию) ─────────────────────────── */
   --canvas: var(--l-canvas);        /* фон страницы */
@@ -29,32 +38,47 @@
   --surface-2: var(--l-surface-2);  /* поля ввода, вторичные поверхности */
   --surface-3: var(--l-surface-3);  /* hover/elevated поверхности */
   --line: var(--l-line);            /* границы, разделители, hover-подложка */
-  --line-strong: var(--l-line-strong);
+  --line-strong: var(--l-line-strong);  /* границы полей (≥3:1 к canvas/surface) */
   --fg: var(--l-fg);                /* основной текст и суммы (знак — U+2212/+) */
   --fg-strong: var(--l-fg-strong);  /* заголовки, ключевые значения */
   --fg-muted: var(--l-fg-muted);    /* вторичный текст */
   --fg-subtle: var(--l-fg-subtle);  /* подписи/disabled */
   --accent: var(--l-accent);        /* ссылки, фокус, активный пункт nav */
   --accent-hover: var(--l-accent-hover);
-  --accent-bg: var(--l-accent);     /* фон primary-кнопки (с белым 5.3:1) */
+  --accent-bg: var(--l-accent);     /* фон primary-кнопки (с белым ≥5:1) */
   --accent-bg-hover: var(--l-accent-hover);
-  --on-accent: #ffffff;
+  --on-accent: #ffffff;             /* текст на accent-bg/градиенте */
+  --accent-2: var(--l-accent-2);    /* ИИ-категоризация («copilot»-роль Bitrix24) */
+  --accent-2-bg: var(--l-accent-2); /* фон бейджа ИИ (белый текст ≥4.5) */
+  --accent-2-soft: var(--l-accent-2-soft);
+  --accent-soft: var(--l-accent-soft);
   --focus-ring: var(--l-accent);    /* кольцо фокуса (≥3:1 к canvas/surface) */
+  --info: var(--l-info);            /* нейтральная информация (импорт и т.п.) */
+  --info-soft: var(--l-info-soft);
   --income: var(--l-income);        /* доход, «всё подтверждено», ok-бар */
+  --income-soft: var(--l-income-soft);
   --warn: var(--l-warn);            /* предупреждения, уверенность, 80%-бар */
+  --warn-soft: var(--l-warn-soft);
   --danger: var(--l-danger);        /* перерасход, аномалии, деструктив (текст) */
+  --danger-soft: var(--l-danger-soft);
   --danger-bg: var(--l-danger);     /* фон danger-кнопки */
   --code-bg: var(--l-surface-2);    /* фон код-блоков (лендинг/справка) */
+  --grad-from: #0e7490;             /* «постер»: один градиентный бренд-момент на экран */
+  --grad-to: #6d28d9;
+  --shadow-1: 0 1px 2px rgb(11 18 32 / 0.05), 0 2px 8px rgb(11 18 32 / 0.04);
 
   /* ── общие (не зависят от темы) ────────────────────────────────────── */
-  --radius-control: 10px;
-  --radius-card: 16px;
+  --radius-control: 12px;
+  --radius-card: 18px;
+  --radius-poster: 24px;
+  --radius-cell: 6px;
   --radius-pill: 999px;
-  /* моушен (M3-токены: short/medium/long; standard/decelerate/accelerate) */
+  /* моушен (M3-токены: short/medium/long; standard/decelerate/accelerate; spring — v2) */
   --dur-1: 100ms; --dur-2: 150ms; --dur-3: 250ms; --dur-4: 300ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-decelerate: cubic-bezier(0, 0, 0, 1);
   --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
+  --ease-spring: linear(0, 0.6 12%, 1.04 28%, 0.99 42%, 1.005 56%, 1);
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   color-scheme: light;
@@ -62,25 +86,37 @@
 
 /* ── semantic: тёмная тема ─────────────────────────────────────────────── */
 :root[data-theme="dark"] {
-  --canvas: var(--n-950);
-  --surface: var(--n-900);
-  --surface-2: var(--n-850);
-  --surface-3: var(--n-875);
-  --line: var(--n-800);
-  --line-strong: var(--n-700);
-  --fg: var(--n-200);
-  --fg-strong: var(--n-50);
-  --fg-muted: var(--n-400);
-  --fg-subtle: var(--n-500);
-  --accent: var(--c-400);
-  --accent-hover: var(--c-300);
-  --accent-bg: var(--c-600);
-  --accent-bg-hover: var(--c-700);
-  --focus-ring: var(--c-400);
-  --income: var(--g-400);
-  --warn: var(--y-400);
-  --danger: var(--r-400);
-  --danger-bg: var(--r-600);
-  --code-bg: var(--n-975);
+  --canvas: var(--d-canvas);
+  --surface: var(--d-surface);
+  --surface-2: var(--d-surface-2);
+  --surface-3: var(--d-surface-3);
+  --line: var(--d-line);
+  --line-strong: var(--d-line-strong);
+  --fg: var(--d-fg);
+  --fg-strong: var(--d-fg-strong);
+  --fg-muted: var(--d-fg-muted);
+  --fg-subtle: var(--d-fg-subtle);
+  --accent: var(--d-accent);
+  --accent-hover: var(--d-accent-hover);
+  --accent-bg: var(--d-accent-bg);
+  --accent-bg-hover: var(--d-accent-bg-hover);
+  --accent-2: var(--d-accent-2);
+  --accent-2-bg: var(--d-accent-2-bg);
+  --accent-2-soft: var(--d-accent-2-soft);
+  --accent-soft: var(--d-accent-soft);
+  --focus-ring: var(--d-accent);
+  --info: var(--d-info);
+  --info-soft: var(--d-info-soft);
+  --income: var(--d-income);
+  --income-soft: var(--d-income-soft);
+  --warn: var(--d-warn);
+  --warn-soft: var(--d-warn-soft);
+  --danger: var(--d-danger);
+  --danger-soft: var(--d-danger-soft);
+  --danger-bg: var(--d-danger-bg);
+  --code-bg: var(--d-code-bg);
+  --grad-from: #0b5b70;
+  --grad-to: #4c2a8a;
+  --shadow-1: none;
   color-scheme: dark;
 }

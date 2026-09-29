@@ -67,14 +67,17 @@ def test_charts_recolor_on_theme_toggle(page: Page, live_server, db_path):
 
     Регрессия: Chart.js кэширует цвета датасета — без перерисовки на смене темы графики
     остаются в старой палитре (находка дизайн-ревью v2, 29.09).
+    Сигнал — цвет тиков (`--fg-muted`): в v2 `--accent-bg` одинаков в обеих темах (кнопочный teal),
+    поэтому именно подписи/тики доказывают перерисовку.
     """
     _seed(str(db_path), "2026-09-10", "ЛЕНТА ЦВЕТ", -10000)
     page.goto(f"{live_server}/dashboard")
     page.wait_for_function("() => window.Chart && window.Chart.getChart('dailyChart')")
-    before = page.evaluate("() => Chart.getChart('dailyChart').data.datasets[0].borderColor")
+    before = page.evaluate("() => Chart.getChart('dailyChart').options.scales.y.ticks.color")
     page.locator("#theme-toggle").click()
     page.wait_for_function(
-        "(b) => window.Chart.getChart('dailyChart').data.datasets[0].borderColor !== b",
+        "(b) => { const c = window.Chart.getChart('dailyChart');"
+        " return c && c.options.scales.y.ticks.color !== b; }",
         arg=before, timeout=3000)
 
 

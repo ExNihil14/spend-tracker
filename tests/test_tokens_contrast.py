@@ -26,6 +26,16 @@ PAIRS: list[tuple[str, str, float]] = [
     ("focus-ring", "canvas", 3.0), ("focus-ring", "surface", 3.0),
     ("accent", "canvas", 3.0), ("income", "canvas", 3.0), ("warn", "canvas", 3.0),
     ("danger", "canvas", 3.0), ("accent-bg", "canvas", 3.0), ("danger-bg", "canvas", 3.0),
+    # v2 «Стикербук» (29.09, Приложение B DESIGN_DIRECTION_V2): soft-чипы вместо alpha,
+    # границы полей ≥3:1 (best practice 1.4.11), акцент ИИ (--accent-2) и info-роль
+    ("accent", "accent-soft", 4.5), ("accent-2", "accent-2-soft", 4.5),
+    ("info", "info-soft", 4.5), ("income", "income-soft", 4.5),
+    ("warn", "warn-soft", 4.5), ("danger", "danger-soft", 4.5),
+    ("accent-2", "surface", 4.5), ("info", "surface", 4.5),
+    ("on-accent", "accent-2-bg", 4.5),
+    ("line-strong", "canvas", 3.0), ("line-strong", "surface", 3.0),
+    ("fg", "surface-3", 4.5), ("fg-muted", "surface-2", 4.5), ("fg-subtle", "canvas", 4.5),
+    ("focus-ring", "surface-3", 3.0),
 ]
 
 

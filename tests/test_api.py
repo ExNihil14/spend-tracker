@@ -273,6 +273,9 @@ def test_reviews_count_endpoint(client, tmp_path):
     assert r.status_code == 200
     assert 'id="pending-count"' in r.text
     assert ">1<" in r.text
+    # v2 (29.09): OOB-фрагмент — только семантические токены (soft-чип), без tailwind-палитры
+    assert "bg-warn-soft" in r.text and "text-warn" in r.text
+    assert "amber" not in r.text
 
 
 def test_review_and_tx_4xx_branches(client, tmp_path):

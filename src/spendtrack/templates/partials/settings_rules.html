@@ -28,15 +28,15 @@
           <td class="px-5 py-2.5 text-fg">{{ catname(a.category) }}</td>
           <td class="px-5 py-2.5 space-x-2">
             {% if a.invalid_category %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-danger/15 text-danger">категории нет в таксономии</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-danger-soft text-danger">категории нет в таксономии</span>
             {% endif %}
             {% if a.duplicate_of is not none %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-danger/15 text-danger">дубль: #{{ a.duplicate_of }}{% if a.duplicate_differs %} (другая категория){% endif %}</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-danger-soft text-danger">дубль: #{{ a.duplicate_of }}{% if a.duplicate_differs %} (другая категория){% endif %}</span>
             {% elif a.shadowed_by is not none %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-warn/15 text-warn">мёртвое: перекрыто #{{ a.shadowed_by }} «{{ rules_view[a.shadowed_by].pattern }}»</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-warn-soft text-warn">мёртвое: перекрыто #{{ a.shadowed_by }} «{{ rules_view[a.shadowed_by].pattern }}»</span>
             {% endif %}
             {% if a.shadows %}
-            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-accent/15 text-accent">перекрывает #{% for j in a.shadows %}{{ j }}{% if not loop.last %}, #{% endif %}{% endfor %}</span>
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] bg-accent-soft text-accent">перекрывает #{% for j in a.shadows %}{{ j }}{% if not loop.last %}, #{% endif %}{% endfor %}</span>
             {% endif %}
           </td>
           <td class="px-5 py-2.5">

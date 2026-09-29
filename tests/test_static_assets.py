@@ -43,7 +43,7 @@ def test_prebuilt_css_present_and_linked(tmp_path, monkeypatch) -> None:
     css = css_path.read_text(encoding="utf-8")
     assert len(css) > 10_000
     # Семантические маркеры: базовые утилиты, адаптивность (медиа-запрос sm-брейкпоинта), скролл/перенос.
-    for needle in (".bg-slate-950", ".text-slate-200", "@media (min-width:40rem)",
+    for needle in (".bg-surface", ".text-fg", ".bg-warn-soft", "@media (min-width:40rem)",
                    ".overflow-x-auto", ".flex-wrap"):
         assert needle in css, needle
     with _client(tmp_path, monkeypatch) as client:
@@ -62,4 +62,4 @@ def test_prebuilt_css_served(tmp_path, monkeypatch) -> None:
         r = client.get("/static/app.css")
         assert r.status_code == 200
         assert r.headers["content-type"].startswith("text/css")
-        assert ".bg-slate-950" in r.text
+        assert ".bg-surface" in r.text

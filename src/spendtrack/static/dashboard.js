@@ -118,7 +118,7 @@
     var fg = cssVar('--fg', '#e2e8f0');
     var fgMuted = cssVar('--fg-muted', '#94a3b8');
     var accentBg = cssVar('--accent-bg', '#2563eb');
-    var canvasBg = cssVar('--canvas', '#16120f');
+    var canvasBg = cssVar('--canvas', '#0b1220');
     var reduce = prefersReducedMotion();
     var tick = function (v) { return v.toFixed(2) + ' ₽'; }; // в datasets уже рубли (total_k/100 ниже)
 

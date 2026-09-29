@@ -18,6 +18,34 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   волны 1–9 закрыты; дальше — внедрение v2 (Wave 0/1). 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (29.09, вечер-3 — дизайн v2 «Стикербук», Wave 0: ✅ сделано (в дереве; ждёт команды на коммит).**
+> Палитра: светлая «Аква-день» (canvas #f6f8fb, accent #0e7490, line-strong ≥3:1) / тёмная «Ночной стол»
+> (canvas #0b1220, неон-аква #67e8f9); новые роли: `--accent-2` (ИИ), `--info`, soft-токены вместо alpha-чипов
+> (`bg-warn-soft`/`bg-danger-soft`/`bg-accent-soft` — падавшие 3.56–4.34:1 закрыты), `--grad-*` + `.poster`
+> (один градиентный бренд-момент, forced-colors-fallback), `--ease-spring`, радиусы 12/18/24, глобальный
+> `:focus-visible`. Попутно: OOB-фрагменты `api.py` (счётчик очереди/импорт) переведены с захардкоженных
+> amber/slate/red/blue на токены (tailwind-палитра ушла из app.css). Тесты: контрасты 37 пар × 2 темы
+> (+14 новых из Приложения B), e2e-сигнал перекраски графиков переведён на цвет тиков (в v2 `--accent-bg`
+> одинаков в темах). Контур: **673 unit + 72 e2e** + ruff + contract + ratchet (2/420) + cc + build_css
+> (29 720 Б ≤ 35 КБ) — зелёные; живой прогон (temp-стенд 8799, demo-БД): light/dark + дашборд, computed-токены
+> сверены (скриншоты — temp\opencode\wave0-*.png). Дальше: адъюдикация `out_design_review.md` (окно 23:00 UTC)
+> → Wave 1 (нав-пилюли, KPI-бенто, постеры пустых состояний, микро-моушен).
+> **АКТУАЛЬНО (29.09, вечер — фикс-батч №2, остаток: плагин C4/C2, адъюдикация bootstrap, tests_contour S2/S3/S6/S7). ✅ сделано (в дереве; ждёт команды на коммит).**
+> Плагин: safety-gate v4 — `SAFETY_DATA_ROOTS` (default `d:/data`: write/read-тулы hard, shell — soft),
+> careful-маркер **одноразовый**, журнал `metrics/safety-gate.jsonl` (arm/block/pass), hard-deny упоминания
+> файла маркера; permission-ask на `*careful_gate.mjs*` (live+канон); тесты 6 сценариев/107 проверок, sync ок;
+> **плагин подхватился живым сервером без рестарта** (факт: журнал live-сессии; правки opencode.json — рестарт).
+> Bootstrap (адъюдикация `out_bootstrap_scripts.md`, все C/S + топ-5 закрыты — `ADJUDICATION_BOOTSTRAP_SCRIPTS_2026-09-29.md`):
+> бэкап БД opencode → `D:\data\backups\opencode` + `last_backup.json` + каждые 4 ч (RPO), `restore-opencode-db.ps1`
+> + drill (quick_check ok, 150 сессий) + `BACKUP_RESTORE_RUNBOOK.md`, offsite OneDrive (DB без credential),
+> verify v3 (7 проверок: задачи/свежесть FAIL, offsite, канон), go-usage (S1-S3), check-channels (реальный ключ),
+> start-detached, opencode-web, agent_context_audit (кириллица/`--project`).
+> tests_contour: S2 (ratchet-guard на push в main), S3 (оффлайн-стаб ratchet-замера → 420), S6 (e2e-артефакты
+> tracing + логи uvicorn в файлы), S7 (UPPER-константы в контракт-дельте; пп.1-2 закрыты 27.09).
+> Baseline пере-снят (осознанно, юзер подтвердил): contract 49/304/32; ratchet 2/420.
+> **Коммит-заметка:** изменение `spec/*_baseline.json` требует трейлера `Contract-Change: <причина>`.
+> За юзером: команды на коммиты/push; pre-push hook + branch protection (agent_env C1) — решение.
+> AgentRouter: окно 23:00 UTC (02:00 МСК) — дизайн-ревью первым; `out_install_ops/web_api/web_ui` — в очереди.
 > **АКТУАЛЬНО (29.09, ребрендинг v2 «Стикербук» + фикс-батч №2): ✅ волны 1–9; два фикса закоммичены.**
 > Дизайн: светлая тема по умолчанию + переключатель light→dark→system (localStorage `spendtrack-theme`, без FOUC),
 > View Transitions, спарклайн/карта дней/градиентные бары, моушен с `prefers-reduced-motion`; a11y-гейты

@@ -144,11 +144,12 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
 
 ## Контракт-дельта (авто-гейт)
 - `scripts/contract_delta.py` — снапшот публичных контрактов: схема БД (user_version + колонки из tmp-БД Store),
-  публичные сигнатуры `src/spendtrack` (AST, без импорта), HTTP-роуты (OpenAPI). Baseline: `spec/contract_baseline.json`.
+  публичные сигнатуры `src/spendtrack` (AST, без импорта) + модульные UPPER-константы (лимиты/банки/версия
+  схемы — 29.09), HTTP-роуты (OpenAPI). Baseline: `spec/contract_baseline.json`.
 - Команды: `snapshot` (обновить baseline), `check` (exit 1 при дрейфе). CI-шаг «Contract delta» в `lint-and-test`.
 - Поток при осознанном изменении контракта: изменить код → `snapshot` → baseline в том же коммите. При AI-рефакторинге
   расхождение check = блокер (LLM молча выкидывают функциональность; happy-path тесты это не ловят).
-- Тесты: `tests/test_contract_delta.py` (6, оффлайн, герметичные — tmp-пакеты/файлы baseline).
+- Тесты: `tests/test_contract_delta.py` (7, оффлайн, герметичные — tmp-пакеты/файлы baseline).
 - **Расширение и guard (ревью Opus 5.5, 27.09):** snapshot включает индексы/триггеры/VIEW и `dflt` колонок,
   поля/декораторы классов и `__init__.py`, хэш операции маршрута (`parameters/requestBody/responses`) —
   снятие UNIQUE-индекса или поля ответа больше не проходят незамеченными; CI-шаг «Baseline guard»
@@ -156,6 +157,8 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   изменении `spec/*_baseline.json` (PR — `origin/<base_ref>`, push — `event.before`; checkout `fetch-depth: 0`) —
   «дрейф + snapshot в одном коммите» больше не даёт зелёный CI; `uv sync --locked --dev` (шаг `uv lock --check`
   после sync убран — он проверял уже перезаписанный lock).
+  **29.09 (адъюдикация S7):** добавлены UPPER-константы (пп. 1–2 ревью — индексы/`dflt` и хэш операции —
+  уже были закрыты 27.09); baseline пере-снят: schema 49 / api 304 / routes 32.
 
 ## Ratchet-метрики (M10, «только вниз»)
 - `scripts/ratchet.py` — детерминированные метрики на temp-БД (прод не трогает): SQL-запросы на месячный
@@ -174,10 +177,14 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   рост с обоснованием). В снимок пишутся версии окружения (`env`: python/sqlite/platform): `check` при
   расхождении печатает **WARN** (метрика может сдвинуться от смены версий, а не кода) — не FAIL.
   Локально: `uv run python scripts/ratchet.py guard --base origin/main`.
-- Базлайн 25.09: отчёт — **2** запроса; импорт 100 строк — **435** запросов (~4.35/строку — кандидат в K7).
-- Тесты: `tests/test_ratchet.py` (15, оффлайн: форма baseline, детект регресса, отсутствующие/нечисловые
-  метрики, «слишком хорошо», порча/отсутствие базлайна, версия схемы, ассерты `measure`, CLI `check` зелёный,
-  `baseline_drift`, env-warnings, snapshot+env, guard rc=1/0).
+  **29.09:** guard выполняется и на push в `main` (`--base ${{ github.event.before }}`) — обход через
+  прямой push в main закрыт; `measure()` получил оффлайн-стаб классификатора (S3): раньше замер зависел
+  от ключей в env (локально мог уйти в LLM-шов), теперь детерминирован в CI и локально.
+- Базлайн 29.09: отчёт — **2** запроса; импорт 100 строк — **420** запросов (оффлайн-стаб в замере; до
+  29.09 было 435 — часть разницы давал env-зависимый classify).
+- Тесты: `tests/test_ratchet.py` (16, оффлайн: форма baseline, детект регресса, отсутствующие/нечисловые
+  метрики, «слишком хорошо», порча/отсутствие базлайна, версия схемы, ассерты `measure`, оффлайн-стаб замера,
+  CLI `check` зелёный, `baseline_drift`, env-warnings, snapshot+env, guard rc=1/0).
 
 ## AI-контур: дешёвые констрайны, циклы и контракты (ревью Opus 5.5, 27.09)
 - **Complexity-ratchet:** `ruff` `C901` включён (`extend-select`, `max-complexity = 10`); legacy-функции >10
@@ -487,6 +494,13 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   деструктив); доход — `text-income`; один primary-акцент на экран (`bg-accent-bg`); «Одобрить все»/
   «Проверить» — secondary (границы), «Удалить» — ghost (danger только на hover); ссылки/фокус — `accent`.
 - После правок токенов/классов — пересборка CSS: `uv run python scripts/build_css.py` (CI: `--check`).
+- **v2 «Стикербук» (29.09):** светлая «Аква-день» (`--accent #0e7490`) / тёмная «Ночной стол»
+  (`--canvas #0b1220`, неон-аква `--accent #67e8f9`); новые роли: `--accent-2` (ИИ-категоризация), `--info`,
+  soft-токены (`--accent-soft`/`--warn-soft`/`--danger-soft`… — вместо alpha-чипов `bg-warn/20`, падавших
+  по 4.5:1), `--line-strong` ≥3:1 (границы полей), `--grad-from/--grad-to` + `.poster` (один градиентный
+  бренд-момент на экран; forced-colors-fallback), `--ease-spring`; радиусы control/card/poster = 12/18/24.
+  Контрасты — `tests/test_tokens_contrast.py` (37 пар × 2 темы, Приложение B `DESIGN_DIRECTION_V2_2026-09-29.md`).
+  OOB-фрагменты счётчика/импорта (`api.py`) — тоже на semantic-токенах (`bg-warn-soft`, `text-danger`, `text-info`).
 
 ## Числа, язык и категории в UI (дизайн-ревью, M-2)
 - **Денежная форма** — `fmt_money(kopecks, currency='RUB', signed=True)` → «−155 365,18 ₽» (NBSP-разряды,
