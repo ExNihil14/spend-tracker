@@ -9,15 +9,31 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Контур (27.09): **642 unit + 52 e2e** + ruff + contract-дельта (`scripts/contract_delta.py check`, 49/233/32) +
-  ratchet (2/435) + `build_css --check` — зелёные. Прод NSSM 8766: схема v5, doctor 13/13, LLM off, 8 tx.
-- Последнее закоммичено: `82728b8` (process-гейты по ревью Opus 5.5: review.py/contract_delta/baseline_guard/CI) —
-  запушено; дерево чистое, main = origin/main. Перед ним: `2bf5379` (статусы ревью), `07598cf` (фиксы
-  «деньги/целостность»), `3c52466`/`f039837`/`9b08118` (§J-2 tail) — всё запушено.
-- Волны дизайна M-1…M-8 закрыты; релизные блокеры — K1 (контур) / K3 (тексты + CHANGELOG 0.2.0-beta);
-  решения автора (#15, МНС, Boosty) — за юзером.
+- Контур (29.09): **672 unit + 72 e2e** + ruff (`check .`) + contract-дельта (`scripts/contract_delta.py check`) +
+  ratchet (2/435) + `build_css --check` (28.9 КБ) — зелёные. Прод NSSM 8766 — Running (рестартнут, `/health` 200).
+- Последнее закоммичено (29.09): фикс-батч №2 — `84967d1` (перекраска графиков при смене темы) и `0de1f61`
+  (e2e `clean_state` по всем таблицам). Ранее — ребрендинг волн 1–9: `1102c37`/`21213c7`/`457dfde` (локально) и
+  `48a76d8`/`7d9bd0c` (запушены). **push не делался — по команде юзера (main ahead origin).**
+- Ребрендинг v2 «Стикербук»: направление принято (`D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md`),
+  волны 1–9 закрыты; дальше — внедрение v2 (Wave 0/1). 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (29.09, ребрендинг v2 «Стикербук» + фикс-батч №2): ✅ волны 1–9; два фикса закоммичены.**
+> Дизайн: светлая тема по умолчанию + переключатель light→dark→system (localStorage `spendtrack-theme`, без FOUC),
+> View Transitions, спарклайн/карта дней/градиентные бары, моушен с `prefers-reduced-motion`; a11y-гейты
+> (axe A/AA × 5 страниц; кросс-движок chromium/firefox/webkit). Коммиты волн: `7d9bd0c`/`48a76d8` (1–4,6,
+> запушены), `457dfde`/`21213c7`/`1102c37` (5,7,9). Спека:
+> `D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md` (белый лист + аква, категории-«стикеры», один
+> градиентный постер на экран; 3D-графики отклонены — искажают данные) + `RESEARCH_REBRANDING_2026-09-29.md`.
+> **Фикс-батч №2 (по ревью AgentRouter 29.09):** S5 `clean_state` — все таблицы, кроме `schema_migrations`
+> (красный тест → зелёный, `0de1f61`); перекраска Chart.js при смене темы — событие `spendtrack:theme`
+> (красный e2e → зелёный, `84967d1`). Остаток: плагинные C4/C2 (safety-gate: `SAFETY_DATA_ROOTS` для `D:\data`;
+> `/careful` one-shot + журнал + ask), agent_env C1 (pre-push hook — решение юзера), C5 (свежесть бэкапов +
+> offsite + drill), tests_contour S2/S3/S6/S7. Адъюдикация:
+> `agentrouter_review\2026-09-27\ADJUDICATION_AGENT_ENV_TESTS_2026-09-29.md`; `out_bootstrap_scripts.md` —
+> ждёт адъюдикации.
+> **AgentRouter:** окна 23:00/11:00 UTC (02:00/14:00 МСК; поправка владельца 29.09); дизайн-ревью v2 для Opus —
+> первым в очереди (`out_design_review.md`), попытка в 23:00 UTC.
 > **АКТУАЛЬНО (27.09, вечер — README/Help/FAQ + визуальные ассеты): ✅ сделано (в дереве, ждёт команды).**
 > README выровнен с приложением: импорт (drag&drop/файл/вставка), клавиатурный триаж очереди (j/k/Enter/s/1–9),
 > подсказки правил (`spendtrack suggest-rules` — read-only), экспорт CSV кнопкой / Excel командой
