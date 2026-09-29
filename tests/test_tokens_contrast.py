@@ -1,0 +1,68 @@
+"""Контрасты токенов (WCAG 2.2 AA): тёплая палитра не должна «поехать» при ребрендинге.
+
+Пороги и формула — из RESEARCH_REBRANDING_2026-09-29.md §1.3:
+SC 1.4.3 (текст ≥4.5:1), SC 1.4.11 (UI/графика/фокус ≥3:1), SC 1.4.1 (не только цвет).
+Расчёт — relative luminance (sRGB), без округления: 4.499 — не проходит.
+"""
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+TOKENS = ROOT / "src" / "spendtrack" / "tokens.css"
+
+# (foreground, background, минимум): 4.5 — текст, 3.0 — UI/графика/фокус
+PAIRS: list[tuple[str, str, float]] = [
+    ("fg", "canvas", 4.5), ("fg", "surface", 4.5), ("fg", "surface-2", 4.5),
+    ("fg-strong", "surface", 4.5),
+    ("fg-muted", "canvas", 4.5), ("fg-muted", "surface", 4.5),
+    ("fg-subtle", "surface", 4.5),
+    ("accent", "canvas", 4.5), ("accent", "surface", 4.5), ("accent-hover", "surface", 4.5),
+    ("on-accent", "accent-bg", 4.5), ("on-accent", "accent-bg-hover", 4.5),
+    ("income", "surface", 4.5), ("warn", "surface", 4.5), ("danger", "surface", 4.5),
+    ("focus-ring", "canvas", 3.0), ("focus-ring", "surface", 3.0),
+    ("accent", "canvas", 3.0), ("income", "canvas", 3.0), ("warn", "canvas", 3.0),
+    ("danger", "canvas", 3.0), ("accent-bg", "canvas", 3.0), ("danger-bg", "canvas", 3.0),
+]
+
+
+def _load() -> dict[str, str]:
+    css = TOKENS.read_text(encoding="utf-8")
+    return {m.group(1): m.group(2).strip() for m in re.finditer(r"--([\w-]+):\s*([^;]+);", css)}
+
+
+def _resolve(vars_: dict[str, str], name: str) -> str:
+    value = vars_[name]
+    ref = re.fullmatch(r"var\(--([\w-]+)\)", value)
+    if ref:
+        return _resolve(vars_, ref.group(1))
+    assert re.fullmatch(r"#[0-9a-fA-F]{6}", value), f"--{name}: ожидался hex, получено {value!r}"
+    return value.lower()
+
+
+def _luminance(hex6: str) -> float:
+    r, g, b = (int(hex6[i:i + 2], 16) / 255 for i in (1, 3, 5))
+
+    def lin(c: float) -> float:
+        return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+
+
+def _ratio(a: str, b: str) -> float:
+    l1, l2 = _luminance(a), _luminance(b)
+    hi, lo = max(l1, l2), min(l1, l2)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+def test_tokens_contrast_wcag_aa() -> None:
+    vars_ = _load()
+    for name in ("focus-ring", "surface-3"):
+        assert name in vars_, f"токен --{name} отсутствует (ребрендинг 29.09)"
+    fails = []
+    for fg, bg, need in PAIRS:
+        ratio = _ratio(_resolve(vars_, fg), _resolve(vars_, bg))
+        if ratio < need:
+            fails.append(f"{fg} на {bg}: {ratio:.2f} < {need}")
+    assert not fails, "контрасты ниже порога: " + "; ".join(fails)
