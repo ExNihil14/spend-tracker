@@ -66,8 +66,8 @@
         <span class="text-fg">{{ fmt_money(b.spent_k, signed=False) }} / {{ fmt_money(b.budget_k, signed=False) }} · {{ b.pct | round(0) | int }}%{% if b.over %} <span class="text-danger">перерасход {{ fmt_money(b.over_k, signed=False) }}</span>{% endif %}</span>
       </div>
       <div class="relative h-2 bg-surface-2 rounded-full overflow-hidden">
-        <div class="h-full {{ 'bg-danger-bg' if b.over else ('bg-warn' if b.pct >= 80 else 'bg-income') }}"
-             style="width: {{ 100 if b.pct > 100 else b.pct | round(0) | int }}%"></div>
+        <div class="h-full budget-bar {{ 'bg-danger-bg' if b.over else ('bg-warn' if b.pct >= 80 else 'bg-income') }}"
+             style="--p: {{ 100 if b.pct > 100 else b.pct | round(0) | int }}"></div>
         {% if 0 < month_elapsed < 100 %}
         <div class="absolute inset-y-0 w-0.5 bg-fg-subtle" style="left: {{ month_elapsed }}%"
              title="Прошло {{ month_elapsed }}% месяца" aria-hidden="true"></div>
@@ -156,11 +156,13 @@
 <div class="grid md:grid-cols-2 gap-6 mb-8">
   <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
     <h2 class="text-[15px] font-semibold text-fg mb-3">Расходы по дням</h2>
-    <div class="relative h-56"><canvas id="dailyChart" class="w-full h-full"></canvas></div>
+    <div class="relative h-56"><canvas id="dailyChart" class="w-full h-full" role="img"
+        aria-label="Диаграмма расходов по дням за {{ fmt_month(current) }}"></canvas></div>
   </div>
   <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
     <h2 class="text-[15px] font-semibold text-fg mb-3">По категориям</h2>
-    <div class="relative h-56"><canvas id="catsChart" class="w-full h-full"></canvas></div>
+    <div class="relative h-56"><canvas id="catsChart" class="w-full h-full" role="img"
+        aria-label="Диаграмма расходов по категориям за {{ fmt_month(current) }}; значения — в таблице «Итоги по категориям» ниже"></canvas></div>
   </div>
 </div>
 

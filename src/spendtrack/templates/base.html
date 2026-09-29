@@ -18,7 +18,7 @@
     /* Нативный индикатор календаря: свой курсор + аккуратная иконка (Chromium) */
     input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .75; }
     input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
-    input[type="date"] { accent-color: #6366f1; }
+    input[type="date"] { accent-color: var(--accent); }
     /* Уход строки очереди: видимая преемственность при approve/skip */
     tr.review-row { transition: opacity 160ms ease, transform 160ms ease; }
     tr.review-row.htmx-swapping { opacity: 0; transform: translateX(-16px); }
@@ -39,7 +39,7 @@
       background-attachment: local, local, scroll, scroll;
     }
     .table-scroll thead th { position: sticky; top: 0; z-index: 1; background: #0f172a; }
-    .table-scroll:focus-visible { outline: 2px solid #6366f1; outline-offset: 2px; }
+    .table-scroll:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
     /* Ссылки в тексте различимы не только цветом (WCAG 1.4.1; axe link-in-text-block) */
     p a, li a { text-decoration: underline; text-underline-offset: 2px; }
   </style>

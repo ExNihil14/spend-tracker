@@ -11,6 +11,7 @@
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-fg: var(--fg);
@@ -22,10 +23,14 @@
   --color-accent-bg: var(--accent-bg);
   --color-accent-bg-hover: var(--accent-bg-hover);
   --color-on-accent: var(--on-accent);
+  --color-focus-ring: var(--focus-ring);
   --color-income: var(--income);
   --color-warn: var(--warn);
   --color-danger: var(--danger);
   --color-danger-bg: var(--danger-bg);
+  /* радиусы — из токенов (ребрендинг одной правкой): rounded-lg → control, rounded-xl → card */
+  --radius-lg: var(--radius-control);
+  --radius-xl: var(--radius-card);
 }
 
 /* Очередь /approve: строка, выбранная клавиатурой (M-4). Класс ставит approve.js —
@@ -34,4 +39,41 @@
   outline: 2px solid var(--accent);
   outline-offset: -2px;
   background: color-mix(in srgb, var(--line) 30%, transparent);
+}
+
+/* ── Моушен (M3-токены; всё отключается prefers-reduced-motion ниже) ──────────────
+   Анимируем только transform/opacity (web.dev animations-guide); press-фидбек —
+   мгновенный scale(0.98) у кнопок; прогресс-бары бюджета — scaleX вместо width. */
+button.transition-colors,
+[role="button"].transition-colors {
+  /* добавляем transform в набор переходов кнопок, не трогая шаблоны (press-фидбек) */
+  transition-property: transform, color, background-color, border-color, text-decoration-color, fill, stroke;
+}
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled) {
+  transform: scale(0.98);
+}
+.budget-bar {
+  transform-origin: left center;
+  transform: scaleX(calc(var(--p, 0) / 100));
+  transition: transform var(--dur-3) var(--ease-decelerate);
+}
+@media (prefers-reduced-motion: reduce) {
+  button.transition-colors,
+  [role="button"].transition-colors {
+    transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  }
+  button:active:not(:disabled),
+  [role="button"]:active:not(:disabled) {
+    transform: none;
+  }
+  .budget-bar {
+    transition: none;
+  }
+  /* View Transitions (включаются точечно на htmx-свапах): глушим анимации переходов */
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

@@ -116,11 +116,16 @@ def check() -> int:
         print("[build_css] app.css отсутствует или подозрительно мал", file=sys.stderr)
         return 1
     css = OUTPUT.read_text(encoding="utf-8")
-    for needle in (".bg-slate-950", ".md\\:grid-cols-2", ".overflow-x-auto", ".flex-wrap"):
+    for needle in (".bg-surface", ".md\\:grid-cols-2", ".overflow-x-auto", ".flex-wrap",
+                   "prefers-reduced-motion"):
         if needle not in css:
             print(f"[build_css] в app.css нет ожидаемого селектора {needle!r}", file=sys.stderr)
             return 1
-    print(f"[build_css] check ok ({OUTPUT.stat().st_size} байт)")
+    size = OUTPUT.stat().st_size
+    if size > 35_000:
+        print(f"[build_css] app.css превышает бюджет 35 KB ({size} байт)", file=sys.stderr)
+        return 1
+    print(f"[build_css] check ok ({size} байт)")
     return 0
 
 

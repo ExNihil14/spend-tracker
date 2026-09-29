@@ -57,6 +57,12 @@
     return color.charAt(0) === '#' && color.length === 7 ? color + alphaHex : color;
   }
 
+  // Ребрендинг 29.09: анимации графиков — 300 мс (дефолт Chart.js 1000) и отключаются
+  // при reduced-motion (WCAG 2.3.3 / SCR40).
+  function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
   function draw(data) {
     var dailyEl = document.getElementById('dailyChart');
     if (!dailyEl || dailyEl.dataset.init === '1') return;
@@ -67,6 +73,8 @@
     var fg = cssVar('--fg', '#e2e8f0');
     var fgMuted = cssVar('--fg-muted', '#94a3b8');
     var accentBg = cssVar('--accent-bg', '#2563eb');
+    var canvasBg = cssVar('--canvas', '#16120f');
+    var reduce = prefersReducedMotion();
     var tick = function (v) { return v.toFixed(2) + ' ₽'; }; // в datasets уже рубли (total_k/100 ниже)
 
     if (daily.length) {
@@ -79,12 +87,14 @@
             data: daily.map(function (d) { return d.total_k / 100; }),
             backgroundColor: withAlpha(accentBg, '8c'),
             borderColor: accentBg,
-            borderWidth: 1
+            borderWidth: 1,
+            borderRadius: 6
           }]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false, // иначе чарт перерастает контейнер h-56 при перерисовке
+          animation: reduce ? false : { duration: 300, easing: 'easeOutQuart' },
           plugins: { legend: { display: false } },
           scales: { y: { ticks: { callback: tick, color: fgMuted } },
                     x: { ticks: { color: fgMuted, maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } } }
@@ -106,10 +116,15 @@
           datasets: [{
             data: expenses.map(function (e) { return e.value; }),
             backgroundColor: expenses.map(function (e) { return catColorMap[e.key] || '#9ca3af'; }),
-            borderWidth: 0
+            borderColor: canvasBg,
+            borderWidth: 2
           }]
         },
-        options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: fg } } } }
+        options: {
+          maintainAspectRatio: false,
+          animation: reduce ? false : { duration: 300, easing: 'easeOutQuart' },
+          plugins: { legend: { labels: { color: fg } } }
+        }
       });
     }
   }
