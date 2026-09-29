@@ -197,6 +197,16 @@
         });
       });
     }
+    // Смена темы (theme.js → 'spendtrack:theme'): Chart.js держит палитру в датасете — перерисовываем.
+    window.addEventListener('spendtrack:theme', function () {
+      ['dailyChart', 'catsChart'].forEach(function (id) {
+        var el = document.getElementById(id);
+        var c = el && window.Chart && window.Chart.getChart(el);
+        if (c) c.destroy();
+        if (el) delete el.dataset.init;
+      });
+      requestAnimationFrame(initCharts);
+    });
   }
   // rAF: при boost-свопе скрипт исполняется до завершения раскладки — иначе Chart.js
   // замеряет контейнер как 0 и оставляет канвас дефолтной высоты (150px вместо h-56).

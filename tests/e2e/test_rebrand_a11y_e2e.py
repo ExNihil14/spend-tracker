@@ -62,6 +62,22 @@ def test_theme_toggle_survives_boost_navigation(page: Page, live_server, db_path
     assert page.locator("html").get_attribute("data-theme") == "light"  # system → light
 
 
+def test_charts_recolor_on_theme_toggle(page: Page, live_server, db_path):
+    """Смена темы перекрашивает Chart.js (палитра читается из токенов при отрисовке).
+
+    Регрессия: Chart.js кэширует цвета датасета — без перерисовки на смене темы графики
+    остаются в старой палитре (находка дизайн-ревью v2, 29.09).
+    """
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА ЦВЕТ", -10000)
+    page.goto(f"{live_server}/dashboard")
+    page.wait_for_function("() => window.Chart && window.Chart.getChart('dailyChart')")
+    before = page.evaluate("() => Chart.getChart('dailyChart').data.datasets[0].borderColor")
+    page.locator("#theme-toggle").click()
+    page.wait_for_function(
+        "(b) => window.Chart.getChart('dailyChart').data.datasets[0].borderColor !== b",
+        arg=before, timeout=3000)
+
+
 def test_sparkline_and_heat_strip_built(page: Page, live_server, db_path):
     """Волна 7: спарклайн в KPI и карта дней строятся из daily-данных."""
     for i, day in enumerate(("2026-09-10", "2026-09-12", "2026-09-15")):

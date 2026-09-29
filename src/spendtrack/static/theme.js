@@ -24,6 +24,8 @@
       btn.setAttribute('aria-label', 'Тема: ' + label + ' — переключить');
       btn.setAttribute('title', 'Тема: ' + label);
     }
+    // Смена темы: страницы могут держать палитру в JS (Chart.js) — уведомляем слушателей.
+    window.dispatchEvent(new CustomEvent('spendtrack:theme', { detail: { theme: resolve(mode) } }));
   }
 
   apply(current());
