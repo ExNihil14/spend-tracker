@@ -1,42 +1,52 @@
-/* tokens.css — дизайн-токены spend-tracker: 2 слоя (primitives → semantic).
+/* tokens.css — дизайн-токены spend-tracker: 2 слоя (primitives → semantic), 2 темы.
  *
- * Источник: дизайн-ревью Opus-5.5 (EXPERT_REVIEW_DESIGN_OPUS55_2026-09-23.md), M-1;
- * тёплая палитра — RESEARCH_REBRANDING_2026-09-29.md (§1.2 «warm dark»; контрасты WCAG 2.2
- * зафиксированы тестом tests/test_tokens_contrast.py).
+ * Тема по умолчанию — светлая тёплая; тёмная включается атрибутом `[data-theme="dark"]`
+ * (ставит static/theme.js: light → dark → system). Контрасты ОБЕИХ тем — тест
+ * tests/test_tokens_contrast.py (WCAG 2.2, без округления). Источник: RESEARCH_REBRANDING_2026-09-29.md
+ * (§1.2 «warm dark», §1.4 светлая тема), дизайн-ревью M-1.
  * Правило: компоненты используют ТОЛЬКО semantic-переменные; primitives — палитра,
  * менять которую можно одной правкой (смена hue = ребрендинг).
  * Копия для лендинга: landing/tokens.css (синхронность проверяет tests/test_landing.py).
  */
 
 :root {
-  /* ── primitives (палитра: тёплые нейтрали + медный акцент) ─────────── */
+  /* ── primitives: светлая тёплая палитра (тема по умолчанию) ────────── */
+  --l-canvas: #fbf6f0; --l-surface: #fffdfa; --l-surface-2: #f4ede5; --l-surface-3: #ece1d6;
+  --l-line: #e5d9cc; --l-line-strong: #cdbba8;
+  --l-fg: #3a2f27; --l-fg-strong: #241c16; --l-fg-muted: #6e5f52; --l-fg-subtle: #7a6a5a;
+  --l-accent: #a8542b; --l-accent-hover: #8a4520;
+  --l-income: #047857; --l-warn: #b45309; --l-danger: #be123c;
+
+  /* ── primitives: тёмная тёплая палитра ─────────────────────────────── */
   --n-975: #0c0a08; --n-950: #16120f; --n-900: #201b17; --n-850: #2a241f; --n-875: #322b25;
   --n-800: #3a322b; --n-700: #55483e; --n-500: #918478; --n-400: #b3a79b; --n-200: #e9e3dc; --n-50: #fbf8f4;
   --c-300: #f2be97; --c-400: #e8a87c; --c-600: #b4552d; --c-700: #96431f;
   --g-400: #34d399; --y-400: #fbbf24; --r-400: #fb7185; --r-600: #e11d48;
 
-  /* ── semantic (использовать в компонентах) ────────────────────────── */
-  --canvas: var(--n-950);          /* фон страницы */
-  --surface: var(--n-900);         /* карточки/панели */
-  --surface-2: var(--n-850);       /* поля ввода, вторичные поверхности */
-  --surface-3: var(--n-875);       /* hover/elevated поверхности */
-  --line: var(--n-800);            /* границы, разделители, hover-подложка */
-  --line-strong: var(--n-700);     /* границы активных полей/кнопок */
-  --fg: var(--n-200);              /* основной текст и суммы (знак — U+2212/+) */
-  --fg-strong: var(--n-50);        /* заголовки, ключевые значения */
-  --fg-muted: var(--n-400);        /* вторичный текст */
-  --fg-subtle: var(--n-500);       /* подписи/disabled */
-  --accent: var(--c-400);          /* ссылки, фокус, активный пункт nav */
-  --accent-hover: var(--c-300);
-  --accent-bg: var(--c-600);       /* фон primary-кнопки (с белым 4.9:1) */
-  --accent-bg-hover: var(--c-700);
+  /* ── semantic: светлая тема (по умолчанию) ─────────────────────────── */
+  --canvas: var(--l-canvas);        /* фон страницы */
+  --surface: var(--l-surface);      /* карточки/панели */
+  --surface-2: var(--l-surface-2);  /* поля ввода, вторичные поверхности */
+  --surface-3: var(--l-surface-3);  /* hover/elevated поверхности */
+  --line: var(--l-line);            /* границы, разделители, hover-подложка */
+  --line-strong: var(--l-line-strong);
+  --fg: var(--l-fg);                /* основной текст и суммы (знак — U+2212/+) */
+  --fg-strong: var(--l-fg-strong);  /* заголовки, ключевые значения */
+  --fg-muted: var(--l-fg-muted);    /* вторичный текст */
+  --fg-subtle: var(--l-fg-subtle);  /* подписи/disabled */
+  --accent: var(--l-accent);        /* ссылки, фокус, активный пункт nav */
+  --accent-hover: var(--l-accent-hover);
+  --accent-bg: var(--l-accent);     /* фон primary-кнопки (с белым 5.3:1) */
+  --accent-bg-hover: var(--l-accent-hover);
   --on-accent: #ffffff;
-  --focus-ring: var(--c-400);      /* кольцо фокуса (≥3:1 к canvas/surface) */
-  --income: var(--g-400);          /* доход, «всё подтверждено», ok-бар */
-  --warn: var(--y-400);            /* предупреждения, уверенность, 80%-бар */
-  --danger: var(--r-400);          /* перерасход, аномалии, деструктив (текст) */
-  --danger-bg: var(--r-600);       /* фон danger-кнопки */
-  --code-bg: var(--n-975);         /* фон код-блоков (лендинг/справка) */
+  --focus-ring: var(--l-accent);    /* кольцо фокуса (≥3:1 к canvas/surface) */
+  --income: var(--l-income);        /* доход, «всё подтверждено», ok-бар */
+  --warn: var(--l-warn);            /* предупреждения, уверенность, 80%-бар */
+  --danger: var(--l-danger);        /* перерасход, аномалии, деструктив (текст) */
+  --danger-bg: var(--l-danger);     /* фон danger-кнопки */
+  --code-bg: var(--l-surface-2);    /* фон код-блоков (лендинг/справка) */
+
+  /* ── общие (не зависят от темы) ────────────────────────────────────── */
   --radius-control: 10px;
   --radius-card: 16px;
   --radius-pill: 999px;
@@ -47,5 +57,30 @@
   --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+
+/* ── semantic: тёмная тема ─────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --canvas: var(--n-950);
+  --surface: var(--n-900);
+  --surface-2: var(--n-850);
+  --surface-3: var(--n-875);
+  --line: var(--n-800);
+  --line-strong: var(--n-700);
+  --fg: var(--n-200);
+  --fg-strong: var(--n-50);
+  --fg-muted: var(--n-400);
+  --fg-subtle: var(--n-500);
+  --accent: var(--c-400);
+  --accent-hover: var(--c-300);
+  --accent-bg: var(--c-600);
+  --accent-bg-hover: var(--c-700);
+  --focus-ring: var(--c-400);
+  --income: var(--g-400);
+  --warn: var(--y-400);
+  --danger: var(--r-400);
+  --danger-bg: var(--r-600);
+  --code-bg: var(--n-975);
   color-scheme: dark;
 }

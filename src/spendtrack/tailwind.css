@@ -58,6 +58,17 @@ button:active:not(:disabled),
   transform: scaleX(calc(var(--p, 0) / 100));
   transition: transform var(--dur-3) var(--ease-decelerate);
 }
+/* View Transitions (htmx globalViewTransitions): короткий кроссфейд свапов/навигации */
+::view-transition-old(root) { animation-duration: var(--dur-2); }
+::view-transition-new(root) { animation-duration: var(--dur-3); }
+/* Карта дней (heat strip) и спарклайн: интенсивность — color-mix с --accent */
+.heat-cell { width: 1.375rem; height: 1.375rem; border-radius: 5px; background: var(--surface-2); }
+.heat-cell[data-level="1"] { background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); }
+.heat-cell[data-level="2"] { background: color-mix(in srgb, var(--accent) 36%, var(--surface-2)); }
+.heat-cell[data-level="3"] { background: color-mix(in srgb, var(--accent) 58%, var(--surface-2)); }
+.heat-cell[data-level="4"] { background: color-mix(in srgb, var(--accent) 85%, var(--surface-2)); }
+.sparkline { width: 6rem; height: 1.75rem; display: block; }
+.sparkline polyline { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 @media (prefers-reduced-motion: reduce) {
   button.transition-colors,
   [role="button"].transition-colors {
