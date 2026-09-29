@@ -28,3 +28,46 @@ def test_reduced_motion_disables_transform_transition(page: Page, live_server):
     page.goto(f"{live_server}/")
     prop = page.locator("#import").evaluate("el => getComputedStyle(el).transitionProperty")
     assert "transform" not in prop
+
+
+def test_theme_toggle_light_dark_system(page: Page, live_server):
+    """Переключатель темы: light (дефолт) → dark → system; выбор переживает перезагрузку."""
+    page.emulate_media(color_scheme="light")
+    page.goto(f"{live_server}/")
+    html = page.locator("html")
+    assert html.get_attribute("data-theme") == "light"
+    page.locator("#theme-toggle").click()
+    assert html.get_attribute("data-theme") == "dark"
+    page.reload()
+    assert html.get_attribute("data-theme") == "dark"  # localStorage пережил перезагрузку
+    page.locator("#theme-toggle").click()  # → system (при color-scheme: light)
+    assert html.get_attribute("data-theme") == "light"
+    page.locator("#theme-toggle").click()  # → light
+    assert html.get_attribute("data-theme") == "light"
+
+
+def test_theme_toggle_survives_boost_navigation(page: Page, live_server, db_path):
+    """После hx-boost-навигации переключатель продолжает работать (делегирование событий).
+
+    Регрессия 29.09: обработчик вешался на конкретную кнопку, а boost-свап создаёт новую.
+    """
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА НАВИГАЦИЯ", -10000)
+    page.emulate_media(color_scheme="light")
+    page.goto(f"{live_server}/")
+    page.locator('nav a[href="/dashboard"]').click()
+    page.wait_for_selector("#heat-strip", state="attached")
+    page.locator("#theme-toggle").click()
+    assert page.locator("html").get_attribute("data-theme") == "dark"
+    page.locator("#theme-toggle").click()
+    assert page.locator("html").get_attribute("data-theme") == "light"  # system → light
+
+
+def test_sparkline_and_heat_strip_built(page: Page, live_server, db_path):
+    """Волна 7: спарклайн в KPI и карта дней строятся из daily-данных."""
+    for i, day in enumerate(("2026-09-10", "2026-09-12", "2026-09-15")):
+        _seed(str(db_path), day, f"ЛЕНТА КАРТА {i}", -10000 - i * 5000)
+    page.goto(f"{live_server}/dashboard")
+    cells = page.locator("#heat-strip .heat-cell")
+    assert cells.count() >= 28, f"ячеек карты: {cells.count()}"
+    pts = page.locator("#spark-expense polyline").get_attribute("points")
+    assert pts and len(pts.split()) >= 2, f"спарклайн пуст: {pts!r}"

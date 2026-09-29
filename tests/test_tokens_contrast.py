@@ -1,8 +1,9 @@
-"""Контрасты токенов (WCAG 2.2 AA): тёплая палитра не должна «поехать» при ребрендинге.
+"""Контрасты токенов (WCAG 2.2 AA) в ОБЕИХ темах: палитра не должна «поехать» при ребрендинге.
 
 Пороги и формула — из RESEARCH_REBRANDING_2026-09-29.md §1.3:
 SC 1.4.3 (текст ≥4.5:1), SC 1.4.11 (UI/графика/фокус ≥3:1), SC 1.4.1 (не только цвет).
 Расчёт — relative luminance (sRGB), без округления: 4.499 — не проходит.
+Светлая тема — базовый `:root`; тёмная — блок `:root[data-theme="dark"]` (ставит static/theme.js).
 """
 from __future__ import annotations
 
@@ -11,6 +12,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TOKENS = ROOT / "src" / "spendtrack" / "tokens.css"
+DARK_MARKER = ':root[data-theme="dark"]'
 
 # (foreground, background, минимум): 4.5 — текст, 3.0 — UI/графика/фокус
 PAIRS: list[tuple[str, str, float]] = [
@@ -27,9 +29,17 @@ PAIRS: list[tuple[str, str, float]] = [
 ]
 
 
-def _load() -> dict[str, str]:
-    css = TOKENS.read_text(encoding="utf-8")
+def _vars(css: str) -> dict[str, str]:
     return {m.group(1): m.group(2).strip() for m in re.finditer(r"--([\w-]+):\s*([^;]+);", css)}
+
+
+def _themes() -> dict[str, dict[str, str]]:
+    css = TOKENS.read_text(encoding="utf-8")
+    assert DARK_MARKER in css, "нет блока тёмной темы [data-theme=dark]"
+    head, tail = css.split(DARK_MARKER, 1)
+    light = _vars(head)
+    dark = {**light, **_vars(tail.split("}", 1)[0])}
+    return {"light": light, "dark": dark}
 
 
 def _resolve(vars_: dict[str, str], name: str) -> str:
@@ -56,13 +66,14 @@ def _ratio(a: str, b: str) -> float:
     return (hi + 0.05) / (lo + 0.05)
 
 
-def test_tokens_contrast_wcag_aa() -> None:
-    vars_ = _load()
-    for name in ("focus-ring", "surface-3"):
-        assert name in vars_, f"токен --{name} отсутствует (ребрендинг 29.09)"
-    fails = []
-    for fg, bg, need in PAIRS:
-        ratio = _ratio(_resolve(vars_, fg), _resolve(vars_, bg))
-        if ratio < need:
-            fails.append(f"{fg} на {bg}: {ratio:.2f} < {need}")
-    assert not fails, "контрасты ниже порога: " + "; ".join(fails)
+def test_tokens_contrast_wcag_aa_both_themes() -> None:
+    themes = _themes()
+    for theme, vars_ in themes.items():
+        for name in ("focus-ring", "surface-3"):
+            assert name in vars_, f"[{theme}] токен --{name} отсутствует"
+        fails = []
+        for fg, bg, need in PAIRS:
+            ratio = _ratio(_resolve(vars_, fg), _resolve(vars_, bg))
+            if ratio < need:
+                fails.append(f"{fg} на {bg}: {ratio:.2f} < {need}")
+        assert not fails, f"[{theme}] контрасты ниже порога: " + "; ".join(fails)

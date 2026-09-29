@@ -103,10 +103,12 @@ def test_health_endpoint(page: Page, live_server):
 
 
 def test_picker_inputs_have_pointer_cursor(page: Page, live_server):
-    """Нативные пикеры: курсор-указатель на поле + тёмная схема для popup (регрессия Tailwind preflight)."""
+    """Нативные пикеры: курсор-указатель на поле + color-scheme следует теме (регрессия preflight)."""
     page.goto(live_server)
     assert page.eval_on_selector('input[name="date"]',
                                  "el => getComputedStyle(el).cursor") == "pointer"
+    assert page.evaluate("getComputedStyle(document.documentElement).colorScheme") == "light"
+    page.locator("#theme-toggle").click()
     assert page.evaluate("getComputedStyle(document.documentElement).colorScheme") == "dark"
     page.goto(f"{live_server}/settings")
     assert page.eval_on_selector('input[type="color"]',

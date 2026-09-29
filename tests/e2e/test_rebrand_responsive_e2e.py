@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 from helpers import seed_smoke_data
 from playwright.sync_api import Page
+
 from spendtrack.store import Store
 
 pytestmark = pytest.mark.e2e
