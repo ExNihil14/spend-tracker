@@ -2,7 +2,8 @@
 
 Снапшот:
 * schema — user_version + таблицы/колонки (тип/notnull/pk/dflt) + индексы/триггеры/VIEW (нормализованный SQL);
-* api — публичные сигнатуры модулей `src/spendtrack` (AST, без импорта кода) + поля/декораторы классов;
+* api — публичные сигнатуры модулей `src/spendtrack` (AST, без импорта кода), поля/декораторы классов
+  и модульные UPPER-константы (публичный контракт поведения: лимиты, банки, версия схемы);
 * routes — публичные HTTP-маршруты FastAPI (метод+путь → хэш операции: parameters/requestBody/responses).
 
 Использование:
@@ -37,8 +38,60 @@ def _sig(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> dict:
     }
 
 
+def _module_constants(node: ast.stmt) -> dict[str, dict]:
+    """S7(3) адъюдикации 29.09: модульные UPPER-константы — публичный контракт поведения.
+
+    MAX_CSV_BYTES, BANKS, SCHEMA_VERSION…: тихая смена лимита не должна проходить гейт.
+    """
+    if isinstance(node, ast.Assign):
+        targets, value = node.targets, node.value
+    elif isinstance(node, ast.AnnAssign):
+        targets, value = [node.target], node.value
+    else:
+        return {}
+    if value is None:
+        return {}
+    out: dict[str, dict] = {}
+    for target in targets:
+        if isinstance(target, ast.Name) and target.id.isupper() and not target.id.startswith("_"):
+            out[target.id] = {"args": ast.unparse(value), "returns": ""}
+    return out
+
+
+def _class_entries(node: ast.ClassDef, mod: str) -> dict[str, dict]:
+    """Поля/методы/декораторы класса — часть контракта (дисциплина данных: frozen-датаклассы и пр.)."""
+    out: dict[str, dict] = {}
+    if node.decorator_list:
+        out[f"{mod}:{node.name}.__decorators__"] = {
+            "args": ", ".join(f"@{ast.unparse(d)}" for d in node.decorator_list),
+            "returns": "",
+        }
+    for item in node.body:
+        if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and not item.name.startswith("_"):
+            out[f"{mod}:{node.name}.{item.name}"] = _sig(item)
+        elif (isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name)
+              and not item.target.id.startswith("_")):
+            value = ast.unparse(item.value) if item.value is not None else ""
+            out[f"{mod}:{node.name}.{item.target.id}"] = {
+                "args": f"{ast.unparse(item.annotation)} = {value}",
+                "returns": "",
+            }
+    return out
+
+
+def _api_node_entries(node: ast.stmt, mod: str) -> dict[str, dict]:
+    """Контракт одного top-level узла модуля (функция/класс/константа) — диспетчер для api_snapshot."""
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
+        return {f"{mod}:{node.name}": _sig(node)}
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        return {f"{mod}:{name}": sig for name, sig in _module_constants(node).items()}
+    if isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
+        return _class_entries(node, mod)
+    return {}
+
+
 def api_snapshot(src_dir: Path = SRC) -> dict:
-    """Публичные функции/классы (без ведущего `_`, кроме `__init__.py`) из пакета, по AST (без импорта)."""
+    """Публичные функции/классы/константы (без ведущего `_`, кроме `__init__.py`) из пакета, по AST (без импорта)."""
     out: dict[str, dict] = {}
     for path in sorted(src_dir.rglob("*.py")):
         if path.name.startswith("_") and path.name != "__init__.py":
@@ -46,24 +99,7 @@ def api_snapshot(src_dir: Path = SRC) -> dict:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         mod = path.relative_to(src_dir.parent).as_posix().removesuffix(".py").replace("/", ".")
         for node in tree.body:
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
-                out[f"{mod}:{node.name}"] = _sig(node)
-            elif isinstance(node, ast.ClassDef) and not node.name.startswith("_"):
-                if node.decorator_list:  # @dataclass(frozen=True) и пр. — часть контракта (дисциплина данных)
-                    out[f"{mod}:{node.name}.__decorators__"] = {
-                        "args": ", ".join(f"@{ast.unparse(d)}" for d in node.decorator_list),
-                        "returns": "",
-                    }
-                for item in node.body:
-                    if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef)) and not item.name.startswith("_"):
-                        out[f"{mod}:{node.name}.{item.name}"] = _sig(item)
-                    elif (isinstance(item, ast.AnnAssign) and isinstance(item.target, ast.Name)
-                          and not item.target.id.startswith("_")):
-                        value = ast.unparse(item.value) if item.value is not None else ""
-                        out[f"{mod}:{node.name}.{item.target.id}"] = {
-                            "args": f"{ast.unparse(item.annotation)} = {value}",
-                            "returns": "",
-                        }
+            out.update(_api_node_entries(node, mod))
     return dict(sorted(out.items()))
 
 

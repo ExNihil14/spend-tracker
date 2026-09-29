@@ -34,11 +34,17 @@ def live_server(tmp_path_factory):
     TAXONOMY_PATH.write_text(TAXONOMY_ORIGINAL, encoding="utf-8")
     env = {**os.environ, "SPENDTRACK_DB_PATH": str(DB_PATH),
            "SPENDTRACK_TAXONOMY": str(TAXONOMY_PATH), "PYTHONUNBUFFERED": "1"}
+    # S6 (адъюдикация 29.09): логи uvicorn — в файлы, а не в DEVNULL: 500-ка сервера должна быть
+    # отличима от «селектор не появился» (хвост stderr печатается при Traceback)
+    log_dir = tmp_path_factory.mktemp("e2e-logs")
+    # файловые handle'ы живут, пока живёт серверный процесс (закрываются в финализаторе)
+    stdout_log = open(log_dir / "uvicorn.out.log", "w", encoding="utf-8", errors="replace")  # noqa: SIM115
+    stderr_log = open(log_dir / "uvicorn.err.log", "w", encoding="utf-8", errors="replace")  # noqa: SIM115
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "spendtrack.main:app",
          "--host", "127.0.0.1", "--port", str(port), "--log-level", "warning"],
         cwd=ROOT, env=env,
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        stdout=stdout_log, stderr=stderr_log,
     )
     base = f"http://127.0.0.1:{port}"
     for _ in range(50):
@@ -49,13 +55,21 @@ def live_server(tmp_path_factory):
             time.sleep(0.2)
     else:
         proc.terminate()
-        pytest.fail("server did not start")
+        stdout_log.close()
+        stderr_log.close()
+        err_text = (log_dir / "uvicorn.err.log").read_text(encoding="utf-8", errors="replace")
+        pytest.fail(f"server did not start; uvicorn stderr (хвост):\n{err_text[-2000:]}")
     yield base
     proc.terminate()
     try:
         proc.wait(timeout=10)
     except subprocess.TimeoutExpired:
         proc.kill()
+    stdout_log.close()
+    stderr_log.close()
+    err_text = (log_dir / "uvicorn.err.log").read_text(encoding="utf-8", errors="replace")
+    if "Traceback" in err_text:
+        print(f"\n[e2e] uvicorn stderr (хвост; логи: {log_dir}):\n{err_text[-4000:]}")
 
 
 @pytest.fixture()

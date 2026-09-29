@@ -96,6 +96,23 @@ def _gen_sber_email(n: int = 100, seed: int = 7) -> str:
     return module.gen_sber_email(n=n, seed=seed)
 
 
+def _offline_classify(tx: dict, store, taxonomy) -> dict:
+    """S3 (адъюдикация 29.09): детерминированный классификатор замера — без сети.
+
+    Раньше classify не передавался: боевой categorize_transaction при ключах в env уходил
+    в LLM-шов (сеть, минуты, другие счётчики), в CI — в офлайн-фолбэк; метрика зависела от env.
+    Правило → категория, иначе «other» в очередь (та же форма, что у тестового стаба).
+    """
+    from spendtrack.categorize import categorize_rules_only
+
+    rule = categorize_rules_only(tx, taxonomy, store)
+    if rule:
+        return {"category": rule, "confidence": 1.0, "merchant": tx.get("merchant"),
+                "reason": "rule", "source": "rule"}
+    return {"category": "other", "confidence": 0.5, "merchant": tx.get("merchant"),
+            "reason": "ratchet_stub", "source": "llm_pending_review"}
+
+
 def measure() -> dict[str, float]:
     """Снять все метрики на изолированной temp-БД. Прод не трогает.
 
@@ -127,7 +144,7 @@ def measure() -> dict[str, float]:
 
             counter.reset()
             imported = import_csv(_gen_sber_email(IMPORT_ROWS, 7), store, bank="auto",
-                                   taxonomy=taxonomy, filename="ratchet.csv")
+                                   taxonomy=taxonomy, classify=_offline_classify, filename="ratchet.csv")
             import_queries = counter.count
             # 104 строки в синтетике: 100 базовых + зарплата/возврат/дубль в день/«В обработке»
             # (email-CSV статуса не имеет, поэтому приняты все).

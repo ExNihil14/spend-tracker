@@ -11,6 +11,7 @@ permissions:
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20  # O1 адъюдикации 29.09: дефолт 360 мин — зависший замер съедал бы часы молча
     steps:
       # Actions пиннуты по commit SHA (иммутабельный релиз), версия — в комментарии
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
@@ -63,6 +64,10 @@ jobs:
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}"
           uv run python scripts/ratchet.py guard --base "origin/${{ github.base_ref }}"
 
+      - name: "Ratchet baseline guard (push: базлайн не вырос против прошлого main)"
+        if: github.event_name == 'push'
+        run: uv run python scripts/ratchet.py guard --base "${{ github.event.before }}"
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -83,7 +88,16 @@ jobs:
         run: uv run playwright install --with-deps chromium
 
       - name: Pytest (e2e, Playwright)
-        run: uv run pytest -m e2e -q
+        run: uv run pytest -m e2e -q --tracing=retain-on-failure --output=test-results
+
+      - name: Upload e2e artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: e2e-artifacts
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   cross-browser-smoke:
     runs-on: ubuntu-latest
@@ -105,7 +119,16 @@ jobs:
         run: uv run playwright install --with-deps firefox webkit
 
       - name: Cross-browser smoke (render, 320px reflow, axe)
-        run: uv run pytest tests/e2e/test_crossbrowser_smoke.py -m e2e -q --browser firefox --browser webkit
+        run: uv run pytest tests/e2e/test_crossbrowser_smoke.py -m e2e -q --browser firefox --browser webkit --tracing=retain-on-failure --output=test-results
+
+      - name: Upload cross-browser artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: cross-browser-artifacts
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
 
   secret-scan:
     runs-on: ubuntu-latest

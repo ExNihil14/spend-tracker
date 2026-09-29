@@ -84,6 +84,24 @@ def test_measure_rejects_empty_seed(monkeypatch):
         mod.measure()
 
 
+def test_measure_uses_offline_stub(monkeypatch):
+    """S3 адъюдикации 29.09: замер детерминирован — сетевой LLM-шов (categorize_llm) не вызывается.
+
+    Раньше import_csv() внутри measure() шёл через боевой categorize_transaction: при ключах
+    в env локальный замер уходил в LLM-шов (другие счётчики/минуты), в CI — в офлайн-фолбэк.
+    """
+    mod = _module()
+    from spendtrack import categorize
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("ratchet-замер ушёл в LLM-шов (сеть)")
+
+    monkeypatch.setattr(categorize, "categorize_llm", _boom)
+    metrics = mod.measure()
+
+    assert metrics["import_100_queries"] > 0
+
+
 def test_cli_check_fails_on_baseline_without_metrics(tmp_path, monkeypatch, capsys):
     """Порча базлайна = FAIL и без, и с --json (раньше: exit 0 в --json, TypeError в тексте)."""
     mod = _module()

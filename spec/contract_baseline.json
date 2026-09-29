@@ -1,5 +1,29 @@
 {
  "api": {
+  "spendtrack.anonymize:ACCOUNT_ALIASES": {
+   "args": "{'номер карты', 'номер счёта', 'номер счета', 'карта', 'счёт', 'счет', 'account'}",
+   "returns": ""
+  },
+  "spendtrack.anonymize:ACCOUNT_PREFIX": {
+   "args": "'КАРТА'",
+   "returns": ""
+  },
+  "spendtrack.anonymize:DEFAULT_ROWS": {
+   "args": "5",
+   "returns": ""
+  },
+  "spendtrack.anonymize:DESC_ALIASES": {
+   "args": "{'описание', 'назначение', 'комментарий', 'description', 'title', 'merchant'}",
+   "returns": ""
+  },
+  "spendtrack.anonymize:DESC_PREFIX": {
+   "args": "'ОПЕРАЦИЯ'",
+   "returns": ""
+  },
+  "spendtrack.anonymize:DOC_ALIASES": {
+   "args": "{'номер документа', 'номер операции', 'номер', 'document', 'doc', 'id'}",
+   "returns": ""
+  },
   "spendtrack.anonymize:anonymize_csv": {
    "args": "raw: str | bytes, extra_columns: set[str] | None=None, max_rows: int | None=None",
    "returns": "tuple[str, dict]"
@@ -15,6 +39,14 @@
   "spendtrack.assets:static_url": {
    "args": "name: str",
    "returns": "str"
+  },
+  "spendtrack.backup:DEFAULT_KEEP": {
+   "args": "14",
+   "returns": ""
+  },
+  "spendtrack.backup:OFFSITE_MARKER": {
+   "args": "'last_offsite_copy.json'",
+   "returns": ""
   },
   "spendtrack.backup:copy_offsite": {
    "args": "snapshot: Path, target_dir: Path, *, force: bool=False",
@@ -140,6 +172,22 @@
    "args": "",
    "returns": "Store"
   },
+  "spendtrack.colors:BADGE_TEXT_ON_DARK": {
+   "args": "'#ffffff'",
+   "returns": ""
+  },
+  "spendtrack.colors:BADGE_TEXT_ON_LIGHT": {
+   "args": "'#020617'",
+   "returns": ""
+  },
+  "spendtrack.colors:WCAG_NONTEXT_MIN": {
+   "args": "3.0",
+   "returns": ""
+  },
+  "spendtrack.colors:WCAG_TEXT_MIN": {
+   "args": "4.5",
+   "returns": ""
+  },
   "spendtrack.colors:badge_text_color": {
    "args": "background: str",
    "returns": "str"
@@ -158,6 +206,14 @@
   },
   "spendtrack.config:AcceptanceSettings.auto_accept_confidence": {
    "args": "float = 0.9",
+   "returns": ""
+  },
+  "spendtrack.config:CONFIG_DIR": {
+   "args": "_REPO_CONFIG_DIR",
+   "returns": ""
+  },
+  "spendtrack.config:DEFAULTS_DIR": {
+   "args": "PKG_DIR / 'defaults'",
    "returns": ""
   },
   "spendtrack.config:LLMEndpoint.base_url": {
@@ -186,6 +242,14 @@
   },
   "spendtrack.config:LLMSettings.primary": {
    "args": "LLMEndpoint = ",
+   "returns": ""
+  },
+  "spendtrack.config:PKG_DIR": {
+   "args": "Path(__file__).resolve().parent",
+   "returns": ""
+  },
+  "spendtrack.config:ROOT": {
+   "args": "_REPO_ROOT",
    "returns": ""
   },
   "spendtrack.config:Settings.acceptance": {
@@ -268,6 +332,42 @@
    "args": "",
    "returns": "None"
   },
+  "spendtrack.csv_import:BANKS": {
+   "args": "{'sber': SberAdaptor(), 'tinkoff': TinkoffAdaptor(), 'yandex': YandexMoneyAdaptor(), 'auto': None}",
+   "returns": ""
+  },
+  "spendtrack.csv_import:FORMAT_HINT": {
+   "args": "'Похоже, банк изменил формат выписки. Пришлите, пожалуйста, обезличенный образец (первые строки; обезличить: `spendtrack anonymize файл.csv`) в issue — https://github.com/ExNihil14/spend-tracker/issues/new'",
+   "returns": ""
+  },
+  "spendtrack.csv_import:MAX_AMOUNT_KOPECKS": {
+   "args": "100000000000",
+   "returns": ""
+  },
+  "spendtrack.csv_import:MAX_CSV_BYTES": {
+   "args": "10 * 1024 * 1024",
+   "returns": ""
+  },
+  "spendtrack.csv_import:REASON_LABELS": {
+   "args": "{'duplicate': 'дубли', 'status': 'не проведены банком', 'missing_fields': 'пустые обязательные поля', 'amount_unparsed': 'не разобрана сумма', 'amount_limit': 'сумма сверх лимита', 'date_unrecognized': 'нераспознанная дата', 'currency_unknown': 'незнакомая валюта'}",
+   "returns": ""
+  },
+  "spendtrack.csv_import:REQUIRED_COLUMNS": {
+   "args": "{'sber': (('Дата совершения операции', 'Дата операции', 'Дата'), ('Описание', 'Категория'), ('Сумма в валюте счета', 'Сумма в валюте операции', 'Сумма операции', 'Сумма')), 'tinkoff': (('Дата операции', 'Дата', 'Date'), ('Описание', 'Description'), ('Сумма операции', 'Сумма', 'Amount')), 'yandex': (('datetime', 'date', 'Дата'), ('description', 'title', 'Описание'), ('amount', 'Сумма'))}",
+   "returns": ""
+  },
+  "spendtrack.csv_import:SKIP_REASONS": {
+   "args": "('duplicate', 'status', 'missing_fields', 'amount_unparsed', 'amount_limit', 'date_unrecognized', 'currency_unknown')",
+   "returns": ""
+  },
+  "spendtrack.csv_import:SUSPICIOUS_LABELS": {
+   "args": "{}",
+   "returns": ""
+  },
+  "spendtrack.csv_import:SUSPICIOUS_REASONS": {
+   "args": "()",
+   "returns": ""
+  },
   "spendtrack.csv_import:SberAdaptor.parse": {
    "args": "self, rows: Iterator[dict]",
    "returns": "Iterator[dict]"
@@ -300,9 +400,77 @@
    "args": "",
    "returns": "Iterator[Store]"
   },
+  "spendtrack.digest:ANOMALY_FACTOR": {
+   "args": "3.0",
+   "returns": ""
+  },
+  "spendtrack.digest:ANOMALY_LABELS": {
+   "args": "{'large_expense': 'крупная сумма', 'price_jump': 'скачок цены', 'near_duplicate': 'возможный дубль'}",
+   "returns": ""
+  },
+  "spendtrack.digest:ANOMALY_MIN_AMOUNT_K": {
+   "args": "100000",
+   "returns": ""
+  },
+  "spendtrack.digest:DEFAULT_DAYS": {
+   "args": "7",
+   "returns": ""
+  },
+  "spendtrack.digest:EXCLUDED_CATEGORIES": {
+   "args": "('transfers',)",
+   "returns": ""
+  },
+  "spendtrack.digest:MAX_ANOMALIES": {
+   "args": "10",
+   "returns": ""
+  },
+  "spendtrack.digest:MAX_UPCOMING": {
+   "args": "5",
+   "returns": ""
+  },
+  "spendtrack.digest:MEDIAN_WINDOW_DAYS": {
+   "args": "90",
+   "returns": ""
+  },
+  "spendtrack.digest:MIN_CATEGORY_OBSERVATIONS": {
+   "args": "10",
+   "returns": ""
+  },
+  "spendtrack.digest:PRICE_JUMP_RATIO": {
+   "args": "0.1",
+   "returns": ""
+  },
+  "spendtrack.digest:TOP_CATEGORIES": {
+   "args": "5",
+   "returns": ""
+  },
+  "spendtrack.digest:UPCOMING_DAYS": {
+   "args": "14",
+   "returns": ""
+  },
   "spendtrack.digest:build_digest": {
    "args": "store: Store, days: int=DEFAULT_DAYS, today: date | None=None, subscriptions: list[dict] | None=None",
    "returns": "dict"
+  },
+  "spendtrack.doctor:CRITICAL": {
+   "args": "'critical'",
+   "returns": ""
+  },
+  "spendtrack.doctor:INFO": {
+   "args": "'info'",
+   "returns": ""
+  },
+  "spendtrack.doctor:OK": {
+   "args": "'ok'",
+   "returns": ""
+  },
+  "spendtrack.doctor:PROJECT_ISSUES_NEW": {
+   "args": "'https://github.com/ExNihil14/spend-tracker/issues/new'",
+   "returns": ""
+  },
+  "spendtrack.doctor:WARN": {
+   "args": "'warn'",
+   "returns": ""
   },
   "spendtrack.doctor:build_usage_summary": {
    "args": "db_path: Path | str | None=None",
@@ -372,6 +540,10 @@
    "args": "usage: dict[str, Any]",
    "returns": "str"
   },
+  "spendtrack.export:CSV_HEADERS": {
+   "args": "('Дата', 'Описание', 'Сумма', 'Валюта', 'Категория', 'Источник', 'Уверенность', 'Мерчант', 'Счёт', 'Статус', 'Предложение LLM')",
+   "returns": ""
+  },
   "spendtrack.export:csv_bytes": {
    "args": "txs: Iterable[dict]",
    "returns": "bytes"
@@ -420,6 +592,10 @@
    "args": "str = ",
    "returns": ""
   },
+  "spendtrack.llm:REQUEST_TIMEOUT_S": {
+   "args": "httpx.Timeout(30.0, connect=3.0)",
+   "returns": ""
+  },
   "spendtrack.llm:call_llm": {
    "args": "system_prompt: str, user_prompt: str, max_tokens: int=400, temperature: float=0.1, endpoint_override: str | None=None, model_override: str | None=None",
    "returns": "dict[str, Any]"
@@ -435,6 +611,10 @@
   "spendtrack.llm:resolve_providers": {
    "args": "cfg: Settings | None=None",
    "returns": "tuple[LLMProvider, ...]"
+  },
+  "spendtrack.main:LOG_DIR": {
+   "args": "resolve_data_dir() / 'logs'",
+   "returns": ""
   },
   "spendtrack.main:health": {
    "args": "",
@@ -456,6 +636,26 @@
    "args": "tx: dict",
    "returns": "str"
   },
+  "spendtrack.recurring:ACTIVE_DAYS": {
+   "args": "40",
+   "returns": ""
+  },
+  "spendtrack.recurring:AMOUNT_TOLERANCE": {
+   "args": "0.05",
+   "returns": ""
+  },
+  "spendtrack.recurring:EXCLUDED_CATEGORIES": {
+   "args": "('transfers',)",
+   "returns": ""
+  },
+  "spendtrack.recurring:MAX_SKIPS": {
+   "args": "1",
+   "returns": ""
+  },
+  "spendtrack.recurring:MIN_OCCURRENCES": {
+   "args": "3",
+   "returns": ""
+  },
   "spendtrack.recurring:detect_recurring": {
    "args": "store: Store, today: date | None=None",
    "returns": "list[dict]"
@@ -463,6 +663,18 @@
   "spendtrack.recurring:recurring_summary": {
    "args": "store: Store, today: date | None=None, subscriptions: list[dict] | None=None",
    "returns": "dict"
+  },
+  "spendtrack.reports:BUDGET_EXCLUDED": {
+   "args": "{'income', 'transfers'}",
+   "returns": ""
+  },
+  "spendtrack.reports:CALIBRATION_MIN_SAMPLE": {
+   "args": "20",
+   "returns": ""
+  },
+  "spendtrack.reports:CALIBRATION_TARGET_ERROR": {
+   "args": "0.1",
+   "returns": ""
   },
   "spendtrack.reports:budgets_progress": {
    "args": "store: Store, month: str, known: set[str] | None=None",
@@ -580,6 +792,10 @@
    "args": "request: Request, tx_id: int, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
+  "spendtrack.routers.frontend:PAGE_DAYS": {
+   "args": "31",
+   "returns": ""
+  },
   "spendtrack.routers.frontend:approve": {
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
@@ -656,6 +872,26 @@
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
+  "spendtrack.security:ALLOWED_HOSTNAMES": {
+   "args": "frozenset({'127.0.0.1', 'localhost'})",
+   "returns": ""
+  },
+  "spendtrack.security:ALLOWED_SCHEMES": {
+   "args": "frozenset({'http', 'https'})",
+   "returns": ""
+  },
+  "spendtrack.security:DEFAULT_CODESPACES_DOMAIN": {
+   "args": "'app.github.dev'",
+   "returns": ""
+  },
+  "spendtrack.security:SAFE_FETCH_SITES": {
+   "args": "frozenset({'same-origin', 'none'})",
+   "returns": ""
+  },
+  "spendtrack.security:SAFE_METHODS": {
+   "args": "frozenset({'GET', 'HEAD', 'OPTIONS'})",
+   "returns": ""
+  },
   "spendtrack.security:codespaces_domain": {
    "args": "",
    "returns": "str"
@@ -679,6 +915,14 @@
   "spendtrack.security:trusted_hosts": {
    "args": "",
    "returns": "list[str]"
+  },
+  "spendtrack.store:SCHEMA": {
+   "args": "\"\\nCREATE TABLE IF NOT EXISTS transactions(\\n  id INTEGER PRIMARY KEY,\\n  date TEXT NOT NULL,\\n  description TEXT NOT NULL,\\n  amount_kopecks INTEGER NOT NULL,\\n  currency TEXT NOT NULL DEFAULT 'RUB',  -- ISO 4217; не-RUB не попадает в ₽-итоги/бюджеты\\n  category TEXT NOT NULL,\\n  category_source TEXT NOT NULL,      -- rule | llm | import | manual | correction\\n  confidence REAL NOT NULL DEFAULT 1.0,\\n  merchant TEXT,\\n  account_anon TEXT,\\n  import_batch TEXT,\\n  fingerprint TEXT UNIQUE,\\n  created TEXT NOT NULL,\\n  updated TEXT NOT NULL,\\n  category_llm TEXT,                  -- предложение LLM (не перезаписывается = diff)\\n  review_status TEXT NOT NULL DEFAULT 'approved',   -- pending | approved | skipped\\n  statement_order INTEGER             -- порядок строки в выписке (сортировка внутри дня)\\n);\\n\\nCREATE TABLE IF NOT EXISTS categories(\\n  name TEXT PRIMARY KEY,\\n  color TEXT NOT NULL DEFAULT '#9ca3af'\\n);\\n\\nCREATE TABLE IF NOT EXISTS rules(\\n  id INTEGER PRIMARY KEY,\\n  pattern TEXT NOT NULL,\\n  category TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS examples(\\n  id INTEGER PRIMARY KEY,\\n  description TEXT NOT NULL,\\n  amount_kopecks INTEGER NOT NULL,\\n  category TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS import_batches(\\n  id TEXT PRIMARY KEY,\\n  filename TEXT NOT NULL,\\n  sha TEXT NOT NULL,\\n  nrows INTEGER NOT NULL DEFAULT 0,\\n  status TEXT NOT NULL DEFAULT 'ok',\\n  created TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS account_pseudonyms(\\n  original TEXT PRIMARY KEY,\\n  pseudonym TEXT NOT NULL UNIQUE\\n);\\n\\nCREATE TABLE IF NOT EXISTS merchant_cache(\\n  key TEXT PRIMARY KEY,               -- sha1(merchant.upper()); от категории НЕ зависит\\n  merchant TEXT NOT NULL,\\n  category TEXT NOT NULL,\\n  confidence REAL NOT NULL DEFAULT 1.0,\\n  updated TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS budgets(\\n  category        TEXT PRIMARY KEY,            -- имя категории таксономии\\n  amount_kopecks  INTEGER NOT NULL CHECK(amount_kopecks > 0),\\n  updated         TEXT NOT NULL\\n);\\n\\nCREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);\\nCREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);\\nCREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);\\n\"",
+   "returns": ""
+  },
+  "spendtrack.store:SCHEMA_VERSION": {
+   "args": "5",
+   "returns": ""
   },
   "spendtrack.store:Store.add_batch": {
    "args": "self, filename: str, sha: str, nrows: int, commit: bool=True",
@@ -832,6 +1076,30 @@
    "args": "month: str | None",
    "returns": "bool"
   },
+  "spendtrack.suggestions:DECIDED_TX_SQL": {
+   "args": "\"SELECT description, merchant, category FROM transactions WHERE category_source = 'correction'    OR (review_status = 'approved' AND category_llm IS NOT NULL AND category_llm != ''        AND category != category_llm)\"",
+   "returns": ""
+  },
+  "spendtrack.suggestions:MIN_CONFIRMATIONS": {
+   "args": "3",
+   "returns": ""
+  },
+  "spendtrack.suggestions:MIN_PURITY": {
+   "args": "0.8",
+   "returns": ""
+  },
+  "spendtrack.suggestions:MIN_TOKEN_LEN": {
+   "args": "3",
+   "returns": ""
+  },
+  "spendtrack.suggestions:PATTERN_MAX_LEN": {
+   "args": "64",
+   "returns": ""
+  },
+  "spendtrack.suggestions:STOPWORDS": {
+   "args": "{'ООО', 'ИП', 'ЗАО', 'ОАО', 'ПАО', 'LLC', 'LTD', 'INC'}",
+   "returns": ""
+  },
   "spendtrack.suggestions:suggest_rules": {
    "args": "store: Store, min_confirmations: int=MIN_CONFIRMATIONS, min_purity: float=MIN_PURITY",
    "returns": "dict"
@@ -847,6 +1115,22 @@
   "spendtrack.taxonomy:load_taxonomy": {
    "args": "config_dir: Path | None=None",
    "returns": "Taxonomy"
+  },
+  "spendtrack.taxonomy_repo:COLOR_RE": {
+   "args": "re.compile('^#[0-9a-fA-F]{6}$')",
+   "returns": ""
+  },
+  "spendtrack.taxonomy_repo:MAX_RULES": {
+   "args": "500",
+   "returns": ""
+  },
+  "spendtrack.taxonomy_repo:NAME_RE": {
+   "args": "re.compile('^[a-z0-9][a-z0-9-]{1,31}$')",
+   "returns": ""
+  },
+  "spendtrack.taxonomy_repo:PATTERN_FORBIDDEN": {
+   "args": "('\"', '\\\\', '\\n', '\\r', '\\t')",
+   "returns": ""
   },
   "spendtrack.taxonomy_repo:add_category": {
    "args": "name: str, color: str, expected_hash: str | None",

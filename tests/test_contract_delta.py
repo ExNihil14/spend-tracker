@@ -39,6 +39,24 @@ def test_api_snapshot_public_only(tmp_path):
     assert all("_private" not in k and "_hidden" not in k for k in snap)
 
 
+def test_api_snapshot_upper_constants(tmp_path):
+    """S7(3) адъюдикации 29.09: модульные UPPER-константы — часть публичного контракта поведения."""
+    pkg = tmp_path / "src" / "pkg"
+    pkg.mkdir(parents=True)
+    (pkg / "sample.py").write_text(
+        "MAX_ROWS = 100\n"
+        "LIMIT_MB: int = 10 * 1024 * 1024\n"
+        "_private_limit = 1\n"
+        "lower = 2\n",
+        encoding="utf-8",
+    )
+    snap = _mod().api_snapshot(pkg)
+
+    assert snap["pkg.sample:MAX_ROWS"]["args"] == "100"
+    assert snap["pkg.sample:LIMIT_MB"]["args"] == "10 * 1024 * 1024"
+    assert all("_private_limit" not in k and "pkg.sample:lower" not in k for k in snap)
+
+
 def test_schema_snapshot_core_tables():
     snap = _mod().schema_snapshot()
 
