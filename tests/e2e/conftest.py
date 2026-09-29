@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import socket
-import sqlite3
 import subprocess
 import sys
 import time
@@ -10,6 +9,7 @@ import urllib.request
 from pathlib import Path
 
 import pytest
+from helpers import clean_state
 
 ROOT = Path(__file__).resolve().parents[2]
 DB_PATH: Path | None = None
@@ -77,12 +77,6 @@ def clean_db():
     """Каждый тест стартует с пустой БД и исходной taxonomy (независимость сценариев)."""
     yield
     if DB_PATH is not None and DB_PATH.exists():
-        con = sqlite3.connect(DB_PATH)
-        con.execute("DELETE FROM transactions")
-        con.execute("DELETE FROM merchant_cache")
-        # партии импорта влияют на онбординг «первый запуск» (#10) — иначе состояние течёт между тестами
-        con.execute("DELETE FROM import_batches")
-        con.commit()
-        con.close()
+        clean_state(DB_PATH)
     if TAXONOMY_PATH is not None and TAXONOMY_ORIGINAL is not None:
         TAXONOMY_PATH.write_text(TAXONOMY_ORIGINAL, encoding="utf-8")

@@ -5,9 +5,28 @@ raw-SQL копиями с разными подписями).
 """
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 from spendtrack.store import Store
+
+
+def clean_state(db_path: str | Path) -> None:
+    """Очистка пользовательских таблиц между e2e-тестами (инвариант: старт с пустой БД).
+
+    Чистятся ВСЕ таблицы схемы, кроме `schema_migrations` (журнал миграций — идемпотентность
+    апгрейд-пути). Ревью tests_contour S5: раньше бюджеты/примеры/псевдонимы переживали тест.
+    """
+    con = sqlite3.connect(Path(db_path))
+    try:
+        tables = [r[0] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+        for name in tables:
+            if name != "schema_migrations":
+                con.execute(f"DELETE FROM {name}")  # имена — из схемы БД, не из пользовательского ввода
+        con.commit()
+    finally:
+        con.close()
 
 
 def seed_tx(db_path: str | Path, date: str, description: str, kopecks: int, *,
