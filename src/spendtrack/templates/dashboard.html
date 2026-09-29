@@ -37,6 +37,8 @@
   <div class="bg-surface rounded-xl p-4 border border-line">
     <div class="text-xs text-fg-muted">Расход</div>
     <div class="text-lg font-semibold text-fg mt-1">{{ fmt_money(report.expense_k) }}</div>
+    <svg class="sparkline mt-2" id="spark-expense" viewBox="0 0 96 28" role="img"
+         aria-label="Динамика расходов по дням"><polyline points=""></polyline></svg>
   </div>
   <div class="bg-surface rounded-xl p-4 border border-line">
     <div class="text-xs text-fg-muted">Баланс</div>
@@ -163,6 +165,23 @@
     <h2 class="text-[15px] font-semibold text-fg mb-3">По категориям</h2>
     <div class="relative h-56"><canvas id="catsChart" class="w-full h-full" role="img"
         aria-label="Диаграмма расходов по категориям за {{ fmt_month(current) }}; значения — в таблице «Итоги по категориям» ниже"></canvas></div>
+  </div>
+</div>
+
+<div class="bg-surface rounded-xl border border-line mb-8 p-5">
+  <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+    <h2 class="text-[15px] font-semibold text-fg">Карта дней</h2>
+    <span class="text-xs text-fg-muted">интенсивность — расход дня</span>
+  </div>
+  <div id="heat-strip" class="flex flex-wrap gap-1" role="img" aria-label="Карта расходов по дням месяца"></div>
+  <div class="flex items-center gap-2 mt-3 text-xs text-fg-muted">
+    <span>меньше</span>
+    <span class="heat-cell" data-level="0" aria-hidden="true"></span>
+    <span class="heat-cell" data-level="1" aria-hidden="true"></span>
+    <span class="heat-cell" data-level="2" aria-hidden="true"></span>
+    <span class="heat-cell" data-level="3" aria-hidden="true"></span>
+    <span class="heat-cell" data-level="4" aria-hidden="true"></span>
+    <span>больше</span>
   </div>
 </div>
 

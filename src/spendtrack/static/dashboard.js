@@ -40,10 +40,12 @@
   }
 
   function initCharts() {
-    var dailyEl = document.getElementById('dailyChart');
-    if (!dailyEl || dailyEl.dataset.init === '1') return;
     var data = readData();
     if (!data) return;
+    drawSparkline(data.daily);
+    drawHeat(data.daily);
+    var dailyEl = document.getElementById('dailyChart');
+    if (!dailyEl || dailyEl.dataset.init === '1') return;
     ensureChart(data.chartSrc, function () { draw(data); });
   }
 
@@ -61,6 +63,49 @@
   // при reduced-motion (WCAG 2.3.3 / SCR40).
   function prefersReducedMotion() {
     return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  // Спарклайн «Расход» (SVG polyline) и карта дней (heat strip) — из data-daily, без Chart.js.
+  function drawSparkline(daily) {
+    var el = document.querySelector('#spark-expense polyline');
+    if (!el || !daily.length) return;
+    var vals = daily.map(function (d) { return d.total_k / 100; });
+    var max = Math.max.apply(null, vals) || 1;
+    var stepX = 96 / Math.max(vals.length - 1, 1);
+    el.setAttribute('points', vals.map(function (v, i) {
+      return (i * stepX).toFixed(1) + ',' + (26 - (v / max) * 24).toFixed(1);
+    }).join(' '));
+  }
+
+  function drawHeat(daily) {
+    var box = document.getElementById('heat-strip');
+    if (!box || !daily.length) return;
+    var byDate = {};
+    var max = 0;
+    daily.forEach(function (d) {
+      byDate[d.date] = d.total_k;
+      if (d.total_k > max) max = d.total_k;
+    });
+    var first = daily[0].date; // ISO YYYY-MM-DD (days отсортированы по дате)
+    var days = new Date(+first.slice(0, 4), +first.slice(5, 7), 0).getDate();
+    var total = 0;
+    var frag = document.createDocumentFragment();
+    for (var day = 1; day <= days; day++) {
+      var iso = first.slice(0, 8) + (day < 10 ? '0' + day : String(day));
+      var v = byDate[iso] || 0;
+      total += v;
+      var cell = document.createElement('span');
+      var level = v <= 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((v / (max || 1)) * 4)));
+      cell.className = 'heat-cell';
+      cell.dataset.level = String(level);
+      cell.title = iso.slice(5) + ': ' + (v / 100).toFixed(2) + ' ₽';
+      cell.setAttribute('aria-hidden', 'true');
+      frag.appendChild(cell);
+    }
+    box.textContent = '';
+    box.appendChild(frag);
+    box.setAttribute('aria-label', 'Карта расходов по дням: ' + days + ' дн, всего '
+      + (total / 100).toFixed(0) + ' ₽, максимум ' + (max / 100).toFixed(0) + ' ₽');
   }
 
   function draw(data) {
@@ -85,7 +130,16 @@
           datasets: [{
             label: 'Сумма, ₽',
             data: daily.map(function (d) { return d.total_k / 100; }),
-            backgroundColor: withAlpha(accentBg, '8c'),
+            // градиент по высоте бара — «объём» без искажения значений (3D-графики не читаются)
+            backgroundColor: function (context) {
+              var chart = context.chart;
+              var area = chart.chartArea;
+              if (!area) return withAlpha(accentBg, '8c');
+              var g = chart.ctx.createLinearGradient(0, area.bottom, 0, area.top);
+              g.addColorStop(0, withAlpha(accentBg, '40'));
+              g.addColorStop(1, withAlpha(accentBg, 'cc'));
+              return g;
+            },
             borderColor: accentBg,
             borderWidth: 1,
             borderRadius: 6
