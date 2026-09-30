@@ -9,15 +9,56 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Контур (29.09): **672 unit + 72 e2e** + ruff (`check .`) + contract-дельта (`scripts/contract_delta.py check`) +
-  ratchet (2/435) + `build_css --check` (28.9 КБ) — зелёные. Прод NSSM 8766 — Running (рестартнут, `/health` 200).
-- Последнее закоммичено (29.09): фикс-батч №2 — `84967d1` (перекраска графиков при смене темы) и `0de1f61`
-  (e2e `clean_state` по всем таблицам). Ранее — ребрендинг волн 1–9: `1102c37`/`21213c7`/`457dfde` (локально) и
-  `48a76d8`/`7d9bd0c` (запушены). **push не делался — по команде юзера (main ahead origin).**
-- Ребрендинг v2 «Стикербук»: направление принято (`D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md`),
-  волны 1–9 закрыты; дальше — внедрение v2 (Wave 0/1). 3D-графики отклонены (искажают значения).
+- Контур (30.09): **688 unit + 79 e2e + 40 cross-browser** + ruff (`check .`) + contract-дельта (осознанный
+  snapshot 30.09 — аддитивный параметр `foreign_transactions_count`; при коммите нужен трейлер
+  `Contract-Change:`) + ratchet (2/420) + cc + `build_css --check` (32 139 Б ≤ 35 КБ) — зелёные. Прод NSSM
+  8766 — Running (200); демо-стенд 8799 жив; temp-стенд 8798 (проверочный, пустая БД) — в работе сессии.
+- Последнее закоммичено: `6e3178f` (Wave 1-preview), `e270da4` (Wave 0), `4d41a83` (фикс-батч №2);
+  в дереве — **Wave 1 лэйаут** (бенто/пилюли/постеры/count-up) + обновлённый `continue.md`. **push не делался —
+  по команде юзера (main ahead origin).**
+- Ребрендинг v2 «Стикербук»: направление принято (`D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md`);
+  Wave 0 + Wave 1-preview закоммичены, **Wave 1 (лэйаут) — в дереве**; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (30.09, день — дизайн v2 Wave 1 «Стикербук», лэйаут: ✅ в дереве, ждёт команды на коммит).**
+> Внедрено без ожидания ревью Opus (ночное окно 02:00 UTC прошло до правки расписания задач; окно 11:00 UTC —
+> ещё впереди, поллер стартует 13:57 local): nav — sticky-пилюли (`bg-accent-soft`+`aria-current`; фон шапки
+> сплошной — `/95` давал «призрак» контента при скролле, поймано live-прогоном), `.chip-pop` счётчика очереди
+> («поп» после htmx-свапа, spring; reduced-motion off); дашборд — KPI-бенто (`#kpi-balance` 2 колонки/`text-3xl`
+> + спарклайн, tint-плитки дохода/расхода, переключатель месяца слим-строкой со `#dash-month`); постеры пустых
+> состояний (лента/очередь/онбординг/пустой месяц, один на экран; CTA `bg-surface text-accent`); count-up целых
+> процентов бюджета (`data-countup`/`-suffix`, после boost — `htmx:afterSwap`); `text-wrap: balance` заголовкам;
+> `scroll-padding-top` под sticky. Контур: **680 unit + 79 e2e + 40 cross-browser** + ruff + contract + ratchet
+> (2/420) + cc + build_css (32 139 Б ≤ 35 КБ) — зелёные. Live: демо-стенд 8799 (bento-ratio 2.05, count-up
+> «143%…», sticky top=0, 0 ошибок консоли) + temp-стенд 8798 (пустая БД: постеры ленты/очереди) — скриншоты
+> `C:\Users\HP\AppData\Local\Temp\opencode\wave1-live\`. Тесты: `tests/test_wave1_layout.py` (7) +
+> `tests/e2e/test_wave1_layout_e2e.py` (5); контраст-пары градиента/постера в `test_tokens_contrast` (40 пар).
+> Попутно: фикс ложного STOP секрет-скана `review.py` (SVG-path ловился как «карта») + по ревью Sonnet 5.5 —
+> фикс пропуска карты с хвостовыми цифрами (TDD, 682 unit + ruff зелёные). **Пробное ревью Sonnet 5.5 через
+> Abacus:** 30 с, ≈$0.20 — нашло реальный P1 в свежем коде (выше), $0-немотрон тот же диф пропустил (GO).
+> Артефакты: `EXPERT_REVIEW_WAVE1_LAYOUT_{SONNET55_ABACUS,NEMOTRON3ULTRA}_2026-09-30.md`;
+> `RESEARCH_SONNET55_REVIEW_TIER_2026-09-30.md` (решение по слою ②⁺ — за юзером).
+> **Ещё два файловых ревью Sonnet 5.5 (Abacus, ≈$0.25 оба):** `store` — 4 принятых фикса с регресс-тестами
+> (атомарная миграция + лечение частичного состояния, закрытие соединения при сбое init, guard «БД новее»
+> с doctor-диагностикой, гонка дедупа → None), 1 отклонена фактом (соединение per-request), 2 отложены
+> (TOCTOU approve-all, двойной коммит approve_review); `reports` — 2 фикса (ложный «скачок цены» двух
+> параллельных подписок мерчанта; сноска валют зеркальна исключению transfers → **осознанный
+> `contract_delta snapshot`**, baseline в careful-окне), 2 продуктовых решения за юзером (income/expense
+> по знаку операции; знаковый daily-ряд). Артефакты: `EXPERT_REVIEW_{STORE,REPORTS}_SONNET55_ABACUS_2026-09-30.md`.
+> AgentRouter: окно 02:00 UTC пропущено (расписание задач обновлено после его начала — задачи взведены:
+> поллер Next 13:57 local); model-status 09:41 — opus operational 98.4%, astra degraded 97.2%. Push — по команде
+> (spend-tracker ahead 1 + этот срез; bootstrap ahead 3).
+> **АКТУАЛЬНО (30.09, утро — окна AgentRouter исправлены + консольный model-status).** Ночное окно 23:00 UTC
+> пусто (60×402 — «Budget pool quota exhausted»). Официальный `/api/status` (announcement 28.08) задаёт
+> релизы **Beijing 10:00/19:00 = 02:00/11:00 UTC**; консольный model-status (новый инструмент
+> `agentrouter_status.py`, API `/api/user/model-status`, User-env `AGENTROUTER_ACCESS_TOKEN`+`AGENTROUTER_USER_ID`)
+> подтвердил: claude-opus-5 «ok» в бакетах **02:00–03:20 UTC**. Поллер v8.1: окна (2,11) UTC, триггеры задач
+> **04:57/13:57 local**, guard-фазы 01:55–05:00/10:55–14:00, model-status пишется в `batch.log`.
+> Следующая попытка — **30.09 11:00 UTC (14:00 МСК)**, дизайн-ревью первым в очереди.
+> **Закрытие сессии (30.09):** закоммичено `6e3178f` (Wave 1-preview — интерактив чартов/микро-моушен;
+> **ahead origin 1**, push по команде); bootstrap — `f93bbcc` (guard: окна 02:00/11:00 UTC) + `c422f85`
+> (`agentrouter_status.py`) — **ahead 3**. opencode перезапущен (pid 19916). Контур: 673 unit + 74 e2e +
+> 40 cross-browser + ruff + contract + ratchet (2/420) + cc + build_css — зелёные; стенд 8799 и прод 8766 живы.
 > **АКТУАЛЬНО (29.09, ночь — Wave 1-preview: интерактив чартов и микро-моушен. ✅ в дереве, не коммичено.**
 > По запросу юзера («нет интерактивности/анимаций») до ревью Opus сделана безопасная часть Wave 1:
 > Chart.js — тултипы в семантических токенах (фон `--fg-strong`, текст `--surface`, контраст ≥15:1; формат
