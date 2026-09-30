@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import sqlite3
 
+import pytest
+
 from spendtrack.store import SCHEMA_VERSION, Store
 
 
@@ -23,6 +25,80 @@ def test_reopen_is_idempotent(tmp_path):
     assert s2.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     assert s2.conn.execute("SELECT COUNT(1) FROM schema_migrations").fetchone()[0] == SCHEMA_VERSION
     s2.close()
+
+
+def test_partial_v2_state_heals_without_duplicate_column(tmp_path):
+    """Сбой посреди миграции v2 (category_llm уже добавлена, review_status — нет) не ломает открытие.
+
+    Регресс ревью Sonnet 5.5 (30.09): старый код на повторе падал `duplicate column name` и БД
+    становилась неоткрываемой; гарды по каждой колонке + транзакция лечат частичное состояние.
+    """
+    db = tmp_path / "partial.db"
+    conn = sqlite3.connect(db)
+    conn.execute("""CREATE TABLE transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        fingerprint TEXT NOT NULL UNIQUE, date TEXT NOT NULL,
+        merchant TEXT, account_anon TEXT, export_rowid TEXT,
+        description TEXT NOT NULL, amount_kopecks INTEGER NOT NULL,
+        category TEXT NOT NULL DEFAULT 'other', category_source TEXT NOT NULL DEFAULT 'rule',
+        confidence REAL NOT NULL DEFAULT 1.0,
+        llm_pending_review INTEGER NOT NULL DEFAULT 0, created TEXT, updated TEXT,
+        category_llm TEXT)""")  # ← частичная миграция: review_status отсутствует
+    conn.execute("INSERT INTO transactions (fingerprint, date, description, amount_kopecks,"
+                 " category, category_source, confidence, llm_pending_review, category_llm)"
+                 " VALUES ('fp1','2026-09-01','ЛЕНТА',-100,'groceries','llm_pending_review',0.4,1,'other')")
+    conn.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)")
+    conn.execute("INSERT INTO schema_migrations VALUES (1,'2026-09-01T00:00:00+00:00')")
+    conn.execute("PRAGMA user_version = 1")
+    conn.commit()
+    conn.close()
+
+    s = Store(db_path=db)
+    try:
+        assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        cols = {r[1] for r in s.conn.execute("PRAGMA table_info(transactions)")}
+        assert {"category_llm", "review_status", "statement_order", "currency"} <= cols
+        row = s.conn.execute("SELECT review_status, category_llm FROM transactions WHERE id=1").fetchone()
+        assert row["review_status"] == "pending"  # бэкфилл при лечении частичного состояния
+        assert row["category_llm"] == "other"     # прежнее значение не перетёрто
+    finally:
+        s.close()
+
+
+def test_db_newer_than_app_refuses_to_open(tmp_path):
+    """БД новее приложения — явный отказ (ревью Sonnet 5.5): старый код молча писал в незнакомую схему."""
+    db = tmp_path / "newer.db"
+    Store(db_path=db).close()
+    conn = sqlite3.connect(db)
+    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION + 1}")
+    conn.commit()
+    conn.close()
+
+    with pytest.raises(RuntimeError, match="новее приложения"):
+        Store(db_path=db)
+
+
+def test_failed_init_closes_connection(tmp_path, monkeypatch):
+    """Сбой миграции при открытии не оставляет открытое соединение (утечка на каждый неудачный старт)."""
+    captured: dict = {}
+    real_connect = sqlite3.connect
+
+    def spy(*args, **kwargs):
+        conn = real_connect(*args, **kwargs)
+        captured["conn"] = conn
+        return conn
+
+    monkeypatch.setattr("spendtrack.store.sqlite3.connect", spy)
+
+    def boom(self):
+        raise RuntimeError("миграция сломалась")
+
+    monkeypatch.setattr(Store, "_migrate", boom)
+    with pytest.raises(RuntimeError, match="миграция сломалась"):
+        Store(db_path=tmp_path / "init-fail.db")
+
+    with pytest.raises(sqlite3.ProgrammingError):
+        captured["conn"].execute("SELECT 1")  # соединение закрыто, а не утекло
 
 
 def test_legacy_db_upgraded_with_backfill(tmp_path):

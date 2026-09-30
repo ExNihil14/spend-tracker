@@ -326,6 +326,20 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
     except sqlite3.Error as e:
         return {"status": CRITICAL,
                 "checks": [_check("db_open", CRITICAL, 1, f"не удалось открыть БД: {e}")]}
+    except RuntimeError as e:
+        # «БД новее приложения» (Store отказывает) — это диагностируемо, а не крэш:
+        # версию читаем напрямую, вердикт — как у check_schema_version (ревью Sonnet 5.5, 30.09)
+        if "новее приложения" not in str(e):
+            raise
+        try:
+            with sqlite3.connect(path) as con:
+                version = int(con.execute("PRAGMA user_version").fetchone()[0])
+        except sqlite3.Error:
+            return {"status": CRITICAL,
+                    "checks": [_check("db_open", CRITICAL, 1, f"не удалось открыть БД: {e}")]}
+        return {"status": CRITICAL,
+                "checks": [_check("schema_version", CRITICAL, 1,
+                                  f"user_version={version}, ожидается {SCHEMA_VERSION}")]}
     try:
         conn = store.conn
         names, ph = _names(tax)
@@ -409,7 +423,7 @@ def build_usage_summary(db_path: Path | str | None = None) -> dict[str, Any]:
         out["categories_total"] = None
     try:
         store = Store(path)
-    except sqlite3.Error:
+    except (sqlite3.Error, RuntimeError):
         out["db"] = "unavailable"
         return out
     try:

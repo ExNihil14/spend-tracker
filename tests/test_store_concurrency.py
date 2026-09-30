@@ -4,7 +4,7 @@ import sqlite3
 import threading
 import time
 
-from spendtrack.store import Store
+from spendtrack.store import Store, fingerprint
 
 INSERT_HOLD = (
     "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
@@ -66,3 +66,47 @@ def test_second_writer_waits_for_uncommitted_first(tmp_path):
     finally:
         store.close()
     assert descs == {"HOLD", "SECOND"}
+
+
+def test_dedupe_race_returns_none_instead_of_integrity_error(tmp_path):
+    """Гонка дедупа: устаревший пре-чек (строка ещё не закоммичена писателем) → None, а не падение.
+
+    Регресс ревью Sonnet 5.5 (30.09): SELECT-затем-INSERT на UNIQUE(fingerprint) ронял партию
+    импорта IntegrityError, если параллельно (CLI + UI) вставляли тот же отпечаток.
+    """
+    path = tmp_path / "race.db"
+    Store(db_path=path).close()
+    store = Store(db_path=path)
+    stamp = "2026-09-01T00:00:00+00:00"
+    fp = fingerprint("2026-09-01", -100, "HOLD", "", "", "RUB")
+    locked = threading.Event()
+    attempt = threading.Event()
+    insert = (
+        "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+        " confidence, fingerprint, created, updated, review_status, currency)"
+        " VALUES('2026-09-01','HOLD',-100,'other','manual',1.0,?,?,?,'approved','RUB')"
+    )
+
+    def holder():
+        con = sqlite3.connect(path)
+        try:
+            con.execute(insert, (fp, stamp, stamp))  # транзакция открыта, commit не вызван
+            locked.set()
+            assert attempt.wait(2)
+            time.sleep(0.3)
+            con.commit()
+        finally:
+            con.close()
+
+    thread = threading.Thread(target=holder)
+    thread.start()
+    assert locked.wait(2)
+    attempt.set()
+    try:
+        result = store.add_transaction(date="2026-09-01", description="HOLD", amount_kopecks=-100,
+                                       category="other", category_source="manual")
+    finally:
+        thread.join()
+        store.close()
+
+    assert result is None  # тот же дедуп-исход, что при видимом дубле

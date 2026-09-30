@@ -299,9 +299,15 @@ class Store:
         self.conn.execute("PRAGMA foreign_keys=ON")
         self.conn.execute("PRAGMA cache_size=-8000")  # 8 МБ кэша страниц (дефолт ~2 МБ)
         self.conn.execute("PRAGMA temp_store=MEMORY")  # temp-таблицы/индексы в RAM, меньше plaintext-temp
-        self.conn.executescript(SCHEMA)
-        self._migrate()
-        self.conn.commit()
+        try:
+            self.conn.executescript(SCHEMA)
+            self._migrate()
+            self.conn.commit()
+        except BaseException:
+            # Сбой инициализации (битая миграция/схема) не должен оставлять открытое соединение
+            # (ревью Sonnet 5.5, 30.09) — иначе утечка на каждый неудачный старт процесса.
+            self.conn.close()
+            raise
 
     # ---- версионированные миграции (PRAGMA user_version + журнал) ----
     def _user_version(self) -> int:
@@ -316,45 +322,84 @@ class Store:
             (version, _now_iso()))
         self.conn.execute(f"PRAGMA user_version = {int(version)}")
 
-    def _migrate(self) -> None:
-        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency."""
+    def _tx_columns(self) -> set[str]:
+        return {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
+
+    def _migrate_v2(self) -> None:
+        """Work 3: очередь подтверждения; гард по каждой колонке — лечит частичное состояние."""
+        cols = self._tx_columns()
+        added_llm = "category_llm" not in cols
+        added_status = "review_status" not in cols
+        if added_llm:
+            self.conn.execute("ALTER TABLE transactions ADD COLUMN category_llm TEXT")
+        if added_status:
+            self.conn.execute(
+                "ALTER TABLE transactions ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved'")
+        if added_llm or added_status:
+            # Бэкфилл только при реальном апгрейде старой схемы (иначе откатывает skip/approve).
+            self.conn.execute(
+                "UPDATE transactions SET review_status='pending'"
+                " WHERE category_source='llm_pending_review'")
+            self.conn.execute(
+                "UPDATE transactions SET category_llm=category"
+                " WHERE category_source IN ('llm','llm_pending_review') AND category_llm IS NULL")
+        self._mark_migration(2)
+
+    def _migrate_v3(self) -> None:
+        if "statement_order" not in self._tx_columns():
+            self.conn.execute("ALTER TABLE transactions ADD COLUMN statement_order INTEGER")
+        self._mark_migration(3)
+
+    def _migrate_v5(self) -> None:
+        if "currency" not in self._tx_columns():
+            # DEFAULT 'RUB' сам бэкфиллит старые строки — рублёвые данные не меняются.
+            self.conn.execute(
+                "ALTER TABLE transactions ADD COLUMN currency TEXT NOT NULL DEFAULT 'RUB'")
+            # Страховка для экзотических сборок SQLite, где DEFAULT не виден старым строкам.
+            self.conn.execute("UPDATE transactions SET currency='RUB' WHERE currency IS NULL")
+        self._mark_migration(5)
+
+    def _migrate_steps(self) -> None:
         if self._user_version() < 1:
             self._mark_migration(1)
         if self._user_version() < 2:
-            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
-            if "review_status" not in cols:
-                self.conn.execute("ALTER TABLE transactions ADD COLUMN category_llm TEXT")
-                self.conn.execute(
-                    "ALTER TABLE transactions ADD COLUMN review_status TEXT NOT NULL DEFAULT 'approved'")
-                # Бэкфилл только при реальном апгрейде старой схемы (иначе откатывает skip/approve).
-                self.conn.execute(
-                    "UPDATE transactions SET review_status='pending'"
-                    " WHERE category_source='llm_pending_review'")
-                self.conn.execute(
-                    "UPDATE transactions SET category_llm=category"
-                    " WHERE category_source IN ('llm','llm_pending_review') AND category_llm IS NULL")
-            self._mark_migration(2)
+            self._migrate_v2()
         if self._user_version() < 3:
-            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
-            if "statement_order" not in cols:
-                self.conn.execute("ALTER TABLE transactions ADD COLUMN statement_order INTEGER")
-            self._mark_migration(3)
+            self._migrate_v3()
         if self._user_version() < 4:
             self._mark_migration(4)  # таблица budgets создана в SCHEMA (аддитивно)
         if self._user_version() < 5:
-            cols = {r[1] for r in self.conn.execute("PRAGMA table_info(transactions)")}
-            if "currency" not in cols:
-                # DEFAULT 'RUB' сам бэкфиллит старые строки — рублёвые данные не меняются.
-                self.conn.execute(
-                    "ALTER TABLE transactions ADD COLUMN currency TEXT NOT NULL DEFAULT 'RUB'")
-                # Страховка для экзотических сборок SQLite, где DEFAULT не виден старым строкам.
-                self.conn.execute("UPDATE transactions SET currency='RUB' WHERE currency IS NULL")
-            self._mark_migration(5)
+            self._migrate_v5()
+        self._ensure_pending_index()
+
+    def _ensure_pending_index(self) -> None:
         # partial-индекс очереди: колонка review_status появляется только в миграции 2,
         # поэтому индекс создаётся после миграций (идемпотентно), а не в SCHEMA.
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_tx_pending ON transactions(review_status)"
             " WHERE review_status='pending'")
+
+    def _migrate(self) -> None:
+        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency.
+
+        БД новее приложения — отказ (старый код молча писал бы в незнакомую схему).
+        Миграции идут в одной `BEGIN IMMEDIATE`-транзакции (DDL SQLite транзакционен): падение
+        посреди апгрейда откатывает всё, а не оставляет полу-схему; второй процесс на старой БД
+        ждёт блокировку и перечитывает версию внутри неё (ревью Sonnet 5.5, 30.09).
+        """
+        if self._user_version() > SCHEMA_VERSION:
+            raise RuntimeError(
+                f"БД новее приложения: schema v{self._user_version()} > v{SCHEMA_VERSION} — обновите spendtrack")
+        if self._user_version() == SCHEMA_VERSION:
+            self._ensure_pending_index()  # повторное открытие: только идемпотентный индекс
+            return
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            self._migrate_steps()
+            self.conn.commit()
+        except BaseException:
+            self.conn.rollback()
+            raise
 
     def close(self) -> None:
         # PRAGMA optimize перед закрытием короткоживущего соединения — рекомендованная схема SQLite
@@ -415,15 +460,22 @@ class Store:
         if existing:
             return None
         now = _now_iso()
-        cur = self.conn.execute(
-            "INSERT INTO transactions(date, description, amount_kopecks, currency, category, category_source,"
-            " confidence, merchant, account_anon, import_batch, fingerprint, created, updated,"
-            " category_llm, review_status, statement_order)"
-            " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (date, description, amount_kopecks, code, category, category_source, confidence,
-             merchant, account_anon, import_batch, fp, now, now, category_llm, review_status,
-             statement_order),
-        )
+        try:
+            cur = self.conn.execute(
+                "INSERT INTO transactions(date, description, amount_kopecks, currency, category, category_source,"
+                " confidence, merchant, account_anon, import_batch, fingerprint, created, updated,"
+                " category_llm, review_status, statement_order)"
+                " VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (date, description, amount_kopecks, code, category, category_source, confidence,
+                 merchant, account_anon, import_batch, fp, now, now, category_llm, review_status,
+                 statement_order),
+            )
+        except sqlite3.IntegrityError:
+            # Гонка двух писателей на UNIQUE(fingerprint): победил другой — это тот же дедуп-исход
+            # (ревью Sonnet 5.5, 30.09); иначе исключение с другими ограничениями не маскируем.
+            if self.conn.execute("SELECT 1 FROM transactions WHERE fingerprint=?", (fp,)).fetchone():
+                return None
+            raise
         if commit:
             self.conn.commit()
         return cur.lastrowid
