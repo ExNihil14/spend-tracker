@@ -12,12 +12,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 - Контур (30.09): **688 unit + 79 e2e + 40 cross-browser** + ruff (`check .`) + contract-дельта (осознанный
   snapshot 30.09 — аддитивный параметр `foreign_transactions_count`; при коммите нужен трейлер
   `Contract-Change:`) + ratchet (2/420) + cc + `build_css --check` (32 139 Б ≤ 35 КБ) — зелёные. Прод NSSM
-  8766 — Running (200); демо-стенд 8799 жив; temp-стенд 8798 (проверочный, пустая БД) — в работе сессии.
-- Последнее закоммичено: `6e3178f` (Wave 1-preview), `e270da4` (Wave 0), `4d41a83` (фикс-батч №2);
-  в дереве — **Wave 1 лэйаут** (бенто/пилюли/постеры/count-up) + обновлённый `continue.md`. **push не делался —
-  по команде юзера (main ahead origin).**
+  8766 — Running (200); демо-стенд 8799 перезапущен (200); temp-стенд 8798 остановлен (разовый, пустая БД).
+- Последнее закоммичено (30.09): `a89f42f` (Wave 1 лэйаут), `67b9039` (review.py), `71e9b47` (store),
+  `489276d` (reports, с `Contract-Change:`), `e42b473` (continue) — **ahead origin 6**; push — по команде.
+  **Сервисы перезапущены на новом коде:** прод NSSM 8766 (health 200, `/health/data` 200), демо-стенд 8799
+  (health 200, 349 tx); temp-стенд 8798 остановлен (разовый).
 - Ребрендинг v2 «Стикербук»: направление принято (`D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md`);
-  Wave 0 + Wave 1-preview закоммичены, **Wave 1 (лэйаут) — в дереве**; 3D-графики отклонены (искажают значения).
+  Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
 > **АКТУАЛЬНО (30.09, день — дизайн v2 Wave 1 «Стикербук», лэйаут: ✅ в дереве, ждёт команды на коммит).**
@@ -45,6 +46,18 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > параллельных подписок мерчанта; сноска валют зеркальна исключению transfers → **осознанный
 > `contract_delta snapshot`**, baseline в careful-окне), 2 продуктовых решения за юзером (income/expense
 > по знаку операции; знаковый daily-ряд). Артефакты: `EXPERT_REVIEW_{STORE,REPORTS}_SONNET55_ABACUS_2026-09-30.md`.
+> **Wave 1.3–1.4 (30.09, по запросу юзера):** тема — **кнопка-тоггл светлая↔тёмная** (как на opencode.ai),
+> иконка меняется CSS по `[data-theme]`, `aria-pressed`; `system` убран (легаси → светлая); FOUC-гард.
+> **Иконки категорий:** внешний спрайт `static/cat-icons.svg` (32 symbol ≈9 КБ) + глобал `cat_icon`
+> (цепочка явное `icon` → слаг → `tag`; кэш по mtime; SPENDTRACK_TAXONOMY учитывается); **банк +14 иконок
+> для кастомных категорий** + в настройках колонка «Иконка» (селект/автосохранение) и выбор при создании
+> (роут `POST /settings/categories/icon`). **«Расходы»:** стикер-аватары (38% + наклон −4°, hover-выпрямление),
+> дни-таймлайн (пилюля+линия+итог), каскад появления ≤7×18 мс, **конфетти** на пустой очереди (одноразово,
+> aria-hidden, MutationObserver-тест) + 🎉; попутно исправлен невалидный OOB-DOM пустой очереди (обёртка
+> `<tbody>` — htmx вставляет детей oob-элемента). Осознанный snapshot контракта (api 311/routes 33).
+> Контур **775** + gates зелёные; live на 8799 (после рестарта Python — правило!): пикер 32 иконки/19 селектов,
+> 59 стикер-аватаров, тоггл, 0 ошибок консоли; скриншоты `temp\opencode\sonnet-reviews\wave14-*.png`.
+> Дальняя «температура» — `D:\dev\docs\machine\DESIGN_PLAYFUL_TEMPERATURE_2026-09-30.md`.
 > AgentRouter: окно 02:00 UTC пропущено (расписание задач обновлено после его начала — задачи взведены:
 > поллер Next 13:57 local); model-status 09:41 — opus operational 98.4%, astra degraded 97.2%. Push — по команде
 > (spend-tracker ahead 1 + этот срез; bootstrap ahead 3).
