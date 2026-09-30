@@ -94,8 +94,28 @@ SENSITIVE_PATTERNS = (
     re.compile(r"Bearer\s+[A-Za-z0-9_\-.]{20,}"),
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-    re.compile(r"(?<!\d)(?:\d[ -]?){13,19}(?!\d)"),  # похоже на номер карты (PII; 13–19 цифр)
 )
+# Кандидат в номер карты: 12–19 цифр подряд или с одиночными пробелами/дефисами.
+# Решение — `_card_like`: SVG-path («4 4 0 1 1-8…») — россыпь одиночных цифр, картой не считается.
+CARD_CANDIDATE = re.compile(r"(?<!\d)(\d(?:[ -]?\d){11,18})(?!\d)")
+
+
+def _card_like(raw: str) -> bool:
+    """Печатная форма карты: 13–19 цифр — сплошняком либо группами по ≥3 (4/4/4/4, 4/6/5).
+
+    Жадный захват может прихватить хвост («…1111 12/26» → группа «12»), поэтому короткие
+    крайние группы (1–2 цифры) отбрасываем до проверки, а не отвергаем кандидата целиком
+    (ревью Sonnet 5.5, 30.09: иначе карта с датой/CVV уходила наружу).
+    """
+    groups = re.split(r"[ -]", raw)
+    while len(groups) > 1 and len(groups[0]) < 3:
+        groups.pop(0)
+    while len(groups) > 1 and len(groups[-1]) < 3:
+        groups.pop()
+    digits = sum(len(g) for g in groups)
+    if not 13 <= digits <= 19:
+        return False
+    return len(groups) == 1 or (len(groups) >= 3 and min(len(g) for g in groups) >= 3)
 
 
 def _is_sensitive(rel: str) -> bool:
@@ -145,6 +165,10 @@ def secret_hits(text: str) -> list[str]:
     for pat in SENSITIVE_PATTERNS:
         for m in pat.finditer(text):
             val = m.group(0)
+            hits.append(f"{val[:8]}…({len(val)} симв)")
+    for m in CARD_CANDIDATE.finditer(text):
+        val = m.group(1)
+        if _card_like(val):
             hits.append(f"{val[:8]}…({len(val)} симв)")
     return hits
 
