@@ -162,6 +162,13 @@ def test_schema_version_critical(db_path):
     assert check["severity"] == "critical" and "99" in check["detail"]
 
 
+def test_disk_space_check_present(db_path):
+    """Ревью install_ops (S6): doctor предупреждает о нехватке места (чек есть и он ok на норме)."""
+    report = run_checks(db_path)
+    check = _check(report, "disk_space")
+    assert check["severity"] in ("ok", "warn"), check
+
+
 # ---- ④ категории вне таксономии ----
 def test_categories_invalid_critical(db_path):
     store = Store(db_path)
@@ -515,7 +522,7 @@ def test_cli_doctor_json_ok(db_path, monkeypatch, capsys):
     report = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert report["status"] == "ok"
-    assert len(report["checks"]) == 13
+    assert len(report["checks"]) == 14  # 13 + disk_space (ревью install_ops, S6)
 
 
 def test_cli_doctor_critical_exit1(db_path, monkeypatch, capsys):

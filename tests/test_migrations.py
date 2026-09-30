@@ -27,6 +27,29 @@ def test_reopen_is_idempotent(tmp_path):
     s2.close()
 
 
+def test_migration_takes_pre_snapshot(tmp_path):
+    """Ревью install_ops (C1): апгрейд существующей БД оставляет pre-migration-снимок вне ротации."""
+    db = tmp_path / "pre.db"
+    _legacy_db(db, 3, rows=[("fp1", "2026-09-01", "ЛЕНТА", -100, "groceries", "rule", 1.0, "approved", 0)])
+
+    s = Store(db_path=db)
+    try:
+        snaps = sorted((tmp_path / "backup").glob("pre-migration-v3-spend-*.db"))
+        assert len(snaps) == 1, [p.name for p in (tmp_path / "backup").glob("*")]
+        con = sqlite3.connect(snaps[0])
+        try:
+            assert con.execute("PRAGMA user_version").fetchone()[0] == 3  # снимок — ровно «до миграции»
+            assert con.execute("SELECT COUNT(*) FROM transactions").fetchone()[0] == 1
+        finally:
+            con.close()
+    finally:
+        s.close()
+    # повторное открытие (версия актуальна) снимков НЕ делает
+    s2 = Store(db_path=db)
+    s2.close()
+    assert len(list((tmp_path / "backup").glob("pre-migration-*"))) == 1
+
+
 def test_partial_v2_state_heals_without_duplicate_column(tmp_path):
     """Сбой посреди миграции v2 (category_llm уже добавлена, review_status — нет) не ломает открытие.
 

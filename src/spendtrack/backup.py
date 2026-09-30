@@ -75,6 +75,7 @@ def copy_offsite(snapshot: Path, target_dir: Path, *, force: bool = False) -> Pa
         "dest": str(dest),
         "sha256": digest,
         "size": dest.stat().st_size,
+        "forced": bool(force),  # честность маркера: doctor покажет warn «на том же томе» (ревью S5)
     }, ensure_ascii=False, indent=2), encoding="utf-8")
     return dest
 
@@ -93,6 +94,10 @@ def make_snapshot(db_path: Path) -> Path:
     try:
         quoted = str(target).replace("'", "''")
         con.execute(f"VACUUM INTO '{quoted}'")
+    except BaseException:
+        # Частичный файл не должен стать «самым свежим бэкапом» (ревью install_ops, S6: disk full)
+        target.unlink(missing_ok=True)
+        raise
     finally:
         con.close()
     return target

@@ -67,8 +67,17 @@ docker build -t spendtrack .
 docker run --rm -p 127.0.0.1:8766:8766 -v spendtrack-data:/data spendtrack
 ```
 
-Данные — в томе `spendtrack-data`. **Публикуйте порт только с префиксом `127.0.0.1:`** — вариант
+Данные — в томе `spendtrack-data`. **⚠ `--rm` без `-v spendtrack-data:/data` создаст анонимный том и удалит
+его вместе с контейнером — данные пропадут.** **Публикуйте порт только с префиксом `127.0.0.1:`** — вариант
 `-p 8766:8766` открыл бы интерфейс (без пароля) всей локальной сети.
+
+Бэкап из тома на хост и проверка:
+
+```bash
+docker run --rm -v spendtrack-data:/data -v "$PWD:/out" spendtrack \
+  /app/.venv/bin/spendtrack backup --copy-to /out
+docker run --rm -v spendtrack-data:/data spendtrack /app/.venv/bin/spendtrack doctor
+```
 
 ### Из исходников (для разработки)
 
@@ -155,9 +164,10 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 
 <details>
 <summary><strong>Как обновить приложение и что будет с данными при удалении?</strong></summary>
-Обновление — `uv tool upgrade spendtrack` (перед этим стоит сделать `spendtrack backup`); удаление —
-`uv tool uninstall spendtrack`. Данные и настройки при удалении **остаются** на диске — где именно, покажет
-`spendtrack paths`. Подробнее — раздел «Обновление и удаление».
+Обновление — `uv tool upgrade spendtrack` (перед этим остановите автозапуск и сделайте `spendtrack backup`);
+удаление — `uv tool uninstall spendtrack`. Данные и настройки при удалении **остаются** на диске — где именно,
+покажет `spendtrack paths`. Перед миграцией схемы автоматически создаётся снимок `backup/pre-migration-*`.
+Порядок восстановления из бэкапа — в разделе «Обновление и удаление».
 </details>
 
 ## Демо без своих данных
@@ -226,12 +236,15 @@ uv run python scripts/demo_data.py clean    # убрать демо
 
 ```powershell
 $exe = "$env:USERPROFILE\.local\bin\spendtrack.exe"
+$log = "$env:LOCALAPPDATA\spendtrack\serve.log"
 Register-ScheduledTask -TaskName spendtrack -Force `
-  -Action  (New-ScheduledTaskAction -Execute $exe -Argument "serve") `
+  -Action  (New-ScheduledTaskAction -Execute "powershell" `
+             -Argument "-NoProfile -WindowStyle Hidden -Command `"& '$exe' serve *>> '$log'`"") `
   -Trigger (New-ScheduledTaskTrigger -AtLogOn)
 Start-ScheduledTask spendtrack
 ```
 
+Логи запуска — в `%LOCALAPPDATA%\spendtrack\serve.log` (если приложение «не открывается», смотрите его первым).
 Остановить/убрать: `Stop-ScheduledTask spendtrack` / `Unregister-ScheduledTask spendtrack -Confirm:$false`.
 Проверка: <http://127.0.0.1:8766/health>.
 
@@ -244,6 +257,8 @@ Start-ScheduledTask spendtrack
 ```powershell
 nssm install spendtrack "$env:USERPROFILE\.local\bin\spendtrack.exe" serve
 nssm set spendtrack AppEnvironmentExtra "SPENDTRACK_CONFIG_DIR=$env:APPDATA\spendtrack" "SPENDTRACK_DATA_DIR=$env:LOCALAPPDATA\spendtrack"
+nssm set spendtrack AppStdout "$env:LOCALAPPDATA\spendtrack\serve.log"
+nssm set spendtrack AppStderr "$env:LOCALAPPDATA\spendtrack\serve.log"
 nssm set spendtrack Start SERVICE_AUTO_START
 nssm start spendtrack
 ```
@@ -281,12 +296,41 @@ loginctl enable-linger $USER    # запускать, даже когда вы �
 допишите их в юнит (`systemctl --user edit spendtrack`), в `EnvironmentVariables` plist или в
 `nssm set spendtrack AppEnvironmentExtra …`. Сами ключи в `deploy/` не хранятся.
 
+<details>
+<summary><strong>Бэкап по расписанию</strong></summary>
+Приложение не держит собственный планировщик — расписание задаётся средствами ОС (Windows-пример):
+
+```powershell
+$exe = "$env:USERPROFILE\.local\bin\spendtrack.exe"
+Register-ScheduledTask -TaskName spendtrack-backup -Force `
+  -Action  (New-ScheduledTaskAction -Execute $exe -Argument "backup --copy-to E:\spendtrack-backup") `
+  -Trigger (New-ScheduledTaskTrigger -Daily -At 21:00)
+```
+
+`spendtrack doctor` предупредит, если локальный бэкап старше 48 часов или внешняя копия старше 7 дней.
+</details>
+
 ## Обновление и удаление
 
+**Перед обновлением/удалением остановите автозапуск** — иначе старый процесс держит порт 8766 (новый
+`serve` упадёт с «порт занят»), а на Windows установка поверх работающего exe может прерваться:
+Планировщик — `Stop-ScheduledTask spendtrack`; NSSM — `nssm stop spendtrack`; systemd —
+`systemctl --user stop spendtrack`; launchd — `launchctl bootout gui/$(id -u)/com.spendtrack.serve`.
+
 **Обновление.** Для установки одной командой: `uv tool upgrade spendtrack`, затем перезапустите приложение
-(`spendtrack serve --open` или ваша служба). Перед обновлением стоит сделать свежий бэкап — `spendtrack backup`.
-Настройки и данные обновление не затрагивает; миграции схемы базы применяются автоматически при первом
-запуске новой версии.
+(`spendtrack serve --open` или ваша служба). Если ставили из git (или `upgrade` не подхватил новую версию):
+`uv tool install --force git+https://github.com/ExNihil14/spend-tracker@vX.Y.Z` — тег возьмите из
+[releases](https://github.com/ExNihil14/spend-tracker/tags). Настройки и данные обновление не затрагивает;
+миграции схемы применяются автоматически при первом запуске, и **перед миграцией рядом с базой создаётся
+снимок `backup/pre-migration-*`** — страховка и путь назад (ротация бэкапов его не удаляет).
+
+**Восстановление из бэкапа** (если база повреждена или обновление «не открывается»):
+1. Остановите приложение и автозапуск (команды выше).
+2. `spendtrack paths` — путь к базе (обычно `%LOCALAPPDATA%\spendtrack\spend.db`).
+3. Отложите файлы базы: `spend.db`, а также `spend.db-wal` и `spend.db-shm`, если есть — **не удаляйте**,
+   переименуйте (например, в `spend.db.broken`): это ваша последняя копия данных.
+4. Скопируйте снимок `backup\spend-YYYYMMDD-HHMMSS.db` (или `pre-migration-*`) на место `spend.db`.
+5. Запустите приложение и проверьте `spendtrack doctor`.
 
 **Удаление.** `uv tool uninstall spendtrack` — удаляет программу. Данные и настройки **остаются** на диске;
 их пути (`spendtrack paths`): Windows — `%LOCALAPPDATA%\spendtrack` (база и бэкапы) и `%APPDATA%\spendtrack`

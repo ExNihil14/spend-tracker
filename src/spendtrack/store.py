@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import re
 import sqlite3
 import uuid
@@ -11,6 +12,8 @@ from types import MappingProxyType
 
 from spendtrack.config import resolve_data_dir
 from spendtrack.config import settings as load_settings
+
+logger = logging.getLogger(__name__)
 
 
 def parse_amount(value: str | float) -> int:
@@ -288,6 +291,8 @@ class Store:
         cfg = load_settings()
         self.path = db_path or cfg.db_path or (resolve_data_dir() / "spend.db")
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        # Существовавшая БД (не первое создание) — перед миграцией делаем pre-migration-снимок (ревью install_ops, C1)
+        self._did_exist = self.path.exists()
         # check_same_thread=False: sync-роуты FastAPI живут в threadpool, соединение может пересекать потоки
         self.conn = sqlite3.connect(self.path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
@@ -300,6 +305,9 @@ class Store:
         self.conn.execute("PRAGMA cache_size=-8000")  # 8 МБ кэша страниц (дефолт ~2 МБ)
         self.conn.execute("PRAGMA temp_store=MEMORY")  # temp-таблицы/индексы в RAM, меньше plaintext-temp
         try:
+            if self._did_exist and self._user_version() < SCHEMA_VERSION:
+                # Апгрейд существующей БД: снимок ДО SCHEMA/миграций — ровно прежнее состояние (C1, install_ops)
+                self._pre_migration_snapshot()
             self.conn.executescript(SCHEMA)
             self._migrate()
             self.conn.commit()
@@ -400,6 +408,21 @@ class Store:
         except BaseException:
             self.conn.rollback()
             raise
+
+    def _pre_migration_snapshot(self) -> None:
+        """Снимок БД ПЕРЕД миграцией (VACUUM INTO — переиспользует backup.make_snapshot).
+
+        Имя `pre-migration-*` не матчится ротацией бэкапов (`spend-*.db`) — такие снимки не удаляются.
+        Сбой снимка не блокирует миграцию (она транзакционна) — предупреждение в лог
+        (ревью install_ops, C1: апгрейд без пути назад запрещён).
+        """
+        from spendtrack.backup import make_snapshot
+
+        try:
+            snap = make_snapshot(self.path)
+            snap.rename(snap.with_name(f"pre-migration-v{self._user_version()}-{snap.name}"))
+        except (OSError, sqlite3.Error) as e:
+            logger.warning("pre-migration snapshot failed: %s", e)
 
     def close(self) -> None:
         # PRAGMA optimize перед закрытием короткоживущего соединения — рекомендованная схема SQLite

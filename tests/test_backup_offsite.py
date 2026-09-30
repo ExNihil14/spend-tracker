@@ -6,13 +6,15 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 
 from spendtrack import backup
 from spendtrack.checksum import sha256_file
+from spendtrack.doctor import check_offsite_backup
 from spendtrack.store import Store
 
 
@@ -219,3 +221,57 @@ def test_rotate_never_removes_fresh_snapshot(tmp_path):
     removed = backup.rotate(backup_dir, 1, current=fresh)
     assert fresh.exists()
     assert [p.name for p in removed] == [stale_clock.name]
+
+
+def test_failed_snapshot_leaves_no_partial_file(tmp_path, monkeypatch):
+    """Ревью install_ops (S6): сбой VACUUM INTO (disk full) не оставляет битый «свежий бэкап»."""
+    db = tmp_path / "s.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE t(x)")
+    con.commit()
+    con.close()
+
+    real_connect = sqlite3.connect
+
+    class Boom:
+        def __init__(self, real):
+            self._real = real
+
+        def execute(self, sql, *a):
+            if "VACUUM INTO" in sql:
+                raise sqlite3.OperationalError("disk I/O error")
+            return self._real.execute(sql, *a)
+
+        def close(self):
+            self._real.close()
+
+    monkeypatch.setattr(backup.sqlite3, "connect", lambda *a, **k: Boom(real_connect(*a, **k)))
+    with pytest.raises(sqlite3.OperationalError):
+        backup.make_snapshot(db)
+    assert list((tmp_path / "backup").glob("spend-*.db")) == []
+
+
+def test_forced_offsite_marker_warns_in_doctor(tmp_path):
+    """Ревью install_ops (S5): копия с --force (тот же том) честно рапортуется warn, а не ok."""
+    db = tmp_path / "spend.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE t(x)")
+    con.commit()
+    con.close()
+    backup_dir = tmp_path / "backup"
+    backup_dir.mkdir()
+    dest = tmp_path / "cloud-folder"
+    dest.mkdir()
+    copy = dest / "spend-1.db"
+    copy.write_bytes(b"x")
+    (backup_dir / backup.OFFSITE_MARKER).write_text(json.dumps({
+        "time": datetime.now(UTC).isoformat(timespec="seconds"),
+        "dest": str(copy),
+        "sha256": sha256_file(copy),
+        "size": copy.stat().st_size,
+        "forced": True,
+    }, ensure_ascii=False), encoding="utf-8")
+
+    res = check_offsite_backup(db)
+    assert res["severity"] == "warn", res
+    assert "том же томе" in res["detail"]

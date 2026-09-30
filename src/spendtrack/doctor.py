@@ -9,6 +9,7 @@ warn — данные вне очереди/таксономии, старый �
 from __future__ import annotations
 
 import json
+import shutil
 import sqlite3
 import sys
 from datetime import UTC, date, datetime, timedelta
@@ -282,6 +283,9 @@ def check_offsite_backup(db_path: Path) -> dict:
                       f"внешняя копия не найдена: {dest} (носитель подключён?)")
     if sha256_file(dest) != digest:
         return _check("offsite_backup", CRITICAL, 1, f"внешняя копия повреждена: {dest}")
+    if data.get("forced"):
+        return _check("offsite_backup", WARN, 1,
+                      f"внешняя копия на том же томе (--force) — не защищает от смерти диска: {dest.name}")
     age = datetime.now(UTC) - when
     if age > _OFFSITE_STALE:
         return _check("offsite_backup", WARN, 1,
@@ -289,6 +293,21 @@ def check_offsite_backup(db_path: Path) -> dict:
                       f" {dest.name})")
     return _check("offsite_backup", OK, 1,
                   f"внешняя копия: {dest.name} ({age.total_seconds() / 86400:.0f} дн назад)")
+
+
+# ---- 13. свободное место на диске (ревью install_ops, S6: «disk full» — частый способ потерять данные) ----
+def check_disk_space(db_path: Path) -> dict:
+    """Свободно < max(1 ГБ, 3×размер БД) → warn (бэкап VACUUM INTO и импорт могут не пройти)."""
+    try:
+        size = Path(db_path).stat().st_size
+        free = shutil.disk_usage(Path(db_path).parent).free
+    except OSError as e:
+        return _check("disk_space", WARN, 1, f"не удалось измерить свободное место: {e}")
+    need = max(1 << 30, 3 * size)
+    if free < need:
+        return _check("disk_space", WARN, 1,
+                      f"мало места: свободно {free // (1 << 20)} МБ, нужно ≥ {need // (1 << 20)} МБ")
+    return _check("disk_space", OK, 0, f"свободно {free // (1 << 20)} МБ")
 
 
 def _guarded(check_id: str, fn) -> dict:
@@ -354,6 +373,7 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
             _guarded("merchant_cache_dead", lambda: check_merchant_cache_dead(conn)),
             _guarded("pending_source", lambda: check_pending_source(conn)),
             _guarded("empty_batches", lambda: check_empty_batches(conn)),
+            _guarded("disk_space", lambda: check_disk_space(path)),
             _guarded("backup", lambda: check_backup(path)),
             _guarded("restore_drill", lambda: check_restore_drill(path)),
             _guarded("offsite_backup", lambda: check_offsite_backup(path)),

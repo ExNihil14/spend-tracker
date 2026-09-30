@@ -504,6 +504,10 @@
    "args": "conn: sqlite3.Connection, names: list[str], ph: str",
    "returns": "dict"
   },
+  "spendtrack.doctor:check_disk_space": {
+   "args": "db_path: Path",
+   "returns": "dict"
+  },
   "spendtrack.doctor:check_empty_batches": {
    "args": "conn: sqlite3.Connection",
    "returns": "dict"
