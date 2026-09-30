@@ -9,22 +9,27 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Контур (30.09): **694 unit + 81 e2e** (+ кросс-движковый смок 21×3) + ruff (`check .`) + contract-дельта
-  (осознанные snapshot'ы 30.09 — `foreign_transactions_count` и taxonomy-иконки; в коммитах трейлер
-  `Contract-Change:`) + ratchet (2/420) + cc + `build_css --check` (33 234 Б ≤ 35 КБ) — зелёные. Прод NSSM
-  8766 — Running (200); демо-стенд 8799 перезапущен (200); temp-стенд 8798 остановлен (разовый, пустая БД).
-- Последнее закоммичено (30.09): `a89f42f` (Wave 1 лэйаут), `67b9039` (review.py), `71e9b47` (store),
-  `489276d` (reports), `e42b473` (continue), `1a94712` (Wave 1.4 — тоггл/иконки/декор), `d8d0359` (continue)
-  — **ahead origin 8**; push — по команде.
-  **Сервисы перезапущены на новом коде:** прод NSSM 8766 (health 200, `/health/data` 200), демо-стенд 8799
-  (health 200, 349 tx, `/settings` с пикером иконок); temp-стенд 8798 остановлен (разовый).
+- Контур (30.09, вечер): **723 unit + 86 e2e** + ruff (`check .`) + contract-дельта ok (осознанные snapshot'ы
+  30.09; в коммитах трейлер `Contract-Change:`) + ratchet (2/420) + cc (do_import 12→11, baseline) +
+  `build_css --check` (33 623 Б ≤ 35 КБ) — зелёные. Прод NSSM 8766 — Running (200); демо-стенд 8799 (200).
+- Последнее закоммичено (30.09, вечер): `2bd8665` (фиксы дизайн-ревью), `da5c5ef` (фиксы install_ops,
+  `Contract-Change:`), `bd2ae26` (continue), `63b24f1` (**фиксы web_api: F1–F8 + опционалы, `Contract-Change:`**)
+  — **ahead origin 2** (`63b24f1` + `302176f`); предыдущая пачка (`2bd8665`/`da5c5ef`/`bd2ae26`) уже запушена
+  юзером, push текущей — по команде.
+  **Сервисы перезапущены на новом коде:** прод NSSM 8766 (health 200), демо-стенд 8799 (health 200, 349 tx +
+  пробная tx id=350 «LIVE PROBE» pending — data/** protected, не чищу).
 - Ребрендинг v2 «Стикербук»: направление принято (`D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md`);
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
-> **Окно AgentRouter 11:00 UTC (30.09) — идёт по плану:** старт 11:00:15 UTC (триггер 13:57:57 local), model-status
-> в логе; `out_design_review.md` ✅ (447 с), `out_install_ops.md` ✅ (366 с), `out_web_api.md` ✅ (~18 мин —
-> расщеплённое досье влезло в лимит), `out_web_ui.md` — в работе; дальше Astra-проходы. 402 (пул) не было.
+> **Окно AgentRouter 11:00 UTC (30.09) — итог:** старт 11:00:15 UTC (триггер 13:57:57 local), model-status в логе;
+> `out_design_review.md` ✅ (447 с), `out_install_ops.md` ✅ (366 с), `out_web_api.md` ✅ (~18 мин — расщеплённое
+> досье влезло), `out_web_ui.md` — **срезан закрытием пула в 12:10 UTC** (наш http-таймаут 12:10:07, ретрай —
+> 402; клиентский потолок 12:11:37 не успел). **Урок: реальный бюджет окна ≈65–70 мин генерации** (11:00:15→12:10,
+> сходится с 28.09), Astra-проходы не стартовали — «добирают» остаток следующих окон. **`web_ui` расщеплён** по
+> уроку `web_api`: `prompt_web_ui_templates.md` (75 КБ) + `prompt_web_ui_js.md` (37 КБ, дополнен `theme.js`),
+> очередь поллера обновлена (dry-run ок) — в окне **01.10 02:00 UTC** стартуют обе половины (~45–50 мин), затем
+> Astra. Running-поллер (в памяти — старая очередь) до 14:00 UTC лишь ретраит 402 каждые 180 с и само-выйдет.
 > **Адъюдикация дизайн-ревью — `ADJUDICATION_DESIGN_REVIEW_2026-09-30.md`:** исправлено C1 (белое кольцо фокуса
 > на постере — transition-colors учитывать при проверке), C3 (`--line-strong`: light `#6f7d94`, dark `#6d7fa3`,
 > +4 контраст-пары, канон §3.3/§3.4/§3.6 обновлён), C2-guard (`nav` static при высоте <500px), S3 (`@media print`
@@ -36,9 +41,19 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (C1; тест), offsite-маркер `forced` → doctor WARN (S5; тест), unlink частичного VACUUM INTO + чек `disk_space`
 > в doctor (S6; тесты), README (C2-runbook с `-wal`/`-shm`, C3-планировщик бэкапа, S2-команда обновления,
 > S4-docker, S7-логи, S8-стоп автозапуска). Тикеты: `backup --drill` (C2-остаток), lazy-backup на старте serve (C3),
-> merge settings (S1), `resolve_db_path` (S3), CI-smoke установки. **web_api/web_ui/Astra — адъюдикация следующим
-> заходом.** Контур после всех правок: **785** + ruff + contract (snapshot: api 312/routes 33) + ratchet + cc +
-> build_css (33 623 Б). Флак axe (замер посреди каскада строк) закрыт детерминированно: перед axe доигрываем
+> merge settings (S1), `resolve_db_path` (S3), CI-smoke установки.
+> **Адъюдикация web_api — `ADJUDICATION_WEB_API_2026-09-30.md` (внедрена, закоммичена `63b24f1`):** F1 нормализация даты
+> (`20260912`→`2026-09-12`, live ✓), F2 400 на не-объектный JSON, F3 cap ±10^15 коп (OverflowError подтверждён),
+> F4 коррекция снимает с очереди (роутер-уровень, store.py не тронут), F5 лог generic-сбоев импорта, F6 blank-поля
+> форм, F7 троттлинг `?fresh=1` 2с + ключ кэша doctor + lock, F8 max_length (contract-snapshot осознанно);
+> опционалы: pending_count(), seed после 404, OOB-бейдж в create-HX, дедуп бейджа, MultiPartException→ImportLimitError
+> (+`form.close()`), `_setup_logging`→lifespan, эхо input≤200, локальная дата бюджета (api+cli). Отсрочено:
+> get_one-whitelist, CHECK(date)-миграция. Грабля: starlette 0.27 `_get_form` конвертирует MultiPartException в
+> СВОЙ HTTPException(400) — родитель fastapi-шного, `except fastapi.HTTPException` не ловит.
+> **web_ui/Astra — адъюдикация после окна 01.10 02:00 UTC.** Контур: **723 unit + 86 e2e** + ruff + contract ok +
+> ratchet 2/420 + cc (12→11, baseline update) + build_css (33 623 Б). Сервисы 8766/8799 перезапущены (health 200;
+> в demo.db пробная tx id=350 «LIVE PROBE» pending — не чищу, data/** protected).
+> Флак axe (замер посреди каскада строк) закрыт детерминированно: перед axe доигрываем
 > CSS-анимации (`document.getAnimations().finish()`).
 > **АКТУАЛЬНО (30.09, день — дизайн v2 Wave 1 «Стикербук», лэйаут: ✅ в дереве, ждёт команды на коммит).**
 > Внедрено без ожидания ревью Opus (ночное окно 02:00 UTC прошло до правки расписания задач; окно 11:00 UTC —
