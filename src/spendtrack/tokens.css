@@ -14,7 +14,7 @@
 :root {
   /* ── primitives: светлая палитра «Аква-день» (тема по умолчанию) ─────── */
   --l-canvas: #f6f8fb; --l-surface: #ffffff; --l-surface-2: #eef2f7; --l-surface-3: #e2e8f0;
-  --l-line: #e4e9f1; --l-line-strong: #7c8ba1;
+  --l-line: #e4e9f1; --l-line-strong: #6f7d94;
   --l-fg: #172033; --l-fg-strong: #0b1220; --l-fg-muted: #47536b; --l-fg-subtle: #5c6a84;
   --l-accent: #0e7490; --l-accent-hover: #155e75; --l-accent-2: #6d28d9;
   --l-info: #0369a1; --l-income: #047857; --l-warn: #b45309; --l-danger: #be123c;
@@ -23,7 +23,7 @@
 
   /* ── primitives: тёмная палитра «Ночной стол» ────────────────────────── */
   --d-canvas: #0b1220; --d-surface: #121b2d; --d-surface-2: #19253c; --d-surface-3: #213050;
-  --d-line: #243149; --d-line-strong: #5a6b8f;
+  --d-line: #243149; --d-line-strong: #6d7fa3;
   --d-fg: #d7e0f0; --d-fg-strong: #f2f6ff; --d-fg-muted: #9aa8c4; --d-fg-subtle: #828fae;
   --d-accent: #67e8f9; --d-accent-hover: #a5f3fc; --d-accent-2: #c4b5fd;
   --d-info: #7dd3fc; --d-income: #34d399; --d-warn: #fbbf24; --d-danger: #fb7185;

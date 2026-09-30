@@ -50,6 +50,11 @@
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
+  /* Ревью Opus 5 (C1, 30.09): на градиентном постере кольцо фокуса — белое (аква-ринг сливался
+     со стопом --accent-bg ~1:1); белый на стопах §3.5 ≥5.36:1. Тот же слой: выше специфичность. */
+  .poster :focus-visible {
+    outline-color: var(--on-accent);
+  }
   /* Wave 1 (§3.7): заголовки не «разрываются» на узких карточках (balance; ≤6–10 строк — без перф-цены) */
   h1, h2, h3 { text-wrap: balance; }
   /* Wave 1: sticky-шапка — анкоры (#import/#add) не прячутся под ней */
@@ -98,6 +103,17 @@ button:active:not(:disabled),
 .theme-ico-moon { display: none; }
 [data-theme="dark"] .theme-ico-sun { display: none; }
 [data-theme="dark"] .theme-ico-moon { display: block; }
+/* Ревью Opus 5 (C2, 30.09): экстремальный reflow/zoom (высота <500px) — sticky-шапка отключается,
+   чтобы не перекрывать сфокусированный элемент (SC 2.4.11 / 1.4.10). */
+@media (max-height: 500px) {
+  nav { position: static; }
+}
+/* Ревью Opus 5 (S3, 30.09): печать/PDF — постер без градиента (белый текст на белом без фона). */
+@media print {
+  .poster { background-image: none; background-color: transparent; color: #000; }
+  .poster a { color: #000; }
+  nav { position: static; }
+}
 /* Wave 1: «поп» чипа после htmx-свапа (DESIGN_DIRECTION_V2 §4.4): htmx на кадр вешает .htmx-added
    с scale(.96), снимая его — чип пружинно возвращается к scale(1) (только transform). */
 .chip-pop { transition: transform var(--dur-2) var(--ease-spring); }

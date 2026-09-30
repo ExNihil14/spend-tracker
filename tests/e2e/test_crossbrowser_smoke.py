@@ -134,6 +134,9 @@ def test_axe_no_critical_or_serious_violations(page: Page, live_server: str, pat
     from axe_playwright_python.sync_playwright import Axe
 
     _open(page, live_server, path)
+    # Детерминизм: доигрываем CSS-анимации/переходы (каскад строк, count-up) — axe должен видеть
+    # УСТОЯВШИЙСЯ UI: замер посреди fade-анимации давал ложный color-contrast (флак 30.09).
+    page.evaluate("() => { document.getAnimations().forEach((a) => { try { a.finish(); } catch (e) {} }); }")
     results = Axe().run(page, options={
         "resultTypes": ["violations"],
         "runOnly": {"type": "tag", "values": AXE_TAGS},

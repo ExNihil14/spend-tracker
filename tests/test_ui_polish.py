@@ -227,6 +227,22 @@ def test_nav_active_state(client):
     assert 'aria-current="page"' in nav.split('href="/dashboard"')[1].split(">")[0]
 
 
+def test_no_semantic_alpha_chips_in_templates():
+    """Ревью Opus 5 (C4): текстовые чипы — только `*-soft`; alpha-фоны семантических цветов запрещены.
+
+    `bg-line/30`, `bg-canvas/40` и т.п. — нейтральная декор-подсветка, она допустима; запрещены
+    полупрозрачные фоны ЦВЕТНЫХ ролей (именно они давали FAIL 3.56 на 12 px тексте).
+    """
+    from pathlib import Path
+
+    templates = Path(__file__).resolve().parents[1] / "src" / "spendtrack" / "templates"
+    bad = []
+    for path in templates.rglob("*.html"):
+        for m in re.finditer(r"\bbg-(?:warn|danger|accent|accent-2|info|income)(?:-bg)?/\d+", path.read_text(encoding="utf-8")):
+            bad.append(f"{path.name}:{m.group(0)}")
+    assert not bad, f"alpha-чипы семантических цветов в шаблонах: {bad}"
+
+
 def test_card_headings_sentence_case(client):
     """P1-5: UPPERCASE — только заголовкам колонок; заголовки карточек — sentence case 15px."""
     index = client.get("/").text

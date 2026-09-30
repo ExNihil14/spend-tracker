@@ -554,6 +554,14 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   бренд-момент на экран; forced-colors-fallback), `--ease-spring`; радиусы control/card/poster = 12/18/24.
   Контрасты — `tests/test_tokens_contrast.py` (40 пар × 2 темы, Приложение B `DESIGN_DIRECTION_V2_2026-09-29.md`).
   OOB-фрагменты счётчика/импорта (`api.py`) — тоже на semantic-токенах (`bg-warn-soft`, `text-danger`, `text-info`).
+- **Ревью Opus 5 (30.09, `ADJUDICATION_DESIGN_REVIEW_2026-09-30.md`):** фокус-ринг на постере — белый
+  (`.poster :focus-visible`; аква сливалась со стопом, C1); `--line-strong` затемнён/высветлен до ≥3:1
+  к surface-2/-3 (light `#6f7d94` / dark `#6d7fa3`, +4 пары в контраст-тесте, C3); `nav` — не sticky при
+  высоте <500px (C2); `@media print` — постер без градиента (S3); гейты: semantic-alpha guard по шаблонам (C4),
+  e2e SC 1.4.12 (text-spacing) и таргеты ≥24×24 (S4/S6), регресс утечки Chart-инстансов (C6 — destroy уже был).
+  **Инвариант моушена уточнён (S7):** запрещены layout/`box-shadow`/`filter`/`background-image`; цветовые
+  переходы ≤150 мс. **Урок теста:** axe замерял каскад строк посреди fade → ложный color-contrast; перед axe —
+  `document.getAnimations().finish()`.
 
 ## Числа, язык и категории в UI (дизайн-ревью, M-2)
 - **Денежная форма** — `fmt_money(kopecks, currency='RUB', signed=True)` → «−155 365,18 ₽» (NBSP-разряды,

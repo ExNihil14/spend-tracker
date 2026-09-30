@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import sqlite3
 
 import pytest
 from helpers import seed_tx as _seed
@@ -131,6 +132,85 @@ def test_sparkline_and_heat_strip_built(page: Page, live_server, db_path):
     assert area_d and area_d.endswith("Z"), f"area-заливка не построена: {area_d!r}"
     box = page.locator("#spark-expense path.spark-line").bounding_box()
     assert box and box["height"] > 5, f"спарклайн не показывает динамику: {box}"
+
+
+def test_poster_focus_ring_is_light(page: Page, live_server):
+    """Ревью Opus 5 (C1): на градиентном постере кольцо фокуса белое (аква-ринг сливался со стопом).
+
+    Пустая очередь → постер; доходим табом до CTA и проверяем computed outlineColor.
+    """
+    page.goto(f"{live_server}/approve")
+    expect(page.locator("#review-empty .poster")).to_be_visible()
+    for _ in range(40):
+        page.keyboard.press("Tab")
+        focused_in_poster = page.evaluate(
+            "() => !!(document.activeElement && document.activeElement.closest('#review-empty .poster'))")
+        if focused_in_poster:
+            break
+    else:
+        raise AssertionError("табом не дошли до CTA внутри постера")
+    # transition-colors анимирует и outline-color — ждём конечного значения (иначе читаем промежуточный кадр)
+    page.wait_for_function(
+        "() => getComputedStyle(document.activeElement).outlineColor === 'rgb(255, 255, 255)'",
+        timeout=2000)
+
+
+def test_sticky_nav_reflow_guard(page: Page, live_server):
+    """Ревью Opus 5 (C2): анкоры не прячутся под sticky (scroll-padding) + при высоте <500px шапка не sticky."""
+    page.goto(f"{live_server}/")
+    pad = page.evaluate("() => getComputedStyle(document.documentElement).scrollPaddingTop")
+    assert pad not in ("", "auto", "0px"), pad
+    page.set_viewport_size({"width": 1280, "height": 480})
+    pos = page.evaluate("() => getComputedStyle(document.querySelector('nav')).position")
+    assert pos == "static", pos
+
+
+def test_chart_instances_do_not_leak_on_month_swaps(page: Page, live_server, db_path):
+    """Ревью Opus 5 (C6): 6 свапов месяцев — Chart.js-инстансы не копятся (destroy на htmx:beforeSwap)."""
+    conn = sqlite3.connect(str(db_path))
+    for month, desc, kop in (("2026-04-10", "ЛЕНТА АПР", -4000), ("2026-05-10", "ЛЕНТА МАЙ", -5000),
+                             ("2026-06-10", "ЛЕНТА ИЮН", -6000), ("2026-07-10", "ЛЕНТА ИЮЛ", -7000),
+                             ("2026-08-10", "ЛЕНТА АВГ", -8000), ("2026-09-10", "ЛЕНТА СЕН", -9000)):
+        conn.execute(
+            "INSERT INTO transactions(date, description, amount_kopecks, category, category_source,"
+            " confidence, created, updated) VALUES(?,?,?, 'groceries', 'rule', 1.0,"
+            " datetime('now'), datetime('now'))", (month, desc, kop))
+    conn.commit()
+    conn.close()
+
+    page.goto(f"{live_server}/dashboard")
+    page.wait_for_function("() => window.Chart && Chart.getChart('dailyChart')")
+    for _ in range(5):  # Сен→Авг→Июл→Июн→Май→Апр: остаёмся в месяцах с данными
+        page.click('a[aria-label="Предыдущий месяц"]')
+        page.wait_for_timeout(250)
+    page.wait_for_function("() => window.Chart && Chart.getChart('dailyChart')")
+    count = page.evaluate("() => Object.keys(window.Chart.instances).length")
+    assert count <= 2, f"инстансов Chart.js: {count} (ожидалось ≤2 — по канвасам страницы)"
+
+
+def test_text_spacing_11412_nav_and_chips(page: Page, live_server, db_path):
+    """Ревью (S4): SC 1.4.12 — при letter/word-spacing надбавках nav-пилюли и чипы не обрезаются."""
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА ИНТЕРВАЛЫ", -10000)
+    page.goto(f"{live_server}/")
+    page.evaluate(
+        "() => { const set = (el) => { el.style.letterSpacing = '0.12em'; el.style.wordSpacing = '0.16em'; };"
+        " document.querySelectorAll('nav, nav a, #tx-table .rounded-full').forEach(set); }")
+    overflow = page.evaluate(
+        "() => Array.from(document.querySelectorAll('nav, nav a, #tx-table .rounded-full'))"
+        ".filter(el => el.scrollWidth > el.clientWidth + 1).length")
+    assert overflow == 0, f"обрезанных элементов при text-spacing: {overflow}"
+
+
+def test_primary_controls_target_size_24(page: Page, live_server):
+    """Ревью (S6): ключевые контролы (пилюли, кнопки, селекты, тоггл) ≥24×24 CSS px (SC 2.5.8)."""
+    page.goto(f"{live_server}/")
+    boxes = page.evaluate(
+        "() => Array.from(document.querySelectorAll('nav a.nav-pill, button, select, #theme-toggle'))"
+        ".filter(el => el.offsetParent !== null)"
+        ".map(el => ({ tag: el.tagName, id: el.id || el.className.toString().slice(0, 30),"
+        " w: Math.round(el.getBoundingClientRect().width), h: Math.round(el.getBoundingClientRect().height) }))")
+    bad = [b for b in boxes if b["w"] < 24 or b["h"] < 24]
+    assert not bad, f"контролы меньше 24×24: {bad}"
 
 
 def test_doughnut_click_opens_filtered_list(page: Page, live_server, db_path):

@@ -34,6 +34,9 @@ PAIRS: list[tuple[str, str, float]] = [
     ("accent-2", "surface", 4.5), ("info", "surface", 4.5),
     ("on-accent", "accent-2-bg", 4.5),
     ("line-strong", "canvas", 3.0), ("line-strong", "surface", 3.0),
+    # Ревью Opus 5 (30.09): границы контролов живут и на surface-2/-3 (поля в панелях, quiet-кнопки
+    # с hover:bg-surface-3) — пары расширены, токен затемнён/высветлен до ≥3:1 во всех контекстах
+    ("line-strong", "surface-2", 3.0), ("line-strong", "surface-3", 3.0),
     ("fg", "surface-3", 4.5), ("fg-muted", "surface-2", 4.5), ("fg-subtle", "canvas", 4.5),
     ("focus-ring", "surface-3", 3.0),
     # Wave 1: постер (белый текст на посчитанных стопах §3.5) и hover-фон кнопок-пилюль постера
