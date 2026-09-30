@@ -46,19 +46,23 @@
 </head>
 <body hx-boost="true" hx-swap="innerHTML transition:true" class="bg-canvas text-fg min-h-screen">
 <div class="max-w-5xl mx-auto px-4 py-6">
-  {# Nav (M-7): пункты приглушены, активный — text-strong с подчёркиванием 2px accent. #}
+  {# Nav (v2 Wave 1, §4.1): sticky-пилюли; активный — bg-accent-soft (4.73:1) + aria-current,
+     фон сплошной: полупрозрачность/блюр давали «призрак» контента при скролле (живой прогон 30.09). #}
   {% set path = request.url.path %}
-  {% set nav_on = 'font-medium text-fg-strong underline decoration-accent decoration-2 underline-offset-4' %}
-  {% set nav_off = 'font-medium text-fg-muted hover:text-fg' %}
-  <nav class="flex flex-wrap items-center gap-5 gap-y-2 mb-8 pb-4 border-b border-line">
-    <strong class="text-lg text-fg-strong tracking-tight">Spendtrack</strong>
-    <a href="/" class="{{ nav_on if path == '/' else nav_off }} transition-colors"{% if path == '/' %} aria-current="page"{% endif %}>Расходы</a>
-    <a href="/dashboard" class="{{ nav_on if path.startswith('/dashboard') else nav_off }} transition-colors"{% if path.startswith('/dashboard') %} aria-current="page"{% endif %}>Дашборд</a>
-    <a href="/settings" class="{{ nav_on if path.startswith('/settings') else nav_off }} transition-colors"{% if path.startswith('/settings') %} aria-current="page"{% endif %}>Настройки</a>
-    <a href="/approve" class="{{ nav_on if path.startswith('/approve') else nav_off }} transition-colors"{% if path.startswith('/approve') %} aria-current="page"{% endif %}>Подтвердить
-      <span id="pending-count" class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">{{ pending | default([]) | length }}</span>
+  {% set pill_on = 'bg-accent-soft text-accent' %}
+  {% set pill_off = 'text-fg-muted hover:bg-surface-3 hover:text-fg' %}
+  <nav class="sticky top-0 z-40 -mx-4 px-4 bg-canvas border-b border-line mb-8 py-3 flex flex-wrap items-center gap-1.5 gap-y-2">
+    <a href="/" class="flex items-center gap-2 mr-1.5 font-semibold text-fg-strong">
+      <span class="grid place-items-center w-7 h-7 rounded-lg bg-accent-bg text-on-accent text-sm font-bold" aria-hidden="true">S</span>
+      Spendtrack
     </a>
-    <a href="/help" class="{{ nav_on if path.startswith('/help') else nav_off }} transition-colors"{% if path.startswith('/help') %} aria-current="page"{% endif %}>Помощь</a>
+    <a href="/" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path == '/' else pill_off }} transition-colors"{% if path == '/' %} aria-current="page"{% endif %}>Расходы</a>
+    <a href="/dashboard" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/dashboard') else pill_off }} transition-colors"{% if path.startswith('/dashboard') %} aria-current="page"{% endif %}>Дашборд</a>
+    <a href="/settings" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/settings') else pill_off }} transition-colors"{% if path.startswith('/settings') %} aria-current="page"{% endif %}>Настройки</a>
+    <a href="/approve" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/approve') else pill_off }} transition-colors"{% if path.startswith('/approve') %} aria-current="page"{% endif %}>Подтвердить
+      <span id="pending-count" class="chip-pop ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">{{ pending | default([]) | length }}</span>
+    </a>
+    <a href="/help" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/help') else pill_off }} transition-colors"{% if path.startswith('/help') %} aria-current="page"{% endif %}>Помощь</a>
     <button type="button" id="theme-toggle" aria-label="Тема: светлая — переключить"
             class="ml-auto text-fg-muted hover:text-fg p-1.5 rounded-lg hover:bg-line transition-colors">
       <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 2a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V3a1 1 0 0 1 1-1Zm4 8a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm-.464 4.95.707.707a1 1 0 0 0 1.414-1.414l-.707-.707a1 1 0 0 0-1.414 1.414Zm2.12-10.607a1 1 0 0 1 0 1.414l-.706.707a1 1 0 1 1-1.414-1.414l.707-.707a1 1 0 0 1 1.414 0ZM17 11a1 1 0 1 0 0-2h-1a1 1 0 1 0 0 2h1Zm-7 4a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0v-1a1 1 0 0 1 1-1ZM5.464 4.343a1 1 0 0 1 1.414 1.414l-.707.707A1 1 0 0 1 4.757 5.05l.707-.707Zm.707 9.9a1 1 0 1 1-1.414 1.414l-.707-.707A1 1 0 0 1 5.464 13.536l.707.707ZM4 11a1 1 0 1 0 0-2H3a1 1 0 1 0 0 2h1Z" clip-rule="evenodd"/></svg>

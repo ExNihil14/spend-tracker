@@ -176,7 +176,7 @@ def reviews_count(request: Request, store: Annotated[Store, Depends(get_store)])
     n = store.pending_count()
     body = (
         '<span id="pending-count" hx-swap-oob="true"'
-        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">'
+        ' class="chip-pop ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">'
         f"{n}</span>"
     )
     return HTMLResponse(body)
@@ -186,7 +186,7 @@ def _oob_badge(store: Store) -> str:
     n = store.pending_count()
     return (
         '<span id="pending-count" hx-swap-oob="true"'
-        ' class="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">'
+        ' class="chip-pop ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">'
         f"{n}</span>"
     )
 

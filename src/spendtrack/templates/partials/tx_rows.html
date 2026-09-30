@@ -35,8 +35,13 @@
 {% else %}
 <tr><td colspan="5" class="px-5 py-8 text-center">
   {% if not (has_any | default(true)) %}
-  <div class="text-fg">Пока нет транзакций. Импортируйте CSV-выписку из банка (форма «Импорт» выше) или добавьте операцию вручную.</div>
-  <p class="text-xs text-fg-muted mt-1"><a href="/help#faq-import-sber" class="text-accent hover:text-accent-hover">Как импортировать выписку →</a></p>
+  {# Wave 1 (§4.4): первый запуск — постер с одним действием; справка — тихой ссылкой #}
+  <div class="poster rounded-2xl p-6 text-on-accent">
+    <div class="text-xl font-semibold">Пока нет транзакций</div>
+    <p class="mt-1 text-sm">Импортируйте CSV-выписку из банка (форма «Импорт» выше) или добавьте операцию вручную.</p>
+    <a href="#import" hx-boost="false" class="mt-4 inline-block rounded-full bg-surface text-accent font-semibold px-4 py-2 hover:bg-surface-2 transition-colors">Импорт CSV</a>
+    <p class="text-xs mt-3"><a href="/help#faq-import-sber" class="underline underline-offset-2 hover:opacity-90">Как импортировать выписку →</a></p>
+  </div>
   {% elif category or q %}
   <div class="text-fg">Ничего не найдено по этому фильтру.</div>
   <p class="text-xs text-fg-muted mt-1"><a href="/" class="text-accent hover:text-accent-hover">Сбросить фильтры и показать все →</a></p>

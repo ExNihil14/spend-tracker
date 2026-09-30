@@ -493,6 +493,22 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   (только целые; деньги не анимируются) и «поп»; `.lift` (hover-подъём KPI) и heat-hover — все
   с reduced-motion-гардами. Тесты:
   `tests/e2e/test_rebrand_a11y_e2e.py::{test_charts_have_themed_tooltips_and_hover, test_doughnut_click_opens_filtered_list, test_sparkline_and_heat_strip_built}`.
+- **Wave 1 (30.09, лэйаут «Стикербук»):** nav — sticky-пилюли (`nav-pill`, активная `bg-accent-soft`+`aria-current`;
+  фон шапки сплошной `bg-canvas` — `/95` давал «призрак» контента при скролле, поймано live-прогоном),
+  счётчик очереди `.chip-pop` («поп» после htmx-свапа: `htmx-added` → `scale(.96)` → spring-возврат);
+  дашборд — KPI-бенто (`#kpi-balance` col-span-2 + `text-3xl` + спарклайн, tint-плитки
+  `bg-income-soft`/`bg-accent-soft`, суммы 24–30 px, `tabular-nums`; переключатель месяца — слим-строка
+  над бенто со `#dash-month`); постеры пустых состояний — лента (`has_any=false`), очередь (`review_empty`),
+  онбординг дашборда и пустой месяц (один постер на экран; CTA `bg-surface text-accent` — ≥4.5 в обеих
+  темах, текст `--on-accent` на градиенте ≥5.36); count-up целых процентов бюджета
+  (`data-countup`/`data-countup-suffix`, инициализация `htmx:afterSwap` — boost не перезапускает app.js);
+  `h1–h3 { text-wrap: balance }`, `html { scroll-padding-top }` под sticky-шапку. Тесты:
+  `tests/test_wave1_layout.py` (7), `tests/e2e/test_wave1_layout_e2e.py` (5: геометрия бенто, пилюли/sticky,
+  постер очереди, chip-pop + reduced-motion, суффикс «%»); контраст-пары постеров/grad-стопов — в
+  `test_tokens_contrast.py` (40 пар × 2 темы).
+  **Грабли:** Tailwind v4 сканирует и HTML-комментарии — имя утилиты в комментарии (напр. «backdrop-filter»)
+  вытягивает утилиту и `@property`-блок в app.css (~1 КБ); имена классов в комментариях шаблонов не упоминать,
+  размер ловит `build_css --check`.
 
 ## Токены и цвет-семантика (дизайн-ревью, M-1/M-3)
 - `src/spendtrack/tokens.css` — 2 слоя (primitives → semantic); приложение подключает через Tailwind v4
@@ -509,7 +525,7 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   soft-токены (`--accent-soft`/`--warn-soft`/`--danger-soft`… — вместо alpha-чипов `bg-warn/20`, падавших
   по 4.5:1), `--line-strong` ≥3:1 (границы полей), `--grad-from/--grad-to` + `.poster` (один градиентный
   бренд-момент на экран; forced-colors-fallback), `--ease-spring`; радиусы control/card/poster = 12/18/24.
-  Контрасты — `tests/test_tokens_contrast.py` (37 пар × 2 темы, Приложение B `DESIGN_DIRECTION_V2_2026-09-29.md`).
+  Контрасты — `tests/test_tokens_contrast.py` (40 пар × 2 темы, Приложение B `DESIGN_DIRECTION_V2_2026-09-29.md`).
   OOB-фрагменты счётчика/импорта (`api.py`) — тоже на semantic-токенах (`bg-warn-soft`, `text-danger`, `text-info`).
 
 ## Числа, язык и категории в UI (дизайн-ревью, M-2)

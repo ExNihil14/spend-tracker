@@ -50,6 +50,10 @@
     outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
+  /* Wave 1 (§3.7): заголовки не «разрываются» на узких карточках (balance; ≤6–10 строк — без перф-цены) */
+  h1, h2, h3 { text-wrap: balance; }
+  /* Wave 1: sticky-шапка — анкоры (#import/#add) не прячутся под ней */
+  html { scroll-padding-top: 5rem; }
 }
 
 @layer components {
@@ -90,6 +94,10 @@ button:active:not(:disabled),
   transform: scaleX(calc(var(--p, 0) / 100));
   transition: transform var(--dur-3) var(--ease-decelerate);
 }
+/* Wave 1: «поп» чипа после htmx-свапа (DESIGN_DIRECTION_V2 §4.4): htmx на кадр вешает .htmx-added
+   с scale(.96), снимая его — чип пружинно возвращается к scale(1) (только transform). */
+.chip-pop { transition: transform var(--dur-2) var(--ease-spring); }
+.chip-pop.htmx-added { transform: scale(0.96); }
 /* View Transitions (htmx globalViewTransitions): короткий кроссфейд свапов/навигации */
 ::view-transition-old(root) { animation-duration: var(--dur-2); }
 ::view-transition-new(root) { animation-duration: var(--dur-3); }
@@ -141,6 +149,8 @@ button:active:not(:disabled),
   .lift, .lift:hover { transform: none; transition: none; box-shadow: none; }
   .heat-cell, .heat-cell:hover { transition: none; transform: none; }
   .spark-ink { animation: none; }
+  /* Wave 1: «поп» чипа — без движения */
+  .chip-pop, .chip-pop.htmx-added { transition: none; transform: none; }
   /* View Transitions (включаются точечно на htmx-свапах): глушим анимации переходов */
   ::view-transition-group(*),
   ::view-transition-old(*),

@@ -202,24 +202,25 @@ def test_index_forms_collapsed_and_totals_line(client):
 
 
 def test_nav_active_state(client):
-    """M-7: активный пункт nav — text-strong + подчёркивание accent; остальные приглушены."""
+    """Wave 1: активный пункт — пилюля bg-accent-soft/text-accent + aria-current; остальные приглушены."""
     import re as _re
 
-    def nav_classes(html: str, href: str) -> str:
-        m = _re.search(rf'<a href="{href}" class="([^"]*)"', html.split("</nav>")[0])
-        assert m, f"пункт {href} не найден в nav"
+    def pill_classes(html: str, href: str) -> str:
+        m = _re.search(rf'<a href="{href}" class="nav-pill ([^"]*)"', html.split("</nav>")[0])
+        assert m, f"пилюля {href} не найдена в nav"
         return m.group(1)
 
     home = client.get("/").text
-    assert "decoration-accent" in nav_classes(home, "/")
-    assert "text-fg-muted" in nav_classes(home, "/dashboard")
+    assert "bg-accent-soft" in pill_classes(home, "/")
+    assert "text-accent" in pill_classes(home, "/")
+    assert "text-fg-muted" in pill_classes(home, "/dashboard")
 
     dash = client.get("/dashboard").text
-    assert "decoration-accent" in nav_classes(dash, "/dashboard")
-    assert "text-fg-muted" in nav_classes(dash, "/")
+    assert "bg-accent-soft" in pill_classes(dash, "/dashboard")
+    assert "text-fg-muted" in pill_classes(dash, "/")
 
-    assert "decoration-accent" in nav_classes(client.get("/approve").text, "/approve")
-    assert "decoration-accent" in nav_classes(client.get("/settings").text, "/settings")
+    assert "bg-accent-soft" in pill_classes(client.get("/approve").text, "/approve")
+    assert "bg-accent-soft" in pill_classes(client.get("/settings").text, "/settings")
 
     nav = dash.split("</nav>")[0]
     assert nav.count('aria-current="page"') == 1  # a11y: активный пункт (ревью 24.09)

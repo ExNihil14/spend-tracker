@@ -13,13 +13,15 @@
     window.__toastTimer = setTimeout(function () { t.classList.add('opacity-0'); }, 1800);
   });
 
-  // Wave 1-preview: count-up ЦЕЛЫХ счётчиков (счётчик очереди). Деньги не анимируем —
+  // Wave 1-preview: count-up ЦЕЛЫХ счётчиков (счётчик очереди, проценты бюджета). Деньги не анимируем —
   // их формат живёт только на сервере (fmt_money: U+2212/NBSP); клиентская интерполяция
   // денежной строки может разойтись с серверной (дефект доверия). Reduced-motion → сразу значение.
+  // Суффикс («%») задаётся data-countup-suffix и сохраняется при интерполяции.
   function animateCount(el, from, to) {
+    var suffix = el.getAttribute('data-countup-suffix') || '';
     var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (from === to || reduce || !window.requestAnimationFrame) {
-      el.textContent = String(to);
+      el.textContent = String(to) + suffix;
       return;
     }
     var start = null;
@@ -28,14 +30,26 @@
       if (start === null) start = ts;
       var p = Math.min(1, (ts - start) / dur);
       var eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
-      el.textContent = String(Math.round(from + (to - from) * eased));
-      if (p < 1) requestAnimationFrame(frame); else el.textContent = String(to);
+      el.textContent = String(Math.round(from + (to - from) * eased)) + suffix;
+      if (p < 1) requestAnimationFrame(frame); else el.textContent = String(to) + suffix;
     }
     requestAnimationFrame(frame);
     if (el.animate) { // лёгкий «поп» без layout-сдвига (transform)
       el.animate(
         [{ transform: 'scale(0.92)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }],
         { duration: 260, easing: 'ease-out' });
+    }
+  }
+
+  // Wave 1: count-up процентов бюджета — элементы [data-countup] (целые; один раз на элемент).
+  function initCountups() {
+    var els = document.querySelectorAll('[data-countup]:not([data-countup-done])');
+    for (var i = 0; i < els.length; i++) {
+      var el = els[i];
+      var to = parseInt(el.getAttribute('data-countup'), 10);
+      if (isNaN(to)) continue;
+      el.setAttribute('data-countup-done', '1');
+      animateCount(el, 0, to);
     }
   }
 
@@ -52,6 +66,10 @@
     var from = (prevPending === null || isNaN(prevPending)) ? to : prevPending;
     animateCount(cnt, from, to);
   });
+
+  // Wave 1: проценты бюджета — при загрузке и после htmx-свапов (boost-навигация не перезапускает app.js).
+  initCountups();
+  document.body.addEventListener('htmx:afterSwap', function () { initCountups(); });
 
   // После запросов форм главной: обновить список и счётчик очереди
   document.body.addEventListener('htmx:afterRequest', function (e) {

@@ -36,6 +36,9 @@ PAIRS: list[tuple[str, str, float]] = [
     ("line-strong", "canvas", 3.0), ("line-strong", "surface", 3.0),
     ("fg", "surface-3", 4.5), ("fg-muted", "surface-2", 4.5), ("fg-subtle", "canvas", 4.5),
     ("focus-ring", "surface-3", 3.0),
+    # Wave 1: постер (белый текст на посчитанных стопах §3.5) и hover-фон кнопок-пилюль постера
+    ("on-accent", "grad-from", 4.5), ("on-accent", "grad-to", 4.5),
+    ("accent", "surface-2", 4.5),
 ]
 
 

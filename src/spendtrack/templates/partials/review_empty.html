@@ -1,8 +1,11 @@
 <tr id="review-empty"{% if oob %} hx-swap-oob="beforeend:#review-rows"{% endif %}>
-  <td colspan="6" class="px-5 py-8 text-center">
-    <div class="text-income/80">Все подтверждены</div>
-    <p class="text-xs text-fg-muted mt-1">Каждая операция получила категорию.
-      Ошибочное предложение можно исправить в списке расходов.
-      <a href="/help#faq-queue-why" class="text-accent hover:text-accent-hover">Как работает очередь →</a></p>
+  <td colspan="6" class="p-5">
+    {# Wave 1 (§4.4): очередь пуста — постер (один бренд-момент на экран), действие — справка #}
+    <div class="poster rounded-2xl p-6 text-on-accent">
+      <div class="text-xl font-semibold">Все подтверждены</div>
+      <p class="mt-1 text-sm">Каждая операция получила категорию. Ошибочное предложение можно исправить
+        в списке расходов.</p>
+      <a href="/help#faq-queue-why" class="mt-4 inline-block rounded-full bg-surface text-accent font-semibold px-4 py-2 hover:bg-surface-2 transition-colors">Как работает очередь →</a>
+    </div>
   </td>
 </tr>
