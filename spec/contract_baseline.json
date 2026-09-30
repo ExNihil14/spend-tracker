@@ -689,7 +689,7 @@
    "returns": "dict"
   },
   "spendtrack.reports:foreign_transactions_count": {
-   "args": "store: Store, start: str, end: str",
+   "args": "store: Store, start: str, end: str, exclude_categories: tuple[str, ...]=()",
    "returns": "int"
   },
   "spendtrack.reports:report_daily": {

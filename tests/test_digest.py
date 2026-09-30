@@ -64,6 +64,21 @@ def test_transfers_excluded_everywhere(store):
     assert d["avg_per_day_k"] == 0 and d["anomalies"] == []
 
 
+def test_foreign_count_mirrors_transfers_exclusion(store):
+    """USD-перевод не попадает в сноску «не учтено в валюте»: он и так исключён из ₽-итогов.
+
+    Регресс ревью Sonnet 5.5 (30.09): сноска считала переводы, расходясь с итогами дайджеста.
+    """
+    store.add_transaction(date=_day(-1), description="ПЕРЕВОД USD", amount_kopecks=-10000,
+                          category="transfers", category_source="import", merchant="БАНК", currency="USD")
+    store.add_transaction(date=_day(-1), description="AMAZON", amount_kopecks=-5000,
+                          category="other", category_source="import", merchant="AMAZON", currency="USD")
+
+    d = build_digest(store, days=7, today=TODAY)
+
+    assert d["foreign_count"] == 1  # только AMAZON; перевод исключён вместе с ₽-итогами
+
+
 def test_income_only_in_totals(store):
     _add(store, _day(-1), 50000, "income")
 
@@ -262,6 +277,20 @@ def test_price_jump_first_deviation_outside_window_not_refetched(store):
 def test_price_jump_requires_active_subscription(store):
     _monthly(store, "NETFLIX", -19900, [-125, -95, -65])  # нет списаний 65 дн
     _add(store, _day(-2), -29900, "subscriptions", merchant="NETFLIX")
+
+    d = build_digest(store, days=7, today=TODAY)
+
+    assert [a for a in d["anomalies"] if a["type"] == "price_jump"] == []
+
+
+def test_price_jump_two_parallel_prices_not_flagged(store):
+    """Две подписки одного мерчанта (199 и 299 ₽): списание «второй» — не скачок цены первой.
+
+    Регресс ревью Sonnet 5.5 (30.09): любое отклоняющееся списание мерчанта после last_date
+    флагалось как смена цены, хотя это штатное списание параллельной подписки.
+    """
+    _monthly(store, "ЯНДЕКС", -19900, [-98, -68, -38])  # активна (38 ≤ 40), last_date=-38
+    _monthly(store, "ЯНДЕКС", -29900, [-92, -62, -4])   # первое списание после -38 (-4) — в окне дайджеста
 
     d = build_digest(store, days=7, today=TODAY)
 

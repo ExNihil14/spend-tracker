@@ -154,6 +154,11 @@ def _price_jumps(store: Store, subscriptions: list[dict], start: str, end: str) 
     for sub in subscriptions:
         if not sub["active"] or sub["price_k"] <= 0:
             continue
+        # Две параллельные подписки одного мерчанта (199 и 299): списание «второй» не скачок для первой.
+        # Иначе любое списание мерчанта с другой ценой флагалось как смена цены (ревью Sonnet 5.5, 30.09).
+        others = [s["price_k"] for s in subscriptions
+                  if s is not sub and s["active"] and s["merchant"] == sub["merchant"]
+                  and s["price_k"] > 0]
         rows = store.conn.execute(
             "SELECT date, amount_kopecks FROM transactions"
             " WHERE merchant = ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB' AND date > ? AND date <= ?"
@@ -161,7 +166,9 @@ def _price_jumps(store: Store, subscriptions: list[dict], start: str, end: str) 
             (sub["merchant"], sub["last_date"], end),
         ).fetchall()
         row = next(
-            (r for r in rows if abs(abs(r["amount_kopecks"]) / sub["price_k"] - 1) >= PRICE_JUMP_RATIO),
+            (r for r in rows
+             if abs(abs(r["amount_kopecks"]) / sub["price_k"] - 1) >= PRICE_JUMP_RATIO
+             and not any(abs(abs(r["amount_kopecks"]) / p - 1) < PRICE_JUMP_RATIO for p in others)),
             None,
         )
         if row is None or not start <= row["date"] <= end:
@@ -288,9 +295,11 @@ def build_digest(store: Store, days: int = DEFAULT_DAYS, today: date | None = No
         },
         "avg_per_day_k": round(totals["expense_k"] / days),
         "transaction_count": totals["count"],
-        # K6: операции не в ₽ в окне — не входят в итоги (честная сноска в UI/CLI)
+        # K6: операции не в ₽ в окне — не входят в итоги (честная сноска в UI/CLI);
+        # переводы исключены и из итогов, и из сноски (ревью Sonnet 5.5, 30.09)
         "foreign_count": foreign_transactions_count(
-            store, start_s, (ref + timedelta(days=1)).isoformat()),
+            store, start_s, (ref + timedelta(days=1)).isoformat(),
+            exclude_categories=EXCLUDED_CATEGORIES),
         "top_categories": _top_categories(store, start_s, end_s, prev_start_s, prev_end_s),
         "top_day": _top_day(store, start_s, end_s),
         "pending_count": store.pending_count(),

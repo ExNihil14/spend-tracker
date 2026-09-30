@@ -26,16 +26,24 @@ def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, flo
     return max(0.0, center - half), min(1.0, center + half)
 
 
-def foreign_transactions_count(store: Store, start: str, end: str) -> int:
+def foreign_transactions_count(store: Store, start: str, end: str,
+                               exclude_categories: tuple[str, ...] = ()) -> int:
     """Операции не в ₽ за [start, end) — в ₽-агрегаты не входят (честная сноска, K6).
 
     Предикат — зеркальный ₽-агрегатам (§J-2): NULL/пустая строка трактуются как RUB (схема NOT NULL,
     страховка для легаси), 'rub'/'Rub' — тоже RUB; иначе строка молча выпадала и из итогов, и из сноски.
+
+    `exclude_categories` — зеркальность потребителю: если итоги исключают категории (дайджест —
+    переводы), сноска не должна считать их «не учтёнными» (ревью Sonnet 5.5, 30.09).
     """
-    row = store.conn.execute(
-        "SELECT COUNT(*) c FROM transactions"
-        " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') <> 'RUB' AND date >= ? AND date < ?",
-        (start, end)).fetchone()
+    sql = ("SELECT COUNT(*) c FROM transactions"
+           " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') <> 'RUB' AND date >= ? AND date < ?")
+    params: list[str] = [start, end]
+    if exclude_categories:
+        ph = ",".join("?" * len(exclude_categories))
+        sql += f" AND category NOT IN ({ph})"
+        params.extend(exclude_categories)
+    row = store.conn.execute(sql, params).fetchone()
     return int(row["c"])
 
 
