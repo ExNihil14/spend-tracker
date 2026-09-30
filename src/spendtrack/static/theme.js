@@ -1,46 +1,34 @@
-// Тема: light (по умолчанию) → dark → system; выбор в localStorage('spendtrack-theme').
-// CSP: только внешний файл (script-src 'self'); грузится синхронно в <head> до CSS — без FOUC.
-// Клик — делегированием: htmx boost-свап пересоздаёт кнопку в body, прямой обработчик теряется
-// (регрессия 29.09), плюс после свапа обновляем подписи новой кнопки.
+// Тема — двухпозиционный тоггл (как на opencode.ai): светлая ↔ тёмная по клику; иконка меняется CSS-правилом
+// по [data-theme] (в разметке обе — sun/moon). Хранение: localStorage('spendtrack-theme') = 'light' | 'dark'
+// (легаси 'system'/мусор нормализуются в 'light' — двухтемный режим). CSP: только внешний файл (script-src 'self');
+// грузится синхронно в <head> до CSS — без FOUC. Клик — делегированием: htmx boost-свап пересоздаёт кнопку
+// в body (регрессия 29.09); после свапа синхронизируем aria-pressed/title.
 (function () {
   'use strict';
   var KEY = 'spendtrack-theme';
-  var ORDER = ['light', 'dark', 'system'];
 
-  function systemDark() {
-    return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  }
-  function resolve(mode) {
-    return mode === 'system' ? (systemDark() ? 'dark' : 'light') : mode;
-  }
   function current() {
-    try { return localStorage.getItem(KEY) || 'light'; } catch (e) { return 'light'; }
+    try { return localStorage.getItem(KEY) === 'dark' ? 'dark' : 'light'; } catch (e) { return 'light'; }
   }
+  function other() { return current() === 'dark' ? 'light' : 'dark'; }
   function apply(mode) {
-    document.documentElement.setAttribute('data-theme', resolve(mode));
+    var dark = mode === 'dark';
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     var btn = document.getElementById('theme-toggle');
     if (btn) {
-      var label = mode === 'system' ? 'системная' : (mode === 'dark' ? 'тёмная' : 'светлая');
-      btn.setAttribute('aria-label', 'Тема: ' + label + ' — переключить');
-      btn.setAttribute('title', 'Тема: ' + label);
+      btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      btn.setAttribute('title', dark ? 'Тема: тёмная' : 'Тема: светлая');
     }
     // Смена темы: страницы могут держать палитру в JS (Chart.js) — уведомляем слушателей.
-    window.dispatchEvent(new CustomEvent('spendtrack:theme', { detail: { theme: resolve(mode) } }));
+    window.dispatchEvent(new CustomEvent('spendtrack:theme', { detail: { theme: dark ? 'dark' : 'light' } }));
   }
 
   apply(current());
 
-  if (window.matchMedia) {
-    var mq = window.matchMedia('(prefers-color-scheme: dark)');
-    var onChange = function () { if (current() === 'system') apply('system'); };
-    if (mq.addEventListener) mq.addEventListener('change', onChange);
-    else if (mq.addListener) mq.addListener(onChange); // старые WebKit
-  }
-
   document.addEventListener('click', function (e) {
     var btn = e.target && e.target.closest ? e.target.closest('#theme-toggle') : null;
     if (!btn) return;
-    var mode = ORDER[(ORDER.indexOf(current()) + 1) % ORDER.length];
+    var mode = other();
     try { localStorage.setItem(KEY, mode); } catch (err) { /* приватный режим */ }
     apply(mode);
   });

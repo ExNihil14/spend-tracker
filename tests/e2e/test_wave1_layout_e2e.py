@@ -93,6 +93,20 @@ def test_counter_chip_pop_and_reduced_motion(page: Page, live_server):
     assert "transform" not in prop, prop
 
 
+def test_rows_avatar_cascade_and_reduced_motion(page: Page, live_server, db_path):
+    """Строки «Расходов»: аватар-иконка отрисован (внешний спрайт), каскад выключается reduced-motion."""
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА ДЕКОР", -12345)
+    page.goto(f"{live_server}/")
+    expect(page.locator(".tx-avatar").first).to_be_visible()
+    w, h = page.locator(".tx-avatar use").first.evaluate(
+        "el => { const b = el.getBBox(); return [b.width, b.height]; }")
+    assert w > 3 and h > 3, "иконка аватара не отрисована"
+    page.emulate_media(reduced_motion="reduce")
+    page.reload()
+    anim = page.locator(".tx-row").first.evaluate("el => getComputedStyle(el).animationName")
+    assert anim == "none", anim
+
+
 def test_budget_percent_countup_keeps_percent_suffix(page: Page, live_server, db_path):
     """Count-up целых процентов бюджета: финальное значение с «%»; деньги клиентом не анимируются."""
     store = Store(db_path=db_path)

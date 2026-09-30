@@ -30,20 +30,31 @@ def test_reduced_motion_disables_transform_transition(page: Page, live_server):
     assert "transform" not in prop
 
 
-def test_theme_toggle_light_dark_system(page: Page, live_server):
-    """Переключатель темы: light (дефолт) → dark → system; выбор переживает перезагрузку."""
-    page.emulate_media(color_scheme="light")
+def test_theme_toggle_two_states(page: Page, live_server):
+    """Тема — двухпозиционный тоггл (как на opencode.ai): клик → тёмная, ещё клик → светлая; персист; иконка.
+
+    System-режима нет: дефолт — светлая даже при тёмной ОС; легаси-значение 'system' нормализуется в светлую.
+    """
+    page.emulate_media(color_scheme="dark")  # тёмная ОС не должна менять дефолт (две темы, не system)
     page.goto(f"{live_server}/")
     html = page.locator("html")
-    assert html.get_attribute("data-theme") == "light"
+    assert html.get_attribute("data-theme") == "light"  # дефолт — светлая
     page.locator("#theme-toggle").click()
-    assert html.get_attribute("data-theme") == "dark"
+    assert html.get_attribute("data-theme") == "dark"   # один клик — целевая тема
+    assert page.locator("#theme-toggle").get_attribute("aria-pressed") == "true"
+    assert page.locator("#theme-toggle .theme-ico-moon").is_visible()
+    assert not page.locator("#theme-toggle .theme-ico-sun").is_visible()
     page.reload()
-    assert html.get_attribute("data-theme") == "dark"  # localStorage пережил перезагрузку
-    page.locator("#theme-toggle").click()  # → system (при color-scheme: light)
+    assert html.get_attribute("data-theme") == "dark"   # localStorage пережил перезагрузку
+    page.locator("#theme-toggle").click()
     assert html.get_attribute("data-theme") == "light"
-    page.locator("#theme-toggle").click()  # → light
+    assert page.locator("#theme-toggle .theme-ico-sun").is_visible()
+
+    # легаси «system» (до Wave 1.3) — нормализуется в светлую, без авто-следования ОС
+    page.evaluate("() => localStorage.setItem('spendtrack-theme', 'system')")
+    page.reload()
     assert html.get_attribute("data-theme") == "light"
+    assert page.locator("#theme-toggle").get_attribute("aria-pressed") == "false"
 
 
 def test_theme_toggle_survives_boost_navigation(page: Page, live_server, db_path):
@@ -59,7 +70,7 @@ def test_theme_toggle_survives_boost_navigation(page: Page, live_server, db_path
     page.locator("#theme-toggle").click()
     assert page.locator("html").get_attribute("data-theme") == "dark"
     page.locator("#theme-toggle").click()
-    assert page.locator("html").get_attribute("data-theme") == "light"  # system → light
+    assert page.locator("html").get_attribute("data-theme") == "light"
 
 
 def test_charts_recolor_on_theme_toggle(page: Page, live_server, db_path):

@@ -103,6 +103,18 @@ def test_chart_js_loads_only_on_dashboard(page: Page, live_server: str) -> None:
     assert any("chart.umd" in r for r in on_dash)
 
 
+def test_category_icons_render(page: Page, live_server: str) -> None:
+    """Иконки категорий — внешний SVG-спрайт: <use> реально отрисован (getBBox > 0).
+
+    Проверка на трёх движках (CI: firefox/webkit — только этот файл) ловит расхождения
+    поддержки внешних ссылок <use> и same-origin-загрузки спрайта.
+    """
+    _open(page, live_server, "/")
+    use = page.locator("svg.cat-icon use[href*='#i-groceries']").first
+    box = use.evaluate("el => { const b = el.getBBox(); return { w: b.width, h: b.height }; }")
+    assert box["w"] > 5 and box["h"] > 5, f"спрайт не отрисован: {box}"
+
+
 def test_table_region_is_keyboard_focusable(page: Page, live_server: str) -> None:
     """Скролл-область таблицы достижима с клавиатуры и имеет видимый фокус (WCAG 2.1.1/2.4.7)."""
     _open(page, live_server, "/")

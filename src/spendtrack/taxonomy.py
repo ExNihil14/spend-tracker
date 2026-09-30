@@ -7,10 +7,13 @@ from spendtrack.config import DEFAULTS_DIR, resolve_config_dir
 
 
 class Category:
-    def __init__(self, name: str, color: str, display_name: str | None = None):
+    def __init__(self, name: str, color: str, display_name: str | None = None,
+                 icon: str | None = None):
         self.name = name
         self.color = color
         self.display_name = display_name or name
+        # Иконка: явное поле taxonomy.toml (имя символа спрайта); пусто — фолбэк-цепочка в cat_icons
+        self.icon = (icon or "").strip()
 
 
 class Rule:
@@ -41,7 +44,7 @@ def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
         path = DEFAULTS_DIR / "taxonomy.toml"  # установленный режим: дефолт из пакета
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    categories = [Category(c["name"], c.get("color", "#9ca3af"), c.get("display_name"))
+    categories = [Category(c["name"], c.get("color", "#9ca3af"), c.get("display_name"), c.get("icon"))
                   for c in data.get("categories", [])]
     rules = [Rule(r["pattern"], r["category"]) for r in data.get("rules", [])]
     return Taxonomy(categories, rules)

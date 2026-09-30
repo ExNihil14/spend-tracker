@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from spendtrack.assets import static_url
+from spendtrack.cat_icons import cat_icon
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR, load_settings
 from spendtrack.deps import get_store
@@ -38,7 +39,7 @@ router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(
     fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date, conf_level=conf_level,
-    delta_words=delta_words, badge_text=badge_text_color, static=static_url,
+    delta_words=delta_words, badge_text=badge_text_color, static=static_url, cat_icon=cat_icon,
 )
 
 PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)

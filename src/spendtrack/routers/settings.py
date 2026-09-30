@@ -8,6 +8,7 @@ from fastapi.templating import Jinja2Templates
 
 from spendtrack import taxonomy_repo as repo
 from spendtrack.assets import static_url
+from spendtrack.cat_icons import cat_icon, sprite_icon_names
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
 from spendtrack.deps import get_store
@@ -17,7 +18,8 @@ from spendtrack.ui import oob_toast
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
-templates.env.globals.update(fmt_money=fmt_money, badge_text=badge_text_color, static=static_url)
+templates.env.globals.update(fmt_money=fmt_money, badge_text=badge_text_color, static=static_url,
+                             cat_icon=cat_icon)
 
 
 def _catname(data: dict):
@@ -44,6 +46,7 @@ def _context(store: Store) -> dict:
                               if c["name"] not in BUDGET_EXCLUDED],
         "fmt": fmt_amount,
         "file_hash": repo.file_hash(),
+        "icons": sprite_icon_names(),
         "dead_count": sum(1 for a in analysis if a["dead"]),
         "duplicate_count": sum(1 for a in analysis if a["duplicate_of"] is not None),
     }
@@ -65,10 +68,22 @@ async def add_category(request: Request, store: Annotated[Store, Depends(get_sto
     form = await request.form()
     try:
         repo.add_category(str(form.get("name") or ""), str(form.get("color") or ""),
-                          str(form.get("file_hash") or ""))
+                          str(form.get("file_hash") or ""), str(form.get("icon") or ""))
     except repo.TaxonomyError as e:
         return _cats_fragment(request, store, str(e))
     return _cats_fragment(request, store)
+
+
+@router.post("/settings/categories/icon", response_class=HTMLResponse)
+async def set_icon(request: Request, store: Annotated[Store, Depends(get_store)]):
+    """Автосохранение иконки (change): ответ — фрагмент + OOB-тост «Сохранено»."""
+    form = await request.form()
+    try:
+        repo.set_icon(str(form.get("name") or ""), str(form.get("icon") or ""),
+                      str(form.get("file_hash") or ""))
+    except repo.TaxonomyError as e:
+        return _cats_fragment(request, store, str(e))
+    return HTMLResponse(_cats_fragment(request, store).body.decode() + oob_toast("Сохранено"))
 
 
 @router.post("/settings/categories/color", response_class=HTMLResponse)

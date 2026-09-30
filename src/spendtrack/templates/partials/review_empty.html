@@ -1,11 +1,15 @@
-<tr id="review-empty"{% if oob %} hx-swap-oob="beforeend:#review-rows"{% endif %}>
+{# Пустая очередь. OOB: при beforeend htmx вставляет ДЕТЕЙ oob-элемента, а <tr> переживает
+   парсинг только в table-контексте — поэтому обёртка <tbody> (найдено 30.09: голый td без id). #}
+{% if oob %}<tbody hx-swap-oob="beforeend:#review-rows">{% endif %}
+<tr id="review-empty">
   <td colspan="6" class="p-5">
     {# Wave 1 (§4.4): очередь пуста — постер (один бренд-момент на экран), действие — справка #}
     <div class="poster rounded-2xl p-6 text-on-accent">
-      <div class="text-xl font-semibold">Все подтверждены</div>
+      <div class="text-xl font-semibold">Все подтверждены <span aria-hidden="true">🎉</span></div>
       <p class="mt-1 text-sm">Каждая операция получила категорию. Ошибочное предложение можно исправить
         в списке расходов.</p>
       <a href="/help#faq-queue-why" class="mt-4 inline-block rounded-full bg-surface text-accent font-semibold px-4 py-2 hover:bg-surface-2 transition-colors">Как работает очередь →</a>
     </div>
   </td>
 </tr>
+{% if oob %}</tbody>{% endif %}

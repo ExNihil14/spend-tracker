@@ -9,6 +9,7 @@
         <th class="px-5 py-2.5 font-medium">Категория</th>
         <th class="px-5 py-2.5 font-medium text-right">Использований</th>
         <th class="px-5 py-2.5 font-medium">Цвет</th>
+        <th class="px-5 py-2.5 font-medium">Иконка</th>
         <th class="px-5 py-2.5 font-medium"></th>
       </tr>
     </thead>
@@ -16,8 +17,8 @@
       {% for c in categories %}
       <tr class="border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
         <td class="px-5 py-3">
-          <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium"
-                style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ catname(c.name) }}</span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ cat_icon(c.name) }}{{ catname(c.name) }}</span>
         </td>
         <td class="px-5 py-3 text-right text-fg-muted">{{ usage.get(c.name, 0) }}</td>
         <td class="px-5 py-3">
@@ -27,6 +28,18 @@
             <input type="hidden" name="name" value="{{ c.name }}">
             <input type="color" name="color" value="{{ c.color }}" aria-label="Цвет категории {{ catname(c.name) }}"
                    class="h-8 w-10 bg-surface-2 border border-line-strong rounded cursor-pointer">
+          </form>
+        </td>
+        <td class="px-5 py-3">
+          {% set cur_icon = (c.icon or c.name) if (c.icon or c.name) in icons else 'tag' %}
+          <form hx-post="/settings/categories/icon" hx-target="#settings-categories" hx-swap="outerHTML"
+                hx-trigger="change" class="flex items-center gap-2">
+            <input type="hidden" name="file_hash" value="{{ file_hash }}">
+            <input type="hidden" name="name" value="{{ c.name }}">
+            <select name="icon" aria-label="Иконка категории {{ catname(c.name) }}"
+                    class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+              {% for ic in icons %}<option value="{{ ic }}" {% if ic == cur_icon %}selected{% endif %}>{{ ic }}</option>{% endfor %}
+            </select>
           </form>
         </td>
         <td class="px-5 py-3 text-right">
@@ -50,6 +63,10 @@
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
   <input name="name" placeholder="новая-категория" aria-label="Имя новой категории" required
          class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+  <select name="icon" aria-label="Иконка новой категории"
+          class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+    {% for ic in icons %}<option value="{{ ic }}" {% if ic == 'tag' %}selected{% endif %}>{{ ic }}</option>{% endfor %}
+  </select>
   <input type="color" name="color" value="#9ca3af" aria-label="Цвет новой категории"
          class="h-8 w-10 bg-surface-2 border border-line-strong rounded cursor-pointer">
   <button type="submit" class="bg-accent-bg hover:bg-accent-bg-hover text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>

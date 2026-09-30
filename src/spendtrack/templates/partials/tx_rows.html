@@ -2,29 +2,40 @@
 {% for t in transactions %}
 {% if group_days and t.date != ns.prev_date %}
 {% set ns.prev_date = t.date %}
-<tr class="bg-canvas/50 border-b border-line">
-  <td colspan="5" class="px-5 py-2 text-xs uppercase tracking-wide text-fg-muted">
-    {{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}
-    <span class="ml-2 normal-case font-medium {{ 'text-income' if day_totals.get(t.date, 0) > 0 else 'text-fg-muted' }}">
-      итог {{ fmt_money(day_totals.get(t.date, 0)) }}
-    </span>
+{# Wave 1.3: дни — таймлайн-разделители: пилюля даты + линия + итог дня #}
+<tr class="tx-day border-b border-line">
+  <td colspan="5" class="px-5 py-2">
+    <div class="flex items-center gap-3">
+      <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-fg-muted">{{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}</span>
+      <span class="h-px flex-1 bg-line" aria-hidden="true"></span>
+      <span class="text-xs font-medium {{ 'text-income' if day_totals.get(t.date, 0) > 0 else 'text-fg-muted' }}">
+        итог {{ fmt_money(day_totals.get(t.date, 0)) }}
+      </span>
+    </div>
   </td>
 </tr>
 {% endif %}
-<tr class="border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
+{% set badge_bg = cat_colors.get(t.category, '#9ca3af') %}
+<tr class="tx-row border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
   <td class="px-5 py-3 whitespace-nowrap text-fg-muted">{{ fmt_date(t.date) }}</td>
   <td class="px-5 py-3">
-    {{ t.description }}
-    {% if t.merchant %}<div class="text-xs text-fg-muted mt-0.5">{{ t.merchant }}</div>{% endif %}
+    {# Wave 1.3: «аватар» категории — софт-тинт в цвете категории + иконка-стикер #}
+    <div class="flex items-center gap-3">
+      <span class="tx-avatar grid place-items-center w-7 h-7 rounded-full shrink-0"
+            style="color:{{ badge_bg }};background:color-mix(in srgb, {{ badge_bg }} 16%, var(--surface))">{{ cat_icon(t.category) }}</span>
+      <div class="min-w-0">
+        {{ t.description }}
+        {% if t.merchant %}<div class="text-xs text-fg-muted mt-0.5">{{ t.merchant }}</div>{% endif %}
+      </div>
+    </div>
   </td>
   <td class="px-5 py-3 text-right font-medium whitespace-nowrap {{ 'text-income' if t.amount_kopecks > 0 else 'text-fg' }}">{{ fmt_money(t.amount_kopecks, t.currency) }}</td>
   <td class="px-5 py-3">
-    {% set badge_bg = cat_colors.get(t.category, '#9ca3af') %}
     {# hx-boost="false": внутри #tx-table htmx наследует target/select/swap → подменялась бы только таблица
        (шапка/итоги/фильтр оставались от прошлого состояния). Полная навигация сохраняет консистентность. #}
     <a href="/?{% if current %}month={{ current }}&{% endif %}category={{ t.category }}" hx-boost="false"
-       class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
-       style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">{{ catname(t.category) }}</a>
+       class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
+       style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">{{ cat_icon(t.category) }}{{ catname(t.category) }}</a>
   </td>
   <td class="px-5 py-3">
     <span class="text-fg-muted text-xs">{{ t.category_source }}

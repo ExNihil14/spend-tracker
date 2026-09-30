@@ -142,4 +142,34 @@
       if (fileInput && e.dataTransfer && e.dataTransfer.files.length) fileInput.files = e.dataTransfer.files;
     });
   }
+
+  // Wave 1.4: конфетти, когда очередь подтверждения опустела (свап в пустоту). Одноразовый декор:
+  // aria-hidden-контейнер, только transform/opacity; при reduced-motion не создаётся вовсе.
+  var confettiDone = false;
+  function maybeConfetti() {
+    if (confettiDone || !document.getElementById('review-empty')) return;
+    confettiDone = true;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var poster = document.querySelector('#review-empty .poster');
+    if (!poster) return;
+    var rect = poster.getBoundingClientRect();
+    var host = document.createElement('div');
+    host.id = 'confetti';
+    host.setAttribute('aria-hidden', 'true');
+    var colors = ['var(--accent)', 'var(--accent-2)', 'var(--income)', 'var(--warn)', 'var(--danger)'];
+    for (var i = 0; i < 18; i++) {
+      var piece = document.createElement('span');
+      piece.className = 'confetti-piece';
+      piece.style.left = Math.round(rect.left + 24 + Math.random() * Math.max(80, rect.width - 48)) + 'px';
+      piece.style.top = Math.round(rect.top + 6) + 'px';
+      piece.style.background = colors[i % colors.length];
+      piece.style.animationDelay = Math.round(Math.random() * 140) + 'ms';
+      piece.style.animationDuration = (800 + Math.round(Math.random() * 350)) + 'ms';
+      host.appendChild(piece);
+    }
+    document.body.appendChild(host);
+    setTimeout(function () { if (host.parentNode) host.parentNode.removeChild(host); }, 1700);
+  }
+  document.body.addEventListener('htmx:afterSwap', maybeConfetti);
+  document.body.addEventListener('htmx:oobAfterSwap', maybeConfetti);
 })();

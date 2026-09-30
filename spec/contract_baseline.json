@@ -76,6 +76,22 @@
    "args": "a: Path, b: Path",
    "returns": "bool"
   },
+  "spendtrack.cat_icons:FALLBACK_ICON": {
+   "args": "'tag'",
+   "returns": ""
+  },
+  "spendtrack.cat_icons:cat_icon": {
+   "args": "slug: str, cls: str='cat-icon w-3.5 h-3.5 shrink-0'",
+   "returns": "Markup"
+  },
+  "spendtrack.cat_icons:icon_name": {
+   "args": "slug: str",
+   "returns": "str"
+  },
+  "spendtrack.cat_icons:sprite_icon_names": {
+   "args": "",
+   "returns": "list[str]"
+  },
   "spendtrack.categorize:categorize_llm": {
    "args": "tx: dict, store: Store, taxonomy: Taxonomy",
    "returns": "dict"
@@ -864,6 +880,10 @@
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
+  "spendtrack.routers.settings:set_icon": {
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
+   "returns": ""
+  },
   "spendtrack.routers.settings:settings": {
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
@@ -1133,7 +1153,7 @@
    "returns": ""
   },
   "spendtrack.taxonomy_repo:add_category": {
-   "args": "name: str, color: str, expected_hash: str | None",
+   "args": "name: str, color: str, expected_hash: str | None, icon: str=''",
    "returns": "None"
   },
   "spendtrack.taxonomy_repo:add_rule": {
@@ -1192,6 +1212,10 @@
    "args": "name: str, color: str, expected_hash: str | None",
    "returns": "None"
   },
+  "spendtrack.taxonomy_repo:set_icon": {
+   "args": "name: str, icon: str, expected_hash: str | None",
+   "returns": "None"
+  },
   "spendtrack.taxonomy_repo:test_description": {
    "args": "description: str, store: Store",
    "returns": "dict"
@@ -1202,6 +1226,10 @@
   },
   "spendtrack.taxonomy_repo:validate_color": {
    "args": "color: str",
+   "returns": "str"
+  },
+  "spendtrack.taxonomy_repo:validate_icon": {
+   "args": "icon: str",
    "returns": "str"
   },
   "spendtrack.taxonomy_repo:validate_name": {
@@ -1243,6 +1271,7 @@
   "POST /settings/categories": "8c19c725fd2c",
   "POST /settings/categories/color": "8c19c725fd2c",
   "POST /settings/categories/delete": "8c19c725fd2c",
+  "POST /settings/categories/icon": "8c19c725fd2c",
   "POST /settings/categories/rename": "8c19c725fd2c",
   "POST /settings/categories/rename/preview": "8c19c725fd2c",
   "POST /settings/rules": "8c19c725fd2c",

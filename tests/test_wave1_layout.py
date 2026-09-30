@@ -93,6 +93,16 @@ def test_dashboard_empty_month_poster_single(client):
     assert 'id="onboarding"' not in html
 
 
+def test_expense_rows_decor(client):
+    """Wave 1.3 «Расходы»: аватар категории (иконка-стикер), таймлайн-день, класс каскада строк."""
+    _add(client, "-123.45", "ЛЕНТА")
+    html = client.get("/?month=2026-09").text
+    assert 'class="tx-avatar' in html and "#i-groceries" in html
+    assert "color-mix(in srgb, #22c55e 16%" in html  # софт-тинт аватара в цвете категории
+    assert 'class="tx-day' in html
+    assert 'class="tx-row' in html
+
+
 # ── Микро-моушен (§4.4) ─────────────────────────────────────────────────────
 
 def test_pending_chip_has_chip_pop(client):

@@ -74,6 +74,18 @@ def validate_name(name: str) -> str:
     return name
 
 
+def validate_icon(icon: str) -> str:
+    """Пусто — ок (фолбэк-цепочка cat_icons); иначе имя должно существовать в спрайте."""
+    icon = (icon or "").strip().lower()
+    if not icon:
+        return ""
+    from spendtrack.cat_icons import sprite_icon_names  # циклов нет: cat_icons не знает о repo
+
+    if not NAME_RE.match(icon) or icon not in sprite_icon_names():
+        raise TaxonomyError(f"неизвестная иконка: {icon!r} (выберите из списка)")
+    return icon
+
+
 def validate_pattern(pattern: str) -> str:
     pattern = (pattern or "").strip().upper()
     if not (2 <= len(pattern) <= 64) or any(bad in pattern for bad in PATTERN_FORBIDDEN):
@@ -100,6 +112,8 @@ def _dump(data: dict) -> str:
         lines += ["[[categories]]", f'name = "{c["name"]}"']
         if c.get("display_name"):
             lines.append(f'display_name = "{c["display_name"]}"')
+        if c.get("icon"):
+            lines.append(f'icon = "{c["icon"]}"')
         lines += [f'color = "{c["color"]}"', ""]
     for r in data.get("rules", []):
         lines += ["[[rules]]", f'pattern = "{r["pattern"]}"', f'category = "{r["category"]}"', ""]
@@ -142,13 +156,30 @@ def _find_category(data: dict, name: str) -> dict:
     raise TaxonomyError(f"категория {name} не найдена")
 
 
-def add_category(name: str, color: str, expected_hash: str | None) -> None:
-    name, color = validate_name(name), validate_color(color)
+def add_category(name: str, color: str, expected_hash: str | None, icon: str = "") -> None:
+    name, color, icon = validate_name(name), validate_color(color), validate_icon(icon)
     data = load_raw()
     if any(c["name"].lower() == name for c in data.get("categories", [])):
         raise TaxonomyError(f"категория {name} уже существует")
-    data.setdefault("categories", []).append({"name": name, "color": color})
-    save(data, expected_hash, "add_category", name, None, {"name": name, "color": color})
+    entry = {"name": name, "color": color}
+    if icon:
+        entry["icon"] = icon
+    data.setdefault("categories", []).append(entry)
+    save(data, expected_hash, "add_category", name, None,
+         {"name": name, "color": color, "icon": icon})
+
+
+def set_icon(name: str, icon: str, expected_hash: str | None) -> None:
+    """Иконка категории (пусто — снять: включится фолбэк-цепочка слаг→tag)."""
+    icon = validate_icon(icon)
+    data = load_raw()
+    cat = _find_category(data, name)
+    old = cat.get("icon", "")
+    if icon:
+        cat["icon"] = icon
+    else:
+        cat.pop("icon", None)
+    save(data, expected_hash, "set_icon", name, old, icon)
 
 
 def set_color(name: str, color: str, expected_hash: str | None) -> None:

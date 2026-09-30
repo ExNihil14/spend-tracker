@@ -506,6 +506,33 @@ uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО
   `tests/test_wave1_layout.py` (7), `tests/e2e/test_wave1_layout_e2e.py` (5: геометрия бенто, пилюли/sticky,
   постер очереди, chip-pop + reduced-motion, суффикс «%»); контраст-пары постеров/grad-стопов — в
   `test_tokens_contrast.py` (40 пар × 2 темы).
+  **Wave 1.3 (30.09, по запросу юзера):** тема — **две позиции, кнопка-тоггл** (как на opencode.ai):
+  клик «светлая ↔ тёмная», иконка меняется CSS-правилом по `[data-theme]` (обе svg в разметке, JS не участвует
+  в свопе; `aria-pressed` = тёмная включена; `title` текущей темы); `system`-режим убран, легаси-значение
+  нормализуется в светлую; FOUC-гард в `<head>`, дефолт — светлая (v2 §3.4). **Иконки категорий:**
+  внешний спрайт `static/cat-icons.svg` (18×`symbol`, viewBox 24, `stroke=currentColor`, офлайн, 5.6 КБ) +
+  Jinja-макрос `partials/cat_icon.html` (`aria-hidden`, неизвестный слаг → без иконки); разведены в бейджи
+  списка/бюджетов/настроек, чипы дайджеста, подписки и таблицу «Итоги» (иконка окрашена цветом
+  категории/`badge_text`; практики — MDN `<use>`: внешний href same-origin, презентационные атрибуты на
+  `<symbol>`). **«Расходы» — декор строк:** «аватар» категории (софт-тинт `color-mix` 16% в цвете категории +
+  иконка-стикер), дни-«таймлайн» (пилюля даты + линия + итог дня), каскадное появление строк (≤7 задержек
+  по 18 мс, transform/opacity) и пружинный поп-эффект аватара на hover — всё с reduced-motion-гардами.
+  Тесты: `test_category_icons.py` (4), `test_crossbrowser_smoke::test_category_icons_render`
+  (chromium/firefox/webkit), `test_wave1_layout.py::test_expense_rows_decor`,
+  `test_wave1_layout_e2e.py::test_rows_avatar_cascade_and_reduced_motion`,
+  `test_rebrand_a11y_e2e::{test_theme_toggle_two_states, test_theme_toggle_survives_boost_navigation}`,
+  `test_smoke::test_picker_inputs_have_pointer_cursor`.
+  **Wave 1.4 (30.09):** иконки категорий — **механика для кастомных категорий**: поле `icon` в
+  `taxonomy.toml`, цепочка «явное → слаг → `tag`» (`cat_icons.py`, кэш по mtime; SPENDTRACK_TAXONOMY
+  учитывается), банк +14 символов (paw/gym/car/book/music/game/tools/plant/coffee/shield/gift/star/
+  sparkles/tag), в настройках — колонка «Иконка» (селект+автосохранение) и выбор при создании
+  (новый роут `POST /settings/categories/icon`); «Расходы» — **стикер-аватары** (38% + наклон −4°,
+  hover-выпрямление, reduced-motion-статик), **конфетти** при опустошении очереди (одноразово,
+  `aria-hidden`, MutationObserver-тест) и 🎉 в постере; попутно исправлен **невалидный OOB-DOM** пустой
+  очереди (htmx при `beforeend` вставляет детей oob-элемента → строка `<tr>` обёрнута в `<tbody>`;
+  раньше в tbody попадал голый `<td>` и `#review-empty` терял id). Осознанный snapshot контракта
+  (api 304→311, routes 32→33). Размышление о дальнейшей «температуре» —
+  `D:\dev\docs\machine\DESIGN_PLAYFUL_TEMPERATURE_2026-09-30.md`.
   **Грабли:** Tailwind v4 сканирует и HTML-комментарии — имя утилиты в комментарии (напр. «backdrop-filter»)
   вытягивает утилиту и `@property`-блок в app.css (~1 КБ); имена классов в комментариях шаблонов не упоминать,
   размер ловит `build_css --check`.
