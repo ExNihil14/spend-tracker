@@ -9,18 +9,37 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Контур (30.09): **688 unit + 79 e2e + 40 cross-browser** + ruff (`check .`) + contract-дельта (осознанный
-  snapshot 30.09 — аддитивный параметр `foreign_transactions_count`; при коммите нужен трейлер
-  `Contract-Change:`) + ratchet (2/420) + cc + `build_css --check` (32 139 Б ≤ 35 КБ) — зелёные. Прод NSSM
+- Контур (30.09): **694 unit + 81 e2e** (+ кросс-движковый смок 21×3) + ruff (`check .`) + contract-дельта
+  (осознанные snapshot'ы 30.09 — `foreign_transactions_count` и taxonomy-иконки; в коммитах трейлер
+  `Contract-Change:`) + ratchet (2/420) + cc + `build_css --check` (33 234 Б ≤ 35 КБ) — зелёные. Прод NSSM
   8766 — Running (200); демо-стенд 8799 перезапущен (200); temp-стенд 8798 остановлен (разовый, пустая БД).
 - Последнее закоммичено (30.09): `a89f42f` (Wave 1 лэйаут), `67b9039` (review.py), `71e9b47` (store),
-  `489276d` (reports, с `Contract-Change:`), `e42b473` (continue) — **ahead origin 6**; push — по команде.
+  `489276d` (reports), `e42b473` (continue), `1a94712` (Wave 1.4 — тоггл/иконки/декор), `d8d0359` (continue)
+  — **ahead origin 8**; push — по команде.
   **Сервисы перезапущены на новом коде:** прод NSSM 8766 (health 200, `/health/data` 200), демо-стенд 8799
-  (health 200, 349 tx); temp-стенд 8798 остановлен (разовый).
+  (health 200, 349 tx, `/settings` с пикером иконок); temp-стенд 8798 остановлен (разовый).
 - Ребрендинг v2 «Стикербук»: направление принято (`D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md`);
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **Окно AgentRouter 11:00 UTC (30.09) — идёт по плану:** старт 11:00:15 UTC (триггер 13:57:57 local), model-status
+> в логе; `out_design_review.md` ✅ (447 с), `out_install_ops.md` ✅ (366 с), `out_web_api.md` ✅ (~18 мин —
+> расщеплённое досье влезло в лимит), `out_web_ui.md` — в работе; дальше Astra-проходы. 402 (пул) не было.
+> **Адъюдикация дизайн-ревью — `ADJUDICATION_DESIGN_REVIEW_2026-09-30.md`:** исправлено C1 (белое кольцо фокуса
+> на постере — transition-colors учитывать при проверке), C3 (`--line-strong`: light `#6f7d94`, dark `#6d7fa3`,
+> +4 контраст-пары, канон §3.3/§3.4/§3.6 обновлён), C2-guard (`nav` static при высоте <500px), S3 (`@media print`
+> для постера), S7 (инвариант моушена уточнён в каноне); гейты S4 (1.4.12 text-spacing) и S6 (таргеты ≥24) —
+> e2e; C4-guard (семантические alpha-фоны в шаблонах запрещены тестом). C6 отклонён фактом (destroy на
+> `htmx:beforeSwap` уже есть) + регресс-тест на утечку инстансов; C5 отклонён по премиссе (LLM — реальный шов).
+> Тикеты: rendered-composite контраст-тест, S1/S5, слепые зоны (forced-colors/prefers-contrast/VT-focus).
+> **Адъюдикация install_ops — `ADJUDICATION_INSTALL_OPS_2026-09-30.md`:** pre-migration-снимок перед миграцией
+> (C1; тест), offsite-маркер `forced` → doctor WARN (S5; тест), unlink частичного VACUUM INTO + чек `disk_space`
+> в doctor (S6; тесты), README (C2-runbook с `-wal`/`-shm`, C3-планировщик бэкапа, S2-команда обновления,
+> S4-docker, S7-логи, S8-стоп автозапуска). Тикеты: `backup --drill` (C2-остаток), lazy-backup на старте serve (C3),
+> merge settings (S1), `resolve_db_path` (S3), CI-smoke установки. **web_api/web_ui/Astra — адъюдикация следующим
+> заходом.** Контур после всех правок: **785** + ruff + contract (snapshot: api 312/routes 33) + ratchet + cc +
+> build_css (33 623 Б). Флак axe (замер посреди каскада строк) закрыт детерминированно: перед axe доигрываем
+> CSS-анимации (`document.getAnimations().finish()`).
 > **АКТУАЛЬНО (30.09, день — дизайн v2 Wave 1 «Стикербук», лэйаут: ✅ в дереве, ждёт команды на коммит).**
 > Внедрено без ожидания ревью Opus (ночное окно 02:00 UTC прошло до правки расписания задач; окно 11:00 UTC —
 > ещё впереди, поллер стартует 13:57 local): nav — sticky-пилюли (`bg-accent-soft`+`aria-current`; фон шапки
