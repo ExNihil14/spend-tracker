@@ -29,7 +29,10 @@
 - **Метрики**: автоматической отправки нет; `doctor --share` только печатает анонимную сводку (см. PRIVACY.md).
 - **Периметр браузера**: state-changing запросы (POST/PUT/PATCH/DELETE) проходят гейт Origin/Sec-Fetch-Site
   (`spendtrack/security.py`): `Origin` — только loopback-имена (порт любой), иначе `Sec-Fetch-Site` ∈
-  {same-origin, none}; запросы без обоих заголовков (CLI/тесты) пропускаются. Плюс `TrustedHostMiddleware`
+  {same-origin, none}; запросы без обоих заголовков (CLI/тесты) пропускаются — это осознанный fail-open
+  для не-браузерных клиентов (у локального процесса и так есть доступ к файлу БД), строгой CSRF-защитой
+  гейт не является; `Origin: null` (sandboxed iframe) блокируется scheme-проверкой. Чтение ответа
+  кросс-сайтовым сайтом блокирует отсутствие CORS, а не TrustedHost. Плюс `TrustedHostMiddleware`
   (только `127.0.0.1`/`localhost`, иначе 400) — защита от DNS-rebinding/Host-атак. CSRF-токены не нужны:
   нет сессии/cookie, привязывать нечего; `HX-Request` — не гейт (сломал бы форму без JS).
   **Codespaces**: прокси форвардинга СОХРАНЯЕТ публичный Host (`<codespace>-<port>.app.github.dev`), поэтому

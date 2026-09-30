@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+import logging
+from datetime import date
 from decimal import InvalidOperation
 from html import escape
 from typing import Annotated
@@ -8,7 +9,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel, ValidationError, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.formparsers import MultiPartException
 
 from spendtrack.assets import static_url
 from spendtrack.cat_icons import cat_icon
@@ -42,27 +45,30 @@ templates.env.globals.update(
 
 class TxIn(BaseModel):
     date: str
-    description: str
-    amount: str
-    account: str | None = None
+    description: str = Field(max_length=512)  # F8: без лимита мусор любого размера едет в БД и отчёты
+    amount: str = Field(max_length=64)
+    account: str | None = Field(default=None, max_length=128)
     currency: str = "RUB"
 
     @field_validator("date")
     @classmethod
     def _valid_date(cls, v: str) -> str:
         try:
-            date.fromisoformat(v)  # аудит 24.09: мусорная дата ломала месячные фильтры
+            # F1: date.fromisoformat (3.11+) принимает и «20260912»/«2026-W37-6» — нормализуем к
+            # YYYY-MM-DD, иначе запись молча выпадает из месячных срезов и бюджетов.
+            return date.fromisoformat(v).isoformat()
         except ValueError as e:
             raise ValueError("дата — в формате ГГГГ-ММ-ДД") from e
-        return v
 
     @field_validator("amount")
     @classmethod
     def _valid_amount(cls, v: str) -> str:
         try:
-            parse_amount(v)  # аудит 24.09: «abc» давало 500 вместо 422
+            kopecks = parse_amount(v)  # аудит 24.09: «abc» давало 500 вместо 422
         except (InvalidOperation, ValueError, OverflowError) as e:
             raise ValueError("сумма не распознана") from e
+        if not -10**15 <= kopecks <= 10**15:  # F3: вне int64-безопасного диапазона → 422 (не OverflowError→500)
+            raise ValueError("сумма вне допустимого диапазона (до ±10 трлн)")
         return v
 
     @field_validator("currency")
@@ -84,21 +90,28 @@ class ImportIn(BaseModel):
 
 
 def _validation_422(exc: ValidationError) -> HTTPException:
-    """422 с безопасными ctx (объект исключения кастомного валидатора не сериализуется → 500)."""
-    errors = [
-        {**err, "ctx": {k: str(v) for k, v in err["ctx"].items()}}
-        if isinstance(err.get("ctx"), dict) else err
-        for err in exc.errors()
-    ]
+    """422 с безопасными ctx (объект исключения кастомного валидатора не сериализуется → 500).
+
+    Эхо `input` обрезается: иначе поле на мегабайты целиком уезжает в ответ (ревью web_api).
+    """
+    errors = []
+    for err in exc.errors():
+        if isinstance(err.get("ctx"), dict):
+            err = {**err, "ctx": {k: str(v) for k, v in err["ctx"].items()}}
+        if "input" in err:
+            err["input"] = str(err["input"])[:200]
+        errors.append(err)
     return HTTPException(422, detail=errors)
 
 
 async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
-    """Разбор JSON-тела: битая кодировка → 400, неверные поля → 422 (а не 500 на ровном месте)."""
+    """Разбор JSON-тела: битая кодировка/не-объект → 400, неверные поля → 422 (а не 500)."""
     try:
         data = await request.json()
     except ValueError as e:  # JSONDecodeError/UnicodeDecodeError — тело не UTF-8/не JSON
         raise HTTPException(400, detail="Тело запроса — некорректный JSON (ожидается UTF-8)") from e
+    if not isinstance(data, dict):  # F2: `"x"`/`[]`/`null`/`5` → TypeError у model(**data) — 500 без гейта
+        raise HTTPException(400, detail="Тело запроса — JSON-объект {…}")
     try:
         return model(**data)
     except ValidationError as e:
@@ -115,7 +128,7 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
         form = await request.form()
         payload = {k: str(v) for k, v in
                    ((k, form.get(k)) for k in ("date", "description", "amount", "account", "currency"))
-                   if v is not None}
+                   if v not in (None, "")}  # F6: пустое поле формы ≠ «не передано»
         try:
             tx = TxIn(**payload)
         except ValidationError as e:  # форма без обязательного поля → 422 (как JSON), а не 500
@@ -144,7 +157,7 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
                    f"(conf {category['confidence']:.2f}), ждёт подтверждения.")
         else:
             msg = f"Добавлено: {desc} → <b>{label}</b>"
-        return HTMLResponse(f'<p class="text-accent">{msg}</p>')
+        return HTMLResponse(f'<p class="text-accent">{msg}</p>' + _oob_badge(store))
     return {"id": tx_id, **category}
 
 
@@ -156,7 +169,7 @@ def budgets(store: Annotated[Store, Depends(get_store)], month: str | None = Non
         raise HTTPException(422, "month — формат YYYY-MM")  # аудит 24.09: мусор → 422, не 500
     if not month:
         row = store.conn.execute("SELECT MAX(date) m FROM transactions").fetchone()
-        month = (row["m"] or datetime.now(UTC).strftime("%Y-%m-%d"))[:7]
+        month = (row["m"] or date.today().isoformat())[:7]  # noqa: DTZ011 — календарная ЛОКАЛЬНАЯ дата намеренно (UTC тут был багом, ревью web_api)
     items = budgets_progress(store, month, known={c.name for c in taxonomy.categories})
     return {"month": month, "items": items}
 
@@ -174,13 +187,7 @@ def list_reviews(request: Request, store: Annotated[Store, Depends(get_store)]):
 
 @router.get("/reviews/count", response_class=HTMLResponse)
 def reviews_count(request: Request, store: Annotated[Store, Depends(get_store)]):
-    n = store.pending_count()
-    body = (
-        '<span id="pending-count" hx-swap-oob="true"'
-        ' class="chip-pop ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">'
-        f"{n}</span>"
-    )
-    return HTMLResponse(body)
+    return HTMLResponse(_oob_badge(store))  # разметка бейджа — в одном месте (без дрейфа классов/id)
 
 
 def _oob_badge(store: Store) -> str:
@@ -276,11 +283,14 @@ def confirm(tx_id: int, body: ConfirmIn, store: Annotated[Store, Depends(get_sto
     taxonomy = load_taxonomy()
     if not taxonomy.is_valid(body.category):
         raise HTTPException(422, f"категория {body.category} вне таксономии")
+    # F4: коррекция снимает запись с очереди (approve_review — no-op вне очереди): иначе
+    # pending-запись остаётся в очереди и следующий approve-all затрёт ручное решение LLM-догадкой.
+    store.approve_review(tx_id, body.category)
     ok = store.update_category(tx_id, body.category, source="correction")
-    store.seed_merchant_cache(tx_id)
     if not ok:
         raise HTTPException(404, "не найдено")
-    return {"ok": True, "pending_count": sum(1 for _ in store.queued_for_review())}
+    store.seed_merchant_cache(tx_id)  # после проверки ok: по несуществующей записи кэш не сеем
+    return {"ok": True, "pending_count": store.pending_count()}
 
 
 @router.get("/transactions/{tx_id}")
@@ -291,39 +301,60 @@ def get_one(tx_id: int, store: Annotated[Store, Depends(get_store)]):
     return tx
 
 
-@router.post("/import")
-async def do_import(request: Request, store: Annotated[Store, Depends(get_store)]):  # noqa: C901 — см. cc_ratchet.py
-    """JSON | form-urlencoded | multipart (file=CSV-файл, M-6) — единый результат ImportOut/htmx."""
-    taxonomy = load_taxonomy()
-    ct = request.headers.get("content-type", "application/json")
-    if "application/json" in ct:
-        try:
-            clen = int(request.headers.get("content-length") or 0)
-        except ValueError:
-            clen = 0
-        if clen > 2 * MAX_CSV_BYTES:  # аудит 24.09: JSON читался целиком без лимита
-            raise HTTPException(413, detail=f"тело превышает {2 * MAX_CSV_BYTES // (1024 * 1024)} МБ")
-        body = await _json_payload(request, ImportIn)
-        raw: str | bytes = body.csv
-        bank, filename = body.bank, "api.json"
-    else:
-        # framework-дефолт 1 МБ резал форму раньше наших лимитов: поднимаем до 2×лимита,
-        # чтобы превышение обрабатывал наш код (понятные 413/HTMX-сообщение)
+async def _read_form_payload(request: Request) -> tuple[str, str | bytes, str]:
+    """form-urlencoded | multipart (file=CSV-файл, M-6): банк+CSV. Лимит — наш, не starlette.
+
+    Поле/часть > max_part_size: starlette конвертирует MultiPartException в СВОЙ HTTPException(400)
+    (родитель fastapi.HTTPException — «except HTTPException» его не ловит, ревью web_api).
+    Переводим в ImportLimitError → те же ветки 413/HX-фрагмент, что у файла выше лимита.
+    Форма закрывается явно: SpooledTemporaryFile >1 МБ не должен ждать GC.
+    """
+    form = None
+    try:
+        # framework-дефолт 1 МБ резал форму раньше наших лимитов: поднимаем до 2×лимита
         form = await request.form(max_part_size=2 * MAX_CSV_BYTES)
         bank = str(form.get("bank") or "auto")
         upload = form.get("file")
         if upload is not None and getattr(upload, "filename", ""):
-            raw, filename = await upload.read(), str(upload.filename)  # байты: utf-8-sig/cp1251-фолбэк внутри
-        else:
-            raw, filename = str(form.get("csv") or ""), "form.csv"
+            return bank, await upload.read(), str(upload.filename)  # байты: utf-8-sig/cp1251-фолбэк внутри
+        return bank, str(form.get("csv") or ""), "form.csv"
+    except (StarletteHTTPException, MultiPartException) as e:
+        mb = 2 * MAX_CSV_BYTES // (1024 * 1024)
+        raise ImportLimitError(f"тело превышает лимит ({mb} МБ)") from e
+    finally:
+        if form is not None:
+            await form.close()
+
+
+@router.post("/import")
+async def do_import(request: Request, store: Annotated[Store, Depends(get_store)]):  # noqa: C901 — 11 (было 12); ветки формата/лимитов/HX осознанны
+    """JSON | form-urlencoded | multipart — единый результат ImportOut/htmx."""
+    taxonomy = load_taxonomy()
+    ct = request.headers.get("content-type", "application/json")
     is_hx = request.headers.get("hx-request", "").lower() == "true"
     try:
+        if "application/json" in ct:
+            try:
+                clen = int(request.headers.get("content-length") or 0)
+            except ValueError:
+                clen = 0
+            if clen > 2 * MAX_CSV_BYTES:  # аудит 24.09: JSON читался целиком без лимита
+                raise HTTPException(413, detail=f"тело превышает {2 * MAX_CSV_BYTES // (1024 * 1024)} МБ")
+            body = await _json_payload(request, ImportIn)
+            raw: str | bytes = body.csv
+            bank, filename = body.bank, "api.json"
+        else:
+            bank, raw, filename = await _read_form_payload(request)
         result = import_csv(raw, store, bank=bank, taxonomy=taxonomy, filename=filename)
     except ImportLimitError as e:  # лимиты импорта — понятный 413; прочие ValueError остаются багами (500)
         if is_hx:
             return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(str(e))}</p>')
         raise HTTPException(413, detail=str(e)) from None
+    except StarletteHTTPException:
+        raise  # валидационные 400/413 тела (JSON/form) — не «сбой импорта», без лога
     except Exception as e:
+        # F5: без лога это глушитель — сбой превращается в зелёный 200 без следа
+        logging.getLogger("spendtrack").exception("import failed: %s", filename)
         if is_hx:
             return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(str(e))}</p>')
         raise

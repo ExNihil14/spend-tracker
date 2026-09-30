@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import logging
+import os
+import threading
+from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 
 from fastapi import FastAPI, HTTPException
@@ -46,8 +49,17 @@ def _setup_logging() -> None:
     _LOGGING_DONE = True
 
 
-app = FastAPI(title="Spendtrack", version="0.1.0")
-_setup_logging()
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    """Лог-настройка при старте приложения, а не на импорте модуля (ревью web_api):
+    `import spendtrack.main` (pytest/CLI/IDE) больше не создаёт <data>/logs и не трогает
+    uvicorn-логгеры; `uvicorn spendtrack.main:app` без main() логи получает через lifespan."""
+    ensure_config_dir()
+    _setup_logging()
+    yield
+
+
+app = FastAPI(title="Spendtrack", version="0.1.0", lifespan=_lifespan)
 # DNS-rebinding/Host-атаки: loopback-имена (порт Starlette отбрасывает сам) + в Codespaces —
 # домен форвардинга портов (прокси сохраняет публичный Host; см. spendtrack.security.trusted_hosts).
 # "testserver" — Host по умолчанию у FastAPI TestClient (в тестах); публично не резолвится.
@@ -110,7 +122,14 @@ def health():
 
 
 _DOCTOR_TTL_S = 10.0
-_doctor_cache: dict = {"ts": 0.0, "report": None}
+_FRESH_MIN_S = 2.0  # F7: ?fresh=1 чаще, чем раз в 2 с, не пересчитывает (анти-амплификатор)
+_doctor_cache: dict = {"ts": 0.0, "report": None, "key": None}
+_doctor_lock = threading.Lock()
+
+
+def _doctor_key() -> tuple[str, str]:
+    """Кэш doctor привязан к БД: смена SPENDTRACK_DB_PATH (тесты/CLI) не отдаёт отчёт о чужой БД."""
+    return str(resolve_data_dir()), os.environ.get("SPENDTRACK_DB_PATH", "")
 
 
 @app.get("/health/data")
@@ -118,16 +137,24 @@ def health_data(fresh: int = 0):
     """Целостность данных (doctor): JSON {status, checks[]}; 503 при critical.
 
     TTL-кэш 10 с (аудит 24.09): неаутентифицированный GET не должен каждый раз гонять
-    quick_check по всей БД и sha256 offsite-копии; `?fresh=1` — принудительный пересчёт.
+    quick_check по всей БД и sha256 offsite-копии; `?fresh=1` — принудительный пересчёт,
+    но не чаще `_FRESH_MIN_S` (F7: иначе открытая страница может дёргать его в цикле).
+    Lock сериализует пересчёты (два одновременных запроса не гоняют run_checks дважды).
     """
     import time
 
     from spendtrack.doctor import run_checks
 
     now = time.monotonic()
-    if fresh or _doctor_cache["report"] is None or now - _doctor_cache["ts"] > _DOCTOR_TTL_S:
-        _doctor_cache["report"] = run_checks()
-        _doctor_cache["ts"] = now
+    key = _doctor_key()
+    with _doctor_lock:
+        hit = _doctor_cache["key"] == key and _doctor_cache["report"] is not None
+        if fresh and hit and now - _doctor_cache["ts"] < _FRESH_MIN_S:
+            fresh = 0  # повторный fresh — из кэша
+        if fresh or not hit or now - _doctor_cache["ts"] > _DOCTOR_TTL_S:
+            _doctor_cache["report"] = run_checks()
+            _doctor_cache["ts"] = now
+            _doctor_cache["key"] = key
     report = _doctor_cache["report"]
     code = 503 if report["status"] == "critical" else 200
     return JSONResponse(report, status_code=code)

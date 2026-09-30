@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from spendtrack import cli
+from spendtrack import cli, doctor
 from spendtrack.doctor import overall_status, run_checks
 from spendtrack.main import app
 from spendtrack.store import SCHEMA, Store
@@ -513,6 +513,42 @@ def test_api_health_data_503_on_critical(tmp_path, monkeypatch):
     r = TestClient(app).get("/health/data?fresh=1")
     assert r.status_code == 503
     assert r.json()["status"] == "critical"
+
+
+def test_health_data_fresh_throttled(client, monkeypatch):
+    """F7 (ревью web_api): ?fresh=1 — не CPU/IO-амплификатор: повторный fresh в пределах
+    2 с отдаётся из кэша, а не пересчитывает quick_check + sha256 offsite."""
+    calls = {"n": 0}
+    real = doctor.run_checks
+
+    def counting():
+        calls["n"] += 1
+        return real()
+
+    monkeypatch.setattr(doctor, "run_checks", counting)
+    client.get("/health/data?fresh=1")
+    client.get("/health/data?fresh=1")
+    assert calls["n"] == 1
+
+
+def test_health_data_cache_keyed_by_db(client, tmp_path, monkeypatch):
+    """Кэш doctor привязан к БД: смена SPENDTRACK_DB_PATH не отдаёт отчёт о чужой БД."""
+    calls = {"n": 0}
+    real = doctor.run_checks
+
+    def counting():
+        calls["n"] += 1
+        return real()
+
+    monkeypatch.setattr(doctor, "run_checks", counting)
+    client.get("/health/data")  # БД из client-фикстуры (tmp_path/api.db)
+    assert calls["n"] == 1
+    other = tmp_path / "other.db"
+    Store(other).close()
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(other))
+    body = client.get("/health/data").json()  # без fresh: ключ сменился → пересчёт
+    assert calls["n"] == 2
+    assert body["status"] == "ok"
 
 
 # ---- CLI ----

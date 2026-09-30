@@ -749,11 +749,11 @@
    "returns": ""
   },
   "spendtrack.routers.api:TxIn.account": {
-   "args": "str | None = None",
+   "args": "str | None = Field(default=None, max_length=128)",
    "returns": ""
   },
   "spendtrack.routers.api:TxIn.amount": {
-   "args": "str = ",
+   "args": "str = Field(max_length=64)",
    "returns": ""
   },
   "spendtrack.routers.api:TxIn.currency": {
@@ -765,7 +765,7 @@
    "returns": ""
   },
   "spendtrack.routers.api:TxIn.description": {
-   "args": "str = ",
+   "args": "str = Field(max_length=512)",
    "returns": ""
   },
   "spendtrack.routers.api:approve_all": {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 
 import pytest
@@ -391,3 +392,137 @@ def test_import_json_body_limit_413(client, monkeypatch):
     monkeypatch.setattr("spendtrack.routers.api.MAX_CSV_BYTES", 10)
     r = client.post("/api/import", json={"bank": "auto", "csv": "x" * 100})
     assert r.status_code == 413
+
+
+# ---- ревью web_api (AgentRouter claude-opus-5, 30.09) ----
+
+def test_create_normalizes_iso_basic_date(client):
+    """F1: «20260912» (basic ISO) нормализуется в 2026-09-12 — иначе запись молча выпадает
+    из месячных срезов (LIKE 'YYYY-MM%') и бюджетов (MAX(date)[:7])."""
+    r = client.post("/api/transactions", json={
+        "date": "20260912", "description": "ЛЕНТА", "amount": "-50.00"})
+    assert r.status_code == 200
+    tx_id = r.json()["id"]
+    assert client.get(f"/api/transactions/{tx_id}").json()["date"] == "2026-09-12"
+
+
+def test_create_rejects_impossible_date(client):
+    r = client.post("/api/transactions", json={
+        "date": "2026-02-30", "description": "ЛЕНТА", "amount": "-1"})
+    assert r.status_code == 422
+
+
+@pytest.mark.parametrize("body", [b'"x"', b"[]", b"null", b"5"])
+@pytest.mark.parametrize("url", ["/api/transactions", "/api/import"])
+def test_non_object_json_body_400(client, url, body):
+    """F2: JSON-тело не-объект → 400, а не TypeError→500 в функции-«щите»."""
+    r = client.post(url, content=body, headers={"content-type": "application/json"})
+    assert r.status_code == 400
+
+
+@pytest.mark.parametrize("bad", ["1e20", "99999999999999999999", "-1e19"])
+def test_create_rejects_out_of_range_amount(client, bad):
+    """F3: сумма вне int64-безопасного диапазона → 422, а не OverflowError→500 в sqlite."""
+    r = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "X", "amount": bad})
+    assert r.status_code == 422
+    assert client.get("/health").json()["transactions"] == 0
+
+
+def test_create_accepts_boundary_amount(client):
+    """F3: граница 10 трлн ₽ (±10^15 копеек) ещё принимается."""
+    r = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "X", "amount": "-10000000000000.00"})
+    assert r.status_code == 200
+
+
+def test_form_blank_optional_fields_ok(client):
+    """F6: пустое поле формы ≠ «не передано»: blank currency/account не дают 422 и мусор."""
+    r = client.post("/api/transactions", data={
+        "date": "2026-09-12", "description": "ЛЕНТА", "amount": "-10.00",
+        "currency": "", "account": ""})
+    assert r.status_code == 200
+
+
+def test_create_rejects_oversized_description(client):
+    """F8: длина строк ограничена (description ≤ 512) — иначе мусор любого размера
+    ложится в БД и едет во все отчёты/экспорты."""
+    r = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "x" * 600, "amount": "-1"})
+    assert r.status_code == 422
+
+
+def test_validation_422_truncates_input_echo(client):
+    """Опционал: эхо input в 422 обрезается — ответ не разрастается до мегабайт."""
+    r = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "ЛЕНТА", "amount": "9" * 5000})
+    assert r.status_code == 422
+    assert "9" * 201 not in json.dumps(r.json())
+
+
+def test_correction_clears_queue_and_survives_approve_all(client, tmp_path):
+    """F4: ручная коррекция снимает запись с очереди; approve-all не затирает её LLM-догадкой."""
+    tx_id = _seed_tx(tmp_path)
+    assert client.get("/api/pending-count").json()["count"] == 1
+    r = client.patch(f"/api/transactions/{tx_id}", json={"category": "household"})
+    assert r.status_code == 200
+    assert r.json()["pending_count"] == 0  # снята с очереди той же правкой
+    assert client.post("/api/reviews/approve-all", data={"min_confidence": "0"}).status_code == 200
+    body = client.get(f"/api/transactions/{tx_id}").json()
+    assert body["category"] == "household"
+    assert body["category_source"] == "correction"
+
+
+def test_create_hx_response_includes_oob_badge(client):
+    """Опционал: HX-ответ create несёт OOB-бейдж — счётчик очереди живёт без перезагрузки."""
+    r = client.post("/api/transactions", data={
+        "date": "2026-09-12", "description": "ЛЕНТА", "amount": "-10.00"},
+        headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert 'hx-swap-oob="true"' in r.text
+
+
+def test_import_multipart_oversize_field_hx_fragment(client):
+    """Опционал (ревью web_api): multipart-поле больше max_part_size (2×MAX_CSV_BYTES) —
+    starlette конвертирует MultiPartException в свой HTTPException(400); htmx должен получить
+    красный фрагмент (конвенция ImportLimitError), а не JSON 400/500."""
+    big = "x" * (2 * 10 * 1024 * 1024 + 1024)  # > 2*MAX_CSV_BYTES
+    r = client.post("/api/import", files={"dummy": ("", b"", "text/plain")},
+                    data={"bank": "auto", "csv": big}, headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert "Ошибка импорта" in r.text
+
+
+def test_import_multipart_oversize_field_json_413(client):
+    """Тот же случай для JSON-клиента: понятный 413, а не 400 из глубины starlette."""
+    big = "x" * (2 * 10 * 1024 * 1024 + 1024)
+    r = client.post("/api/import", files={"dummy": ("", b"", "text/plain")},
+                    data={"bank": "auto", "csv": big})
+    assert r.status_code == 413
+    assert "лимит" in r.json()["detail"]
+
+
+def test_import_generic_error_logged(client, monkeypatch):
+    """F5: неожиданный сбой HX-импорта пишется в лог — сейчас это тихий зелёный 200."""
+    records: list[logging.LogRecord] = []
+
+    class _Cap(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("boom-import")
+
+    lg = logging.getLogger("spendtrack")
+    handler = _Cap()
+    lg.addHandler(handler)
+    try:
+        monkeypatch.setattr("spendtrack.routers.api.import_csv", boom)
+        r = client.post("/api/import", json={"bank": "auto", "csv": "a;b\n1;2"},
+                        headers={"hx-request": "true"})
+        assert r.status_code == 200  # UX для htmx прежний
+        assert any(rec.levelno >= logging.ERROR and rec.exc_info is not None
+                   and "boom-import" in str(rec.exc_info[1])
+                   for rec in records)
+    finally:
+        lg.removeHandler(handler)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import UTC, date, datetime
+from datetime import date
 from decimal import InvalidOperation
 from pathlib import Path
 
@@ -146,7 +146,7 @@ def cmd_budget(args) -> int:
     month = args.month
     if not month:
         row = store.conn.execute("SELECT MAX(date) m FROM transactions").fetchone()
-        month = (row["m"] or datetime.now(UTC).strftime("%Y-%m-%d"))[:7]
+        month = (row["m"] or date.today().isoformat())[:7]  # noqa: DTZ011 — календарная ЛОКАЛЬНАЯ дата намеренно (UTC тут был багом, ревью web_api)
     items = budgets_progress(store, month, known={c.name for c in load_taxonomy().categories})
     print(f"== Бюджеты {month}")
     if not items:
