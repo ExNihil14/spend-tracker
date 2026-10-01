@@ -16,9 +16,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sqlite3
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -80,9 +82,35 @@ def copy_offsite(snapshot: Path, target_dir: Path, *, force: bool = False) -> Pa
     return dest
 
 
+def backup_dir_for(db_path: Path) -> Path:
+    """Папка локальных снимков КОНКРЕТНОЙ БД: `<parent>/backup/<stem>` (Astra 01.10, C1).
+
+    Разные БД в одной папке (`spend.db` / `demo.db`) больше не делят снимки, ротацию и маркеры:
+    раньше ротация одной БД могла удалить единственную копию другой.
+    """
+    db_path = Path(db_path)
+    return db_path.parent / "backup" / db_path.stem
+
+
+def legacy_backup_dir(db_path: Path) -> Path:
+    """Плоская раскладка до 01.10 (`<parent>/backup`) — только чтение (совместимость)."""
+    return Path(db_path).parent / "backup"
+
+
+def find_snapshots(db_path: Path) -> tuple[Path, list[Path]]:
+    """(папка, снимки): приоритет — новая раскладка; пусто — legacy-плоская (чтение старых копий)."""
+    new_dir = backup_dir_for(db_path)
+    files = sorted(new_dir.glob("spend-*.db"), key=lambda p: (p.stat().st_mtime, p.name))
+    if files:
+        return new_dir, files
+    legacy = legacy_backup_dir(db_path)
+    files = sorted(legacy.glob("spend-*.db"), key=lambda p: (p.stat().st_mtime, p.name))
+    return (legacy, files) if files else (new_dir, [])
+
+
 def make_snapshot(db_path: Path) -> Path:
-    """VACUUM INTO-снимок в соседнюю папку backup/; два снимка в одну секунду не перезаписываются."""
-    backup_dir = Path(db_path).parent / "backup"
+    """VACUUM INTO-снимок в папку своей БД; два снимка в одну секунду не перезаписываются."""
+    backup_dir = backup_dir_for(db_path)
     backup_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     target = backup_dir / f"spend-{stamp}.db"
@@ -127,6 +155,38 @@ def rotate(backup_dir: Path, keep: int, *, current: Path | None = None) -> tuple
     return tuple(removed)
 
 
+LOCK_NAME = ".backup.lock"
+LOCK_STALE_S = 2 * 3600  # аварийный остаток lock старше 2 ч снимается автоматически
+
+
+def _acquire_backup_lock(backup_dir: Path) -> Path | None:
+    """Эксклюзивный lock операции бэкапа (Astra 01.10, S2).
+
+    Возвращает путь lock-файла; None — если бэкап уже выполняется. Зависший lock
+    (файл старше 2 ч — процесс, вероятно, умер) снимается автоматически.
+    """
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    lock = backup_dir / LOCK_NAME
+    if lock.exists():
+        try:
+            age = time.time() - lock.stat().st_mtime
+        except OSError:
+            age = 0
+        if age > LOCK_STALE_S:
+            lock.unlink(missing_ok=True)  # аварийный остаток: владелец давно не работает
+        else:
+            return None
+    try:
+        fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+    except FileExistsError:
+        return None
+    try:
+        os.write(fd, str(os.getpid()).encode())
+    finally:
+        os.close(fd)
+    return lock
+
+
 def run_backup(
     db_path: Path | str | None = None,
     *,
@@ -134,7 +194,11 @@ def run_backup(
     copy_to: str | Path | None = None,
     force: bool = False,
 ) -> int:
-    """Локальный снимок + ротация [+ внешняя копия]. 0 — успех, 1 — понятная ошибка в stderr."""
+    """Локальный снимок + ротация [+ внешняя копия]. 0 — успех, 1 — понятная ошибка в stderr.
+
+    Весь участок «снимок → внешняя копия → ротация» защищён эксклюзивным lock-файлом:
+    параллельный запуск для той же БД отклоняется (Astra 01.10, S2), а не удаляет снимки друг друга.
+    """
     utf8_stdout()
     if keep < 1:
         print(f"--keep должен быть >= 1 (получено {keep}): единственный снимок не удаляем",
@@ -144,6 +208,24 @@ def run_backup(
     if not db.exists():
         print(f"БД не найдена: {db}", file=sys.stderr, flush=True)
         return 1
+    lock = _acquire_backup_lock(backup_dir_for(db))
+    if lock is None:
+        print(f"бэкап уже выполняется (lock: {backup_dir_for(db) / LOCK_NAME}) — повторный запуск отклонён; "
+              "если процесс завершился аварийно, удалите lock-файл вручную", file=sys.stderr, flush=True)
+        return 1
+    try:
+        return _run_backup_locked(db, keep=keep, copy_to=copy_to, force=force)
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _run_backup_locked(
+    db: Path,
+    *,
+    keep: int,
+    copy_to: str | Path | None,
+    force: bool,
+) -> int:
     try:
         target = make_snapshot(db)
     except (sqlite3.Error, OSError) as e:

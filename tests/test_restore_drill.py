@@ -153,6 +153,10 @@ def test_doctor_restore_fresh_ok(tmp_path):
     db = tmp_path / "data" / "spend.db"
     _make_db(db, 1)
     _marker(db.parent / "backup", age_days=1)
+    # свежий снимок в папке своей БД: иначе backup-чек даёт warn для непустой БД (Astra 01.10, ЛГ-2)
+    bdir = db.parent / "backup" / "spend"
+    bdir.mkdir(parents=True, exist_ok=True)
+    _snapshot(db, bdir / "spend-20260918-000000.db")
     report = run_checks(db)
     check = _check(report, "restore_drill")
     assert report["status"] == "ok"
@@ -205,3 +209,31 @@ def test_doctor_restore_corrupt_marker_critical(tmp_path):
     (bdir / "last_restore_drill.json").write_text("{ broken", encoding="utf-8")
     check = _check(run_checks(db), "restore_drill")
     assert check["severity"] == "critical"
+
+
+def test_drill_uses_per_db_backup_dir(tmp_path):
+    """C1 (Astra 01.10): drill ищет снимки в папке своей БД (<backup>/<stem>/)."""
+    db = tmp_path / "data" / "spend.db"
+    _make_db(db, 2)
+    bdir = db.parent / "backup" / "spend"
+    bdir.mkdir(parents=True)
+    _snapshot(db, bdir / "spend-20260918-000000.db")
+    result = _drill_module().run_restore_drill(db_path=db)
+    assert result["status"] == "ok"
+
+
+def test_drill_failed_on_newer_schema(tmp_path):
+    """S9 (Astra 01.10): снимок с user_version новее приложения не считается восстановимым."""
+    db = tmp_path / "data" / "spend.db"
+    _make_db(db, 1)
+    bdir = db.parent / "backup" / "spend"
+    bdir.mkdir(parents=True)
+    snap = bdir / "spend-20260918-000000.db"
+    _snapshot(db, snap)
+    con = sqlite3.connect(snap)
+    con.execute("PRAGMA user_version = 99")
+    con.commit()
+    con.close()
+    result = _drill_module().run_restore_drill(db_path=db)
+    assert result["status"] == "failed"
+    assert "новее приложения" in result["reason"]

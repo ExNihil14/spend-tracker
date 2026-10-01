@@ -14,9 +14,17 @@ TAXONOMY_MIN = """[[categories]]
 name = "other"
 color = "#9ca3af"
 
+[[categories]]
+name = "cafe"
+color = "#112233"
+
 [[rules]]
 pattern = "ЛЕНТА"
 category = "other"
+
+[[rules]]
+pattern = "КОФЕ"
+category = "cafe"
 """
 
 
@@ -41,13 +49,13 @@ def test_validation(tax_env):
 
 
 def test_add_category_writes_backup_and_audit(tax_env):
-    repo.add_category("cafe", "#112233", repo.file_hash())
-    assert any(c["name"] == "cafe" for c in repo.load_raw()["categories"])
+    repo.add_category("cafe2", "#112233", repo.file_hash())
+    assert any(c["name"] == "cafe2" for c in repo.load_raw()["categories"])
     assert tax_env.with_suffix(".toml.bak").exists()
     audit = tax_env.with_name("taxonomy_audit.jsonl").read_text(encoding="utf-8").strip().splitlines()
     assert json.loads(audit[-1])["action"] == "add_category"
     with pytest.raises(repo.TaxonomyError):  # дубль
-        repo.add_category("cafe", "#112233", None)
+        repo.add_category("cafe2", "#112233", None)
 
 
 def test_stale_hash_conflict(tax_env):
@@ -58,9 +66,9 @@ def test_stale_hash_conflict(tax_env):
 def test_delete_guard_usage(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
-                      category="other", category_source="manual")
+                      category="cafe", category_source="manual")
     with pytest.raises(repo.TaxonomyError):
-        repo.delete_category("other", s, None)
+        repo.delete_category("cafe", s, None)
     s.close()
 
 
@@ -68,11 +76,11 @@ def test_delete_category_refuses_last_one(tmp_path, monkeypatch):
     """C2 (ревью LLM-шва, 28.09): удаление последней категории запрещено — иначе конфиг без
     [[categories]] роняет load_taxonomy и все страницы."""
     tax = tmp_path / "taxonomy.toml"
-    tax.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n', encoding="utf-8")
+    tax.write_text('[[categories]]\nname = "cafe"\ncolor = "#9ca3af"\n', encoding="utf-8")
     monkeypatch.setenv("SPENDTRACK_TAXONOMY", str(tax))
     s = Store(db_path=tmp_path / "t.db")
     with pytest.raises(repo.TaxonomyError, match="последнюю"):
-        repo.delete_category("other", s, None)
+        repo.delete_category("cafe", s, None)
     s.close()
 
 
@@ -105,11 +113,11 @@ def test_prompt_categories_follow_taxonomy(tax_env):
     from spendtrack.taxonomy import load_taxonomy
 
     s = Store(db_path=tax_env.parent / "t.db")
-    repo.rename_category("other", "general", s, repo.file_hash())
+    repo.rename_category("cafe", "general", s, repo.file_hash())
     prompt = build_system_prompt([], load_taxonomy(tax_env.parent))
     line = next(l for l in prompt.splitlines() if l.startswith("Категории:"))
     assert "general" in line
-    assert "other" not in line
+    assert "cafe" not in line
     s.close()
 
 
@@ -124,19 +132,19 @@ def test_set_color(tax_env):
 def test_rename_category_migrates_toml_db_and_rules(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     tx_id = s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
-                              category="other", category_source="llm", category_llm="other",
+                              category="cafe", category_source="llm", category_llm="cafe",
                               review_status="pending", merchant="МАГНИТ")
-    s.merchant_cache_set("МАГНИТ", "other")
-    s.add_example("ЛЕНТА", -100, "other")
-    s.set_budget("other", 20000_00)
-    res = repo.rename_category("other", "general", s, repo.file_hash())
-    assert res == {"old": "other", "new": "general",
+    s.merchant_cache_set("МАГНИТ", "cafe")
+    s.add_example("ЛЕНТА", -100, "cafe")
+    s.set_budget("cafe", 20000_00)
+    res = repo.rename_category("cafe", "general", s, repo.file_hash())
+    assert res == {"old": "cafe", "new": "general",
                    "counts": {"transactions": 1, "proposals": 1, "cache": 1, "examples": 1,
                               "budget": 1, "rules": 1}}
 
     data = repo.load_raw()  # TOML: имя категории + правило
-    assert data["categories"][0]["name"] == "general"
-    assert data["rules"][0]["category"] == "general"
+    assert any(c["name"] == "general" for c in data["categories"])
+    assert any(r["category"] == "general" for r in data["rules"])
     # БД: транзакции, предложение LLM, кэш мерчантов, примеры
     assert s.conn.execute("SELECT category FROM transactions WHERE id=?", (tx_id,)).fetchone()[0] == "general"
     assert s.conn.execute("SELECT category_llm FROM transactions WHERE id=?", (tx_id,)).fetchone()[0] == "general"
@@ -151,51 +159,50 @@ def test_rename_category_migrates_toml_db_and_rules(tax_env):
 
 def test_rename_validation_and_stale_hash(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
-    repo.add_category("cafe", "#112233", None)
     with pytest.raises(repo.TaxonomyError):  # имя занято
-        repo.rename_category("other", "cafe", s, None)
+        repo.rename_category("cafe", "other", s, None)
     with pytest.raises(repo.TaxonomyError):  # невалидное имя
-        repo.rename_category("other", "плохое имя", s, None)
+        repo.rename_category("cafe", "плохое имя", s, None)
     with pytest.raises(repo.TaxonomyError):  # категории нет
         repo.rename_category("нет-такой", "general", s, None)
     with pytest.raises(repo.TaxonomyError):  # файл изменён снаружи
-        repo.rename_category("other", "general", s, "deadbeef")
-    assert repo.load_raw()["categories"][0]["name"] == "other"
+        repo.rename_category("cafe", "general", s, "deadbeef")
+    assert any(c["name"] == "cafe" for c in repo.load_raw()["categories"])
     s.close()
 
 
 def test_rename_rollback_db_on_toml_failure(tax_env, monkeypatch):
     s = Store(db_path=tax_env.parent / "t.db")
     s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
-                      category="other", category_source="manual")
+                      category="cafe", category_source="manual")
 
     def boom(*args, **kwargs):
         raise repo.TaxonomyError("disk full")
 
     monkeypatch.setattr(repo, "save", boom)
     with pytest.raises(repo.TaxonomyError):
-        repo.rename_category("other", "general", s, None)
-    assert s.conn.execute("SELECT category FROM transactions").fetchone()[0] == "other"
-    assert repo.load_raw()["categories"][0]["name"] == "other"  # TOML не тронут
+        repo.rename_category("cafe", "general", s, None)
+    assert s.conn.execute("SELECT category FROM transactions").fetchone()[0] == "cafe"
+    assert any(c["name"] == "cafe" for c in repo.load_raw()["categories"])  # TOML не тронут
     s.close()
 
 
 def test_rename_preview_counts(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
-                      category="other", category_source="manual")
-    p = repo.rename_preview("Other", "general", s)  # old — case-insensitive
-    assert p["old"] == "other" and p["new"] == "general"
+                      category="cafe", category_source="manual")
+    p = repo.rename_preview("Cafe", "general", s)  # old — case-insensitive
+    assert p["old"] == "cafe" and p["new"] == "general"
     assert p["counts"]["transactions"] == 1 and p["counts"]["rules"] == 1
     with pytest.raises(repo.TaxonomyError):  # preview со стухшим hash
-        repo.rename_preview("other", "general", s, "deadbeef")
+        repo.rename_preview("cafe", "general", s, "deadbeef")
     s.close()
 
 
 def test_rename_same_name_message(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
-    with pytest.raises(repo.TaxonomyError, match="совпадает"):  # в т.ч. смена регистра: Other = other
-        repo.rename_category("other", "Other", s, None)
+    with pytest.raises(repo.TaxonomyError, match="совпадает"):  # в т.ч. смена регистра: Cafe = cafe
+        repo.rename_category("cafe", "Cafe", s, None)
     s.close()
 
 
@@ -234,8 +241,8 @@ def test_delete_category_removes_budget(tax_env):
     tax_env.write_text('[[categories]]\nname = "other"\ncolor = "#9ca3af"\n\n'
                        '[[categories]]\nname = "cafe"\ncolor = "#112233"\n', encoding="utf-8")
     s = Store(db_path=tax_env.parent / "t.db")
-    repo.set_budget("other", "20000", s)
-    repo.delete_category("other", s, repo.file_hash())
+    repo.set_budget("cafe", "20000", s)
+    repo.delete_category("cafe", s, repo.file_hash())
     assert s.budget_map() == {}
     s.close()
 
@@ -295,44 +302,44 @@ def test_category_color_and_delete_routes(tax_env):
     """Роуты смены цвета и удаления категории (аудит 23.09: repo покрыт, роуты — нет)."""
     client = TestClient(app)
     client.post("/settings/categories",
-                data={"name": "cafe", "color": "#112233", "file_hash": repo.file_hash()})
+                data={"name": "cafe2", "color": "#112233", "file_hash": repo.file_hash()})
 
     r = client.post("/settings/categories/color",
-                    data={"name": "cafe", "color": "#ff0000", "file_hash": repo.file_hash()})
+                    data={"name": "cafe2", "color": "#ff0000", "file_hash": repo.file_hash()})
     assert r.status_code == 200
     colors = {c["name"]: c["color"] for c in repo.load_raw()["categories"]}
-    assert colors["cafe"] == "#ff0000"
+    assert colors["cafe2"] == "#ff0000"
 
     r = client.post("/settings/categories/delete",
-                    data={"name": "cafe", "file_hash": repo.file_hash()})
+                    data={"name": "cafe2", "file_hash": repo.file_hash()})
     assert r.status_code == 200
-    assert "cafe" not in [c["name"] for c in repo.load_raw()["categories"]]
+    assert "cafe2" not in [c["name"] for c in repo.load_raw()["categories"]]
 
 
 def test_rename_api_preview_and_execute(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
-                      category="other", category_source="manual")
+                      category="cafe", category_source="manual")
     s.close()
     client = TestClient(app)
     r = client.post("/settings/categories/rename/preview",
-                    data={"name": "other", "new_name": "general", "file_hash": repo.file_hash()})
+                    data={"name": "cafe", "new_name": "general", "file_hash": repo.file_hash()})
     assert r.status_code == 200 and "Подтвердить" in r.text and "транзакций 1" in r.text
     assert "бюджет: 0" in r.text  # у категории бюджета нет (счётчик в preview)
 
     r2 = client.post("/settings/categories/rename",
-                     data={"name": "other", "new_name": "general", "file_hash": repo.file_hash()})
+                     data={"name": "cafe", "new_name": "general", "file_hash": repo.file_hash()})
     assert r2.status_code == 200 and "general" in r2.text
-    assert repo.load_raw()["categories"][0]["name"] == "general"
+    assert any(c["name"] == "general" for c in repo.load_raw()["categories"])
 
 
 def test_rename_api_errors(tax_env):
     client = TestClient(app)
     r = client.post("/settings/categories/rename/preview",
-                    data={"name": "other", "new_name": "bad name"})
+                    data={"name": "cafe", "new_name": "bad name"})
     assert "имя" in r.text
     r2 = client.post("/settings/categories/rename",
-                     data={"name": "other", "new_name": "general", "file_hash": "deadbeef"})
+                     data={"name": "cafe", "new_name": "general", "file_hash": "deadbeef"})
     assert "изменён снаружи" in r2.text
 
 
@@ -408,14 +415,14 @@ def test_delete_rule(tax_env):
 def test_move_rule_swaps_and_bounds(tax_env):
     repo.add_rule("ПЕРВОЕ", "other", None)
     repo.add_rule("ВТОРОЕ", "other", None)
-    repo.move_rule(2, "up", repo.file_hash())
-    assert _patterns() == ["ЛЕНТА", "ВТОРОЕ", "ПЕРВОЕ"]
-    repo.move_rule(1, "down", repo.file_hash())
-    assert _patterns() == ["ЛЕНТА", "ПЕРВОЕ", "ВТОРОЕ"]
+    repo.move_rule(3, "up", repo.file_hash())
+    assert _patterns() == ["ЛЕНТА", "КОФЕ", "ВТОРОЕ", "ПЕРВОЕ"]
+    repo.move_rule(2, "down", repo.file_hash())
+    assert _patterns() == ["ЛЕНТА", "КОФЕ", "ПЕРВОЕ", "ВТОРОЕ"]
     with pytest.raises(repo.TaxonomyError):
         repo.move_rule(0, "up", None)
     with pytest.raises(repo.TaxonomyError):
-        repo.move_rule(2, "down", None)
+        repo.move_rule(3, "down", None)
     with pytest.raises(repo.TaxonomyError):
         repo.move_rule(0, "sideways", None)
 
@@ -633,3 +640,19 @@ def test_delete_category_cleans_merchant_cache(tmp_path, monkeypatch):
         assert s.merchant_cache_get("КАФЕ") is None
     finally:
         s.close()
+
+
+def test_delete_system_category_refused(tax_env):
+    """C5 (Astra 01.10): системные other/income/transfers удалять нельзя (семантика шва)."""
+    s = Store(db_path=tax_env.parent / "t.db")
+    with pytest.raises(repo.TaxonomyError, match="системную"):
+        repo.delete_category("other", s, None)
+    s.close()
+
+
+def test_rename_system_category_refused(tax_env):
+    """C5: системный slug нельзя переименовать — меняется только отображаемое имя."""
+    s = Store(db_path=tax_env.parent / "t.db")
+    with pytest.raises(repo.TaxonomyError, match="системную"):
+        repo.rename_category("other", "misc", s, None)
+    s.close()

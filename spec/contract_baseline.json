@@ -44,9 +44,21 @@
    "args": "14",
    "returns": ""
   },
+  "spendtrack.backup:LOCK_NAME": {
+   "args": "'.backup.lock'",
+   "returns": ""
+  },
+  "spendtrack.backup:LOCK_STALE_S": {
+   "args": "2 * 3600",
+   "returns": ""
+  },
   "spendtrack.backup:OFFSITE_MARKER": {
    "args": "'last_offsite_copy.json'",
    "returns": ""
+  },
+  "spendtrack.backup:backup_dir_for": {
+   "args": "db_path: Path",
+   "returns": "Path"
   },
   "spendtrack.backup:copy_offsite": {
    "args": "snapshot: Path, target_dir: Path, *, force: bool=False",
@@ -54,6 +66,14 @@
   },
   "spendtrack.backup:default_db_path": {
    "args": "",
+   "returns": "Path"
+  },
+  "spendtrack.backup:find_snapshots": {
+   "args": "db_path: Path",
+   "returns": "tuple[Path, list[Path]]"
+  },
+  "spendtrack.backup:legacy_backup_dir": {
+   "args": "db_path: Path",
    "returns": "Path"
   },
   "spendtrack.backup:main": {

@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,31}$")
 PATTERN_FORBIDDEN = ('"', "\\", "\n", "\r", "\t")
+# C5 (Astra 01.10): семантические константы шва — их slug нельзя удалять/переименовывать
+# (проверки знака income, исключения бюджетов transfers, fallback other)
+_SYSTEM_CATEGORIES = frozenset({"other", "income", "transfers"})
 
 MAX_RULES = 500
 
@@ -195,6 +198,11 @@ def delete_category(name: str, store: Store, expected_hash: str | None) -> None:
     data = load_raw()
     cat = _find_category(data, name)
     real = cat["name"]
+    if real in _SYSTEM_CATEGORIES:
+        # C5 (Astra 01.10): other/income/transfers — семантические константы шва
+        # (проверки знака, исключения бюджетов); удаление ломает инварианты
+        raise TaxonomyError(f"системную категорию <{real}> удалить нельзя (other/income/transfers); "
+                            "измените только отображаемое имя")
     if len(data.get("categories", [])) <= 1:
         # C2 (ревью 28.09): конфиг без [[categories]] не должен существовать — load_taxonomy упал бы
         raise TaxonomyError("нельзя удалить последнюю категорию — приложение останется без таксономии")
@@ -253,6 +261,10 @@ def set_budget(category: str, amount: str, store: Store) -> None:
 def _rename_targets(data: dict, old_name: str, new_name: str) -> tuple[str, str]:
     cat = _find_category(data, old_name)
     old = cat["name"]
+    if old in _SYSTEM_CATEGORIES:
+        # C5 (Astra 01.10): переименование системного slug ломает проверки шва (cat == "income" и т.п.)
+        raise TaxonomyError(f"системную категорию <{old}> переименовать нельзя (other/income/transfers); "
+                            "измените только отображаемое имя")
     new = validate_name(new_name)
     if new == old:
         raise TaxonomyError("новое имя совпадает с текущим — менять нечего")

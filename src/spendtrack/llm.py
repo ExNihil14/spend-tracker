@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import os
@@ -48,12 +49,37 @@ def _env_key_for(base_url: str, cfg: Settings) -> str:
 
 
 def _is_local(url: str) -> bool:
-    return (urlparse(url).hostname or "").lower() in {"127.0.0.1", "localhost", "::1"}
+    """Локальность по IP-адресу (loopback-диапазон), а не по трём строкам (Astra 01.10, S14).
+
+    127.0.0.2–127.255.255.255 — тоже loopback; строка «localhost» поддерживается отдельно.
+    """
+    host = (urlparse(url).hostname or "").lower()
+    if not host:
+        return False
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
 
 
 def _allow_local_llm() -> bool:
     """Локальные эндпоинты (shim) — только явный opt-in: они тоже проксируют наружу."""
     return os.environ.get("SPENDTRACK_ALLOW_LOCAL_LLM", "").strip().lower() in ("1", "true", "yes")
+
+
+def _resolve_ollama(cfg: Settings, base: str, model: str, key: str) -> tuple[LLMProvider, ...]:
+    """Пресет ollama: только loopback-адрес (Astra 01.10, C4).
+
+    Для удалённого сервера нужен явный BYO (SPENDTRACK_LLM_BASE_URL без provider).
+    """
+    base = base or cfg.llm.offline.base_url
+    if not _is_local(base):
+        log.warning("llm: ollama-пресет с нелокальным base_url=%r — отказ "
+                    "(для внешнего сервера используйте BYO)", base)
+        return ()
+    return (LLMProvider(base, model or cfg.llm.offline.model, key or "no-key", "ollama", True),)
 
 
 def resolve_providers(cfg: Settings | None = None) -> tuple[LLMProvider, ...]:
@@ -62,6 +88,9 @@ def resolve_providers(cfg: Settings | None = None) -> tuple[LLMProvider, ...]:
     Приоритет: BYO-эндпоинт пользователя (SPENDTRACK_LLM_BASE_URL или пресет ollama)
     полностью вытесняет free-цепочку — данные уходят ровно туда, куда указал пользователь,
     без «тихих» фолбэков в чужое облако. Пустой результат = офлайн-режим.
+
+    C4 (Astra 01.10): неизвестное непустое имя провайдера — тоже пустой результат (fail-closed),
+    а не тихий откат в free-цепочку при сохранённом облачном ключе.
     """
     cfg = cfg or load_settings()
     provider = (cfg.llm_provider or "").strip().lower()
@@ -69,13 +98,13 @@ def resolve_providers(cfg: Settings | None = None) -> tuple[LLMProvider, ...]:
     model = (cfg.llm_model or "").strip()
     key = (cfg.llm_api_key or "").strip()
 
-    if provider == "ollama" and not base:  # локальный пресет: полностью на своей машине
-        base, model = cfg.llm.offline.base_url, model or cfg.llm.offline.model
-        return (LLMProvider(base, model, key or "no-key", "ollama", True),)
+    if provider == "ollama":  # локальный пресет: полностью на своей машине
+        return _resolve_ollama(cfg, base, model, key)
 
-    if provider and provider != "ollama" and not base:
-        log.warning("llm: неизвестный SPENDTRACK_LLM_PROVIDER=%r — игнорирую (ожидается 'ollama' "
-                    "или SPENDTRACK_LLM_BASE_URL для BYO)", provider)
+    if provider and not base:
+        log.warning("llm: неизвестный SPENDTRACK_LLM_PROVIDER=%r — LLM выключен "
+                    "(ожидается 'ollama' или BYO через SPENDTRACK_LLM_BASE_URL)", provider)
+        return ()
 
     if base:  # BYO: явное согласие пользователя, ALLOW_LOCAL_LLM не требуется
         local = _is_local(base)

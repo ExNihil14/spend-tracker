@@ -49,7 +49,8 @@ def _check(report: dict, check_id: str) -> dict:
 
 
 def _backup_dir(db_path: Path) -> Path:
-    return db_path.parent / "backup"
+    # Astra 01.10 (C1): снимки БД — в своей подпапке <parent>/backup/<stem>/
+    return db_path.parent / "backup" / db_path.stem
 
 
 # ---- ① quick_check ----
@@ -278,6 +279,9 @@ def test_merchant_cache_dead_info(db_path):
     store.merchant_cache_set("ЛЕНТА", "groceries")   # живой: мерчант есть в операциях
     store.merchant_cache_set("СТАРЫЙ", "groceries")  # мёртвый: операций нет
     store.close()
+    # свежий снимок: иначе общий статус = warn из-за отсутствия бэкапов (Astra 01.10, ЛГ-2)
+    _backup_dir(db_path).mkdir(parents=True, exist_ok=True)
+    Store(_backup_dir(db_path) / "spend-20260916-000000.db").close()
 
     report = run_checks(db_path)
     check = _check(report, "merchant_cache_dead")
@@ -592,3 +596,13 @@ def test_cli_doctor_critical_exit1(db_path, monkeypatch, capsys):
 
     assert cli.main(["doctor", "--json"]) == 1
     assert json.loads(capsys.readouterr().out)["status"] == "critical"
+
+
+def test_backup_missing_warns_for_nonempty_db(db_path):
+    """ЛГ-2 (Astra 01.10): у непустой БД без снимков — warn (а не info)."""
+    store = Store(db_path)
+    _insert(store)
+    store.close()
+    check = _check(run_checks(db_path), "backup")
+    assert check["severity"] == "warn"
+    assert "бэкапов нет" in check["detail"]

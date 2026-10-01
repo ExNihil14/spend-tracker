@@ -30,7 +30,8 @@ def db_path(tmp_path, monkeypatch) -> Path:
 
 
 def _backup_dir(db_path: Path) -> Path:
-    return db_path.parent / "backup"
+    # Astra 01.10 (C1): снимки БД лежат в своей подпапке <parent>/backup/<stem>/
+    return db_path.parent / "backup" / db_path.stem
 
 
 def test_local_backup_created(db_path, capsys):
@@ -95,12 +96,13 @@ def test_keep_rotation_does_not_touch_offsite_dir(db_path, tmp_path, monkeypatch
     usb = tmp_path / "usb"
     usb.mkdir()
     (usb / "spend-19990101-000000.db").write_bytes(b"old")
+    local_dir = _backup_dir(db_path)
+    local_dir.mkdir(parents=True, exist_ok=True)
     for h in range(3):  # 3 локальных копии «прошлых» запусков
-        (db_path.parent / "backup").mkdir(parents=True, exist_ok=True)
-        (db_path.parent / "backup" / f"spend-2026090{h + 1}-000000.db").write_bytes(b"x")
+        (local_dir / f"spend-2026090{h + 1}-000000.db").write_bytes(b"x")
 
     assert backup.main(["--keep", "1", "--copy-to", str(usb)]) == 0
-    local = sorted((db_path.parent / "backup").glob("spend-*.db"))
+    local = sorted(local_dir.glob("spend-*.db"))
     assert len(local) == 1, [p.name for p in local]
     external = sorted(p.name for p in usb.glob("spend-*.db"))
     assert len(external) == 2, external  # старый внешний + свежая копия, ротация их не трогает
@@ -316,3 +318,38 @@ def test_snapshot_contains_committed_wal_data(tmp_path):
             con.close()
     finally:
         store.close()
+
+
+def test_backups_isolated_per_db(tmp_path):
+    """C1 (Astra 01.10): две БД в одной папке не делят снимки и ротацию."""
+    data = tmp_path / "data"
+    data.mkdir()
+    for name in ("spend.db", "demo.db"):
+        st = Store(data / name)
+        st.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                           category="other", category_source="manual")
+        st.close()
+    assert backup.run_backup(data / "spend.db", keep=1) == 0
+    assert backup.run_backup(data / "demo.db", keep=1) == 0
+    assert len(list((data / "backup" / "spend").glob("spend-*.db"))) == 1
+    assert len(list((data / "backup" / "demo").glob("spend-*.db"))) == 1
+
+
+def test_parallel_backup_refused_by_lock(db_path, capsys):
+    """S2 (Astra 01.10): параллельный бэкап той же БД отклоняется lock-файлом."""
+    lock = _backup_dir(db_path) / ".backup.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text("999999", encoding="utf-8")
+    assert backup.run_backup(db_path) == 1
+    assert "уже выполняется" in capsys.readouterr().err
+    lock.unlink()
+    assert backup.run_backup(db_path) == 0
+
+
+def test_stale_backup_lock_is_reclaimed(db_path):
+    """S2: зависший lock старше 2 ч снимается автоматически (процесс умер)."""
+    lock = _backup_dir(db_path) / ".backup.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_text("999999", encoding="utf-8")
+    os.utime(lock, (0, 0))  # давно в прошлом
+    assert backup.run_backup(db_path) == 0

@@ -18,6 +18,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from spendtrack import __version__
+from spendtrack.backup import backup_dir_for, find_snapshots, legacy_backup_dir
 from spendtrack.checksum import sha256_file
 from spendtrack.config import load_settings, repo_mode, resolve_data_dir
 from spendtrack.store import SCHEMA_VERSION, Store
@@ -194,12 +195,36 @@ def check_empty_batches(conn: sqlite3.Connection) -> dict:
     return _check("empty_batches", INFO, len(rows), f"партии без транзакций: {sample}")
 
 
-# ---- 9. бэкапы (spendtrack backup → data/backup/spend-*.db) ----
+# ---- 9. бэкапы (spendtrack backup → <parent>/backup/<db-stem>/spend-*.db) ----
+def _has_transactions(db_path: Path) -> bool:
+    """Непустая ли БД (read-only): для отсутствия бэкапов это warn, для пустой — info (Astra 01.10, ЛГ-2)."""
+    con: sqlite3.Connection | None = None
+    try:
+        con = sqlite3.connect(Path(db_path).resolve().as_uri() + "?mode=ro", uri=True)
+        return int(con.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]) > 0
+    except sqlite3.Error:
+        return False
+    finally:
+        if con is not None:
+            con.close()
+
+
+def _marker_path(db_path: Path, name: str) -> Path:
+    """Маркер в папке своей БД; legacy-плоская раскладка — только как fallback (до 01.10)."""
+    new = backup_dir_for(db_path) / name
+    if new.exists():
+        return new
+    legacy = legacy_backup_dir(db_path) / name
+    if legacy.exists():
+        return legacy
+    return new
+
+
 def check_backup(db_path: Path) -> dict:
-    backup_dir = db_path.parent / "backup"
-    files = sorted(backup_dir.glob("spend-*.db"), key=lambda p: (p.stat().st_mtime, p.name))
+    snap_dir, files = find_snapshots(db_path)
     if not files:
-        return _check("backup", INFO, 0, f"бэкапов нет ({backup_dir})")
+        severity = WARN if _has_transactions(db_path) else INFO
+        return _check("backup", severity, 0, f"бэкапов нет ({snap_dir})")
     newest = files[-1]
     mtime = datetime.fromtimestamp(newest.stat().st_mtime, UTC)
     age = datetime.now(UTC) - mtime
@@ -237,7 +262,7 @@ def _snapshot_quick_check(path: Path) -> str | None:
 
 # ---- 10. restore-drill бэкапа (scripts/restore_drill.py → backup/last_restore_drill.json) ----
 def check_restore_drill(db_path: Path) -> dict:
-    marker = db_path.parent / "backup" / "last_restore_drill.json"
+    marker = _marker_path(db_path, "last_restore_drill.json")
     if not marker.exists():
         return _check("restore_drill", INFO, 0, f"restore-drill не проводился ({marker})")
     try:
@@ -266,7 +291,7 @@ def check_offsite_backup(db_path: Path) -> dict:
     (USB отключён) и устаревший маркер → warn; несовпавший sha256 → critical:
     восстановление из такой копии невозможно.
     """
-    marker = db_path.parent / "backup" / "last_offsite_copy.json"
+    marker = _marker_path(db_path, "last_offsite_copy.json")
     if not marker.exists():
         return _check("offsite_backup", INFO, 0,
                       "внешней копии не делали (spendtrack backup --copy-to <папка/USB>)")

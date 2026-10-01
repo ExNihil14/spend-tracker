@@ -122,8 +122,9 @@ def classify_with_injectable(
     if conf >= acceptance:
         llm_result["source"] = "llm"
         llm_result["review_status"] = "approved"
-        if llm_result.get("merchant"):
-            store.merchant_cache_set(llm_result["merchant"], llm_result["category"], commit=commit)
+        # C3 (Astra 01.10): авто-приём LLM больше НЕ обучает доверенный кэш мерчантов — иначе
+        # одна ошибка модели превращалась в «правило» (confidence 1.0, source=rule) для всех
+        # будущих операций. Кэш наполняет только явное подтверждение (Store.approve_review).
         return llm_result
 
     # C4: гипотеза при низкой уверенности живёт только в category_llm — дашборд не считает догадку фактом

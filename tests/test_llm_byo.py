@@ -101,14 +101,30 @@ def test_byo_remote_without_model_warns(caplog):
     assert any("SPENDTRACK_LLM_MODEL" in r.getMessage() for r in caplog.records)
 
 
-def test_unknown_provider_warns_and_uses_free_chain(caplog, monkeypatch):
-    """Опечатка в SPENDTRACK_LLM_PROVIDER не ломает резолв, но видна в логе."""
+
+def test_unknown_provider_fails_closed(caplog, monkeypatch):
+    """C4 (Astra 01.10): опечатка в SPENDTRACK_LLM_PROVIDER — отказ, а не тихий free-фолбэк."""
     monkeypatch.delenv("SPENDTRACK_ALLOW_LOCAL_LLM", raising=False)
     cfg = _settings(llm_provider="llmstudio", openrouter_api_key="sk-or")
     with caplog.at_level(logging.WARNING, logger="spendtrack"):
         providers = resolve_providers(cfg)
-    assert [p.source for p in providers] == ["primary"]
+    assert providers == ()
     assert any("неизвестный" in r.getMessage() for r in caplog.records)
+
+
+def test_ollama_preset_rejects_remote_base(monkeypatch):
+    """C4: пресет ollama с удалённым base_url — отказ (для внешнего сервера нужен явный BYO)."""
+    monkeypatch.delenv("SPENDTRACK_ALLOW_LOCAL_LLM", raising=False)
+    cfg = _settings(llm_provider="ollama", llm_base_url="https://remote.example/v1")
+    assert resolve_providers(cfg) == ()
+
+
+def test_is_local_covers_loopback_range():
+    """S14 (Astra 01.10): 127.0.0.0/8 — loopback (а не только 127.0.0.1)."""
+    from spendtrack.llm import _is_local
+    assert _is_local("http://127.0.0.2:3001/v1") is True
+    assert _is_local("http://localhost:3001/v1") is True
+    assert _is_local("http://10.0.0.1/v1") is False
 
 
 def test_override_key_matches_url(monkeypatch):

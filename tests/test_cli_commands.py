@@ -85,7 +85,8 @@ def test_cli_backup_creates_snapshot(cli_db, capsys):
     assert cli.main(["backup"]) == 0
     out = capsys.readouterr().out
     assert "OK:" in out
-    assert len(list((cli_db.parent / "backup").glob("spend-*.db"))) == 1
+    # C1 (Astra 01.10): снимки — в подпапке своей БД (<parent>/backup/<stem>/)
+    assert len(list((cli_db.parent / "backup" / cli_db.stem).glob("spend-*.db"))) == 1
 
 
 def test_cli_backup_missing_db_reports(tmp_path, monkeypatch, capsys):

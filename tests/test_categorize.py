@@ -146,17 +146,28 @@ def test_clamp_confidence_edge_cases():
     assert _clamp_confidence(object()) == 0.0
 
 
-def test_classify_commit_false_defers_merchant_cache(store, taxonomy):
-    """commit=False (батч импорта): кэш мерчанта не коммитится посередине партии (ресёрч слоёв 23.09)."""
+
+def test_llm_auto_accept_does_not_learn_merchant_cache(store, taxonomy):
+    """C3 (Astra 01.10): авто-приём LLM не обучает доверенный кэш — только явное подтверждение.
+
+    Иначе одна ошибка модели превращалась в «правило» (confidence 1.0, source=rule) для всех
+    будущих операций этого мерчанта.
+    """
     def llm(tx, s, tax):
-        return {"category": "restaurants", "confidence": 0.99, "merchant": "ДОДО",
+        return {"category": "restaurants", "confidence": 0.99, "merchant": "ГАСТРОНОМ",
                 "reason": "stub", "source": "llm"}
 
-    result = classify_with_injectable(_tx(), taxonomy, store, llm, 0.9, commit=False)
+    result = classify_with_injectable(_tx(), taxonomy, store, llm, 0.9)
     assert result["source"] == "llm"
-    assert store.conn.in_transaction is True  # запись кэша ждёт коммита партии
-    store.conn.rollback()
-    assert store.merchant_cache_get("ДОДО") is None
+    assert store.merchant_cache_get("ГАСТРОНОМ") is None  # LLM кэш не учит
+
+    tx_id = store.add_transaction(date="2026-09-05", description="ГАСТРОНОМ", amount_kopecks=-500,
+                                  category="other", category_source="llm_pending_review",
+                                  merchant="ГАСТРОНОМ", category_llm="restaurants",
+                                  review_status="pending")
+    assert store.approve_review(tx_id, "restaurants") is True
+    assert store.merchant_cache_get("ГАСТРОНОМ") == "restaurants"  # учит явное подтверждение
+
 
 def test_parse_llm_json_rejects_non_dict():
     """Аудит 24.09: list/строка/число от LLM → None (иначе AttributeError роняет партию)."""

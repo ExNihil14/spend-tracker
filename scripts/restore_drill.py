@@ -19,7 +19,9 @@ import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 
+from spendtrack.backup import find_snapshots
 from spendtrack.config import ROOT, load_settings
+from spendtrack.store import SCHEMA_VERSION, Store
 
 MARKER_NAME = "last_restore_drill.json"
 
@@ -74,7 +76,11 @@ def run_restore_drill(
 ) -> dict:
     cfg = load_settings()
     live = Path(db_path or cfg.db_path or ROOT / "data" / "spend.db")
-    bdir = Path(backup_dir or live.parent / "backup")
+    if backup_dir is not None:
+        bdir = Path(backup_dir)
+    else:
+        # Astra 01.10 (S8): раскладка снимков — как у backup/doctor (папка своей БД + legacy-fallback)
+        bdir, _files = find_snapshots(live)
     marker = Path(marker_path or bdir / MARKER_NAME)
     marker.parent.mkdir(parents=True, exist_ok=True)
 
@@ -92,12 +98,20 @@ def run_restore_drill(
                 restored = Path(tmp) / backup.name
                 shutil.copy2(backup, restored)
                 snap = inspect_db(restored)
-            result.update(snap)
-            if snap["integrity"] == "ok" and snap["has_transactions"]:
-                result["status"] = "ok"
-            else:
-                result["reason"] = "снимок не прошёл integrity_check/нет таблицы transactions"
-        except (sqlite3.Error, OSError) as e:
+                result.update(snap)
+                if snap["user_version"] > SCHEMA_VERSION:
+                    # S9 (Astra 01.10): снимок новее приложения не «восстановим» — явный отказ
+                    result["reason"] = (f"снимок новее приложения (schema v{snap['user_version']}"
+                                        f" > v{SCHEMA_VERSION}) — несовместим")
+                else:
+                    # S9: открытие штатным Store на КОПИИ (миграция проверяется, исходный снимок не трогаем)
+                    probe = Store(db_path=restored)
+                    probe.close()
+                    if snap["integrity"] == "ok" and snap["has_transactions"]:
+                        result["status"] = "ok"
+                    else:
+                        result["reason"] = "снимок не прошёл integrity_check/нет таблицы transactions"
+        except (sqlite3.Error, OSError, RuntimeError) as e:
             result["reason"] = f"не удалось восстановить: {e}"
 
     live_snap = live_stats(live)

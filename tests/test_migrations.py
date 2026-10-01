@@ -38,8 +38,9 @@ def test_migration_takes_pre_snapshot(tmp_path):
 
     s = Store(db_path=db)
     try:
-        snaps = sorted((tmp_path / "backup").glob("pre-migration-v3-spend-*.db"))
-        assert len(snaps) == 1, [p.name for p in (tmp_path / "backup").glob("*")]
+        snaps_dir = tmp_path / "backup" / "pre"  # C1 (Astra 01.10): снимки — в папке своей БД
+        snaps = sorted(snaps_dir.glob("pre-migration-v3-spend-*.db"))
+        assert len(snaps) == 1, [p.name for p in snaps_dir.glob("*")]
         con = sqlite3.connect(snaps[0])
         try:
             assert con.execute("PRAGMA user_version").fetchone()[0] == 3  # снимок — ровно «до миграции»
@@ -51,7 +52,7 @@ def test_migration_takes_pre_snapshot(tmp_path):
     # повторное открытие (версия актуальна) снимков НЕ делает
     s2 = Store(db_path=db)
     s2.close()
-    assert len(list((tmp_path / "backup").glob("pre-migration-*"))) == 1
+    assert len(list((tmp_path / "backup" / "pre").glob("pre-migration-*"))) == 1
 
 
 def test_pre_migration_snapshot_replaces_stale_target(tmp_path, monkeypatch):
@@ -77,8 +78,8 @@ def test_pre_migration_snapshot_replaces_stale_target(tmp_path, monkeypatch):
     db = tmp_path / "pre.db"
     _legacy_db(db, 3, rows=[("fp1", "2026-09-01", "ЛЕНТА", -100, "groceries", "rule", 1.0,
                              "approved", 0)])
-    backups = tmp_path / "backup"
-    backups.mkdir()
+    backups = tmp_path / "backup" / "pre"  # C1 (Astra 01.10): снимки — в папке своей БД
+    backups.mkdir(parents=True)
     stale = backups / "pre-migration-v3-spend-20260901-120000.db"
     stale.write_text("старый файл", encoding="utf-8")
 
