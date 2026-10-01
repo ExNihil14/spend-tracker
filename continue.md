@@ -42,8 +42,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (C1/S2 install_ops), doctor-warn без бэкапов для непустой БД (ЛГ-2), restore_drill пути+схема (S8/S9),
 > fail-closed провайдеров + loopback-диапазон (C4/S14), авто-приём LLM не учит кэш (C3), системные
 > категории защищены (C5); контур **757 unit + 86 e2e** + все гейты — зелёные, contract snapshot (api 318).
-> **Волна 3 (очередь):** llm_seam C6 (rename-атомарность), S3–S8, S12–S22; tests S4/S5/S6/O2/O3;
-> agent_env C1/S1–S5 (safety-gate shell, SSE-разделители, FIFO, Retry-After, origin ключа);
+> **Волна 3 ✅ частично (`cc2db69` + safety-gate v5):** llm_seam S4–S8/S12/S13 (merchant доходит до LLM,
+> account/date убраны — egress; few-shot через `json.dumps` и фильтр по таксономии; pending сохраняет исходный
+> merchant; HTTP-клиент закрывается; ключ по точному origin); **safety-gate v5** (bootstrap, вне репо):
+> `git -C/-c …` и `reset … --hard` больше не обходят правила, write-API python в `data/` виден эвристике,
+> тесты `safety_gate_test.mjs` — ALL SCENARIOS PASS. Контур **764 unit + 86 e2e** + все гейты — зелёные.
+> **Волна 3 (остаток):** llm_seam C6 (rename-атомарность), S16–S22; tests S4/S5/S6/O2/O3;
+> agent_env S2–S5 (SSE-разделители, FIFO, Retry-After, origin ключа в agentrouter-ua.js);
 > install_ops S1/S3/S5/S7 (README-комплект, runbook, Git-зависимость, пути/paths_info).
 > **АКТУАЛЬНО (01.10, утро — фиксы Dash-ревью 4.6/4.8, ✅ в дереве, ждут команды на коммит).** По
 > `D:\dev\docs\machine\DASH_CODE_REVIEW_2026-10-01.md`, TDD (красный → фикс → зелёный):
