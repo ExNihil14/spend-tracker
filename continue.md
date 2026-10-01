@@ -27,6 +27,20 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
+> Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
+> пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
+> `D:\dev\docs\machine\agentrouter_review\2026-09-27\ADJUDICATION_ASTRA_2026-10-01.md` (~60 находок,
+> вердикты + план волн). **Волна 1 (TDD, +19 тестов):** `review.py` — STOP при чувствительных tracked-путях
+> (утечка выписок/PII наружу!), `-z`-разбор (не-ASCII имена), `prompt_sha256`; `categorize/taxonomy` —
+> валидация типов ответа LLM + OverflowError + кэш-income не применяется к расходу; `llm.py` — `parse_llm_json`
+> без regex-обхода массива, пустой HTTP-200 = сбой (fallback/breaker), `llm_status` — origin без секретов;
+> `ratchet` — NaN/`{}` больше не выключают гейт; `contract_delta` — SQL таблиц (CHECK/UNIQUE/FK) + components
+> OpenAPI (осознанный snapshot, `Contract-Change`); `install.ps1` — `$LASTEXITCODE`; `config.py` — env > TOML.
+> Контур: **747 unit + 86 e2e** + ruff + contract ok (schema 58 / api 313 / routes 34) + ratchet 2/420 +
+> cc + build_css — зелёные. **Волна 2 (очередь):** изоляция бэкапов по БД (C1 install_ops) + lock;
+> llm_seam C3/C4/C5/C6, S3–S8, S12–S22; tests S4/S5/S6/O2/O3; agent_env C1/S1–S5; restore_drill S8/S9;
+> doctor «нет бэкапов для непустой БД → warn».
 > **АКТУАЛЬНО (01.10, утро — фиксы Dash-ревью 4.6/4.8, ✅ в дереве, ждут команды на коммит).** По
 > `D:\dev\docs\machine\DASH_CODE_REVIEW_2026-10-01.md`, TDD (красный → фикс → зелёный):
 > ① API-лимит суммы сведён к общей константе `MAX_AMOUNT_KOPECKS` (10^11 коп = 1 млрд ₽; было ±10^15 —
