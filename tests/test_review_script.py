@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -13,6 +14,19 @@ def _mod():
     assert spec.loader is not None
     spec.loader.exec_module(mod)
     return mod
+
+
+def _git_repo(tmp_path: Path) -> Path:
+    """Мини-репо с одним коммитом (app.py) — для проверок collect_artifacts/main."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True)
+    subprocess.run(["git", "config", "user.name", "tester"], cwd=repo, check=True)
+    (repo / "app.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "init"], cwd=repo, check=True)
+    return repo
 
 
 def test_load_checklist_falls_back_to_embedded(tmp_path):
@@ -134,3 +148,58 @@ def test_summarize_numstat_ignores_binary_and_generated():
 
     assert total == 12
     assert rows == [(12, "src/spendtrack/store.py")]
+
+
+# ---- Astra-ревью 01.10: sensitive tracked-пути, -z-разбор, prompt_sha256 ----
+
+def test_sensitive_tracked_paths_are_blocked(tmp_path):
+    """C1: изменение чувствительного tracked-файла (data/*.csv) блокирует отправку промпта."""
+    m = _mod()
+    repo = _git_repo(tmp_path)
+    (repo / "data").mkdir()
+    secret = repo / "data" / "probe.csv"
+    secret.write_text("a,b\n1,2\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "csv"], cwd=repo, check=True)
+
+    secret.write_text("a,b\n3,4\n", encoding="utf-8")  # tracked-изменение чувствительного файла
+    _, _, _, _, blocked = m.collect_artifacts(repo)
+    assert any("probe.csv" in p for p in blocked), blocked
+
+
+def test_sensitive_tracked_paths_stop_rc3(tmp_path, capsys):
+    """C1: main отказывает (rc=3), а не отправляет выписку наружу."""
+    m = _mod()
+    repo = _git_repo(tmp_path)
+    (repo / "data").mkdir()
+    secret = repo / "data" / "probe.csv"
+    secret.write_text("a,b\n1,2\n", encoding="utf-8")
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+    subprocess.run(["git", "commit", "-qm", "csv"], cwd=repo, check=True)
+    secret.write_text("a,b\n3,4\n", encoding="utf-8")
+
+    rc = m.main(["--repo", str(repo), "--dry-run", "--title", "t"])
+    assert rc == 3
+    assert "СТОП" in capsys.readouterr().err
+
+
+def test_untracked_cyrillic_path_is_included(tmp_path):
+    """O1: не-ASCII имя untracked-файла не теряется (git ls-files -z)."""
+    m = _mod()
+    repo = _git_repo(tmp_path)
+    (repo / "проверка.py").write_text("y = 2\n", encoding="utf-8")
+
+    _, _, extras, _, _ = m.collect_artifacts(repo)
+    assert "проверка.py" in extras
+
+
+def test_dry_run_reports_prompt_sha(tmp_path, capsys):
+    """S7: prompt_sha256 идентифицирует ровно отправленное содержимое (включая untracked)."""
+    m = _mod()
+    repo = _git_repo(tmp_path)
+    (repo / "app.py").write_text("x = 2\n", encoding="utf-8")
+    (repo / "новый.py").write_text("z = 3\n", encoding="utf-8")
+
+    rc = m.main(["--repo", str(repo), "--dry-run", "--title", "t"])
+    assert rc == 0
+    assert "prompt_sha256=" in capsys.readouterr().out

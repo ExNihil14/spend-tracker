@@ -72,7 +72,7 @@ def test_routes_snapshot_has_health_and_api():
     assert "GET /health" in snap
     assert "GET /dashboard" in snap
     assert any(key.startswith("POST /api/") for key in snap)
-    assert all(" " in key for key in snap)
+    assert all(" " in key for key in snap if key != "components")  # S3: components — служебная запись
 
 
 def test_diff_detects_added_removed_changed():
@@ -111,3 +111,17 @@ def test_cli_check_missing_baseline(tmp_path, capsys):
 
     assert m.main(["check", "--baseline", str(tmp_path / "nope.json")]) == 2
     assert "baseline не найден" in capsys.readouterr().out
+
+
+def test_schema_snapshot_includes_table_sql():
+    """S2 (Astra 01.10): SQL таблиц в снапшоте — CHECK/UNIQUE/FK внутри CREATE TABLE видимы."""
+    snap = _mod().schema_snapshot()
+    assert "table:transactions" in snap
+    assert "CREATE TABLE" in snap["table:transactions"].upper()
+
+
+def test_routes_snapshot_includes_components():
+    """S3 (Astra 01.10): components OpenAPI в снапшоте — изменения $ref-моделей ловятся."""
+    snap = _mod().routes_snapshot()
+    assert "components" in snap
+    assert len(snap["components"]) == 12

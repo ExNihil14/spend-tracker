@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import platform
 import time
 from pathlib import Path
 
@@ -37,7 +38,7 @@ def pytest_sessionfinish(session, exitstatus):
     ordered = sorted(_PERF.items(), key=lambda kv: -kv[1]["seconds"])
     data = {
         "generated": int(time.time()),
-        "python": "3.13",
+        "python": platform.python_version(),  # O4 (Astra 01.10): характеристика измерения, не декларация
         "results": [
             {"test": name, "seconds": m["seconds"], "outcome": m["outcome"]}
             for name, m in ordered

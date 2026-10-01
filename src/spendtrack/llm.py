@@ -105,6 +105,23 @@ def resolve_providers(cfg: Settings | None = None) -> tuple[LLMProvider, ...]:
     return tuple(providers)
 
 
+def _safe_origin(url: str) -> str:
+    """Безопасный origin для статуса: scheme://host[:port] — без userinfo/query/path (S15, Astra 01.10).
+
+    `base_url` может содержать пароль, query-token или секрет в пути — в диагностику он не попадает.
+    """
+    from urllib.parse import urlsplit
+
+    try:
+        parts = urlsplit(url)
+    except ValueError:
+        return "?"
+    if not parts.scheme or not parts.hostname:
+        return "?"
+    port = f":{parts.port}" if parts.port else ""
+    return f"{parts.scheme}://{parts.hostname}{port}"
+
+
 def llm_status(cfg: Settings | None = None) -> dict[str, Any]:
     """Текущий режим LLM без сети и без секретов (для CLI/диагностики).
 
@@ -120,7 +137,7 @@ def llm_status(cfg: Settings | None = None) -> dict[str, Any]:
     return {
         "mode": mode,
         "providers": [
-            {"source": p.source, "base_url": p.base_url, "model": p.model,
+            {"source": p.source, "base_url": _safe_origin(p.base_url), "model": p.model,
              "local": p.local, "has_key": p.api_key != "no-key"}
             for p in providers
         ],
@@ -180,6 +197,12 @@ def call_llm(
                 temperature=temperature,
             )
             content = resp.choices[0].message.content or ""
+            if not content.strip():
+                # S10 (Astra 01.10): HTTP-200 с пустым телом — не «успех»: breaker не закрываем,
+                # fallback должен иметь шанс; пустой ответ бесполезен вызывающему коду.
+                log.warning("llm[%s]: пустой ответ — трактуем как сбой", provider.source)
+                br.report_failure()
+                continue
             br.report_success()
             return {"content": content, "model": provider.model, "source": provider.source}
         except Exception as e:  # noqa: BLE001
@@ -192,15 +215,19 @@ def call_llm(
 
 
 def parse_llm_json(raw: str) -> dict | None:
-    """Парсит JSON из ответа LLM; возвращает dict или None."""
+    """Парсит JSON из ответа LLM; возвращает dict или None.
+
+    S9 (Astra 01.10): если тело — валидный JSON, но не объект (массив/скаляр), возвращаем None
+    сразу: regex-фолбэк не должен «выковыривать» объект из массива, обходя запрет не-объектного JSON.
+    """
     if not raw.strip():
         return None
     try:
         parsed = json.loads(raw)
-        if isinstance(parsed, dict):  # аудит 24.09: list/str/int от LLM не должны ронять партию
-            return parsed
     except json.JSONDecodeError:
         pass
+    else:
+        return parsed if isinstance(parsed, dict) else None
     import re
     m = re.search(r"\{.*\}", raw, re.DOTALL)
     if m:

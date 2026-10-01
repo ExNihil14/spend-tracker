@@ -188,3 +188,27 @@ def test_llm_decision_log_does_not_leak_description(store, taxonomy, caplog):
     with caplog.at_level(logging.INFO, logger="spendtrack.categorize"):
         classify_with_injectable(_tx(desc=secret), taxonomy, store, stub, 0.9)
     assert all(secret not in r.getMessage() for r in caplog.records if r.levelno >= logging.INFO)
+
+
+def test_llm_output_wrong_types_go_queue(store, taxonomy):
+    """C1 (Astra 01.10): нестроковая category и OverflowError в confidence не роняют шов."""
+    def stub(t, s, tax):
+        return {"category": ["groceries"], "confidence": 10**400,
+                "merchant": {"x": 1}, "reason": None}
+
+    result = classify_with_injectable(_tx(), taxonomy, store, stub, 0.9)
+    assert result["category"] == "other"
+    assert result["confidence"] == 0.0
+    assert result["review_status"] == "pending"
+
+
+def test_merchant_cache_income_not_applied_to_expense(store, taxonomy):
+    """C2 (Astra 01.10): кэш income на расходной операции не даёт approved income."""
+    store.merchant_cache_set("ACME", "income")
+
+    def stub(t, s, tax):
+        return {"category": "other", "confidence": 0.1, "merchant": None, "reason": "r"}
+
+    result = classify_with_injectable(_tx(desc="ACME", amount="-10000"), taxonomy, store, stub, 0.9)
+    assert result["category"] != "income"
+    assert result["review_status"] == "pending"

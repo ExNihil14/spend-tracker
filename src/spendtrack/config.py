@@ -37,6 +37,18 @@ class AcceptanceSettings(BaseModel):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SPENDTRACK_", env_file=".env", extra="ignore")
 
+    @classmethod
+    def settings_customise_sources(
+        cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings,
+    ):
+        """S6 (Astra 01.10): env выше TOML-значений, переданных через init.
+
+        По умолчанию pydantic-settings ставит init выше env — из-за этого `SPENDTRACK_DB_PATH`
+        не переопределял `db_path` из settings.toml, и команды работали не с той БД (опасно
+        при диагностике/спасении данных, когда пользователь явно указал другую БД).
+        """
+        return (env_settings, dotenv_settings, init_settings, file_secret_settings)
+
     port: int = 8766
     llm: LLMSettings
     acceptance: AcceptanceSettings = AcceptanceSettings()

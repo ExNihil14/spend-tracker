@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import platform
 import sqlite3
 import statistics
@@ -201,7 +202,9 @@ def load_baseline_from_ref(ref: str) -> dict:
 
 
 def _is_number(value: object) -> bool:
-    return isinstance(value, (int, float)) and not isinstance(value, bool)
+    # S1 (Astra 01.10): NaN/бесконечности — не числа для гейта (сравнения с NaN всегда ложны,
+    # из-за чего «только вниз» молча пропускал бы любые значения).
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def compare(baseline: dict, current: dict, gates: dict | None = None) -> list[str]:
@@ -279,28 +282,45 @@ def env_warnings(baseline: dict, env: dict | None = None) -> list[str]:
     return out
 
 
+def _baseline_structure_failures(baseline: dict) -> list[str]:
+    """S1 (Astra 01.10): структура/версия базлайна — не через truthiness (`if baseline`).
+
+    Пустой `{}` раньше «выключал» и проверку версии, и метрики; теперь версия проверяется всегда,
+    а отсутствующие метрики ловит compare() (по FAIL на каждую).
+    """
+    if baseline.get("version") != 1:
+        return [
+            (
+                f"базлайн: неизвестная версия схемы {baseline.get('version')!r} (ожидается 1)"
+                " — гейт не может сработать"
+            )
+        ]
+    return []
+
+
 def _cmd_check(as_json: bool) -> int:
     failures: list[str] = []
-    baseline: dict = {}
+    baseline: dict | None = None
     try:
         baseline = load_baseline(BASELINE_PATH)
     except (OSError, ValueError) as e:
         failures.append(f"базлайн недоступен или битый ({BASELINE_PATH.name}): {e} — гейт не может сработать")
-    if baseline and baseline.get("version") != 1:
-        failures.append(
-            f"базлайн: неизвестная версия схемы {baseline.get('version')!r} (ожидается 1) — гейт не может сработать"
-        )
+    if baseline is not None and not isinstance(baseline, dict):
+        failures.append("базлайн: не объект JSON — гейт не может сработать")
+        baseline = None
+    if baseline is not None:
+        failures += _baseline_structure_failures(baseline)
     current: dict = {}
     try:
         current = measure()
     except AssertionError as e:
         failures.append(f"замер не сработал: {e}")
-    if baseline:
+    if baseline is not None:
         failures += compare(baseline, current)
     env = env_info()
-    warnings = env_warnings(baseline, env) if baseline else []
+    warnings = env_warnings(baseline, env) if baseline is not None else []
     if as_json:
-        print(json.dumps({"baseline": baseline.get("metrics"), "current": current, "failures": failures,
+        print(json.dumps({"baseline": (baseline or {}).get("metrics"), "current": current, "failures": failures,
                           "env": env, "env_warnings": warnings},
                          ensure_ascii=False, indent=2))
     else:

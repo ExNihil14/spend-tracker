@@ -61,12 +61,18 @@ def test_crlf_statement_imports_and_stays_iso(tmp_path):
 
 
 def test_broken_bytes_fall_back_and_survive(tmp_path):
-    """Битый байт после cp1251-текста — errors=replace, импорт продолжается."""
-    raw = (SBER + "\n1;01.09.2026;1234;Выполнено;-100,00;RUB;X;МАГАЗИН\n").encode("cp1251") + b"\xff"
+    """Битый байт (0x98 не существует в cp1251) ВНУТРИ поля — errors=replace, строка сохраняется.
+
+    S5 (Astra 01.10): `b"\\xff"` в cp1251 — валидная «я», тест не проверял replacement-политику.
+    """
+    head = (SBER + "\n1;01.09.2026;1234;Выполнено;-100,00;RUB;X;МАГАЗ").encode("cp1251")
+    raw = head + b"\x98" + "ИН\n".encode("cp1251")
     store = _fresh(tmp_path)
     try:
         result = import_csv(raw, store, taxonomy=TAX, classify=_stub)
         assert result["status"] == "ok" and result["added"] == 1
+        desc = store.conn.execute("SELECT description FROM transactions").fetchone()["description"]
+        assert "МАГАЗ" in desc and "ИН" in desc  # строка сохранена, битый байт заменён
     finally:
         store.close()
 

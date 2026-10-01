@@ -60,11 +60,18 @@ def _git(repo: Path, *args: str) -> str:
         return ""
 
 
-def collect_artifacts(repo: Path) -> tuple[str, str, dict[str, str], list[str]]:
-    """→ (diff_stat, diff, extras, skipped). Дифф — против HEAD (ловит и staged, и unstaged)."""
+def collect_artifacts(repo: Path) -> tuple[str, str, dict[str, str], list[str], list[str]]:
+    """→ (diff_stat, diff, extras, skipped, blocked). Дифф — против HEAD (ловит и staged, и unstaged).
+
+    `blocked` — чувствительные пути в tracked-диффе (ревью Astra 01.10, C1): содержимое таких
+    файлов наружу не отправляется, вызов завершается STOP (rc=3). Раньше фильтр применялся
+    только к untracked-файлам, а весь `git diff HEAD` уходил в промпт как есть.
+    """
     diff_stat = _git(repo, "diff", "HEAD", "--stat")
     diff = _git(repo, "diff", "HEAD")
-    untracked = [p for p in _git(repo, "ls-files", "--others", "--exclude-standard").splitlines() if p]
+    untracked = [p for p in _git(repo, "ls-files", "-z", "--others", "--exclude-standard").split("\0") if p]
+    blocked = [p for p in _git(repo, "diff", "--no-renames", "--name-only", "-z", "HEAD").split("\0")
+               if p and _is_sensitive(p)]
     extras: dict[str, str] = {}
     skipped: list[str] = []
     total = 0
@@ -85,7 +92,7 @@ def collect_artifacts(repo: Path) -> tuple[str, str, dict[str, str], list[str]]:
             continue
         extras[rel] = text
         total += len(text)
-    return diff_stat, diff, extras, skipped
+    return diff_stat, diff, extras, skipped, blocked
 
 
 SENSITIVE_PATTERNS = (
@@ -262,7 +269,11 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     notes = args.notes.read_text(encoding="utf-8") if args.notes and args.notes.exists() else ""
-    diff_stat, diff, extras, skipped = collect_artifacts(args.repo)
+    diff_stat, diff, extras, skipped, blocked = collect_artifacts(args.repo)
+    if blocked:
+        print("review: СТОП — в tracked-диффе чувствительные пути (наружу не отправляю): "
+              + ", ".join(blocked[:5]), file=sys.stderr, flush=True)
+        return 3
     total_lines, rows = summarize_numstat(_git(args.repo, "diff", "HEAD", "--numstat"))
     if total_lines > args.max_diff_lines:
         top = ", ".join(f"{path} ({n})" for n, path in rows[:5]) or "(нет текстовых файлов)"
@@ -277,6 +288,9 @@ def main(argv: list[str] | None = None) -> int:
     out = args.out or Path(tempfile.gettempdir()) / f"spendtrack-review-{int(time.time())}.md"
     base_sha = _git(args.repo, "rev-parse", "--short", "HEAD").strip() or "?"
     diff_sha = hashlib.sha1(diff.encode("utf-8", "replace")).hexdigest()[:12]
+    # S7 (Astra 01.10): diff_sha покрывает только tracked-дифф, а в промпт входят ещё untracked-файлы;
+    # prompt_sha256 идентифицирует РОВНО отправленное содержимое.
+    prompt_sha = hashlib.sha256(prompt.encode("utf-8", "replace")).hexdigest()[:12]
 
     if not diff.strip() and not extras:
         print("review: нечего ревьюить (пустой дифф против HEAD и нет untracked-файлов) — "
@@ -292,13 +306,14 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         out.write_text(prompt, encoding="utf-8")
-        print(f"dry-run: промпт {len(prompt)} символов → {out} (base_sha={base_sha}, diff_sha={diff_sha})")
+        print(f"dry-run: промпт {len(prompt)} символов → {out} "
+              f"(base_sha={base_sha}, diff_sha={diff_sha}, prompt_sha256={prompt_sha})")
         return 0
 
     t0 = time.time()
     content, usage = call_openrouter(prompt, args.model, args.max_tokens)
     header = (f"# Ревью: {args.title} — {args.model} (OpenRouter :free)\n"
-              f"- base_sha: {base_sha}; diff_sha: {diff_sha}\n"
+              f"- base_sha: {base_sha}; diff_sha: {diff_sha}; prompt_sha256: {prompt_sha}\n"
               f"- время: {time.time() - t0:.0f}s; usage: {json.dumps(usage, ensure_ascii=False)}\n\n---\n\n")
     out.write_text(header + content + "\n", encoding="utf-8")
     print(f"DONE {time.time() - t0:.0f}s → {out}")

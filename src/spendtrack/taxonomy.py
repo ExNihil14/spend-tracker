@@ -30,7 +30,8 @@ class Taxonomy:
         self._display = {c.name: c.display_name for c in categories}
 
     def is_valid(self, name: str) -> bool:
-        return name in self._names
+        # C1 (Astra 01.10): нестроковое значение из ответа LLM/кэша не должно ронять проверку
+        return isinstance(name, str) and name in self._names
 
     def display(self, name: str) -> str:
         """Отображаемое имя категории (RU); неизвестный слаг — как есть."""

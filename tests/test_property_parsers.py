@@ -6,9 +6,11 @@
 """
 from __future__ import annotations
 
+import uuid
+from datetime import date
 from decimal import InvalidOperation
 
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
 
 from spendtrack.csv_import import SKIP_REASONS, import_csv, sniff_bank
@@ -29,13 +31,26 @@ def _stub_classify(tx, store, taxonomy):
 
 
 def _db(tmp_path):
-    return Store(db_path=tmp_path / "prop.db")
+    # S2 (Astra 01.10): файл на КАЖДЫЙ вызов — примеры Hypothesis не должны видеть данные друг друга
+    # (tmp_path создаётся на тест, не на пример; повторное открытие «prop.db» накапливало строки).
+    return Store(db_path=tmp_path / f"prop-{uuid.uuid4().hex}.db")
 
 
 def _iso_dates_only(store: Store) -> int:
-    """Сколько строк в БД с датой НЕ в ISO-формате (инвариант: 0 — иначе месячные фильтры ломаются)."""
-    return store.conn.execute(
-        "SELECT COUNT(*) c FROM transactions WHERE date NOT GLOB '____-__-__'").fetchone()["c"]
+    """Сколько строк в БД с датой НЕ в каноническом ISO (инвариант: 0 — иначе месячные фильтры ломаются).
+
+    S1 (Astra 01.10): раньше использовался `NOT GLOB '____-__-__'`, но в SQLite GLOB `_` — литерал,
+    а не подстановка одного символа: проверка была ложной. Валидируем через `date.fromisoformat`.
+    """
+    bad = 0
+    for row in store.conn.execute("SELECT date FROM transactions"):
+        value = row["date"]
+        try:
+            if date.fromisoformat(value).isoformat() != value:
+                bad += 1
+        except (TypeError, ValueError):
+            bad += 1
+    return bad
 
 
 @given(st.text(max_size=200))
@@ -86,6 +101,8 @@ SBER_HEADER = ("Номер документа;Дата операции;Номе
 
 @given(date_cells=st.lists(st.text(max_size=18), min_size=1, max_size=8),
        amount_cells=st.lists(st.text(max_size=12), min_size=1, max_size=8))
+@example(date_cells=["01.09.2026"], amount_cells=["-100,00"])  # S1: положительный пример — корректная
+# строка обязана импортироваться и не заваливать оракул дат (до фикса оракула пример был красным)
 @PROP
 def test_import_messy_date_and_amount_cells(tmp_path, date_cells, amount_cells):
     """Случайные значения в колонках даты/суммы: партия не падает, мусор — в причины пропуска,

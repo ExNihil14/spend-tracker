@@ -2,6 +2,8 @@
 #   powershell -ExecutionPolicy Bypass -File .\install.ps1
 # Источник можно переопределить (локальный путь/wheel/git):
 #   .\install.ps1 -Source .\dist\spendtrack-0.1.0-py3-none-any.whl
+# Внимание (S5, ревью Astra 01.10): источник по умолчанию — git+https, для него НУЖЕН установленный
+# Git в PATH. Для установки без Git укажите wheel конкретной версии (ассеты GitHub-релиза).
 param(
   [string]$Source = "git+https://github.com/ExNihil14/spend-tracker",
   [int]$Port = 0,          # 0 = порт из settings.toml (8766)
@@ -28,6 +30,11 @@ if (-not (Test-Uv)) {
 
 Write-Host "Устанавливаю spendtrack из $Source ..."
 uv tool install --force $Source
+if ($LASTEXITCODE -ne 0) {
+  # S4 (Astra 01.10): PowerShell 5.1 не превращает ненулевой код native-процесса в исключение —
+  # без явной проверки скрипт мог напечатать «Готово» и запустить ПРЕЖНЮЮ версию.
+  throw "uv tool install завершился с кодом $LASTEXITCODE — установка не выполнена (старая версия не запускается)"
+}
 
 $shimDir = Join-Path $env:USERPROFILE ".local\bin"
 if (Test-Path (Join-Path $shimDir "spendtrack.exe")) { $env:Path = "$shimDir;$env:Path" }
@@ -42,3 +49,5 @@ if ($NoServe) {
 $serveArgs = @("serve", "--open")
 if ($Port -gt 0) { $serveArgs += @("--port", "$Port") }
 & $exe @serveArgs
+# S4 (Astra 01.10): код завершения сервера передаём вызывающей стороне
+exit $LASTEXITCODE

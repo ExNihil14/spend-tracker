@@ -290,3 +290,29 @@ def test_forced_offsite_marker_warns_in_doctor(tmp_path):
     res = check_offsite_backup(db)
     assert res["severity"] == "warn", res
     assert "том же томе" in res["detail"]
+
+
+def test_snapshot_contains_committed_wal_data(tmp_path):
+    """S4 (Astra 01.10): снимок живой WAL-БД содержит последнюю закоммиченную запись.
+
+    Проверка по ДАННЫМ (не только по файлу/хешу): открываем сам снимок и читаем запись.
+    """
+    db = tmp_path / "wal.db"
+    store = Store(db_path=db)
+    try:
+        store.add_transaction(date="2026-09-01", description="ДО-СНИМКА", amount_kopecks=-100,
+                              category="other", category_source="manual")
+        store.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        store.add_transaction(date="2026-09-02", description="В-WAL", amount_kopecks=-777,
+                              category="other", category_source="manual")
+        snap = backup.make_snapshot(db)  # store открыт: последний коммит живёт в -wal
+        con = sqlite3.connect(snap)
+        try:
+            assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            row = con.execute(
+                "SELECT description FROM transactions WHERE description='В-WAL'").fetchone()
+            assert row is not None
+        finally:
+            con.close()
+    finally:
+        store.close()

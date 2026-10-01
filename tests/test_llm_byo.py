@@ -261,3 +261,46 @@ def test_cli_llm_status_json(monkeypatch, capsys):
     assert main(["llm-status", "--json"]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["mode"] in ("off", "byo", "ollama", "free")
+
+
+def test_parse_llm_json_array_is_none():
+    """S9 (Astra 01.10): валидный JSON-массив не «выковыривается» regex-фолбэком."""
+    assert llm_mod.parse_llm_json('[{"category":"groceries","confidence":0.99}]') is None
+    assert llm_mod.parse_llm_json(OK_JSON)["category"] == "groceries"
+
+
+def test_llm_status_hides_url_secrets(monkeypatch):
+    """S15 (Astra 01.10): base_url с userinfo/query не утекает в статус."""
+    monkeypatch.delenv("SPENDTRACK_ALLOW_LOCAL_LLM", raising=False)
+    cfg = _settings(llm_base_url="https://user:secret@llm.example/v1?token=secret",
+                    llm_model="m", llm_api_key="sk-byo")
+    text = json.dumps(llm_status(cfg), ensure_ascii=False)
+    assert "secret" not in text
+    assert "llm.example" in text
+
+
+def test_empty_response_is_failure_and_falls_back(monkeypatch):
+    """S10 (Astra 01.10): HTTP-200 с пустым content — сбой: пробуем следующий провайдер."""
+    monkeypatch.setattr(llm_mod, "resolve_providers", lambda cfg=None: (
+        LLMProvider("https://first.example/v1", "m1", "k1", "byo", False),
+        LLMProvider("https://second.example/v1", "m2", "k2", "byo", False),
+    ))
+    calls: list[str] = []
+
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
+        mock = MagicMock()
+
+        def create(**kwargs):
+            calls.append(base_url)
+            resp = MagicMock()
+            resp.choices[0].message.content = "" if base_url.startswith("https://first") else OK_JSON
+            return resp
+
+        mock.chat.completions.create = create
+        return mock
+
+    with patch.object(llm_mod, "OpenAI", fake_openai):
+        res = call_llm("sys", "usr", max_tokens=10)
+
+    assert calls == ["https://first.example/v1", "https://second.example/v1"]
+    assert res["content"] == OK_JSON

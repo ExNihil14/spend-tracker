@@ -104,7 +104,12 @@ def api_snapshot(src_dir: Path = SRC) -> dict:
 
 
 def schema_snapshot() -> dict:
-    """user_version + колонки (тип/notnull/pk/dflt) + индексы/триггеры/VIEW из свежей временной БД."""
+    """user_version + колонки (тип/notnull/pk/dflt) + индексы/триггеры/VIEW из свежей временной БД.
+
+    S2 (Astra 01.10): добавлен нормализованный SQL каждой пользовательской таблицы — иначе
+    `CHECK`/`UNIQUE`/`REFERENCES`/`STRICT` внутри `CREATE TABLE` не были видны снапшоту
+    (автоиндексы inline-UNIQUE исключены из выдачи sqlite_master).
+    """
     from spendtrack.store import Store
 
     with tempfile.TemporaryDirectory(prefix="contract-") as tmp:
@@ -117,6 +122,10 @@ def schema_snapshot() -> dict:
                 "SELECT name FROM sqlite_master WHERE type='table'"
                 " AND name NOT LIKE 'sqlite_%' ORDER BY name")]
             for table in tables:
+                row = conn.execute(
+                    "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()
+                if row and row[0]:
+                    out[f"table:{table}"] = " ".join(str(row[0]).split())
                 for col in conn.execute(f"PRAGMA table_info({table})"):
                     out[f"{table}.{col['name']}"] = (
                         f"{col['type']}|notnull={col['notnull']}|pk={col['pk']}|dflt={col['dflt_value']}")
@@ -133,23 +142,31 @@ def schema_snapshot() -> dict:
 
 
 def routes_snapshot() -> dict:
-    """Публичные HTTP-маршруты из OpenAPI-схемы; значение — хэш операции (params/body/responses)."""
+    """Публичные HTTP-маршруты из OpenAPI-схемы; значение — хэш операции (params/body/responses).
+
+    S3 (Astra 01.10): отдельная запись `components` — ответы обычно ссылаются на модели через
+    `$ref`, и изменение полей/`required` в `components.schemas` раньше не меняло ни одного хэша.
+    """
     from spendtrack.main import app
 
     out: dict[str, str] = {}
-    for path, methods in app.openapi().get("paths", {}).items():
-        for method, spec in methods.items():
+    spec = app.openapi()
+    for path, methods in spec.get("paths", {}).items():
+        for method, operation in methods.items():
             upper = method.upper()
             if upper in ("HEAD", "OPTIONS", "PARAMETERS"):
                 continue
             payload = {
-                "parameters": spec.get("parameters"),
-                "requestBody": spec.get("requestBody"),
-                "responses": spec.get("responses"),
+                "parameters": operation.get("parameters"),
+                "requestBody": operation.get("requestBody"),
+                "responses": operation.get("responses"),
             }
             digest = hashlib.sha1(
                 json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
             out[f"{upper} {path}"] = digest
+    components = spec.get("components") or {}
+    out["components"] = hashlib.sha1(
+        json.dumps(components, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:12]
     return dict(sorted(out.items()))
 
 

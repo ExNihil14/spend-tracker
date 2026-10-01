@@ -308,6 +308,10 @@
    "args": "int = 8766",
    "returns": ""
   },
+  "spendtrack.config:Settings.settings_customise_sources": {
+   "args": "cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings",
+   "returns": ""
+  },
   "spendtrack.config:ensure_config_dir": {
    "args": "",
    "returns": "Path"
@@ -1282,7 +1286,8 @@
   "POST /settings/rules/delete": "8c19c725fd2c",
   "POST /settings/rules/move": "8c19c725fd2c",
   "POST /settings/rules/preview": "8c19c725fd2c",
-  "POST /settings/test": "8c19c725fd2c"
+  "POST /settings/test": "8c19c725fd2c",
+  "components": "420db64e3416"
  },
  "schema": {
   "account_pseudonyms.original": "TEXT|notnull=0|pk=1|dflt=None",
@@ -1316,6 +1321,15 @@
   "rules.pattern": "TEXT|notnull=1|pk=0|dflt=None",
   "schema_migrations.applied_at": "TEXT|notnull=1|pk=0|dflt=None",
   "schema_migrations.version": "INTEGER|notnull=0|pk=1|dflt=None",
+  "table:account_pseudonyms": "CREATE TABLE account_pseudonyms( original TEXT PRIMARY KEY, pseudonym TEXT NOT NULL UNIQUE )",
+  "table:budgets": "CREATE TABLE budgets( category TEXT PRIMARY KEY, -- имя категории таксономии amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks > 0), updated TEXT NOT NULL )",
+  "table:categories": "CREATE TABLE categories( name TEXT PRIMARY KEY, color TEXT NOT NULL DEFAULT '#9ca3af' )",
+  "table:examples": "CREATE TABLE examples( id INTEGER PRIMARY KEY, description TEXT NOT NULL, amount_kopecks INTEGER NOT NULL, category TEXT NOT NULL )",
+  "table:import_batches": "CREATE TABLE import_batches( id TEXT PRIMARY KEY, filename TEXT NOT NULL, sha TEXT NOT NULL, nrows INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'ok', created TEXT NOT NULL )",
+  "table:merchant_cache": "CREATE TABLE merchant_cache( key TEXT PRIMARY KEY, -- sha1(merchant.upper()); от категории НЕ зависит merchant TEXT NOT NULL, category TEXT NOT NULL, confidence REAL NOT NULL DEFAULT 1.0, updated TEXT NOT NULL )",
+  "table:rules": "CREATE TABLE rules( id INTEGER PRIMARY KEY, pattern TEXT NOT NULL, category TEXT NOT NULL )",
+  "table:schema_migrations": "CREATE TABLE schema_migrations( version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)",
+  "table:transactions": "CREATE TABLE transactions( id INTEGER PRIMARY KEY, date TEXT NOT NULL, description TEXT NOT NULL, amount_kopecks INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'RUB', -- ISO 4217; не-RUB не попадает в ₽-итоги/бюджеты category TEXT NOT NULL, category_source TEXT NOT NULL, -- rule | llm | import | manual | correction confidence REAL NOT NULL DEFAULT 1.0, merchant TEXT, account_anon TEXT, import_batch TEXT, fingerprint TEXT UNIQUE, created TEXT NOT NULL, updated TEXT NOT NULL, category_llm TEXT, -- предложение LLM (не перезаписывается = diff) review_status TEXT NOT NULL DEFAULT 'approved', -- pending | approved | skipped statement_order INTEGER -- порядок строки в выписке (сортировка внутри дня) )",
   "transactions.account_anon": "TEXT|notnull=0|pk=0|dflt=None",
   "transactions.amount_kopecks": "INTEGER|notnull=1|pk=0|dflt=None",
   "transactions.category": "TEXT|notnull=1|pk=0|dflt=None",

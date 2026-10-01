@@ -24,7 +24,7 @@ def _clamp_confidence(value: object) -> float:
         return 0.0
     try:
         conf = float(value)  # type: ignore[arg-type]
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):  # OverflowError: float(10**400) (Astra 01.10, C1)
         return 0.0
     if not math.isfinite(conf) or not 0.0 <= conf <= 1.0:
         return 0.0
@@ -34,13 +34,15 @@ def _clamp_confidence(value: object) -> float:
 def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | None:
     """Step 1: merchant cache → keyword rules. Возвращает category или None."""
     merchant = (tx.get("merchant") or tx["description"]).upper().strip()
+    amount = tx.get("amount_kopecks") or 0
     cached = store.merchant_cache_get(merchant)
-    if cached and taxonomy.is_valid(cached):
+    # C2 (Astra 01.10): кэш не должен обходить проверку знака — «income» не берём для расходной
+    # операции. Ноль/неизвестная сумма не отсекаются (направление неизвестно — решает LLM/очередь).
+    if cached and taxonomy.is_valid(cached) and not (cached == "income" and amount < 0):
         return cached
 
     # S7 (ревью 28.09): правила ищут и в merchant — банки кладут имя ТСП в отдельное поле
     haystack = f"{tx['description']} {tx.get('merchant') or ''}".upper()
-    amount = tx.get("amount_kopecks") or 0
     for rule in taxonomy.rules:
         if rule.pattern in haystack and taxonomy.is_valid(rule.category):
             if rule.category == "income" and amount < 0:
@@ -59,17 +61,23 @@ def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
     llm_result = call_llm(system_prompt, user_prompt, max_tokens=400)
     parsed = parse_llm_json(llm_result["content"])
 
-    if not parsed or not taxonomy.is_valid(parsed.get("category", "")):
+    # C1 (Astra 01.10): поля ответа LLM проверяем по типам — иначе список/dict в category роняет
+    # классификацию (TypeError в is_valid), а гигантская confidence — OverflowError в float().
+    category = parsed.get("category") if isinstance(parsed, dict) else None
+    if not isinstance(category, str) or not taxonomy.is_valid(category):
         return {"category": "other", "confidence": 0.0, "merchant": tx.get("merchant"),
                 "reason": "llm_parse_failed", "source": "llm"}
 
     confidence = _clamp_confidence(parsed.get("confidence", 0.0))
-    merchant_norm = str(parsed.get("merchant") or "").upper().strip() or tx.get("merchant")
+    merchant_raw = parsed.get("merchant")
+    merchant_norm = (merchant_raw.upper().strip() if isinstance(merchant_raw, str) else "") \
+        or tx.get("merchant")
+    reason_raw = parsed.get("reason")
     return {
-        "category": parsed["category"],
+        "category": category,
         "confidence": confidence,
         "merchant": merchant_norm,
-        "reason": parsed.get("reason", ""),
+        "reason": reason_raw if isinstance(reason_raw, str) else "",
         "source": "llm",
     }
 

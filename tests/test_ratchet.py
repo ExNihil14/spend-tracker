@@ -219,3 +219,25 @@ def test_guard_detects_raised_baseline(tmp_path, monkeypatch, capsys):
                                                                "import_100_queries": 435}})
     assert mod._cmd_guard("origin/main") == 0
     assert "не вырос" in capsys.readouterr().out
+
+
+def test_compare_nan_is_failure():
+    """S1 (Astra 01.10): NaN в базлайне не пропускает гейт (сравнения с NaN ложны)."""
+    mod = _module()
+    baseline = {"version": 1, "metrics": {"report_month_queries": float("nan"),
+                                          "import_100_queries": 420}}
+    current = {"report_month_queries": 2, "import_100_queries": 420}
+    failures = mod.compare(baseline, current)
+    assert any("report_month_queries" in f for f in failures), failures
+
+
+def test_cli_check_fails_on_empty_baseline(tmp_path, monkeypatch, capsys):
+    """S1 (Astra 01.10): базлайн `{}` больше не выключает проверки через truthiness."""
+    mod = _module()
+    empty = tmp_path / "empty.json"
+    empty.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(mod, "BASELINE_PATH", empty)
+    rc = mod.main(["check"])
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "FAIL" in out
