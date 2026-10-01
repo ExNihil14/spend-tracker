@@ -109,11 +109,15 @@ def classify_with_injectable(
                 conf, bucket, conf >= acceptance, hashlib.sha1(desc.encode()).hexdigest()[:8])
     logger.debug("llm_decision desc=%s", desc[:40])
     if not taxonomy.is_valid(cat):
+        # S4 (Astra 01.10): в очередь отдаём ИСХОДНЫЙ банковский merchant, а не нормализацию модели —
+        # недоверенная догадка не должна подменять данные в pending-строке.
+        llm_result["merchant"] = tx.get("merchant")
         llm_result.update({"category": "other", "confidence": 0.0, "source": "llm_pending_review",
                            "category_llm": cat or None, "review_status": "pending"})
         return llm_result
     if cat == "income" and (tx.get("amount_kopecks") or 0) < 0:
         # S6: доход возможен только для поступлений — гипотеза уходит в очередь, а не в боевые поля
+        llm_result["merchant"] = tx.get("merchant")
         llm_result.update({"category": "other", "source": "llm_pending_review",
                            "category_llm": cat, "review_status": "pending",
                            "reason": "income_sign_mismatch"})
@@ -128,6 +132,7 @@ def classify_with_injectable(
         return llm_result
 
     # C4: гипотеза при низкой уверенности живёт только в category_llm — дашборд не считает догадку фактом
+    llm_result["merchant"] = tx.get("merchant")  # S4: исходный merchant, не догадка модели
     llm_result["source"] = "llm_pending_review"
     llm_result["review_status"] = "pending"
     llm_result["category"] = "other"

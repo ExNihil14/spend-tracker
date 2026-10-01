@@ -320,3 +320,34 @@ def test_empty_response_is_failure_and_falls_back(monkeypatch):
 
     assert calls == ["https://first.example/v1", "https://second.example/v1"]
     assert res["content"] == OK_JSON
+
+
+def test_env_key_requires_exact_openrouter_origin():
+    """S13 (Astra 01.10): OpenRouter-ключ — только точному origin, не подстроке URL."""
+    from spendtrack.llm import _env_key_for
+
+    cfg = _settings(openrouter_api_key="sk-or", freel_llm_api_key="sk-fl")
+    assert _env_key_for("https://openrouter.ai/api/v1", cfg) == "sk-or"
+    assert _env_key_for("https://collector.example/v1?openrouter", cfg) == "sk-fl"
+    assert _env_key_for("https://openrouter.ai.evil.example/v1", cfg) == "sk-fl"
+
+
+def test_client_closed_after_call(monkeypatch):
+    """S12 (Astra 01.10): HTTP-клиент закрывается после вызова (не зависит от GC)."""
+    monkeypatch.setenv("SPENDTRACK_LLM_BASE_URL", "https://llm.example/v1")
+    monkeypatch.setenv("SPENDTRACK_LLM_MODEL", "byo-model")
+    monkeypatch.setenv("SPENDTRACK_LLM_API_KEY", "sk-byo")
+    closed: list[bool] = []
+
+    def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
+        mock = MagicMock()
+        resp = MagicMock()
+        resp.choices[0].message.content = OK_JSON
+        mock.chat.completions.create.return_value = resp
+        mock.close.side_effect = lambda: closed.append(True)
+        return mock
+
+    with patch.object(llm_mod, "OpenAI", fake_openai):
+        call_llm("sys", "usr", max_tokens=10)
+
+    assert closed == [True]

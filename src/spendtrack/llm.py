@@ -42,8 +42,10 @@ def _breaker(source: str) -> CircuitBreaker:
 
 
 def _env_key_for(base_url: str, cfg: Settings) -> str:
-    """Ключ подбирается под эндпоинт (openrouter-URL → OPENROUTER key, иначе FreeLLM-ключ)."""
-    if "openrouter" in base_url:
+    """Ключ по ТОЧНОМУ origin (S13, Astra 01.10): подстрока «openrouter» в чужом URL
+    (query/путь/хост-обманка) больше не получает OpenRouter-ключ."""
+    host = (urlparse(base_url).hostname or "").lower()
+    if host == "openrouter.ai" or host.endswith(".openrouter.ai"):
         return cfg.openrouter_api_key
     return cfg.freel_llm_api_key
 
@@ -216,15 +218,19 @@ def call_llm(
             # иначе один провайдер = до 3 запросов × timeout и «тройной» износ лимитов free-канала.
             client = OpenAI(base_url=provider.base_url, api_key=provider.api_key,
                             timeout=REQUEST_TIMEOUT_S, max_retries=0)
-            resp = client.chat.completions.create(
-                model=provider.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                max_tokens=max_tokens,
-                temperature=temperature,
-            )
+            try:
+                resp = client.chat.completions.create(
+                    model=provider.model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                )
+            finally:
+                # S12 (Astra 01.10): HTTP-клиент закрываем всегда — соединения не зависят от GC
+                client.close()
             content = resp.choices[0].message.content or ""
             if not content.strip():
                 # S10 (Astra 01.10): HTTP-200 с пустым телом — не «успех»: breaker не закрываем,

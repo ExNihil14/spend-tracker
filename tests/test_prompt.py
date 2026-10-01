@@ -88,3 +88,46 @@ def test_few_shot_examples_single_braces(taxonomy):
                                  "category": "groceries"}], taxonomy)
     assert '{{"category"' not in text
     assert '"category":"groceries"' in text
+
+
+def test_few_shot_escapes_quotes(taxonomy):
+    """S6 (Astra 01.10): кавычки в описании не ломают JSON-пример few-shot."""
+    import json
+
+    prompt = build_system_prompt([
+        {"description": 'SHOP "A"', "amount_kopecks": -1000, "category": "other"}
+    ], taxonomy)
+    line = next(l for l in prompt.splitlines() if "SHOP" in l)
+    payload = json.loads(line.split("→")[1].strip())
+    assert payload["category"] == "other" and payload["merchant"]
+
+
+def test_examples_outside_taxonomy_are_filtered():
+    """S8 (Astra 01.10): пример вне текущей таксономии не попадает в промпт."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    tax = Taxonomy([Category("alpha", "#111111")], [])
+    prompt = build_system_prompt([
+        {"description": "X", "amount_kopecks": -1, "category": "groceries"}
+    ], tax)
+    assert "groceries" not in prompt
+
+
+def test_default_examples_follow_taxonomy():
+    """S8: дефолтные примеры показываются только для существующих категорий."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    tax = Taxonomy([Category("other", "#111111")], [])
+    prompt = build_system_prompt([], tax)
+    assert "LIDL" not in prompt and "ЗАРАБОТНАЯ" not in prompt
+
+
+def test_user_prompt_includes_merchant_without_account_date():
+    """S5/S7 (Astra 01.10): merchant доходит до LLM; account/date не отправляются (лишний egress)."""
+    prompt = build_user_prompt({
+        "description": "Покупка товаров", "merchant": "ЛЕНТА",
+        "amount_kopecks": parse_amount("-10.00"),
+        "account_anon": "acc_1", "date": "2026-09-12",
+    })
+    assert "merchant:" in prompt and "ЛЕНТА" in prompt
+    assert "account:" not in prompt and "date:" not in prompt

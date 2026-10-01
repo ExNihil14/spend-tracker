@@ -223,3 +223,14 @@ def test_merchant_cache_income_not_applied_to_expense(store, taxonomy):
     result = classify_with_injectable(_tx(desc="ACME", amount="-10000"), taxonomy, store, stub, 0.9)
     assert result["category"] != "income"
     assert result["review_status"] == "pending"
+
+
+def test_pending_keeps_original_merchant(store, taxonomy):
+    """S4 (Astra 01.10): при низкой confidence в очереди — исходный merchant, а не догадка модели."""
+    def llm(tx, s, tax):
+        return {"category": "restaurants", "confidence": 0.3, "merchant": "WRONG",
+                "reason": "r", "source": "llm"}
+
+    result = classify_with_injectable(_tx(desc="БАНК МЕРЧАНТ"), taxonomy, store, llm, 0.9)
+    assert result["review_status"] == "pending"
+    assert result["merchant"] == "БАНК МЕРЧАНТ"
