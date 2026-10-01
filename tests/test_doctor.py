@@ -7,6 +7,7 @@ import sqlite3
 import time
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -167,6 +168,22 @@ def test_disk_space_check_present(db_path):
     report = run_checks(db_path)
     check = _check(report, "disk_space")
     assert check["severity"] in ("ok", "warn"), check
+
+
+def test_disk_space_threshold_boundary(db_path, monkeypatch):
+    """Ревью Dash 4.6: порог `max(1 ГБ, 3×размер БД)` — ровно порог ok, на байт меньше warn.
+
+    Мок `shutil.disk_usage`: реального диска с «мало места» в CI нет.
+    """
+    need = max(1 << 30, 3 * db_path.stat().st_size)
+    monkeypatch.setattr(doctor.shutil, "disk_usage",
+                        lambda _p: SimpleNamespace(free=need - 1))
+    assert doctor.check_disk_space(db_path)["severity"] == "warn"
+
+    monkeypatch.setattr(doctor.shutil, "disk_usage", lambda _p: SimpleNamespace(free=need))
+    check = doctor.check_disk_space(db_path)
+    assert check["severity"] == "ok"
+    assert "свободно" in check["detail"]
 
 
 # ---- ④ категории вне таксономии ----

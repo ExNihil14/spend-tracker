@@ -80,7 +80,7 @@
       backgroundColor: cssVar('--fg-strong', '#0b1220'),
       titleColor: cssVar('--surface', '#ffffff'),
       bodyColor: cssVar('--surface', '#ffffff'),
-      borderColor: cssVar('--line-strong', '#7c8ba1'),
+      borderColor: cssVar('--line-strong', '#6f7d94'),
       borderWidth: 1,
       padding: 10,
       cornerRadius: 10,
@@ -194,7 +194,7 @@
     var accent = cssVar('--accent', '#0e7490');
     var accentBg = cssVar('--accent-bg', '#0e7490');
     var surfaceBg = cssVar('--surface', '#ffffff');
-    var lineStrong = cssVar('--line-strong', '#7c8ba1');
+    var lineStrong = cssVar('--line-strong', '#6f7d94');
     var reduce = prefersReducedMotion();
     var tick = function (v) { return fmtRub(v) + ' ₽'; }; // в datasets уже рубли (total_k/100 ниже)
 

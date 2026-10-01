@@ -18,7 +18,13 @@ from spendtrack.cat_icons import cat_icon
 from spendtrack.categorize import categorize_transaction
 from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
-from spendtrack.csv_import import MAX_CSV_BYTES, ImportLimitError, import_csv, summarize
+from spendtrack.csv_import import (
+    MAX_AMOUNT_KOPECKS,
+    MAX_CSV_BYTES,
+    ImportLimitError,
+    import_csv,
+    summarize,
+)
 from spendtrack.deps import get_store
 from spendtrack.reports import budgets_progress
 from spendtrack.store import (
@@ -67,8 +73,11 @@ class TxIn(BaseModel):
             kopecks = parse_amount(v)  # аудит 24.09: «abc» давало 500 вместо 422
         except (InvalidOperation, ValueError, OverflowError) as e:
             raise ValueError("сумма не распознана") from e
-        if not -10**15 <= kopecks <= 10**15:  # F3: вне int64-безопасного диапазона → 422 (не OverflowError→500)
-            raise ValueError("сумма вне допустимого диапазона (до ±10 трлн)")
+        # Dash 4.8: тот же санитарный лимит, что у CSV-импорта (MAX_AMOUNT_KOPECKS) —
+        # один вход не должен принимать то, что другой молча отбрасывает; int64-безопасность сохраняется.
+        if not -MAX_AMOUNT_KOPECKS <= kopecks <= MAX_AMOUNT_KOPECKS:
+            raise ValueError(
+                f"сумма сверх лимита на операцию (до {fmt_money(MAX_AMOUNT_KOPECKS, signed=False)})")
         return v
 
     @field_validator("currency")

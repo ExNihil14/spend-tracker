@@ -147,6 +147,18 @@ def test_run_backup_reports_unreadable_db(tmp_path, capsys):
     assert "ошибка бэкапа" in capsys.readouterr().err
 
 
+def test_snapshot_failure_unlink_does_not_mask_cause(tmp_path, monkeypatch):
+    """Ревью Dash 4.6: сбой unlink частичного файла (Windows: занят) не маскирует исходную ошибку."""
+    def _busy(*_args, **_kwargs):
+        raise OSError("файл занят другим процессом")
+
+    monkeypatch.setattr(Path, "unlink", _busy)
+    junk = tmp_path / "spend.db"
+    junk.write_text("это не база", encoding="utf-8")
+    with pytest.raises(sqlite3.DatabaseError):
+        backup.make_snapshot(junk)
+
+
 def test_keep_zero_rejected_without_deleting(db_path, capsys):
     """`--keep 0` раньше уничтожал все снимки, включая свежий; теперь — отказ до снимка и ротации."""
     backup_dir = _backup_dir(db_path)
@@ -244,6 +256,9 @@ def test_failed_snapshot_leaves_no_partial_file(tmp_path, monkeypatch):
 
         def close(self):
             self._real.close()
+
+        def __getattr__(self, name):  # ревью Dash 4.6: прочие методы Connection — делегируем
+            return getattr(self._real, name)
 
     monkeypatch.setattr(backup.sqlite3, "connect", lambda *a, **k: Boom(real_connect(*a, **k)))
     with pytest.raises(sqlite3.OperationalError):

@@ -420,7 +420,9 @@ class Store:
 
         try:
             snap = make_snapshot(self.path)
-            snap.rename(snap.with_name(f"pre-migration-v{self._user_version()}-{snap.name}"))
+            # replace, не rename: на Windows rename не перезаписывает существующий файл
+            # (ревью Dash 4.6) — снимок оставался под сырым именем, а target не создавался.
+            snap.replace(snap.with_name(f"pre-migration-v{self._user_version()}-{snap.name}"))
         except (OSError, sqlite3.Error) as e:
             logger.warning("pre-migration snapshot failed: %s", e)
 

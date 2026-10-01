@@ -100,6 +100,19 @@ def test_svg_path_digits_do_not_trip_card_scan():
     assert m.secret_hits(svg) == []
 
 
+def test_money_amount_with_kopecks_does_not_trip_card_scan():
+    """01.10: денежная сумма с копейками («10000000000000.00») — не PAN, ложный STOP блокировал ревью.
+
+    Строку собираем в рантайме (файл теста сам попадает в дифф и не должен ловиться сканом).
+    """
+    m = _mod()
+    amount = f"{10**13}.00"
+    assert m.secret_hits(f"- расход {amount}") == []
+    assert m.secret_hits(f"amount={amount}") == []
+    spaced = amount.replace(".", " .")  # «…000 .00» — редкий, но допустимый денежный формат
+    assert m.secret_hits(f"- расход {spaced}") == []
+
+
 def test_generated_paths_excluded_from_diff_size():
     m = _mod()
     assert m._is_generated("uv.lock")

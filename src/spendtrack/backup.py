@@ -95,8 +95,12 @@ def make_snapshot(db_path: Path) -> Path:
         quoted = str(target).replace("'", "''")
         con.execute(f"VACUUM INTO '{quoted}'")
     except BaseException:
-        # Частичный файл не должен стать «самым свежим бэкапом» (ревью install_ops, S6: disk full)
-        target.unlink(missing_ok=True)
+        # Частичный файл не должен стать «самым свежим бэкапом» (ревью install_ops, S6: disk full);
+        # сбой unlink (Windows: файл занят) не должен маскировать исходную ошибку (ревью Dash 4.6).
+        try:
+            target.unlink(missing_ok=True)
+        except OSError:
+            pass
         raise
     finally:
         con.close()

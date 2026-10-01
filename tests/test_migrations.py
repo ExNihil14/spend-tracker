@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import errno
+import os
 import sqlite3
+from datetime import datetime
+from pathlib import Path
 
 import pytest
 
@@ -48,6 +52,45 @@ def test_migration_takes_pre_snapshot(tmp_path):
     s2 = Store(db_path=db)
     s2.close()
     assert len(list((tmp_path / "backup").glob("pre-migration-*"))) == 1
+
+
+def test_pre_migration_snapshot_replaces_stale_target(tmp_path, monkeypatch):
+    """Ревью Dash 4.6: на Windows `rename` не перезаписывает существующий файл — снимок «терялся».
+
+    Эмулируем семантику Windows (`Path.rename` → FileExistsError на существующем target) и фиксируем
+    время снимка: корректный код использует replace, pre-migration-файл встаёт на место.
+    """
+    class _FrozenDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 9, 1, 12, 0, 0, tzinfo=tz)
+
+    def _windows_rename(self, target):
+        target = Path(target)
+        if target.exists():
+            raise FileExistsError(errno.EEXIST, "File exists", str(target))
+        return os.rename(self, target)
+
+    monkeypatch.setattr("spendtrack.backup.datetime", _FrozenDatetime)
+    monkeypatch.setattr(Path, "rename", _windows_rename)
+
+    db = tmp_path / "pre.db"
+    _legacy_db(db, 3, rows=[("fp1", "2026-09-01", "ЛЕНТА", -100, "groceries", "rule", 1.0,
+                             "approved", 0)])
+    backups = tmp_path / "backup"
+    backups.mkdir()
+    stale = backups / "pre-migration-v3-spend-20260901-120000.db"
+    stale.write_text("старый файл", encoding="utf-8")
+
+    Store(db_path=db).close()
+
+    assert stale.read_bytes().startswith(b"SQLite format 3")  # цель перезаписана снимком
+    con = sqlite3.connect(stale)
+    try:
+        assert con.execute("PRAGMA user_version").fetchone()[0] == 3  # снимок — «до миграции»
+    finally:
+        con.close()
+    assert list(backups.glob("spend-*.db")) == []  # снимок не остался под сырым именем
 
 
 def test_partial_v2_state_heals_without_duplicate_column(tmp_path):

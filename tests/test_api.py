@@ -6,6 +6,7 @@ import logging
 import pytest
 from fastapi.testclient import TestClient
 
+from spendtrack.csv_import import MAX_AMOUNT_KOPECKS
 from spendtrack.main import _setup_logging, app
 from spendtrack.store import Store
 
@@ -429,11 +430,31 @@ def test_create_rejects_out_of_range_amount(client, bad):
     assert client.get("/health").json()["transactions"] == 0
 
 
-def test_create_accepts_boundary_amount(client):
-    """F3: граница 10 трлн ₽ (±10^15 копеек) ещё принимается."""
+def _rub(kopecks: int) -> str:
+    return f"{kopecks // 100}.{kopecks % 100:02d}"
+
+
+def test_create_rejects_over_limit_amount(client):
+    """Dash 4.8: лимит суммы API — тот же санитарный предел, что у CSV-импорта.
+
+    5 млрд ₽ раньше принимались POST /api/transactions, но молча отбрасывались импортом
+    как `amount_limit` — одна БД, два входа: рассинхрон ±10^15 vs ±10^11 копеек.
+    """
     r = client.post("/api/transactions", json={
-        "date": "2026-09-12", "description": "X", "amount": "-10000000000000.00"})
-    assert r.status_code == 200
+        "date": "2026-09-12", "description": "X",
+        "amount": _rub(5_000_000_000 * 100)})  # 5 млрд ₽ > MAX_AMOUNT_KOPECKS
+    assert r.status_code == 422, r.text
+    assert client.get("/health").json()["transactions"] == 0
+
+
+def test_create_accepts_limit_amount(client):
+    """Граница санитарного предела (1 млрд ₽ = MAX_AMOUNT_KOPECKS) принимается, лимит+1 коп — нет."""
+    r_ok = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "X", "amount": _rub(MAX_AMOUNT_KOPECKS)})
+    r_over = client.post("/api/transactions", json={
+        "date": "2026-09-13", "description": "X", "amount": _rub(MAX_AMOUNT_KOPECKS + 1)})
+    assert r_ok.status_code == 200, r_ok.text
+    assert r_over.status_code == 422, r_over.text
 
 
 def test_form_blank_optional_fields_ok(client):

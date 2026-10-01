@@ -13,15 +13,36 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   30.09; в коммитах трейлер `Contract-Change:`) + ratchet (2/420) + cc (do_import 12→11, baseline) +
   `build_css --check` (33 623 Б ≤ 35 КБ) — зелёные. Прод NSSM 8766 — Running (200); демо-стенд 8799 (200).
 - Последнее закоммичено (30.09, вечер): `2bd8665` (фиксы дизайн-ревью), `da5c5ef` (фиксы install_ops,
-  `Contract-Change:`), `bd2ae26` (continue), `63b24f1` (**фиксы web_api: F1–F8 + опционалы, `Contract-Change:`**)
-  — **ahead origin 2** (`63b24f1` + `302176f`); предыдущая пачка (`2bd8665`/`da5c5ef`/`bd2ae26`) уже запушена
-  юзером, push текущей — по команде.
+  `Contract-Change:`), `bd2ae26` (continue), `63b24f1` (**фиксы web_api: F1–F8 + опционалы, `Contract-Change:`**),
+  `b2a7e25` (continue) — **всё запушено, origin/main = `b2a7e25` (ahead 0)**.
   **Сервисы перезапущены на новом коде:** прод NSSM 8766 (health 200), демо-стенд 8799 (health 200, 349 tx +
   пробная tx id=350 «LIVE PROBE» pending — data/** protected, не чищу).
+> **Dash «второй голос» (30.09→01.10, эксперимент):** Dash (Process Street) подключён как MCP к opencode
+> (89 тулзов, `tools.dash.*`; баланс $199.69 = 40k старт + 40k за GitHub). Два headless-ревью (Opus 4.6 / 4.8,
+> skill `code-review`, read-only) по свежим коммитам; 4.8 прогнал тесты (723 passed). Находки и вердикты:
+> `D:\dev\docs\machine\DASH_CODE_REVIEW_2026-10-01.md`. **Фиксы ждут команды (TDD):** ① рассинхрон лимита суммы
+> API ±10^15 коп vs CSV-импорт 10^11 коп (главный улов); ② dashboard.js фолбэки #7c8ba1→#6f7d94; ③ backup.py
+> unlink-гард; ④ store.py rename→replace; ⑤ тест порога disk_space. Бэклог: e2e-ниты, лимит тела POST, HX-413.
 - Ребрендинг v2 «Стикербук»: направление принято (`D:\dev\docs\machine\DESIGN_DIRECTION_V2_2026-09-29.md`);
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (01.10, утро — фиксы Dash-ревью 4.6/4.8, ✅ в дереве, ждут команды на коммит).** По
+> `D:\dev\docs\machine\DASH_CODE_REVIEW_2026-10-01.md`, TDD (красный → фикс → зелёный):
+> ① API-лимит суммы сведён к общей константе `MAX_AMOUNT_KOPECKS` (10^11 коп = 1 млрд ₽; было ±10^15 —
+> «5 млрд ₽ принимается API, но молча отбрасывается CSV»); ② dashboard.js фолбэки `#7c8ba1`→`#6f7d94` ×2;
+> ③ `backup.make_snapshot` — unlink частичного файла в try/except OSError (не маскирует исходную ошибку);
+> ④ `store._pre_migration_snapshot` — `replace` вместо `rename` (Windows rename не перезаписывает);
+> ⑤ тест порога `disk_space` (мок `shutil.disk_usage`, граница `max(1 ГБ, 3×размер БД)`).
+> Контур: **727 unit + 86 e2e** + ruff + contract ok (без дрейфа) + ratchet 2/420 + cc + build_css (33 623 Б) —
+> зелёные. Live: temp-стенд 8798 — 5 млрд ₽ → 422 («сумма сверх лимита на операцию (до 1 000 000 000,00 ₽)»),
+> граница ±1 млрд ₽ → 200, +1 коп → 422; прод NSSM 8766 и демо 8799 перезапущены на новом коде (health 200,
+> dashboard 200). Бэклог Dash: e2e `sleep(250)`/tab-loop, лимит тела POST, текст даты, HX-413, `-wal`
+> в `disk_space`, `_did_exist`→локальная. Полные тексты ревью — `DASH_REVIEW_FULLTEXTS_2026-10-01.md`
+> (пункт 7 Boom принят 01.10: `__getattr__`).
+> **Окно AgentRouter 02:00 UTC (01.10) не состоялось** (ночью ПК был выключен/в сне — завершение сеанса
+> 00:59 local; догон-запуск поллера 07:18 UTC → «too early for window 11:00»); новых `out_*` нет; следующая
+> попытка — **сегодня 11:00 UTC (13:57 local)**: `web_ui_js` → `web_ui_templates` → Astra×5 (бюджет ≈65–70 мин).
 > **Окно AgentRouter 11:00 UTC (30.09) — итог:** старт 11:00:15 UTC (триггер 13:57:57 local), model-status в логе;
 > `out_design_review.md` ✅ (447 с), `out_install_ops.md` ✅ (366 с), `out_web_api.md` ✅ (~18 мин — расщеплённое
 > досье влезло), `out_web_ui.md` — **срезан закрытием пула в 12:10 UTC** (наш http-таймаут 12:10:07, ретрай —
