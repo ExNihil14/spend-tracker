@@ -1,6 +1,7 @@
 <tbody id="review-rows">
   {% for t in pending %}
   {% set suggestion = t.category_llm or t.category %}
+  {% set suggestion_valid = suggestion in all_categories %}
   <tr id="review-{{ t.id }}" class="review-row border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
     <td class="px-5 py-3 whitespace-nowrap text-fg-muted">{{ fmt_date(t.date) }}</td>
     <td class="px-5 py-3">
@@ -14,13 +15,16 @@
       <form hx-post="/api/reviews/{{ t.id }}/approve" hx-target="closest tr"
             hx-swap="outerHTML swap:160ms" hx-disabled-elt="find button"
             class="flex items-center gap-2">
-        <select name="category" aria-label="Категория для подтверждения"
+        <select name="category" aria-label="Категория для подтверждения" {% if not suggestion_valid %}required{% endif %}
                 class="review-cat bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
+          {% if not suggestion_valid %}<option value="" selected>— выберите категорию —</option>{% endif %}
           {% for c in all_categories %}<option value="{{ c }}" {% if c == suggestion %}selected{% endif %}>{{ catname(c) }}{% if c == suggestion %} — предложено{% endif %}</option>{% endfor %}
         </select>
         <button type="submit" class="review-approve bg-accent-bg hover:bg-accent-bg-hover text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Одобрить</button>
       </form>
-      {% if t.category_llm and t.category_llm != t.category %}
+      {% if not suggestion_valid %}
+        <div class="text-xs text-danger mt-1">LLM предложил «{{ suggestion }}» — нет в таксономии: выберите категорию</div>
+      {% elif t.category_llm and t.category_llm != t.category %}
         <div class="text-xs text-fg-muted mt-1">сейчас: {{ catname(t.category) }}</div>
       {% endif %}
     </td>

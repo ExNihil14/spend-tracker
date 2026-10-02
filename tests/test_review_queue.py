@@ -344,6 +344,33 @@ def test_approve_all_min_confidence_store(pending_store):
     assert pending_store.queued_for_review()[0]["description"] == "КАФЕ А"
 
 
+def test_approve_page_flags_invalid_llm_suggestion(tmp_path, monkeypatch):
+    """S (Astra 02.10): category_llm вне таксономии — плейсхолдер + required + предупреждение,
+    а не молчаливый первый option (одобрение «не той» категории одним Enter)."""
+    from fastapi.testclient import TestClient
+
+    from spendtrack.main import app
+
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "q.db"))
+    s = Store(db_path=tmp_path / "q.db")
+    s.add_transaction(date="2026-09-01", description="ВНЕ ТАКСОНОМИИ",
+                      amount_kopecks=parse_amount("-100"), category="other",
+                      category_source="llm_pending_review", confidence=0.4,
+                      category_llm="НетТакой", review_status="pending")
+    s.add_transaction(date="2026-09-02", description="ЛЕНТА ВАЛИД",
+                      amount_kopecks=parse_amount("-200"), category="other",
+                      category_source="llm_pending_review", confidence=0.4,
+                      category_llm="groceries", review_status="pending")
+    s.close()
+
+    html = TestClient(app).get("/approve").text
+    assert "— выберите категорию —" in html
+    assert "нет в таксономии" in html and "НетТакой" in html
+    assert 'value="НетТакой"' not in html
+    assert "required" in html
+    assert 'value="groceries" selected' in html  # валидная строка — как раньше
+
+
 def _seed_pending_rows(tmp_path, rows: list[tuple[str, float, str]]) -> None:
     """(описание, уверенность, категория-предложение) в БД клиентского фикстура."""
     s = Store(db_path=tmp_path / "api_w3.db")
