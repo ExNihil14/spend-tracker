@@ -187,6 +187,40 @@ def test_category_lifecycle_add_color_delete(page: Page, live_server, taxonomy_p
     assert name not in taxonomy_path.read_text(encoding="utf-8")
 
 
+def test_edit_after_neighbor_section_change(page: Page, live_server, taxonomy_path):
+    """S2 (Astra 02.10): после правки правил формы категорий несут свежий file_hash (#settings-root).
+
+    Сценарий бага: добавили правило (свап правил) → красим категорию без перезагрузки →
+    старый хеш отбивал правку ошибкой «файл изменён снаружи», цвет молча не сохранялся.
+    """
+    name = "e2e-hash"
+    page.goto(f"{live_server}/settings")
+
+    add = page.locator('#settings-categories form[hx-post="/settings/categories"]')
+    add.locator('input[name="name"]').fill(name)
+    add.locator('button[type="submit"]').click()
+    _wait_single(page, "#settings-categories")
+
+    page.fill('#settings-rules input[name="pattern"]', "E2E HASH RULE")
+    page.click('#settings-rules form[hx-post="/settings/rules"] button[type="submit"]')
+    _wait_single(page, "#settings-rules")
+
+    row = page.locator("#settings-categories tbody tr").filter(
+        has=page.locator(f'input[name="name"][value="{name}"]'))
+    with page.expect_response(lambda r: "/settings/categories/color" in r.url):
+        row.locator('input[type="color"]').evaluate(
+            "el => { el.value = '#ff0000'; el.dispatchEvent(new Event('change', {bubbles: true})); }")
+    _wait_single(page, "#settings-categories")
+    expect(page.locator("#toast")).to_contain_text("Сохранено")
+    assert "#ff0000" in taxonomy_path.read_text(encoding="utf-8")
+
+    page.on("dialog", lambda d: d.accept())
+    row.locator('button[type="submit"]').click()
+    _wait_single(page, "#settings-categories")
+    page.locator('#settings-rules tr[data-pattern="E2E HASH RULE"] form[hx-post="/settings/rules/delete"] button').click()
+    _wait_single(page, "#settings-rules")
+
+
 def test_rename_cancel_closes_confirm(page: Page, live_server):
     """S (Astra 02.10): «Отмена» в подтверждении переименования работает без hx-on (allowEval:false)."""
     page.goto(f"{live_server}/settings")

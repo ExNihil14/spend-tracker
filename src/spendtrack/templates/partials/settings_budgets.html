@@ -9,7 +9,7 @@
     {% for c in budget_categories %}
     {% set b = budgets.get(c.name) %}
     {# O3 (Astra 02.10): Enter в поле даёт и change, и submit — drop гасит дубль запроса #}
-    <form hx-post="/settings/budgets" hx-target="#settings-budgets" hx-swap="outerHTML"
+    <form hx-post="/settings/budgets" hx-target="#settings-root" hx-swap="outerHTML"
           hx-trigger="change, submit" hx-sync="this:drop" class="flex flex-wrap items-center gap-3 px-5 py-2.5">
       <input type="hidden" name="category" value="{{ c.name }}">
       <span class="inline-block w-40 px-2.5 py-0.5 rounded-full text-xs font-medium"

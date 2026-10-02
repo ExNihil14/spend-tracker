@@ -23,7 +23,7 @@
         <td class="px-5 py-3 text-right text-fg-muted">{{ usage.get(c.name, 0) }}</td>
         <td class="px-5 py-3">
           {# S3 (Astra 02.10): id — чтобы htmx вернул фокус после свопа; delay — пикер не свопит на каждом движении #}
-          <form hx-post="/settings/categories/color" hx-target="#settings-categories" hx-swap="outerHTML"
+          <form hx-post="/settings/categories/color" hx-target="#settings-root" hx-swap="outerHTML"
                 hx-trigger="change delay:300ms" class="flex items-center gap-2">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
@@ -34,7 +34,7 @@
         </td>
         <td class="px-5 py-3">
           {% set cur_icon = (c.icon or c.name) if (c.icon or c.name) in icons else 'tag' %}
-          <form hx-post="/settings/categories/icon" hx-target="#settings-categories" hx-swap="outerHTML"
+          <form hx-post="/settings/categories/icon" hx-target="#settings-root" hx-swap="outerHTML"
                 hx-trigger="change" class="flex items-center gap-2">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
@@ -46,7 +46,7 @@
           </form>
         </td>
         <td class="px-5 py-3 text-right">
-          <form hx-post="/settings/categories/delete" hx-target="#settings-categories" hx-swap="outerHTML">
+          <form hx-post="/settings/categories/delete" hx-target="#settings-root" hx-swap="outerHTML">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
             {% set n = usage.get(c.name, 0) %}
@@ -61,7 +61,7 @@
     </tbody>
   </table>
 </div>
-<form hx-post="/settings/categories" hx-target="#settings-categories" hx-swap="outerHTML"
+<form hx-post="/settings/categories" hx-target="#settings-root" hx-swap="outerHTML"
       hx-disabled-elt="find button" class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-line">
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
   <input name="name" id="cat-new-name" placeholder="новая-категория" aria-label="Имя новой категории" required

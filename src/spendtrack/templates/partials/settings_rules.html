@@ -41,7 +41,7 @@
           </td>
           <td class="px-5 py-2.5">
             <div class="flex items-center justify-end gap-1.5">
-              <form hx-post="/settings/rules/move" hx-target="#settings-rules" hx-swap="outerHTML">
+              <form hx-post="/settings/rules/move" hx-target="#settings-root" hx-swap="outerHTML">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
                 <input type="hidden" name="direction" value="up">
@@ -51,7 +51,7 @@
                                {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if loop.first
                                   else 'bg-surface-2 hover:bg-line-strong text-fg' }}">↑</button>
               </form>
-              <form hx-post="/settings/rules/move" hx-target="#settings-rules" hx-swap="outerHTML">
+              <form hx-post="/settings/rules/move" hx-target="#settings-root" hx-swap="outerHTML">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
                 <input type="hidden" name="direction" value="down">
@@ -61,7 +61,7 @@
                                {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if loop.last
                                   else 'bg-surface-2 hover:bg-line-strong text-fg' }}">↓</button>
               </form>
-              <form hx-post="/settings/rules/delete" hx-target="#settings-rules" hx-swap="outerHTML"
+              <form hx-post="/settings/rules/delete" hx-target="#settings-root" hx-swap="outerHTML"
                     hx-confirm="Удалить правило «{{ a.pattern }}»?">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
@@ -79,7 +79,7 @@
   </div>
   <div class="border-t border-line px-5 py-3">
     {# O3 (Astra 02.10): двойной клик «Добавить» больше не создаёт два правила #}
-    <form hx-post="/settings/rules" hx-target="#settings-rules" hx-swap="outerHTML"
+    <form hx-post="/settings/rules" hx-target="#settings-root" hx-swap="outerHTML"
           hx-disabled-elt="find button" class="flex flex-wrap items-center gap-2">
       <input type="hidden" name="file_hash" value="{{ file_hash }}">
       <input name="pattern" id="rule-pattern" placeholder="НОВЫЙ ПАТТЕРН" aria-label="Паттерн правила" required

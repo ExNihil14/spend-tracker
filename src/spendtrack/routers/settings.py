@@ -57,10 +57,15 @@ def settings(request: Request, store: Annotated[Store, Depends(get_store)]):
     return templates.TemplateResponse(request, "settings.html", _context(store))
 
 
-def _cats_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:
+def _root_fragment(request: Request, store: Store, **errors: str | None) -> HTMLResponse:
+    """S2 (Astra 02.10): мутации возвращают весь #settings-root — file_hash всех секций свежий."""
     ctx = _context(store)
-    ctx["error"] = error
-    return templates.TemplateResponse(request, "partials/settings_categories.html", ctx)
+    ctx.update(errors)
+    return templates.TemplateResponse(request, "partials/settings_root.html", ctx)
+
+
+def _cats_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:
+    return _root_fragment(request, store, error_cats=error)
 
 
 @router.post("/settings/categories", response_class=HTMLResponse)
@@ -135,9 +140,7 @@ async def rename_category(request: Request, store: Annotated[Store, Depends(get_
 
 
 def _budgets_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:
-    ctx = _context(store)
-    ctx["error"] = error
-    return templates.TemplateResponse(request, "partials/settings_budgets.html", ctx)
+    return _root_fragment(request, store, error_budgets=error)
 
 
 @router.post("/settings/budgets", response_class=HTMLResponse)
@@ -152,9 +155,7 @@ async def set_budget(request: Request, store: Annotated[Store, Depends(get_store
 
 
 def _rules_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:
-    ctx = _context(store)
-    ctx["error"] = error
-    return templates.TemplateResponse(request, "partials/settings_rules.html", ctx)
+    return _root_fragment(request, store, error_rules=error)
 
 
 def _parse_index(raw: object) -> int:

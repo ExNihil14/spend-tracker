@@ -1,23 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
-  <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">Категории</h2>
-  {% include "partials/settings_categories.html" %}
-</div>
-
-<div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
-  <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">
-    Правила <span class="text-fg-muted font-normal">(порядок = приоритет, первое совпадение выигрывает; ↑/↓ меняют приоритет)</span>
-  </h2>
-  {% include "partials/settings_rules.html" %}
-</div>
-
-<div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
-  <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">
-    Бюджеты <span class="text-fg-muted font-normal">(месячные лимиты; прогресс — на дашборде)</span>
-  </h2>
-  {% include "partials/settings_budgets.html" %}
-</div>
+<noscript>
+  <div class="bg-warn-soft border border-line rounded-xl px-5 py-3 mb-6 text-sm text-fg">
+    Для настроек нужен JavaScript (htmx): формы не отправятся. Включите его или правьте
+    <code class="font-mono text-xs">config/taxonomy.toml</code> вручную.
+  </div>
+</noscript>
+{% include "partials/settings_root.html" %}
 
 <div class="bg-surface rounded-xl border border-line p-5">
   <h2 class="text-[15px] font-semibold text-fg mb-3">Тестер описания</h2>

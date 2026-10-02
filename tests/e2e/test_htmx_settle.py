@@ -27,7 +27,7 @@ SETTLE_WINDOW_JS = """
 var obs = new MutationObserver(function (records) {
   records.forEach(function (r) {
     r.addedNodes.forEach(function (n) {
-      if (n.id !== 'settings-rules' || !n.classList.contains('htmx-added')) return;
+      if (n.id !== 'settings-root' || !n.classList.contains('htmx-added')) return;
       var inp = n.querySelector('input[name=pattern]');
       inp.value = 'ОКНО SETTLE';
       inp.dispatchEvent(new Event('input', {bubbles: true}));

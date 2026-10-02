@@ -298,6 +298,20 @@ def test_settings_api_validation_error(tax_env):
     assert "имя" in r.text
 
 
+def test_mutation_response_is_full_root_with_fresh_hash(tax_env):
+    """S2 (Astra 02.10): мутация любой секции возвращает весь #settings-root — соседние формы
+    получают свежий file_hash (раньше после правки правил формы категорий несли старый хеш)."""
+    client = TestClient(app)
+    r = client.post("/settings/rules",
+                    data={"pattern": "X ПАТТЕРН", "category": "cafe", "file_hash": repo.file_hash()})
+    assert r.status_code == 200
+    for sec in ('id="settings-root"', 'id="settings-categories"', 'id="settings-rules"',
+                'id="settings-budgets"'):
+        assert sec in r.text, sec
+    fresh = repo.file_hash()
+    assert r.text.count(f'value="{fresh}"') >= 5  # хеш во всех формах категорий/правил
+
+
 def test_settings_controls_have_stable_ids_and_aria(tax_env):
     """S3/S4/S5 (Astra 02.10): id у полей — htmx возвращает фокус после свопа партиала;
     ошибки — role=alert (скринридер слышит); у ↑/↓ — aria-label (иначе имя — символ «↑»)."""
