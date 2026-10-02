@@ -20,6 +20,7 @@
 
   function ensureChart(src, cb) {
     if (window.Chart) return cb();
+    if (window.__spendtrackChartFailed) return;  // S3: не ретраим бесконечно битый chart-src
     var queue = window.__spendtrackChartQueue = window.__spendtrackChartQueue || [];
     queue.push(cb);
     if (window.__spendtrackChartLoading) return;
@@ -32,9 +33,14 @@
       queue.forEach(function (fn) { fn(); });
     };
     s.onerror = function () {
-      // Chart не загрузился: не копим колбэки (иначе утечка и «вечное ожидание»)
+      // S3 (Astra 02.10): не копим колбэки/теги <script> и говорим пользователю правду —
+      // «пустые канвасы» не должны выглядеть как «расходов нет» (данные есть в таблицах ниже).
       window.__spendtrackChartLoading = false;
       window.__spendtrackChartQueue = [];
+      window.__spendtrackChartFailed = true;
+      s.remove();
+      var box = document.querySelector('[data-chart-box]');
+      if (box) box.textContent = 'График недоступен — данные есть в таблицах ниже';
     };
     document.head.appendChild(s);
   }
@@ -46,7 +52,12 @@
     drawHeat(data.daily);
     var dailyEl = document.getElementById('dailyChart');
     if (!dailyEl || dailyEl.dataset.init === '1') return;
-    ensureChart(data.chartSrc, function () { draw(data); });
+    ensureChart(data.chartSrc, function () {
+      // S8 (Astra 02.10): за время загрузки Chart.js мог пройти boost-свап на другой месяц —
+      // перечитываем данные, иначе в новый канвас попадут суммы устаревшего месяца.
+      var fresh = readData();
+      if (fresh) draw(fresh);
+    });
   }
 
   // Цвета графиков — из semantic-токенов (tokens.css): JS не хардкодит палитру.
@@ -156,9 +167,12 @@
     if (!box || !daily.length) return;
     var byDate = {};
     var max = 0;
+    // C1 (Astra 02.10): карта дней — про РАСХОДЫ (как и спарклайн): total_k знаковый (расходы < 0),
+    // из-за чего все ячейки получали level 0, а aria-label показывал «максимум 0 ₽» и минус-суммы.
     daily.forEach(function (d) {
-      byDate[d.date] = d.total_k;
-      if (d.total_k > max) max = d.total_k;
+      var spend = Math.max(0, -d.total_k);
+      byDate[d.date] = spend;
+      if (spend > max) max = spend;
     });
     var first = daily[0].date; // ISO YYYY-MM-DD (days отсортированы по дате)
     var days = new Date(+first.slice(0, 4), +first.slice(5, 7), 0).getDate();
@@ -172,14 +186,14 @@
       var level = v <= 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((v / (max || 1)) * 4)));
       cell.className = 'heat-cell';
       cell.dataset.level = String(level);
-      cell.title = iso.slice(5) + ': ' + (v / 100).toFixed(2) + ' ₽';
+      cell.title = iso.slice(5) + ': ' + fmtRub(v / 100) + ' ₽';  // единый формат денег
       cell.setAttribute('aria-hidden', 'true');
       frag.appendChild(cell);
     }
     box.textContent = '';
     box.appendChild(frag);
     box.setAttribute('aria-label', 'Карта расходов по дням: ' + days + ' дн, всего '
-      + (total / 100).toFixed(0) + ' ₽, максимум ' + (max / 100).toFixed(0) + ' ₽');
+      + fmtRub(total / 100) + ' ₽, максимум ' + fmtRub(max / 100) + ' ₽');
   }
 
   function draw(data) {
@@ -321,16 +335,19 @@
   // старые Chart-инстансы уничтожаем перед свапом — иначе утечка и «пляшущие» графики.
   if (!window.__spendtrackChartHooks) {
     window.__spendtrackChartHooks = true;
-    if (window.htmx) {
-      htmx.onLoad(initCharts);
-      document.body.addEventListener('htmx:beforeSwap', function () {
-        ['dailyChart', 'catsChart'].forEach(function (id) {
-          var el = document.getElementById(id);
-          var c = el && window.Chart && window.Chart.getChart(el);
-          if (c) c.destroy();
-        });
+    // S2 (Astra 02.10): события htmx всплывают до document — не зависим от window.htmx на момент
+    // исполнения (порядок/defer/кэш) и от существования document.body.
+    document.addEventListener('htmx:load', function () { initCharts(); });
+    document.addEventListener('htmx:beforeSwap', function () {
+      ['dailyChart', 'catsChart'].forEach(function (id) {
+        var el = document.getElementById(id);
+        var c = el && window.Chart && window.Chart.getChart(el);
+        if (c) c.destroy();
+        // S1 (Astra 02.10): сброс init — при частичном свапе (canvas не заменён) без него
+        // draw() навсегда выходит по dataset.init === '1' и графики остаются пустыми.
+        if (el) delete el.dataset.init;
       });
-    }
+    });
     // Смена темы (theme.js → 'spendtrack:theme'): Chart.js держит палитру в датасете — перерисовываем.
     window.addEventListener('spendtrack:theme', function () {
       ['dailyChart', 'catsChart'].forEach(function (id) {

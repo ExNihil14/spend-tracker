@@ -8,8 +8,12 @@
     <div class="flex items-center gap-3">
       <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-fg-muted">{{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}</span>
       <span class="h-px flex-1 bg-line" aria-hidden="true"></span>
-      <span class="text-xs font-medium {{ 'text-income' if day_totals.get(t.date, 0) > 0 else 'text-fg-muted' }}">
-        итог {{ fmt_money(day_totals.get(t.date, 0)) }}
+      {% set day_total = day_totals.get(t.date) %}
+      {% set day_fx_count = (day_fx | default({})).get(t.date) %}
+      <span class="text-xs font-medium {{ 'text-income' if day_total is not none and day_total > 0 else 'text-fg-muted' }}">
+        {% if day_total is not none %}итог {{ fmt_money(day_total) }}
+        {% elif day_fx_count %}только в валюте
+        {% else %}итог {{ fmt_money(0) }}{% endif %}
       </span>
     </div>
   </td>
@@ -33,7 +37,7 @@
   <td class="px-5 py-3">
     {# hx-boost="false": внутри #tx-table htmx наследует target/select/swap → подменялась бы только таблица
        (шапка/итоги/фильтр оставались от прошлого состояния). Полная навигация сохраняет консистентность. #}
-    <a href="/?{% if current %}month={{ current }}&{% endif %}category={{ t.category }}" hx-boost="false"
+    <a href="/?{% if current %}month={{ current }}&{% endif %}category={{ t.category | urlencode }}" hx-boost="false"
        class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium hover:opacity-80 transition-opacity"
        style="background:{{ badge_bg }};color:{{ badge_text(badge_bg) }}">{{ cat_icon(t.category) }}{{ catname(t.category) }}</a>
   </td>
@@ -51,7 +55,7 @@
     <div class="text-xl font-semibold">Пока нет транзакций</div>
     <p class="mt-1 text-sm">Импортируйте CSV-выписку из банка (форма «Импорт» выше) или добавьте операцию вручную.</p>
     <a href="#import" hx-boost="false" class="mt-4 inline-block rounded-full bg-surface text-accent font-semibold px-4 py-2 hover:bg-surface-2 transition-colors">Импорт CSV</a>
-    <p class="text-xs mt-3"><a href="/help#faq-import-sber" class="underline underline-offset-2 hover:opacity-90">Как импортировать выписку →</a></p>
+    <p class="text-xs mt-3"><a href="/help#faq-import-sber" hx-boost="false" class="underline underline-offset-2 hover:opacity-90">Как импортировать выписку →</a></p>
   </div>
   {% elif category or q %}
   <div class="text-fg">Ничего не найдено по этому фильтру.</div>

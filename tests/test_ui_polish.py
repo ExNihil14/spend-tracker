@@ -87,9 +87,79 @@ def test_category_links_keep_month_and_full_navigation(client):
     """
     _add(client, "-100.00", "ЛЕНТА")  # groceries, 2026-09-12
     html = client.get("/?month=2026-09").text
-    assert 'href="/?month=2026-09&category=groceries"' in html
-    assert 'hx-boost="false"' in html
+    # S5 (Astra 02.10): hx-boost="false" должен стоять именно на бейдже категории — иначе любой
+    # другой элемент с этим атрибутом удовлетворял проверку, а регрессия оставалась незамеченной.
+    assert re.search(
+        r'<a\b[^>]*href="/\?month=2026-09&(?:amp;)?category=groceries"[^>]*hx-boost="false"'
+        r'|<a\b[^>]*hx-boost="false"[^>]*href="/\?month=2026-09&(?:amp;)?category=groceries"', html)
     assert ">Продукты</option>" in html  # фильтр-селект — RU-имена, не слаги
+
+
+def test_htmx_config_meta_precedes_script(client):
+    """C1 (Astra 02.10): meta htmx-config — ДО htmx.min.js, иначе allowEval/historyCacheSize не применяются."""
+    html = client.get("/").text
+    assert html.index('name="htmx-config"') < html.index("htmx.min.js")
+
+
+def test_async_sinks_are_live_regions(client):
+    """#importmsg/#newmsg — role=status aria-live: результаты импорта/добавления озвучиваются (WCAG 4.1.3)."""
+    html = client.get("/").text
+    assert 'id="importmsg" role="status" aria-live="polite"' in html
+    assert 'id="newmsg" role="status" aria-live="polite"' in html
+
+
+def test_help_links_disable_boost(client):
+    """Ссылки /help#... не бустятся: иначе фрагмент не применяется и пользователь видит верх /help."""
+    assert '/help#faq-import-sber" hx-boost="false"' in client.get("/").text
+    assert '/help#faq-queue-why" hx-boost="false"' in client.get("/approve").text
+
+
+def test_filters_swap_outer_html(client):
+    """Фильтры свапают #tx-table через outerHTML (hx-select того же id) — иначе вложенный дубль id."""
+    html = client.get("/").text
+    assert html.count('hx-select="#tx-table" hx-swap="outerHTML"') >= 5
+
+
+def test_fx_only_day_is_labeled_not_zero(client):
+    """День только с валютными операциями — «только в валюте», а не ложный «итог 0,00 ₽»."""
+    r = client.post("/api/transactions", json={"date": "2026-09-12", "description": "USD КОФЕ",
+                                               "amount": "-10.00", "currency": "USD"})
+    assert r.status_code == 200
+    html = client.get("/?month=2026-09").text
+    assert "только в валюте" in html
+
+
+def test_dashboard_heatmap_counts_spend_not_signed_total():
+    """C1 (Astra 02.10): карта дней считает РАСХОДЫ (max(0, -total_k)) — статический гард по JS.
+
+    Регрессия (знаковый total_k) делала все ячейки level 0 и «максимум 0 ₽» в aria-label;
+    JS не покрыт unit-тестами, поэтому держим дешёвый контракт-гард на исходник.
+    """
+    from pathlib import Path
+
+    js = (Path(__file__).resolve().parents[1] / "src" / "spendtrack" / "static" / "dashboard.js").read_text(
+        encoding="utf-8")
+    heat = js[js.index("function drawHeat"):]
+    heat = heat[:heat.index("\n  }")]
+    assert "Math.max(0, -d.total_k)" in heat
+    assert "d.total_k > max" not in heat  # старый знаковый максимум
+
+
+def test_untrusted_description_is_escaped_everywhere(client):
+    """S6 (Astra 02.10): описание из выписки — недоверенный ввод; на страницах не должно быть
+    исполняемых фрагментов (XSS-поверхность: таблица, фильтр, очередь, дашборд)."""
+    payload = 'КОФЕ" onmouseover="x=1 <img src=x onerror=alert(1)>'
+    _add(client, "-300.00", payload)
+    for url in ("/", "/dashboard", "/approve"):
+        html = client.get(url).text
+        # Сырая разметка из недоверенного описания не должна попадать в DOM: если автоэскейп
+        # отключат, здесь появятся настоящий тег и настоящая кавычка (сейчас — &lt;img и &#34;).
+        assert "<img src=x" not in html, url
+        assert 'onmouseover="' not in html, url
+    # data-* JSON дашборда остаётся сериализованным (tojson), а не «сырым» HTML
+    dash = client.get("/dashboard").text
+    match = re.search(r"data-cats='([^']*)'", dash)
+    assert match and json.loads(match.group(1))  # парсится как JSON
 
 
 def test_dashboard_chart_data_has_display_labels(client):

@@ -298,6 +298,24 @@ def test_settings_api_validation_error(tax_env):
     assert "имя" in r.text
 
 
+def test_settings_controls_have_stable_ids_and_aria(tax_env):
+    """S3/S4/S5 (Astra 02.10): id у полей — htmx возвращает фокус после свопа партиала;
+    ошибки — role=alert (скринридер слышит); у ↑/↓ — aria-label (иначе имя — символ «↑»)."""
+    client = TestClient(app)
+    html = client.get("/settings").text
+    assert re.search(r'id="cat-color-[^"]+"', html), "нет id у color-инпута категории"
+    assert re.search(r'id="cat-icon-[^"]+"', html), "нет id у select иконки"
+    assert re.search(r'id="budget-[^"]+"', html), "нет id у поля бюджета"
+    assert re.search(r'id="rule-up-[^"]+"', html), "нет id у кнопки ↑"
+    assert re.search(r'id="rule-down-[^"]+"', html), "нет id у кнопки ↓"
+    assert re.search(r'aria-label="Переместить правило #\d+ выше"', html)
+    assert re.search(r'aria-label="Переместить правило #\d+ ниже"', html)
+
+    err = client.post("/settings/categories",
+                      data={"name": "bad name", "color": "#112233", "file_hash": repo.file_hash()})
+    assert 'role="alert"' in err.text
+
+
 def test_category_color_and_delete_routes(tax_env):
     """Роуты смены цвета и удаления категории (аудит 23.09: repo покрыт, роуты — нет)."""
     client = TestClient(app)

@@ -83,8 +83,10 @@
         .then(function (d) {
           var cnt = document.getElementById('pending-count');
           if (!cnt) return;
+          // S2 (Astra 02.10): не доверяем форме ответа — null/строка давали «NaN» в счётчике.
+          var to = (d && typeof d.count === 'number' && isFinite(d.count)) ? Math.round(d.count) : 0;
           var from = parseInt(cnt.textContent, 10);
-          animateCount(cnt, isNaN(from) ? d.count : from, d.count);
+          animateCount(cnt, isNaN(from) ? to : from, to);
         })
         .catch(function () { /* счётчик не критичен */ });
       htmx.trigger('body', 'refresh-list');
@@ -105,6 +107,15 @@
     var btn = e.target && e.target.closest ? e.target.closest('[data-toggle]') : null;
     if (!btn) return;
     setPanel(btn, btn.getAttribute('aria-expanded') !== 'true');
+  });
+
+  // Отмена переименования категории (Astra 02.10): allowEval:false — hx-on:click больше не работает,
+  // поведение живёт здесь (кнопка помечена data-rename-cancel в rename_confirm.html).
+  document.body.addEventListener('click', function (e) {
+    var btn = e.target && e.target.closest ? e.target.closest('[data-rename-cancel]') : null;
+    if (!btn) return;
+    var box = document.getElementById('rename-confirm');
+    if (box) box.innerHTML = '';
   });
 
   // Ссылки /#import и /#add (лендинг, чек-лист, дашборд) открывают панель, а не «немой» якорь.

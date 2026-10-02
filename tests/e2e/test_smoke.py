@@ -415,6 +415,13 @@ def test_currency_in_list_day_total_rub_only(page: Page, live_server, db_path):
     expect(table).not_to_contain_text("итог −600,00")
 
 
+def test_htmx_config_applied(page: Page, live_server):
+    """C1 (Astra 02.10): meta htmx-config стоит до скрипта — защита реально применена в браузере."""
+    page.goto(live_server)
+    assert page.evaluate("window.htmx && htmx.config.allowEval") is False
+    assert page.evaluate("htmx.config.historyCacheSize") == 0
+
+
 def test_help_page_nav_and_faq(page: Page, live_server):
     """Помощь: ссылка в меню ведёт на /help, FAQ-вопрос раскрывается (нативные details)."""
     page.goto(live_server)

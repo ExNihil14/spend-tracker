@@ -22,7 +22,7 @@
       <input type="hidden" name="new_name" value="{{ preview.new }}">
       <button type="submit" class="bg-accent-bg hover:bg-accent-bg-hover text-white text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Подтвердить</button>
     </form>
-    <button type="button" hx-on:click="document.getElementById('rename-confirm').innerHTML=''"
+    <button type="button" data-rename-cancel
             class="text-xs text-fg-muted hover:text-fg">Отмена</button>
   </div>
 </div>

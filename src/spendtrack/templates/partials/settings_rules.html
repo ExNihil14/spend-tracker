@@ -1,6 +1,6 @@
 <div id="settings-rules">
   {% if error %}
-  <div class="px-5 py-2 text-sm text-danger border-b border-line">{{ error }}</div>
+  <div class="px-5 py-2 text-sm text-danger border-b border-line" role="alert">{{ error }}</div>
   {% endif %}
   {% if dead_count %}
   <div class="px-5 py-2 text-xs text-warn border-b border-line">
@@ -45,7 +45,8 @@
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
                 <input type="hidden" name="direction" value="up">
-                <button type="submit" title="Переместить выше" {% if loop.first %}disabled{% endif %}
+                <button type="submit" title="Переместить выше" aria-label="Переместить правило #{{ a.index }} выше"
+                        id="rule-up-{{ a.pattern | urlencode }}" {% if loop.first %}disabled{% endif %}
                         class="w-7 h-7 rounded-lg text-sm leading-none transition-colors
                                {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if loop.first
                                   else 'bg-surface-2 hover:bg-line-strong text-fg' }}">↑</button>
@@ -54,7 +55,8 @@
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
                 <input type="hidden" name="direction" value="down">
-                <button type="submit" title="Переместить ниже" {% if loop.last %}disabled{% endif %}
+                <button type="submit" title="Переместить ниже" aria-label="Переместить правило #{{ a.index }} ниже"
+                        id="rule-down-{{ a.pattern | urlencode }}" {% if loop.last %}disabled{% endif %}
                         class="w-7 h-7 rounded-lg text-sm leading-none transition-colors
                                {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if loop.last
                                   else 'bg-surface-2 hover:bg-line-strong text-fg' }}">↓</button>
@@ -76,14 +78,15 @@
     </table>
   </div>
   <div class="border-t border-line px-5 py-3">
+    {# O3 (Astra 02.10): двойной клик «Добавить» больше не создаёт два правила #}
     <form hx-post="/settings/rules" hx-target="#settings-rules" hx-swap="outerHTML"
-          class="flex flex-wrap items-center gap-2">
+          hx-disabled-elt="find button" class="flex flex-wrap items-center gap-2">
       <input type="hidden" name="file_hash" value="{{ file_hash }}">
-      <input name="pattern" placeholder="НОВЫЙ ПАТТЕРН" aria-label="Паттерн правила" required
+      <input name="pattern" id="rule-pattern" placeholder="НОВЫЙ ПАТТЕРН" aria-label="Паттерн правила" required
              hx-post="/settings/rules/preview" hx-trigger="input changed delay:400ms"
              hx-include="closest form" hx-target="#rule-preview" hx-swap="innerHTML"
              class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm font-mono uppercase placeholder:normal-case placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-accent">
-      <select name="category" aria-label="Категория правила"
+      <select name="category" id="rule-category" aria-label="Категория правила"
               hx-post="/settings/rules/preview" hx-trigger="change"
               hx-include="closest form" hx-target="#rule-preview" hx-swap="innerHTML"
               class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">

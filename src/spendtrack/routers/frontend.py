@@ -62,10 +62,13 @@ def index(request: Request, store: Annotated[Store, Depends(get_store)], month: 
                                                search=q or None, sort=sort)
     group_days = sort == "recent"  # группировка только в хронологии (см. брейншторм 14.09)
     day_totals: dict[str, int] = {}
+    day_fx: dict[str, int] = {}  # S (Astra 02.10): дни без RUB — «только в валюте», а не «итог 0,00 ₽»
     if group_days:
         for t in transactions:
             if ((t["currency"] or "").upper() or "RUB") == "RUB":  # ₽-итог (K6 §J-2: зеркало SQL)
                 day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
+            else:
+                day_fx[t["date"]] = day_fx.get(t["date"], 0) + 1
     pending = store.queued_for_review()
     report = report_month(store, current)
     totals = categories_with_totals(store, current)
@@ -90,6 +93,7 @@ def index(request: Request, store: Annotated[Store, Depends(get_store)], month: 
             "sort": sort,
             "group_days": group_days,
             "day_totals": day_totals,
+            "day_fx": day_fx,
             "has_more": has_more,
             "more_url": _more_url(current, category, q, sort, next_after, PAGE_DAYS) if has_more else None,
             "fmt": fmt_amount,
@@ -238,13 +242,16 @@ def more_rows(request: Request, store: Annotated[Store, Depends(get_store)], mon
         month=month or None, category=category or None, search=q or None,
         days=days, after_date=after or None)
     day_totals: dict[str, int] = {}
+    day_fx: dict[str, int] = {}  # S (Astra 02.10): «только в валюте» вместо ложного «итог 0,00 ₽»
     for t in rows:
         if ((t["currency"] or "").upper() or "RUB") == "RUB":  # ₽-итог (K6 §J-2: зеркало SQL)
             day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
+        else:
+            day_fx[t["date"]] = day_fx.get(t["date"], 0) + 1
     cats = {c.name: c.color for c in taxonomy.categories}
     return templates.TemplateResponse(
         request, "partials/tx_rows.html",
-        {"transactions": rows, "day_totals": day_totals, "group_days": True,
+        {"transactions": rows, "day_totals": day_totals, "day_fx": day_fx, "group_days": True,
          "cat_colors": cats, "fmt": fmt_amount, "catname": taxonomy.display,
          "has_more": has_more,
          "has_any": True, "category": category or "", "q": q or "", "current": month or "",

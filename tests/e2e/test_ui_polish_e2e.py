@@ -68,6 +68,18 @@ def test_category_badge_keeps_month(page: Page, live_server, db_path):
     expect(page.locator("#tx-table")).not_to_contain_text("ЛЕНТА СЕН")
 
 
+def test_filter_change_keeps_single_tx_table(page: Page, live_server, db_path):
+    """S (Astra 02.10): смена сортировки свапает #tx-table через outerHTML — в DOM ровно один id."""
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА ФИЛЬТР", -12345)
+    page.goto(f"{live_server}/?month=2026-09")
+    with page.expect_response(lambda r: "sort=amount" in r.url):
+        page.select_option('#filters select[name="sort"]', "amount")
+    page.wait_for_function(
+        "() => !document.querySelector('.htmx-request') && !document.querySelector('.htmx-added')",
+        timeout=10_000)
+    assert page.locator("#tx-table").count() == 1
+
+
 def test_month_empty_note(page: Page, live_server, db_path):
     """Пустой месяц при наличии данных: подсказка с импортом, а не пустая таблица без объяснений."""
     _seed(str(db_path), "2026-09-10", "ЛЕНТА МЕСЯЦ", -10000)

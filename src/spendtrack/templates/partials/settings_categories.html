@@ -1,6 +1,6 @@
 <div id="settings-categories">
 {% if error %}
-<div class="px-5 py-2 text-sm text-danger border-b border-line">{{ error }}</div>
+<div class="px-5 py-2 text-sm text-danger border-b border-line" role="alert">{{ error }}</div>
 {% endif %}
 <div class="table-scroll overflow-x-auto" role="region" aria-label="Категории" tabindex="0">
   <table class="w-full text-sm">
@@ -22,11 +22,13 @@
         </td>
         <td class="px-5 py-3 text-right text-fg-muted">{{ usage.get(c.name, 0) }}</td>
         <td class="px-5 py-3">
+          {# S3 (Astra 02.10): id — чтобы htmx вернул фокус после свопа; delay — пикер не свопит на каждом движении #}
           <form hx-post="/settings/categories/color" hx-target="#settings-categories" hx-swap="outerHTML"
-                hx-trigger="change" class="flex items-center gap-2">
+                hx-trigger="change delay:300ms" class="flex items-center gap-2">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
             <input type="color" name="color" value="{{ c.color }}" aria-label="Цвет категории {{ catname(c.name) }}"
+                   id="cat-color-{{ c.name | urlencode }}"
                    class="h-8 w-10 bg-surface-2 border border-line-strong rounded cursor-pointer">
           </form>
         </td>
@@ -37,6 +39,7 @@
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
             <select name="icon" aria-label="Иконка категории {{ catname(c.name) }}"
+                    id="cat-icon-{{ c.name | urlencode }}"
                     class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
               {% for ic in icons %}<option value="{{ ic }}" {% if ic == cur_icon %}selected{% endif %}>{{ ic }}</option>{% endfor %}
             </select>
@@ -59,9 +62,9 @@
   </table>
 </div>
 <form hx-post="/settings/categories" hx-target="#settings-categories" hx-swap="outerHTML"
-      class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-line">
+      hx-disabled-elt="find button" class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-line">
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
-  <input name="name" placeholder="новая-категория" aria-label="Имя новой категории" required
+  <input name="name" id="cat-new-name" placeholder="новая-категория" aria-label="Имя новой категории" required
          class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
   <select name="icon" aria-label="Иконка новой категории"
           class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
@@ -75,11 +78,11 @@
       class="flex flex-wrap items-center gap-2 px-5 py-3 border-t border-line">
   <input type="hidden" name="file_hash" value="{{ file_hash }}">
   <span class="text-xs text-fg-muted">Переименовать:</span>
-  <select name="name" aria-label="Категория для переименования"
+  <select name="name" id="cat-rename-name" aria-label="Категория для переименования"
           class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
     {% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}
   </select>
-  <input name="new_name" placeholder="новое-имя" aria-label="Новое имя категории" required
+  <input name="new_name" id="cat-rename-new" placeholder="новое-имя" aria-label="Новое имя категории" required
          class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent">
   <button type="submit" class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Проверить</button>
 </form>

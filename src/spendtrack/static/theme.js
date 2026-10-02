@@ -13,12 +13,16 @@
   function other() { return current() === 'dark' ? 'light' : 'dark'; }
   function apply(mode) {
     var dark = mode === 'dark';
-    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     var btn = document.getElementById('theme-toggle');
     if (btn) {
       btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
       btn.setAttribute('title', dark ? 'Тема: тёмная' : 'Тема: светлая');
     }
+    // O1 (Astra 02.10): при boost-навигации тема не менялась — не дёргаем слушателей
+    // (Chart.js пересчитывал палитру на каждом afterSwap без причины). Кнопку синхронизируем
+    // всегда: htmx-свап мог её пересоздать.
+    if (document.documentElement.getAttribute('data-theme') === (dark ? 'dark' : 'light')) return;
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     // Смена темы: страницы могут держать палитру в JS (Chart.js) — уведомляем слушателей.
     window.dispatchEvent(new CustomEvent('spendtrack:theme', { detail: { theme: dark ? 'dark' : 'light' } }));
   }

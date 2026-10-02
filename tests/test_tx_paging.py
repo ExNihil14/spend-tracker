@@ -55,7 +55,9 @@ def test_more_endpoint_rows_and_sentinel(tmp_path, monkeypatch):
     # после 2026-09-09 остаётся 4 дня при странице в 2 дня → sentinel есть
     html2 = client.get("/transactions/more?month=2026-09&days=2&after=2026-09-09").text
     assert "more-sentinel" in html2
-    assert "after=2026-09-07" in html2  # курсор следующей страницы
+    # O4 (Astra 02.10): курсор проверяем как значение hx-get-атрибута sentinel-строки, а не как
+    # свободную подстроку — иначе «after=…» могло встретиться в любом месте страницы.
+    assert re.search(r'hx-get="[^"]*after=2026-09-07[^"]*"', html2)  # курсор следующей страницы
     # кнопка-фолбэк (клавиатура/инерционный скролл), а не только hx-trigger="revealed"
     assert "Показать ещё" in html2
     sentinel = re.search(r'id="more-sentinel"[^>]*hx-trigger="([^"]*)"', html2)

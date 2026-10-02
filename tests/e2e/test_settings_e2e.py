@@ -185,3 +185,35 @@ def test_category_lifecycle_add_color_delete(page: Page, live_server, taxonomy_p
     _wait_single(page, "#settings-categories")
     expect(page.locator(f'#settings-categories input[name="name"][value="{name}"]')).to_have_count(0)
     assert name not in taxonomy_path.read_text(encoding="utf-8")
+
+
+def test_rename_cancel_closes_confirm(page: Page, live_server):
+    """S (Astra 02.10): «Отмена» в подтверждении переименования работает без hx-on (allowEval:false)."""
+    page.goto(f"{live_server}/settings")
+    form = page.locator('#settings-categories form[hx-post="/settings/categories/rename/preview"]')
+    form.locator('select[name="name"]').select_option("groceries")
+    form.locator('input[name="new_name"]').fill("groceries2")
+    form.locator('button[type="submit"]').click()
+    expect(page.locator("#rename-confirm")).to_contain_text("Переименовать")
+    page.click("#rename-confirm [data-rename-cancel]")
+    expect(page.locator("#rename-confirm")).to_be_empty()
+
+
+def test_budget_input_keeps_focus_after_swap(page: Page, live_server):
+    """S3 (Astra 02.10): после автосейв-свопа партиала фокус остаётся в поле бюджета.
+
+    htmx восстанавливает фокус только по id (снимает activeElement.id до свапа);
+    без id контейнер подменялся целиком и Tab-проход по бюджетам обрывался в body.
+    """
+    page.goto(f"{live_server}/settings")
+    page.wait_for_selector('#settings-budgets input[name="amount"]')
+    inputs = page.locator('#settings-budgets input[name="amount"]')
+    assert inputs.count() >= 2, "нужно ≥2 поля бюджетов (Tab должен уйти на соседнее поле)"
+    inputs.first.fill("1000")
+    with page.expect_response(lambda r: "/settings/budgets" in r.url):
+        page.keyboard.press("Tab")
+    _wait_single(page, "#settings-budgets")
+    assert page.evaluate(
+        "() => { const el = document.activeElement;"
+        " return !!el && el.tagName === 'INPUT' && el.name === 'amount'; }"
+    ), "фокус улетел из очереди бюджетов после свопа"

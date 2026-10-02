@@ -122,3 +122,26 @@ def test_budget_percent_countup_keeps_percent_suffix(page: Page, live_server, db
         "() => { const el = document.querySelector('[data-countup]');"
         " return el && el.textContent.trim() === '50%'; }", timeout=3000)
     assert page.locator("[data-countup-suffix]").count() == 1
+
+
+def test_heatmap_levels_reflect_expenses(page: Page, live_server, db_path):
+    """C1 (Astra 02.10): карта дней — про расходы: уровни ячеек > 0 и честный aria-label.
+
+    Регрессия считала знаковый total_k (расходы < 0) → все ячейки получали level 0,
+    а скринридер слышал «максимум 0 ₽» при реальных тратах.
+    """
+    _seed(str(db_path), "2026-09-05", "ЛЕНТА КАРТА", -10_000)   # 100 ₽
+    _seed(str(db_path), "2026-09-12", "ЛЕНТА КАРТА", -30_000)   # 300 ₽ — максимум дня
+
+    page.goto(f"{live_server}/dashboard?month=2026-09")
+    page.wait_for_function(
+        "() => [...document.querySelectorAll('#heat-strip .heat-cell')]"
+        ".some(c => c.dataset.level !== '0')")
+    levels = page.eval_on_selector_all(
+        "#heat-strip .heat-cell", "els => els.map(e => e.dataset.level)")
+    assert len(levels) == 30, f"ячеек в сентябре: {len(levels)}"
+    assert any(int(v) > 0 for v in levels), levels
+
+    label = page.locator("#heat-strip").get_attribute("aria-label")
+    assert label and "максимум 0" not in label, label
+    assert "300,00" in label and "\u2212" not in label, label  # максимум — расход 300 ₽
