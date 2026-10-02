@@ -1,5 +1,10 @@
 {% extends "base.html" %}
 {% block content %}
+<noscript>
+  <div class="bg-warn-soft border border-line rounded-xl px-5 py-3 mb-6 text-sm text-fg">
+    Графики и переключатель месяца требуют JavaScript; суммы и операции доступны в таблицах ниже.
+  </div>
+</noscript>
 {% if digest and digest.anomalies %}
 <div id="anomalies-card" class="bg-surface rounded-xl border border-line mb-8 p-5">
   <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">

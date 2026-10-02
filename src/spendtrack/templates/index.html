@@ -16,23 +16,24 @@
 
 {% if first_run %}{% include "partials/start_checklist.html" %}{% endif %}
 
-<div class="bg-surface rounded-xl border border-line overflow-hidden">
+<div id="tx-card" class="bg-surface rounded-xl border border-line overflow-hidden">
   <div class="px-5 py-3 border-b border-line flex flex-wrap items-center gap-2">
     <h2 class="text-[15px] font-semibold text-fg">Транзакции {{ fmt_month(current) }}</h2>
     <button type="button" id="import" data-toggle="import-panel" aria-expanded="false" aria-controls="import-panel"
             class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Импорт CSV</button>
     <button type="button" id="add" data-toggle="add-panel" aria-expanded="false" aria-controls="add-panel"
             class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
-    <form hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
+    <form hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
+      <input type="hidden" name="month" value="{{ current }}">
       <select name="sort" aria-label="Сортировка"
               class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-              hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
+              hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
         <option value="recent" {% if sort == 'recent' %}selected{% endif %}>Сначала новые</option>
         <option value="amount" {% if sort == 'amount' %}selected{% endif %}>Крупные сначала</option>
       </select>
       <select name="category" aria-label="Фильтр по категории"
               class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-              hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
+              hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
         <option value="">Все категории</option>
         {% for c in all_categories %}
         <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ catname(c) }}</option>
@@ -40,7 +41,7 @@
       </select>
       <input name="q" value="{{ q }}" placeholder="Поиск…" aria-label="Поиск по описанию"
              class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-accent"
-             hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters"
+             hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters"
              hx-trigger="input changed delay:400ms">
       {% if category or q %}<a href="/?month={{ current }}" class="text-accent hover:text-accent-hover text-sm px-2 py-1" aria-label="Сбросить фильтры">✕</a>{% endif %}
     </form>

@@ -68,6 +68,22 @@ def test_category_badge_keeps_month(page: Page, live_server, db_path):
     expect(page.locator("#tx-table")).not_to_contain_text("ЛЕНТА СЕН")
 
 
+def test_filter_change_refreshes_reset_and_export(page: Page, live_server, db_path):
+    """S (Astra 02.10): шапка карточки свапается вместе с таблицей — «✕ Сбросить» появляется,
+    а «Экспорт CSV» несёт актуальный фильтр и месяц (раньше оставались от полной загрузки)."""
+    _seed(str(db_path), "2026-09-10", "ЛЕНТА ШАПКА", -12345)
+    page.goto(f"{live_server}/?month=2026-09")
+    assert page.locator('a[aria-label="Сбросить фильтры"]').count() == 0
+    with page.expect_response(lambda r: "category=groceries" in r.url):
+        page.select_option('#filters select[name="category"]', "groceries")
+    page.wait_for_function(
+        "() => !document.querySelector('.htmx-request') && !document.querySelector('.htmx-added')",
+        timeout=10_000)
+    expect(page.locator('#tx-card a[aria-label="Сбросить фильтры"]')).to_be_visible()
+    href = page.locator('#tx-card a[aria-label^="Экспорт транзакций"]').get_attribute("href")
+    assert href and "category=groceries" in href and "month=2026-09" in href, href
+
+
 def test_filter_change_keeps_single_tx_table(page: Page, live_server, db_path):
     """S (Astra 02.10): смена сортировки свапает #tx-table через outerHTML — в DOM ровно один id."""
     _seed(str(db_path), "2026-09-10", "ЛЕНТА ФИЛЬТР", -12345)

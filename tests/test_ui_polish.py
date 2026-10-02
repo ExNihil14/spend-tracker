@@ -95,6 +95,12 @@ def test_category_links_keep_month_and_full_navigation(client):
     assert ">Продукты</option>" in html  # фильтр-селект — RU-имена, не слаги
 
 
+def test_noscript_notices(client):
+    """O10 (Astra 02.10): без JS страницы настроек/дашборда объясняют ограничение (htmx-only by design)."""
+    assert "<noscript" in client.get("/settings").text
+    assert "<noscript" in client.get("/dashboard").text
+
+
 def test_htmx_config_meta_precedes_script(client):
     """C1 (Astra 02.10): meta htmx-config — ДО htmx.min.js, иначе allowEval/historyCacheSize не применяются."""
     html = client.get("/").text
@@ -115,9 +121,13 @@ def test_help_links_disable_boost(client):
 
 
 def test_filters_swap_outer_html(client):
-    """Фильтры свапают #tx-table через outerHTML (hx-select того же id) — иначе вложенный дубль id."""
+    """Фильтры свапают карточку #tx-card через outerHTML: шапка («✕»/экспорт) обновляется вместе
+    с таблицей; month — скрытым полем (иначе смена фильтра уводила на месяц последней операции)."""
     html = client.get("/").text
-    assert html.count('hx-select="#tx-table" hx-swap="outerHTML"') >= 5
+    assert 'id="tx-card"' in html
+    assert html.count('hx-select="#tx-card" hx-swap="outerHTML"') >= 4
+    assert 'name="month" value=' in html
+    assert html.count('hx-select="#tx-table" hx-swap="outerHTML"') >= 1  # refresh-list: лёгкий свап
 
 
 def test_fx_only_day_is_labeled_not_zero(client):
