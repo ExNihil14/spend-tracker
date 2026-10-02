@@ -41,8 +41,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > перезапущены, live: allowEval=false, один #tx-table, heat 6 ненулевых ячеек («всего 20 600,00 ₽»),
 > 16 budget-id / 18 color-id / 32 rule-id.** **Коммиты:** `983d9fe`+`1be4a92` (spend-tracker),
 > `0716e0e`+`0c74acb`+`97d2291` (bootstrap). **Волна B:** settings S2 (`#settings-root` — свежий file_hash) ✅,
-> tx_card (шапка+«месяц» в фильтрах) ✅, noscript ✅, js_b S7 закрыт фактом; контур 774+93; осталось —
-> bootstrap S1/S2/S4/S6–S11, suggestion-гард, O5/O6/O11.
+> tx_card (шапка+«месяц» в фильтрах) ✅, noscript ✅, js_b S7 закрыт фактом; контур 774+93;
+> bootstrap: S1/S2/S3 (backup-knowledge `.part`→testzip, `serena_lost`, rc=2 при провале копии + тест ALL PASS) ✅,
+> S11 (start-detached: WorkDir pre-check → rc=3) ✅; S4/S6–S10 (verify/check-channels/go-usage/opencode-web +
+> тесты ALL PASS) ✅, канон `opencode.json` синхронизирован (MCP→V2 `servers`); suggestion-гард ✅;
+> контур 775+93; осталось — bootstrap O1-лок, O5/O6/O11 (опц.).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
