@@ -27,6 +27,20 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (02.10, окно 11:00 UTC — 5/5 ✅; адъюдикация + фиксы, коммит по команде).** Окно закрыто 12:46 UTC:
+> js_a/js_b (Opus), templates_a/b (Opus, со 2–3-й попытки), bootstrap_scripts_astra (Astra). Вердикты:
+> js_b NO-GO (карта дней считала знаковый total_k → расходы нулями, aria-label врала) — фикс + e2e; templates_a
+> C1: meta htmx-config стояла ПОСЛЕ htmx.min.js (allowEval/historyCacheSize не применялись) — фикс + rename-cancel
+> в app.js + e2e; templates_b GO: настройки без id теряли фокус (id+role=alert+aria-label), file_hash протухает
+> при частичном свопе (волна 2: #settings-root); bootstrap C1: OAuth-токены попадали в OneDrive ДО strip
+> (фикс: strip локально → .part → публикация; rc=2 при провале копии; пустая БД = BAD; тест-скрипт ALL PASS).
+> Ещё фиксы: approve.js S1/S3/O3 (getTbody/делегирование, фильтр afterSwap, change-диспатч), app.js S2, theme.js O1,
+> dashboard.js S1/S2/S3/S8; фильтры `hx-swap=outerHTML` (дубль #tx-table), `/help#` hx-boost=false, #importmsg/#newmsg
+> role=status, FX-дни «только в валюте», urlencode категорий, careful_gate O3 + тест, README setx→Read-Host.
+> **Контур: 772 unit + 91 e2e + ruff + contract ok + ratchet 2/420 + cc + css — зелёные; прод 8766 и демо 8799
+> перезапущены, live: allowEval=false, один #tx-table, heat 6 ненулевых ячеек («всего 20 600,00 ₽»),
+> 16 budget-id / 18 color-id / 32 rule-id.** Дальше: коммит по команде; bootstrap волна B (S1/S2/S4/S6–S11),
+> settings S2, js_b S7, tx_card.html.
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
