@@ -41,6 +41,22 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > **README актуализирован (03.10, ждёт коммита):** hero-GIF наверху, новый скрин очереди `/approve`, фичи
 > (редактор правил/категорий, тёмная тема), статус «бета» (как на лендинге), `backup --drill` в таблице;
 > ассеты пересняты на свежем демо-сиде v7 (4 PNG + лендинг-GIF), план съёмки расширен. Дальше — **Ф1 прогресс (UI/CLI)**.
+> **Беларусь/BYN (03.10, prep):** ресёрч `D:\dev\docs\machine\RESEARCH_BELARUS_BYN_2026-10-03.md` (банки BY:
+> машиночитаемый экспорт подтверждён только у Белагропромбанка `.xls/.doc` [П, факт-чек PDF]; BYN ISO-4217
+> совместим с копейками; NBRB API; таксономия BY; интеграционный план: `base_currency`-настройка + SQL-параметризация,
+> схема не меняется). **Банк юзера — Приорбанк** (03.10, точечная доразведка §2.3): розница не подтверждена,
+> но бизнес-интернет-банк отдаёт выписку в **CSV/TXT/DOCX/PDF** [П]; план проверки — приложение/web/заказ документов.
+> Адаптеры — **data-gated** (нужен обезличенный образец от юзера). $0-ревью **выполнено** (`out_belarus_review_or.md`,
+> nemotron-ultra:free) и **адъюдицировано** (`ADJUDICATION_BELARUS_REVIEW_2026-10-03.md`): Ф0 ready, Ф1 data-gated
+> (образец Приорбанка; нет ~2 нед → закрыть), BY-правила — opt-in overlay, `.xls` без `xlrd` в core, PDF не раньше Ф3.
+> Тикет — в §7 стартера.
+> **Ф0 «базовая валюта» сделан (03.10, в дереве, ждёт коммита):** настройка `base_currency` (settings/env,
+> ISO-валидация, default RUB) + SQL-параметризация агрегатов (reports/digest/store/recurring/frontend/export/cli) +
+> символы `fmt_money`/`currency_symbol` (₽/Br, иначе код; JS дашборда — через `data-currency-symbol`) + doctor-чек
+> `base_currency` + импорт/CLI/API по умолчанию пишут базовую + fingerprint по базе (код только для НЕ-базовой).
+> +8 тестов; контур **810 unit + 93 e2e** + ruff + contract ok (snapshot api 352) + ratchet + cc + css; live:
+> BYN-режим на прод-БД (read-only) — doctor OK («вне итогов: 8»), отчёт 0.00 + сноска «не учтено 8».
+> Дальше — коммит по команде; Ф1 ждёт образец Приорбанка.
 > **АКТУАЛЬНО (02.10, окно 11:00 UTC — 5/5 ✅; адъюдикация + фиксы, коммит по команде).** Окно закрыто 12:46 UTC:
 > js_a/js_b (Opus), templates_a/b (Opus, со 2–3-й попытки), bootstrap_scripts_astra (Astra). Вердикты:
 > js_b NO-GO (карта дней считала знаковый total_k → расходы нулями, aria-label врала) — фикс + e2e; templates_a
