@@ -62,6 +62,15 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > CLI `goal list/add/allocate/archive` (+`--json`) + строка целей в `digest`; README/help. +8 unit (test_goals_ui)
 > + 2 e2e; контур **818 unit + 95 e2e** + ruff + contract snapshot api 363/routes 38; live на демо 8799:
 > цель создана, взнос 2500 → 25% (страница+фрагмент). Дальше — **Ф2 движок** (capacity/required/статусы).
+> **Копилки Ф2 (движок) сделан (03.10, в дереве, ждёт коммита):** `goals.py` — capacity (медиана net за 6 полных
+> месяцев, покрытие «конец месяца ИЛИ ≥5 операций»), «слабый месяц» = min, `required = ceil(need/периоды)`,
+> pace = медиана взносов; статусы DONE/ON_TRACK/AHEAD/BEHIND/AT_RISK/OVERDUE/NO_DEADLINE/INSUFFICIENT_DATA/
+> NO_CAPACITY_DATA (нейтральные ярлыки); шаблонные советы what-if (singles→пары ≤40%, только
+> `discretionary`-категории из taxonomy, рекурринги исключены); предупреждения (история/очередь/валюта/регулярки);
+> портфельное предупреждение «метки > потока»; UI: статус/«чтобы успеть»/варианты/предупреждения на `/goals`;
+> CLI `goal list` + digest-строка со статусом. +11 unit (test_goals_engine) + digest-тест; контур **830 unit +
+> 95 e2e** + ruff + contract snapshot api 381 + ratchet + cc (goal_engine/what_if разбиты на хелперы ≤10) + css.
+> Live (8799): «Демо-цель 25% [без срока]». Дальше — Ф3 LLM (LATER) / по сигналу.
 > **АКТУАЛЬНО (02.10, окно 11:00 UTC — 5/5 ✅; адъюдикация + фиксы, коммит по команде).** Окно закрыто 12:46 UTC:
 > js_a/js_b (Opus), templates_a/b (Opus, со 2–3-й попытки), bootstrap_scripts_astra (Astra). Вердикты:
 > js_b NO-GO (карта дней считала знаковый total_k → расходы нулями, aria-label врала) — фикс + e2e; templates_a
