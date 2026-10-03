@@ -210,10 +210,11 @@ def fingerprint(date: str, amount_kopecks: int, desc: str, account_anon: str, ex
     return hashlib.sha1(raw.encode()).hexdigest()
 
 
-SCHEMA = """
+# Схема transactions — единый источник: fresh-БД и пересборка таблицы в _migrate_v6 (CHECK(date), тикет 03.10).
+_TX_DDL = """
 CREATE TABLE IF NOT EXISTS transactions(
   id INTEGER PRIMARY KEY,
-  date TEXT NOT NULL,
+  date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),  -- v6: щит слоя данных
   description TEXT NOT NULL,
   amount_kopecks INTEGER NOT NULL,
   currency TEXT NOT NULL DEFAULT 'RUB',  -- ISO 4217; не-RUB не попадает в ₽-итоги/бюджеты
@@ -230,7 +231,9 @@ CREATE TABLE IF NOT EXISTS transactions(
   review_status TEXT NOT NULL DEFAULT 'approved',   -- pending | approved | skipped
   statement_order INTEGER             -- порядок строки в выписке (сортировка внутри дня)
 );
+"""
 
+SCHEMA = _TX_DDL + """
 CREATE TABLE IF NOT EXISTS categories(
   name TEXT PRIMARY KEY,
   color TEXT NOT NULL DEFAULT '#9ca3af'
@@ -283,7 +286,7 @@ CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);
 """
 
 
-SCHEMA_VERSION = 5  # текущая версия схемы (см. Store._migrate)
+SCHEMA_VERSION = 6  # текущая версия схемы (см. Store._migrate)
 
 
 class Store:
@@ -367,6 +370,48 @@ class Store:
             self.conn.execute("UPDATE transactions SET currency='RUB' WHERE currency IS NULL")
         self._mark_migration(5)
 
+    def _migrate_v6(self) -> None:
+        """CHECK(date) — щит слоя данных (out_web_api, тикет 03.10): формат YYYY-MM-DD на любой записи.
+
+        SQLite не умеет ADD CONSTRAINT → пересборка таблицы в общей транзакции `_migrate`
+        (`BEGIN IMMEDIATE`); копируем только пересечение колонок (легаси-формы различаются),
+        NULL created/updated до-заполняем. Строки с датой вне формата — явный отказ
+        (pre-migration-снимок уже сделан, данные не теряются).
+        """
+        bad = self.conn.execute(
+            "SELECT COUNT(*) FROM transactions"
+            " WHERE date NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'").fetchone()[0]
+        if bad:
+            samples = [r[0] for r in self.conn.execute(
+                "SELECT date FROM transactions"
+                " WHERE date NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' LIMIT 5")]
+            raise RuntimeError(
+                f"миграция v6: {bad} строк с датой вне формата YYYY-MM-DD (примеры: {samples}) — "
+                "исправьте данные и повторите; pre-migration-снимок лежит рядом с БД")
+        old_cols = self._tx_columns()
+        if "created" in old_cols:
+            self.conn.execute(
+                "UPDATE transactions SET created = COALESCE(created, updated,"
+                " strftime('%Y-%m-%dT%H:%M:%S+00:00','now')) WHERE created IS NULL")
+        if "updated" in old_cols:
+            self.conn.execute(
+                "UPDATE transactions SET updated = COALESCE(updated, created,"
+                " strftime('%Y-%m-%dT%H:%M:%S+00:00','now')) WHERE updated IS NULL")
+        new_cols = ["id", "date", "description", "amount_kopecks", "currency", "category",
+                    "category_source", "confidence", "merchant", "account_anon", "import_batch",
+                    "fingerprint", "created", "updated", "category_llm", "review_status",
+                    "statement_order"]
+        copy_cols = [c for c in new_cols if c in old_cols]
+        cols = ", ".join(copy_cols)
+        self.conn.execute("ALTER TABLE transactions RENAME TO transactions_pre_v6")
+        self.conn.execute(_TX_DDL)
+        self.conn.execute(f"INSERT INTO transactions ({cols}) SELECT {cols} FROM transactions_pre_v6")
+        self.conn.execute("DROP TABLE transactions_pre_v6")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category)")
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant)")
+        self._mark_migration(6)
+
     def _migrate_steps(self) -> None:
         if self._user_version() < 1:
             self._mark_migration(1)
@@ -378,6 +423,8 @@ class Store:
             self._mark_migration(4)  # таблица budgets создана в SCHEMA (аддитивно)
         if self._user_version() < 5:
             self._migrate_v5()
+        if self._user_version() < 6:
+            self._migrate_v6()
         self._ensure_pending_index()
 
     def _ensure_pending_index(self) -> None:
@@ -388,7 +435,7 @@ class Store:
             " WHERE review_status='pending'")
 
     def _migrate(self) -> None:
-        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency.
+        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency; 6 — CHECK(date).
 
         БД новее приложения — отказ (старый код молча писал бы в незнакомую схему).
         Миграции идут в одной `BEGIN IMMEDIATE`-транзакции (DDL SQLite транзакционен): падение

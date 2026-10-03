@@ -264,6 +264,51 @@ def test_v3_fixture_migrates_without_data_loss(tmp_path):
         s2.close()
 
 
+def test_v6_rejects_bad_date(tmp_path):
+    """v6 (OUT_WEB_API, тикет 03.10): CHECK(date) — мусорный формат не проходит ни одним путём записи."""
+    s = Store(db_path=tmp_path / "v6.db")
+    try:
+        assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        with pytest.raises(sqlite3.IntegrityError):
+            s.conn.execute(
+                "INSERT INTO transactions(date, description, amount_kopecks, category,"
+                " category_source, confidence, created, updated)"
+                " VALUES('01.09.2026','X',-100,'other','manual',1.0,'now','now')")
+        s.conn.rollback()
+    finally:
+        s.close()
+
+
+def test_v4_fixture_migrates_to_v6_preserving_rows(tmp_path):
+    """v4→v6: пересборка ради CHECK(date) не теряет строки/порядок и начинает отклонять мусор."""
+    db = tmp_path / "v4b.db"
+    rows = [("fp1", "2026-09-03", "ЛЕНТА", -50000, "groceries", "rule", 1.0, "approved", 0),
+            ("fp2", "2026-09-04", "ПЯТЁРОЧКА", -7000, "groceries", "rule", 1.0, "approved", 1)]
+    _legacy_db(db, 4, rows)
+
+    s = Store(db_path=db)
+    try:
+        assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        snap = _snapshot(s)
+        assert snap[0] == 2 and snap[1] == -57000
+        assert [t[5] for t in snap[2]] == [0, 1]  # statement_order сохранён
+        with pytest.raises(sqlite3.IntegrityError):
+            s.conn.execute("UPDATE transactions SET date='2026-9-3' WHERE id=1")
+        s.conn.rollback()
+    finally:
+        s.close()
+
+
+def test_bad_dates_block_migration_v6(tmp_path):
+    """Строки с датой вне формата не пропускаются миграцией v6 (данные целы в pre-migration снимке)."""
+    db = tmp_path / "v5bad.db"
+    rows = [("fp1", "01.09.2026", "ЗЛО", -100, "other", "manual", 1.0, "approved", 0)]
+    _legacy_db(db, 4, rows)
+
+    with pytest.raises(RuntimeError, match="вне формата"):
+        Store(db_path=db)
+
+
 def test_v4_fixture_preserves_budgets(tmp_path):
     """v4 (currency нет, бюджеты есть): бюджеты и строки переживают миграцию v5."""
     db = tmp_path / "v4.db"

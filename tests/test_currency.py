@@ -15,7 +15,7 @@ from spendtrack.export import CSV_HEADERS, csv_bytes
 from spendtrack.main import app
 from spendtrack.recurring import detect_recurring
 from spendtrack.reports import budgets_progress, report_month
-from spendtrack.store import Store, fingerprint, normalize_currency
+from spendtrack.store import SCHEMA_VERSION, Store, fingerprint, normalize_currency
 
 MONTH = "2026-09"
 SBER_USD = ("Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;"
@@ -92,7 +92,7 @@ def test_migration_v5_adds_currency_with_default(tmp_path):
     conn.close()
 
     s = Store(db_path=db)
-    assert s.conn.execute("PRAGMA user_version").fetchone()[0] == 5
+    assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     assert s.conn.execute("SELECT currency FROM transactions WHERE id=1").fetchone()["currency"] == "RUB"
     assert s.conn.execute("SELECT COUNT(*) c FROM transactions WHERE currency IS NULL").fetchone()["c"] == 0
     s.close()

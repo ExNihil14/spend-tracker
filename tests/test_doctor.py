@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 from spendtrack import cli, doctor
 from spendtrack.doctor import overall_status, run_checks
 from spendtrack.main import app
-from spendtrack.store import SCHEMA, Store
+from spendtrack.store import SCHEMA, SCHEMA_VERSION, Store
 
 NOW = "2026-09-16T12:00:00+00:00"
 
@@ -135,7 +135,7 @@ def test_fingerprint_dupes_critical(tmp_path):
     path = tmp_path / "dup.db"
     con = sqlite3.connect(path)
     con.executescript(SCHEMA.replace(" UNIQUE", ""))  # снимаем индекс для аномалии
-    con.execute("PRAGMA user_version = 4")
+    con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")  # схема актуальна, ждём только аномалию дублей
     for _ in range(2):
         con.execute(
             "INSERT INTO transactions(date, description, amount_kopecks, category,"
