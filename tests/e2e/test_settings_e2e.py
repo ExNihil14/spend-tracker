@@ -103,7 +103,8 @@ def test_category_rename_migrates_transactions(page: Page, live_server, db_path)
 
     page.click('#rename-confirm button:has-text("Подтвердить")')
     _wait_single(page, "#settings-categories")
-    expect(page.locator("#settings-categories")).to_contain_text("general")
+    # O11 (Astra 02.10): в rename-селекте теперь catname (display_name) — миграцию проверяем по value
+    expect(page.locator(f'{rename_form} select[name="name"] option[value="general"]')).to_have_count(1)
 
     conn = sqlite3.connect(str(db_path))
     migrated = conn.execute("SELECT category FROM transactions").fetchone()[0]

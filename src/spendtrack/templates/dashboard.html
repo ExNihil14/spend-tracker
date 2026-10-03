@@ -28,6 +28,7 @@
       </span>
       <span class="ml-auto whitespace-nowrap text-fg">{{ fmt_money(a.amount_k) }}</span>
       <a href="/?month={{ a.date[:7] }}&q={{ a.merchant | urlencode }}" hx-boost="false"
+         aria-label="Открыть: {{ a.merchant }}"
          class="text-xs text-accent hover:text-accent-hover whitespace-nowrap">Открыть</a>
     </div>
     {% endfor %}

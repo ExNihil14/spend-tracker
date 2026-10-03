@@ -234,6 +234,7 @@ def test_dashboard_anomalies_card_first(client, tmp_path):
     assert html.index('id="anomalies-card"') < html.index('id="digest-card"')  # первый блок
     assert "крупная сумма" in html and "возможный дубль" in html
     assert 'href="/?month=' in html and "&q=" in html and ">Открыть</a>" in html
+    assert 'aria-label="Открыть' in html  # O11 (Astra 02.10): пять одинаковых «Открыть» — с мерчантом
     assert "Аномалии (" not in html  # старая подсекция дайджеста убрана
     assert "к прошлому окну" in html and "Δ" not in html  # дельты словами, знак «Δ» убран
 

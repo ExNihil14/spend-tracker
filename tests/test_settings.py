@@ -324,6 +324,7 @@ def test_settings_controls_have_stable_ids_and_aria(tax_env):
     assert re.search(r'id="rule-down-[^"]+"', html), "нет id у кнопки ↓"
     assert re.search(r'aria-label="Переместить правило #\d+ выше"', html)
     assert re.search(r'aria-label="Переместить правило #\d+ ниже"', html)
+    assert 'aria-label="Приоритет"' in html  # O11: колонка «#» больше не читается как «решётка»
 
     err = client.post("/settings/categories",
                       data={"name": "bad name", "color": "#112233", "file_hash": repo.file_hash()})
