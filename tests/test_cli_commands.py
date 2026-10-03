@@ -61,6 +61,16 @@ def test_cli_goal_add_list_allocate(cli_db, capsys):
     assert "Целей нет" in capsys.readouterr().out
 
 
+def test_cli_digest_prints_goals_line(cli_db, capsys):
+    """Ф2: дайджест показывает строку целей со статусом движка."""
+    s = Store(db_path=cli_db)
+    s.add_goal("Отпуск", 100_000, due_month="2027-06")
+    s.close()
+    assert cli.main(["digest"]) == 0
+    out = capsys.readouterr().out
+    assert "Цели:" in out and "Отпуск" in out
+
+
 def test_cli_import_cp1251_file_and_real_filename(tmp_path, monkeypatch, capsys):
     """CLI-импорт: cp1251-файл читается (bytes-путь), имя партии — из файла (ресёрч слоёв 23.09)."""
     db = tmp_path / "imp.db"

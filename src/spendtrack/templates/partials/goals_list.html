@@ -23,11 +23,35 @@
       <span class="text-fg-muted">· осталось {{ fmt_money(g.remaining_kopecks, g.currency, signed=False) }}</span>
       {% endif %}
     </div>
+    <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+      <span class="px-2 py-0.5 rounded-full bg-accent-bg text-on-accent">{{ g.plan.status_label }}</span>
+      {% if g.plan.required_k is not none %}
+      <span class="text-fg-muted">чтобы успеть: {{ fmt_money(g.plan.required_k, g.currency, signed=False) }}/мес</span>
+      {% endif %}
+      {% if g.plan.months_at_pace %}
+      <span class="text-fg-muted">при текущем темпе — {{ fmt_month(g.plan.new_due_month) }}</span>
+      {% endif %}
+    </div>
     <div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ g.pct }}"
          aria-label="Прогресс цели «{{ g.title }}»: {{ g.pct }}%"
          class="mt-3 h-2 rounded-full bg-line overflow-hidden">
       <div class="h-full rounded-full {{ 'bg-income' if g.done else 'bg-accent-bg' }}" style="width: {{ g.pct }}%"></div>
     </div>
+    {% if g.plan.advice %}
+    <div class="mt-3 text-xs text-fg-muted">
+      <span class="font-medium text-fg">Варианты ускорить:</span>
+      <ul class="mt-1 grid gap-0.5">
+        {% for v in g.plan.advice %}
+        <li>{% for it in v.items %}сократить «{{ catname(it.category) }}» на {{ it.pct }}%{% if not loop.last %} + {% endif %}{% endfor %} → +{{ fmt_money(v.total_month_k, g.currency, signed=False) }}/мес</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if g.plan.warnings %}
+    <ul class="mt-2 text-xs text-fg-muted grid gap-0.5">
+      {% for w in g.plan.warnings %}<li>· {{ w.text }}</li>{% endfor %}
+    </ul>
+    {% endif %}
     <div class="mt-4 flex flex-wrap items-end gap-4">
       <form hx-post="/api/goals/{{ g.id }}/allocate" hx-target="#goals-list" hx-swap="outerHTML"
             class="flex items-end gap-2">

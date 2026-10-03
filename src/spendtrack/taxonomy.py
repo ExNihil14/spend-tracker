@@ -8,12 +8,15 @@ from spendtrack.config import DEFAULTS_DIR, resolve_config_dir
 
 class Category:
     def __init__(self, name: str, color: str, display_name: str | None = None,
-                 icon: str | None = None):
+                 icon: str | None = None, discretionary: bool = False):
         self.name = name
         self.color = color
         self.display_name = display_name or name
         # Иконка: явное поле taxonomy.toml (имя символа спрайта); пусто — фолбэк-цепочка в cat_icons
         self.icon = (icon or "").strip()
+        # Ф2 целей: флаг «дискреционная» — только такие категории попадают в советы what-if
+        # (без флага в TOML — False: советов нет, безопасный дефолт; адъюдикация 03.10)
+        self.discretionary = bool(discretionary)
 
 
 class Rule:
@@ -45,7 +48,8 @@ def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
         path = DEFAULTS_DIR / "taxonomy.toml"  # установленный режим: дефолт из пакета
     with open(path, "rb") as f:
         data = tomllib.load(f)
-    categories = [Category(c["name"], c.get("color", "#9ca3af"), c.get("display_name"), c.get("icon"))
+    categories = [Category(c["name"], c.get("color", "#9ca3af"), c.get("display_name"),
+                           c.get("icon"), c.get("discretionary", False))
                   for c in data.get("categories", [])]
     rules = [Rule(r["pattern"], r["category"]) for r in data.get("rules", [])]
     return Taxonomy(categories, rules)

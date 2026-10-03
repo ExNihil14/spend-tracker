@@ -56,8 +56,11 @@ LLM выключен по умолчанию (без конфига сеть н�
 - Инварианты: валюта цели — ISO-4217 и неизменяема при взносах (метода смены валюты нет); цель не удаляется —
   только архив (`archived`); дата взноса ≤ сегодня; сумма подписанная (изъятие < 0, нулевой взнос запрещён).
 - Ревью концепта: `RESEARCH_SAVINGS_GOALS_2026-10-03.md` + `ADJUDICATION_GOALS_REVIEW_2026-10-03.md`.
-  Статус: Ф0 (схема + CRUD + тесты) и **Ф1 (страница `/goals`, CLI `goal list/add/allocate/archive`, журнал
-  взносов, архив)** — 03.10; Ф2 — движок-subset (capacity/required/статусы); Ф3 — LLM-советы (fact-sheet + слоты).
+  Статус: Ф0 (схема + CRUD + тесты), Ф1 (страница `/goals`, CLI `goal`, журнал/архив) и **Ф2 (движок:
+  capacity = медиана net за 6 полных месяцев, «слабый месяц» = min, `required = ceil(need/периоды)`,
+  нейтральные статусы DONE/ON_TRACK/AHEAD/BEHIND/AT_RISK/OVERDUE/NO_DEADLINE/INSUFFICIENT_DATA/
+  NO_CAPACITY_DATA, шаблонные советы по `discretionary`-категориям, предупреждения)** — 03.10;
+  Ф3 — LLM-советы (fact-sheet + слоты) — LATER.
 
 ## План (из MASTER_PLAN.md, Фаза A/B)
 - A1 ✅ стилизация UI Tailwind + верификация в браузере.

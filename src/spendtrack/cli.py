@@ -163,11 +163,12 @@ def cmd_budget(args) -> int:
 
 
 def cmd_goal(args) -> int:
-    """Цели/копилки (Ф1): list / add / allocate / archive; прогресс — на лету."""
-    from spendtrack.goals import goals_overview
+    """Цели/копилки (Ф1/Ф2): list / add / allocate / archive; статусы и советы — движок."""
+    from spendtrack.goals import goals_snapshot
     store = make_store()
     if args.goal_cmd == "list":
-        rows = goals_overview(store, include_archived=args.all)
+        snap = goals_snapshot(store)
+        rows = snap["goals"] + (snap["archived"] if args.all else [])
         if args.json:
             print(json.dumps([{k: v for k, v in g.items() if k != "allocations"} for g in rows],
                              ensure_ascii=False, indent=2))
@@ -177,11 +178,11 @@ def cmd_goal(args) -> int:
             return 0
         for g in rows:
             due = f", срок {g['due_month']}" if g["due_month"] else ""
-            state = " — цель набрана" if g["done"] else ""
+            label = f"  [{g['plan']['status_label']}]" if g.get("plan") else ""
             archived = " [архив]" if g["archived"] else ""
             print(f"  #{g['id']} {g['title']:<24} {g['pct']:>3}%"
                   f"  {fmt_money(g['allocated_kopecks'], g['currency'], signed=False):>14}"
-                  f" из {fmt_money(g['target_kopecks'], g['currency'], signed=False):>14}{due}{state}{archived}")
+                  f" из {fmt_money(g['target_kopecks'], g['currency'], signed=False):>14}{due}{label}{archived}")
         return 0
     if args.goal_cmd == "add":
         try:
@@ -282,10 +283,10 @@ def cmd_digest(args) -> int:
     print(f"  Аномалии: {len(digest['anomalies'])}")
     for a in digest["anomalies"]:
         print(f"    [{a['label']}] {a['date']} {a['merchant']}: {a['detail']}")
-    from spendtrack.goals import goals_overview
-    goals = goals_overview(store)
+    from spendtrack.goals import goals_snapshot
+    goals = goals_snapshot(store)["goals"]
     if goals:
-        preview = ", ".join(f"«{g['title']}» {g['pct']}%" for g in goals[:3])
+        preview = ", ".join(f"«{g['title']}» {g['pct']}% · {g['plan']['status_label']}" for g in goals[:3])
         more = f" и ещё {len(goals) - 3}" if len(goals) > 3 else ""
         print(f"  Цели: {preview}{more}")
     return 0

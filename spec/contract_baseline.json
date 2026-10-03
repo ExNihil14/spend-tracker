@@ -644,13 +644,85 @@
    "args": "txs: Iterable[dict], path_or_stream: str | Path | io.BytesIO",
    "returns": "int"
   },
+  "spendtrack.goals:ADVICE_MAX": {
+   "args": "3",
+   "returns": ""
+  },
+  "spendtrack.goals:ADVICE_PCTS": {
+   "args": "(5, 10, 15, 20, 25, 30)",
+   "returns": ""
+  },
+  "spendtrack.goals:MIN_MONTH_TX": {
+   "args": "5",
+   "returns": ""
+  },
+  "spendtrack.goals:MIN_USABLE_MONTHS": {
+   "args": "3",
+   "returns": ""
+  },
+  "spendtrack.goals:MIN_WARN_SHARE": {
+   "args": "0.2",
+   "returns": ""
+  },
+  "spendtrack.goals:MONTHS_WINDOW": {
+   "args": "6",
+   "returns": ""
+  },
+  "spendtrack.goals:STATUS_LABELS": {
+   "args": "{'DONE': 'цель набрана', 'ON_TRACK': 'в графике', 'AHEAD': 'с запасом', 'BEHIND': 'нужен темп выше', 'AT_RISK': 'темп выше обычного', 'OVERDUE': 'срок прошёл', 'NO_DEADLINE': 'без срока', 'INSUFFICIENT_DATA': 'мало истории', 'NO_CAPACITY_DATA': 'валюта цели — только прогресс'}",
+   "returns": ""
+  },
+  "spendtrack.goals:category_monthly_avgs": {
+   "args": "store: Store, *, months: int=MONTHS_WINDOW, today: date | None=None, discretionary: set[str] | None=None, exclude_merchants: set[str] | None=None",
+   "returns": "list[dict]"
+  },
+  "spendtrack.goals:ceil_div": {
+   "args": "a: int, b: int",
+   "returns": "int"
+  },
+  "spendtrack.goals:goal_engine": {
+   "args": "goal: dict, allocations: list[dict], stats: dict, *, today: date | None=None",
+   "returns": "dict"
+  },
+  "spendtrack.goals:goal_plan": {
+   "args": "store: Store, goal: dict, series: list[dict], stats: dict, *, today: date | None=None, taxonomy: Taxonomy | None=None, recurring_merchants: set[str] | None=None",
+   "returns": "dict"
+  },
   "spendtrack.goals:goals_overview": {
    "args": "store: Store, include_archived: bool=False",
    "returns": "list[dict]"
   },
   "spendtrack.goals:goals_snapshot": {
-   "args": "store: Store",
+   "args": "store: Store, *, today: date | None=None",
    "returns": "dict"
+  },
+  "spendtrack.goals:median_k": {
+   "args": "values: list[int]",
+   "returns": "int"
+  },
+  "spendtrack.goals:monthly_contrib_median": {
+   "args": "allocations: list[dict], today: date | None=None, months: int=MONTHS_WINDOW",
+   "returns": "int"
+  },
+  "spendtrack.goals:monthly_net_series": {
+   "args": "store: Store, months: int=MONTHS_WINDOW, today: date | None=None",
+   "returns": "list[dict]"
+  },
+  "spendtrack.goals:months_between": {
+   "args": "a: str, b: str",
+   "returns": "int"
+  },
+  "spendtrack.goals:robust_stats": {
+   "args": "series: list[dict]",
+   "returns": "dict"
+  },
+  "spendtrack.goals:shift_month": {
+   "args": "month: str, delta: int",
+   "returns": "str"
+  },
+  "spendtrack.goals:what_if": {
+   "args": "required_k: int, pace_k: int, avgs: list[dict]",
+   "returns": "list[dict]"
   },
   "spendtrack.llm:LLMProvider.__decorators__": {
    "args": "@dataclass(frozen=True)",
