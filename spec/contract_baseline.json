@@ -28,6 +28,10 @@
    "args": "raw: str | bytes, extra_columns: set[str] | None=None, max_rows: int | None=None",
    "returns": "tuple[str, dict]"
   },
+  "spendtrack.anonymize:anonymize_xlsx": {
+   "args": "raw: bytes, extra_columns: set[str] | None=None, max_rows: int | None=None",
+   "returns": "tuple[bytes, dict]"
+  },
   "spendtrack.anonymize:main": {
    "args": "argv: list[str] | None=None",
    "returns": "int"

@@ -507,7 +507,7 @@ def main(argv: list[str] | None = None) -> int:
     a_im.add_argument("--json", action="store_true", help="машинный JSON вместо строки отчёта")
     a_im.set_defaults(fn=cmd_import)
 
-    a_an = sub.add_parser("anonymize", help="обезличить выписку CSV для образца в issue")
+    a_an = sub.add_parser("anonymize", help="обезличить выписку CSV/XLSX для образца в issue")
     a_an.add_argument("file", help="исходный CSV банка")
     a_an.add_argument("output", nargs="?", default=None,
                       help="куда записать (по умолчанию <имя>.anon.csv рядом)")

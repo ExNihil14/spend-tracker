@@ -5,10 +5,12 @@ CLI-команда — `spendtrack anonymize` (модуль `spendtrack.anonymiz
 """
 from __future__ import annotations
 
+from io import BytesIO
+
 import pytest
 from synth_bank import gen_sber
 
-from spendtrack.anonymize import DEFAULT_ROWS, anonymize_csv, main, run_anonymize
+from spendtrack.anonymize import DEFAULT_ROWS, anonymize_csv, anonymize_xlsx, main, run_anonymize
 from spendtrack.csv_import import import_csv
 from spendtrack.store import Store
 
@@ -185,6 +187,83 @@ def test_crlf_terminator_not_doubled(tmp_path):
     body = raw.replace(b"\r\n", b"")
     assert b"\r" not in body and b"\n" not in body
     assert "ЛЕНТА".encode() not in raw
+
+
+# ---- XLSX (Ф1 BYN: обезличивание образцов банков; адъюдикация 03.10) ----
+
+def _xlsx_bytes(rows: list[list], header: list[str], title: str | None = None) -> bytes:
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    if title:
+        ws.append([title])
+    ws.append(header)
+    for row in rows:
+        ws.append(row)
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
+def test_xlsx_pii_removed_and_format_kept():
+    from openpyxl import load_workbook
+
+    raw = _xlsx_bytes(
+        [["777", "01.09.2026", "4111111111111111", "-1234,56", "Супермаркеты", "ЛЕНТА ПЯТЁРОЧКА"]],
+        ["Номер документа", "Дата операции", "Номер карты", "Сумма операции", "Категория", "Описание"])
+    out, report = anonymize_xlsx(raw, max_rows=0)
+    ws = load_workbook(BytesIO(out)).active
+    assert ws.cell(1, 1).value == "Номер документа"        # шапка не тронута
+    assert ws.cell(2, 1).value == "1"                      # документ → порядковый
+    assert str(ws.cell(2, 3).value).startswith("КАРТА_")   # карта → псевдоним
+    assert ws.cell(2, 6).value == "ОПЕРАЦИЯ_0001"          # описание → псевдоним
+    assert ws.cell(2, 2).value == "01.09.2026"             # дата не тронута
+    assert ws.cell(2, 4).value == "-1234,56"               # сумма не тронута
+    assert report["rows_total"] == 1 and report["anonymized"]["Описание"] == "desc"
+
+
+def test_xlsx_title_row_before_header():
+    from openpyxl import load_workbook
+
+    raw = _xlsx_bytes([["1", "ЛЕНТА"]], ["Номер документа", "Описание"],
+                      title="Выписка по карточке")
+    out, _report = anonymize_xlsx(raw, max_rows=0)
+    ws = load_workbook(BytesIO(out)).active
+    assert ws.cell(1, 1).value == "Выписка по карточке"    # титульная строка сохранена
+    assert ws.cell(2, 2).value == "Описание"               # шапка найдена ниже титула
+    assert ws.cell(3, 2).value == "ОПЕРАЦИЯ_0001"
+
+
+def test_xlsx_rows_limit_truncates():
+    from openpyxl import load_workbook
+
+    raw = _xlsx_bytes([[str(i), f"ЛЕНТА {i}"] for i in range(1, 8)],
+                      ["Номер документа", "Описание"])
+    out, report = anonymize_xlsx(raw, max_rows=2)
+    ws = load_workbook(BytesIO(out)).active
+    assert report["rows_total"] == 7 and report["rows_written"] == 2
+    assert ws.max_row == 3  # шапка + 2 строки (PII за лимитом удалена, а не «оставлена как есть»)
+
+
+def test_run_anonymize_xlsx_roundtrip(tmp_path):
+    from openpyxl import load_workbook
+
+    src = tmp_path / "v.xlsx"
+    src.write_bytes(_xlsx_bytes([["1", "ЛЕНТА"]], ["Номер документа", "Описание"]))
+    assert run_anonymize(src, max_rows=0) == 0
+    dst = tmp_path / "v.anon.xlsx"
+    assert dst.is_file()
+    ws = load_workbook(dst).active
+    assert ws.cell(2, 2).value == "ОПЕРАЦИЯ_0001"
+
+
+def test_run_anonymize_legacy_xls_asks_conversion(tmp_path, capsys):
+    """Legacy .xls (BIFF) не парсим (NO-GO: без xlrd в core) — просим конвертацию."""
+    src = tmp_path / "v.xls"
+    src.write_bytes(b"\xd0\xcf\x11\xe0garbage")
+    assert run_anonymize(src) == 1
+    assert "xlsx" in capsys.readouterr().err.lower()
 
 
 def test_anonymized_sample_imports_same_shape(tmp_path):

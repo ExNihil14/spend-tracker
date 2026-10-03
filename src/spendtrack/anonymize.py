@@ -1,4 +1,4 @@
-"""Обезличить банковскую выписку (CSV) для безопасной отправки образца в issue.
+"""Обезличить банковскую выписку (CSV/XLSX) для безопасной отправки образца в issue.
 
 Формат сохраняется (шапка/колонки/разделитель/даты/суммы/статусы) — образец остаётся валидной
 фикстурой для адаптеров импорта. Заменяются потенциальные PII:
@@ -9,9 +9,10 @@
 ВАЖНО: даты, суммы, категории и статусы НЕ обезличиваются. Issue на GitHub публичный — просмотрите
 файл перед отправкой. По умолчанию оставляются первые 5 строк данных (`--rows 0` — весь файл).
 
-CLI:  spendtrack anonymize выписка.csv [образец.csv] [--rows N] [--anon-column "ФИО"]
+CLI:  spendtrack anonymize выписка.csv|xlsx [образец] [--rows N] [--anon-column "ФИО"]
 Dev:  python -m spendtrack.anonymize … / scripts/anonymize.py (тонкая обёртка; для фикстур — --rows 0)
 
+Legacy `.xls` (BIFF) не поддерживается (NO-GO: без xlrd в core) — сконвертируйте в .xlsx/CSV.
 Колонки, не распознанные как PII, скрипт не трогает и перечисляет в отчёте — если в них есть
 личные данные (ФИО, адрес), обезличьте их флагом `--anon-column` или удалите колонку.
 """
@@ -20,7 +21,7 @@ from __future__ import annotations
 import argparse
 import csv
 import sys
-from io import StringIO
+from io import BytesIO, StringIO
 from pathlib import Path
 
 from spendtrack.console import utf8_stdout
@@ -156,49 +157,138 @@ def anonymize_csv(  # noqa: C901 — см. cc_ratchet.py
     return buf.getvalue(), report
 
 
-def run_anonymize(
-    src: Path | str,
-    dst: Path | str | None = None,
-    *,
-    max_rows: int = DEFAULT_ROWS,
-    extra_columns: tuple[str, ...] | set[str] = (),
-) -> int:
-    """Обезличить файл и предупредить о неудаляемых датах/суммах. 0 — успех, 1 — ошибка чтения/записи."""
-    utf8_stdout()
-    if max_rows < 0:
-        print("--rows не может быть отрицательным (0 — все строки)", file=sys.stderr, flush=True)
-        return 1
-    src = Path(src)
+def _find_header(ws, scan: int = 10) -> tuple[int | None, list]:
+    """Первая «шапкоподобная» строка (≥2 непустых ячеек); приоритет — строка с известными колонками."""
+    best: tuple[int, list] | None = None
+    for r_idx in range(1, min(ws.max_row, scan) + 1):
+        values = [ws.cell(r_idx, c).value for c in range(1, ws.max_column + 1)]
+        nonempty = [v for v in values if _strip(v)]
+        if len(nonempty) < 2:
+            continue
+        if any(_classify(_strip(v), set()) for v in values):
+            return r_idx, values
+        if best is None:
+            best = (r_idx, values)
+    return best if best else (None, None)
+
+
+def _label_columns(header: list, kinds: list, anonymized: dict, untouched: list) -> None:
+    for name, kind in zip(header, kinds):
+        label = _strip(name)
+        if not label:
+            continue
+        if kind:
+            anonymized.setdefault(label, kind)
+        else:
+            untouched.append(label)
+
+
+def _anonymize_sheet_rows(ws, header_row: int, kinds: list, keep: list, pseudonyms: _Pseudonyms) -> int:
+    """Заменить PII в перечисленных строках листа; → сколько строк записано."""
+    written = 0
+    for r_idx in keep:
+        for c_idx, kind in enumerate(kinds, start=1):
+            if kind is None:
+                continue
+            cell = ws.cell(r_idx, c_idx)
+            value = _strip(cell.value)
+            if value:
+                cell.value = pseudonyms.get(kind, value)
+        written += 1
+    return written
+
+
+def anonymize_xlsx(
+    raw: bytes,
+    extra_columns: set[str] | None = None,
+    max_rows: int | None = None,
+) -> tuple[bytes, dict]:
+    """→ (обезличенный XLSX, отчёт). Контракт — как у `anonymize_csv`.
+
+    Книга правится in-place (openpyxl): листы/форматирование сохраняются, заменяются только значения
+    PII-колонок. Шапка ищется в первых 10 строках (у банков бывает титульная строка). Строки данных
+    сверх `max_rows` УДАЛЯЮТСЯ — PII не остаётся за лимитом (в отличие от «оставить как есть»).
+    """
+    from openpyxl import load_workbook
+
+    if max_rows is not None and max_rows < 0:
+        raise ValueError("max_rows не может быть отрицательным (0 — все строки)")
+    wb = load_workbook(BytesIO(raw))
+    extra = {c.strip().lower() for c in (extra_columns or set())}
+    pseudonyms = _Pseudonyms()
+    anonymized: dict[str, str] = {}
+    untouched: list[str] = []
+    total = written = 0
+    remaining = max_rows if max_rows and max_rows > 0 else None
+
+    for ws in wb.worksheets:
+        header_row, header = _find_header(ws)
+        if header_row is None:
+            continue
+        kinds = [_classify(_strip(name), extra) for name in header]
+        _label_columns(header, kinds, anonymized, untouched)
+        rows_all = list(range(header_row + 1, ws.max_row + 1))
+        keep = rows_all if remaining is None else rows_all[:remaining]
+        total += len(rows_all)
+        written += _anonymize_sheet_rows(ws, header_row, kinds, keep, pseudonyms)
+        if remaining is not None:
+            remaining -= len(keep)
+        cut = len(rows_all) - len(keep)
+        if cut > 0:
+            ws.delete_rows(header_row + len(keep) + 1, cut)
+
+    buf = BytesIO()
+    wb.save(buf)
+    report = {
+        "anonymized": anonymized,
+        "untouched": untouched,
+        "empty_headers": [],
+        "unique": pseudonyms.unique,
+        "rows_total": total,
+        "rows_written": written,
+    }
+    return buf.getvalue(), report
+
+
+def _anonymize_payload(raw: bytes, suffix: str, extra: set[str], max_rows: int) -> tuple[bytes, dict]:
+    """Выбор CSV/XLSX-пути (по расширению и магии ZIP); legacy .xls — понятная ошибка."""
+    if suffix == ".xls":
+        # NO-GO адъюдикации 03.10: legacy BIFF не тянем (xlrd вне core) — просим конвертацию
+        raise ValueError(
+            "legacy .xls не поддерживается — сконвертируйте выписку в .xlsx (Excel/LibreOffice) или CSV")
+    if suffix == ".xlsx" or (suffix != ".csv" and raw[:4] == b"PK\x03\x04"):
+        return anonymize_xlsx(raw, extra, max_rows=max_rows)
+    text, report = anonymize_csv(raw, extra, max_rows=max_rows)
+    # bytes, а не write_text: терминатор строк выписки (CRLF в cp1251-файлах) сохраняется
+    # как есть — text-mode на Windows превратил бы «\r\n» в «\r\r\n».
+    return text.encode("utf-8"), report
+
+
+def _read_source(src: Path) -> bytes | None:
     try:
-        raw = src.read_bytes()
+        return src.read_bytes()
     except OSError as e:
         print(f"не удалось прочитать файл: {e}", file=sys.stderr, flush=True)
-        return 1
-    dst = Path(dst) if dst else src.with_name(src.stem + ".anon" + src.suffix)
-    if dst.resolve() == src.resolve():
-        print("исходный и выходной файл совпадают — перезапись выписки запрещена; укажите другой путь",
-              file=sys.stderr, flush=True)
-        return 1
+        return None
+
+
+def _write_anonymized(data: bytes, dst: Path) -> bool:
     try:
-        text, report = anonymize_csv(raw, set(extra_columns), max_rows=max_rows)
-    except ValueError as e:
-        print(f"ошибка обезличивания: {e}", file=sys.stderr, flush=True)
-        return 1
-    try:
-        # bytes, а не write_text: терминатор строк выписки (CRLF в cp1251-файлах) сохраняется
-        # как есть — text-mode на Windows превратил бы «\r\n» в «\r\r\n».
-        dst.write_bytes(text.encode("utf-8"))
+        dst.write_bytes(data)
     except OSError as e:
         print(f"не удалось записать файл: {e}", file=sys.stderr, flush=True)
-        return 1
+        return False
+    return True
 
+
+def _print_report(report: dict, dst: Path) -> None:
+    """Отчёт и предупреждения (stdout/stderr) — вынесено ради cc-лимита run_anonymize."""
     total, written = report["rows_total"], report["rows_written"]
     print(f"Записано: {dst} (строк {written} из {total})")
     if report["anonymized"]:
         print("Обезличено: " + ", ".join(report["anonymized"]))
     if report["untouched"]:
         print("Без изменений (проверьте, нет ли личных данных): " + ", ".join(report["untouched"]))
-
     warn = [
         ("ВНИМАНИЕ: даты, суммы, категории и статусы не обезличиваются — просмотрите файл "
          "перед отправкой в публичный issue."),
@@ -208,13 +298,47 @@ def run_anonymize(
     if report.get("empty_headers"):
         warn.append("ВНИМАНИЕ: есть колонки без заголовка — проверьте их вручную (могут содержать PII).")
     print("\n".join(warn), file=sys.stderr, flush=True)
+
+
+def run_anonymize(
+    src: Path | str,
+    dst: Path | str | None = None,
+    *,
+    max_rows: int = DEFAULT_ROWS,
+    extra_columns: tuple[str, ...] | set[str] = (),
+) -> int:
+    """Обезличить файл (CSV/XLSX) и предупредить о неудаляемых датах/суммах. 0 — успех, 1 — ошибка."""
+    utf8_stdout()
+    if max_rows < 0:
+        print("--rows не может быть отрицательным (0 — все строки)", file=sys.stderr, flush=True)
+        return 1
+    src = Path(src)
+    raw = _read_source(src)
+    if raw is None:
+        return 1
+    dst = Path(dst) if dst else src.with_name(src.stem + ".anon" + src.suffix)
+    if dst.resolve() == src.resolve():
+        print("исходный и выходной файл совпадают — перезапись выписки запрещена; укажите другой путь",
+              file=sys.stderr, flush=True)
+        return 1
+    try:
+        data, report = _anonymize_payload(raw, src.suffix.lower(), set(extra_columns), max_rows)
+    except (ValueError, OSError) as e:
+        print(f"ошибка обезличивания: {e}", file=sys.stderr, flush=True)
+        return 1
+    except Exception as e:  # noqa: BLE001 — битый XLSX (не zip) — понятная ошибка, а не трейс
+        print(f"не удалось разобрать файл: {e}", file=sys.stderr, flush=True)
+        return 1
+    if not _write_anonymized(data, dst):
+        return 1
+    _print_report(report, dst)
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
     utf8_stdout()
-    parser = argparse.ArgumentParser(description="Обезличить выписку CSV для отправки образца")
-    parser.add_argument("file", help="исходный CSV банка")
+    parser = argparse.ArgumentParser(description="Обезличить выписку CSV/XLSX для отправки образца")
+    parser.add_argument("file", help="исходная выписка банка (CSV или XLSX)")
     parser.add_argument("output", nargs="?", default=None,
                         help="куда записать (по умолчанию <имя>.anon.csv рядом)")
     parser.add_argument("-o", "--out", dest="output_flag", default=None, metavar="ФАЙЛ",
