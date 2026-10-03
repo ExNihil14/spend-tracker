@@ -3,6 +3,8 @@
 (function () {
   'use strict';
 
+  var CUR = '₽';  // символ базовой валюты: ставится из #dashboard-data (data-currency-symbol)
+
   function readData() {
     var el = document.getElementById('dashboard-data');
     if (!el || !el.dataset) return null;
@@ -11,7 +13,8 @@
         daily: JSON.parse(el.dataset.daily || '[]'),
         cats: JSON.parse(el.dataset.cats || '[]'),
         colors: JSON.parse(el.dataset.colors || '{}'),
-        chartSrc: el.dataset.chartSrc || '/static/chart.umd.min.js'
+        chartSrc: el.dataset.chartSrc || '/static/chart.umd.min.js',
+        currencySymbol: el.dataset.currencySymbol || '₽'
       };
     } catch (e) {
       return null;
@@ -48,6 +51,7 @@
   function initCharts() {
     var data = readData();
     if (!data) return;
+    CUR = data.currencySymbol || CUR;
     drawSparkline(data.daily);
     drawHeat(data.daily);
     var dailyEl = document.getElementById('dailyChart');
@@ -168,7 +172,7 @@
     var byDate = {};
     var max = 0;
     // C1 (Astra 02.10): карта дней — про РАСХОДЫ (как и спарклайн): total_k знаковый (расходы < 0),
-    // из-за чего все ячейки получали level 0, а aria-label показывал «максимум 0 ₽» и минус-суммы.
+    // из-за чего все ячейки получали level 0, а aria-label показывал «максимум 0 CUR» и минус-суммы.
     daily.forEach(function (d) {
       var spend = Math.max(0, -d.total_k);
       byDate[d.date] = spend;
@@ -186,14 +190,14 @@
       var level = v <= 0 ? 0 : Math.min(4, Math.max(1, Math.ceil((v / (max || 1)) * 4)));
       cell.className = 'heat-cell';
       cell.dataset.level = String(level);
-      cell.title = iso.slice(5) + ': ' + fmtRub(v / 100) + ' ₽';  // единый формат денег
+      cell.title = iso.slice(5) + ': ' + fmtRub(v / 100) + ' ' + CUR;  // единый формат денег
       cell.setAttribute('aria-hidden', 'true');
       frag.appendChild(cell);
     }
     box.textContent = '';
     box.appendChild(frag);
     box.setAttribute('aria-label', 'Карта расходов по дням: ' + days + ' дн, всего '
-      + fmtRub(total / 100) + ' ₽, максимум ' + fmtRub(max / 100) + ' ₽');
+      + fmtRub(total / 100) + ' ' + CUR + ', максимум ' + fmtRub(max / 100) + ' ' + CUR);
   }
 
   function draw(data) {
@@ -210,7 +214,7 @@
     var surfaceBg = cssVar('--surface', '#ffffff');
     var lineStrong = cssVar('--line-strong', '#6f7d94');
     var reduce = prefersReducedMotion();
-    var tick = function (v) { return fmtRub(v) + ' ₽'; }; // в datasets уже рубли (total_k/100 ниже)
+    var tick = function (v) { return fmtRub(v) + ' ' + CUR; }; // в datasets уже рубли (total_k/100 ниже)
 
     if (daily.length) {
       new Chart(dailyEl, {
@@ -218,7 +222,7 @@
         data: {
           labels: daily.map(function (d) { return d.date.slice(5); }),
           datasets: [{
-            label: 'Сумма, ₽',
+            label: 'Сумма, ' + CUR,
             data: daily.map(function (d) { return d.total_k / 100; }),
             // градиент по высоте бара — «объём» без искажения значений (3D-графики не читаются)
             backgroundColor: function (context) {
@@ -256,7 +260,7 @@
                 var p = l.split('-');
                 return p.length === 2 ? p[1] + '.' + p[0] : l;
               },
-              label: function (ctx) { return 'Сумма: ' + fmtRub(ctx.parsed.y) + ' ₽'; }
+              label: function (ctx) { return 'Сумма: ' + fmtRub(ctx.parsed.y) + ' ' + CUR; }
             })
           },
           scales: { y: { ticks: { callback: tick, color: fgMuted } },
@@ -322,7 +326,7 @@
               label: function (ctx) {
                 var total = ctx.dataset.data.reduce(function (a, b) { return a + b; }, 0) || 1;
                 var pct = Math.round((ctx.parsed / total) * 100);
-                return ctx.label + ': ' + fmtRub(ctx.parsed) + ' ₽ (' + pct + '%)';
+                return ctx.label + ': ' + fmtRub(ctx.parsed) + ' ' + CUR + ' (' + pct + '%)';
               }
             })
           }

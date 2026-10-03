@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import sys
 import tomllib
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PKG_DIR = Path(__file__).resolve().parent
@@ -50,6 +51,8 @@ class Settings(BaseSettings):
         return (env_settings, dotenv_settings, init_settings, file_secret_settings)
 
     port: int = 8766
+    # Ф0 «Беларусь/BYN»: валюта, в которой считаются итоги/бюджеты/дайджест (ISO 4217, default RUB).
+    base_currency: str = "RUB"
     llm: LLMSettings
     acceptance: AcceptanceSettings = AcceptanceSettings()
     db_path: Path | None = None
@@ -60,6 +63,14 @@ class Settings(BaseSettings):
     llm_base_url: str = ""
     llm_model: str = ""
     llm_api_key: str = ""
+
+    @field_validator("base_currency")
+    @classmethod
+    def _base_currency_iso(cls, v: str) -> str:
+        code = str(v).strip().upper()
+        if not re.fullmatch(r"[A-Z]{3}", code):
+            raise ValueError("base_currency: ожидается код ISO 4217 (3 латинские буквы, напр. RUB/BYN)")
+        return code
 
 
 def _repo_config() -> Path:
@@ -181,6 +192,28 @@ def load_settings(config_dir: Path | None = None) -> Settings:
         with open(defaults_path, "rb") as f:
             defaults = tomllib.load(f)
     return Settings(**_deep_merge(defaults, user_data))
+
+
+_base_cache: dict[str, object] = {"key": None, "value": "RUB"}
+
+
+def base_currency() -> str:
+    """Базовая валюта установки (ISO 4217): в ней считаются итоги/бюджеты/дайджест.
+
+    Кэш по (settings.toml, env SPENDTRACK_BASE_CURRENCY, mtime): горячие пути (fmt_money на каждую
+    строку, импорт, fingerprint) не перечитывают TOML; правка настроек/env подхватывается без
+    перезапуска — ключ кэша меняется.
+    """
+    path = resolve_config_dir() / "settings.toml"
+    try:
+        mtime = path.stat().st_mtime_ns
+    except OSError:
+        mtime = 0
+    key = (str(path), os.environ.get("SPENDTRACK_BASE_CURRENCY", ""), mtime)
+    if _base_cache["key"] != key:
+        _base_cache["key"] = key
+        _base_cache["value"] = load_settings().base_currency
+    return str(_base_cache["value"])
 
 
 def settings() -> Settings:

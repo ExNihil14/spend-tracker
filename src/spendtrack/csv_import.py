@@ -9,6 +9,7 @@ from decimal import InvalidOperation
 from io import StringIO
 
 from spendtrack.categorize import categorize_transaction
+from spendtrack.config import base_currency
 from spendtrack.store import Store, fingerprint, normalize_currency, parse_amount
 from spendtrack.taxonomy import Taxonomy
 
@@ -129,8 +130,8 @@ def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "")
     """Строка выписки → tx или маркер пропуска `_skip` (общая сборка для всех адаптеров).
 
     Непарсящаяся сумма/дата/пустые обязательные поля не роняют импорт и не теряются молча —
-    попадают в отчёт причинами. Незнакомая валюта трактуется как RUB (базовая):
-    импорт не должен падать из-за неё.
+    попадают в отчёт причинами. Пустая валюта трактуется как базовая валюта установки (настройка);
+    незнакомая НЕПУСТАЯ — строка пропускается с причиной (без молчаливой подмены).
     """
     if not date or not desc or not amount:
         return {"_skip": "missing_fields"}
@@ -148,7 +149,7 @@ def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "")
         return {"_skip": "currency_unknown"}
     return {"date": iso, "description": desc, "amount_kopecks": kopecks,
             "account": account or None, "export_rowid": "",
-            "currency": code or "RUB"}
+            "currency": code or base_currency()}
 
 
 class SberAdaptor:

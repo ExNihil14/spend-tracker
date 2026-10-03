@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+from spendtrack.config import base_currency
 from spendtrack.store import Store, month_bounds
 
 CALIBRATION_TARGET_ERROR = 0.10   # допустимая доля ошибок среди авто-принятых (верхняя граница Wilson)
@@ -28,17 +29,18 @@ def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, flo
 
 def foreign_transactions_count(store: Store, start: str, end: str,
                                exclude_categories: tuple[str, ...] = ()) -> int:
-    """Операции не в ₽ за [start, end) — в ₽-агрегаты не входят (честная сноска, K6).
+    """Операции не в базовой валюте за [start, end) — в агрегаты не входят (честная сноска, K6).
 
-    Предикат — зеркальный ₽-агрегатам (§J-2): NULL/пустая строка трактуются как RUB (схема NOT NULL,
+    Предикат — зеркальный агрегатам (§J-2): NULL/пустая строка трактуются как базовая (схема NOT NULL,
     страховка для легаси), 'rub'/'Rub' — тоже RUB; иначе строка молча выпадала и из итогов, и из сноски.
 
     `exclude_categories` — зеркальность потребителю: если итоги исключают категории (дайджест —
     переводы), сноска не должна считать их «не учтёнными» (ревью Sonnet 5.5, 30.09).
     """
+    base = base_currency()
     sql = ("SELECT COUNT(*) c FROM transactions"
-           " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') <> 'RUB' AND date >= ? AND date < ?")
-    params: list[str] = [start, end]
+           " WHERE COALESCE(UPPER(NULLIF(currency, '')), ?) <> ? AND date >= ? AND date < ?")
+    params: list[str] = [base, base, start, end]
     if exclude_categories:
         ph = ",".join("?" * len(exclude_categories))
         sql += f" AND category NOT IN ({ph})"
@@ -49,11 +51,12 @@ def foreign_transactions_count(store: Store, start: str, end: str,
 
 def report_month(store: Store, month: str) -> dict:
     start, end = month_bounds(month)
+    base = base_currency()
     rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS total_k, COUNT(*) AS n"
-        " FROM transactions WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB'"
+        " FROM transactions WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
         " GROUP BY category ORDER BY total_k",
-        (start, end),
+        (start, end, base, base),
     ).fetchall()
     income = sum(r["total_k"] for r in rows if r["total_k"] > 0)
     expense = sum(r["total_k"] for r in rows if r["total_k"] < 0)
@@ -62,7 +65,7 @@ def report_month(store: Store, month: str) -> dict:
         "income_k": income,
         "expense_k": expense,
         "balance_k": income + expense,
-        # K6: сколько операций не в ₽ молча выпало из итогов (курсы не смешиваем) — для сноски в UI/CLI
+        # K6: сколько операций не в базовой валюте молча выпало из итогов (курсы не смешиваем) — для сноски в UI/CLI
         "foreign_count": foreign_transactions_count(store, start, end),
         "categories": [
             {"category": r["category"], "total_k": r["total_k"], "count": r["n"]}
@@ -72,9 +75,10 @@ def report_month(store: Store, month: str) -> dict:
 
 
 def categories_with_totals(store: Store, month: str | None = None) -> list[dict]:
+    base = base_currency()
     sql = ("SELECT category, COUNT(*) n, SUM(amount_kopecks) total_k FROM transactions"
-           " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB'")
-    params: list[str] = []
+           " WHERE COALESCE(UPPER(NULLIF(currency, '')), ?) = ?")
+    params: list[str] = [base, base]
     if month:
         sql += " AND date >= ? AND date < ?"
         params.extend(month_bounds(month))
@@ -86,10 +90,11 @@ def categories_with_totals(store: Store, month: str | None = None) -> list[dict]
 def report_daily(store: Store, month: str) -> list[dict]:
     """Дневной ряд расходов за месяц (непродажные дни отсутствуют в выводе)."""
     start, end = month_bounds(month)
+    base = base_currency()
     rows = store.conn.execute(
         "SELECT date, SUM(amount_kopecks) AS total_k FROM transactions"
-        " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB' GROUP BY date ORDER BY date",
-        (start, end),
+        " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ? GROUP BY date ORDER BY date",
+        (start, end, base, base),
     ).fetchall()
     return [{"date": r["date"], "total_k": r["total_k"]} for r in rows]
 
@@ -106,10 +111,11 @@ def budgets_progress(store: Store, month: str, known: set[str] | None = None) ->
     if not budgets:
         return []
     start, end = month_bounds(month)
+    base = base_currency()
     spent_rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS s FROM transactions"
-        " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB' GROUP BY category",
-        (start, end),
+        " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ? GROUP BY category",
+        (start, end, base, base),
     ).fetchall()
     spent = {r["category"]: -r["s"] for r in spent_rows}  # расход = минус знаковая сумма
     out: list[dict] = []

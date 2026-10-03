@@ -1,4 +1,6 @@
 port = 8766
+# Базовая валюта итогов/бюджетов/дайджеста (ISO 4217): RUB по умолчанию; для Беларуси — BYN.
+base_currency = "RUB"
 
 [llm]
 # Режимы LLM (резолв — resolve_providers() в llm.py; статус — `spendtrack llm-status`):

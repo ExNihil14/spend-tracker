@@ -12,7 +12,7 @@ from fastapi.templating import Jinja2Templates
 from spendtrack.assets import static_url
 from spendtrack.cat_icons import cat_icon
 from spendtrack.colors import badge_text_color
-from spendtrack.config import PKG_DIR, load_settings
+from spendtrack.config import PKG_DIR, base_currency, load_settings
 from spendtrack.deps import get_store
 from spendtrack.digest import build_digest
 from spendtrack.export import csv_bytes, export_filename, write_xlsx
@@ -26,6 +26,7 @@ from spendtrack.reports import (
 from spendtrack.store import (
     Store,
     conf_level,
+    currency_symbol,
     delta_words,
     fmt_amount,
     fmt_date,
@@ -40,6 +41,7 @@ templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(
     fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date, conf_level=conf_level,
     delta_words=delta_words, badge_text=badge_text_color, static=static_url, cat_icon=cat_icon,
+    currency_symbol=currency_symbol,
 )
 
 PAGE_DAYS = 31  # размер keyset-страницы списка транзакций (целыми днями)
@@ -62,10 +64,11 @@ def index(request: Request, store: Annotated[Store, Depends(get_store)], month: 
                                                search=q or None, sort=sort)
     group_days = sort == "recent"  # группировка только в хронологии (см. брейншторм 14.09)
     day_totals: dict[str, int] = {}
-    day_fx: dict[str, int] = {}  # S (Astra 02.10): дни без RUB — «только в валюте», а не «итог 0,00 ₽»
+    day_fx: dict[str, int] = {}  # S (Astra 02.10): дни без базовой валюты — «только в валюте», а не «итог 0,00»
     if group_days:
+        base = base_currency()
         for t in transactions:
-            if ((t["currency"] or "").upper() or "RUB") == "RUB":  # ₽-итог (K6 §J-2: зеркало SQL)
+            if ((t["currency"] or "").upper() or base) == base:  # итог базовой (K6 §J-2: зеркало SQL)
                 day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
             else:
                 day_fx[t["date"]] = day_fx.get(t["date"], 0) + 1
@@ -242,9 +245,10 @@ def more_rows(request: Request, store: Annotated[Store, Depends(get_store)], mon
         month=month or None, category=category or None, search=q or None,
         days=days, after_date=after or None)
     day_totals: dict[str, int] = {}
-    day_fx: dict[str, int] = {}  # S (Astra 02.10): «только в валюте» вместо ложного «итог 0,00 ₽»
+    day_fx: dict[str, int] = {}  # S (Astra 02.10): «только в валюте» вместо ложного «итог 0,00»
+    base = base_currency()
     for t in rows:
-        if ((t["currency"] or "").upper() or "RUB") == "RUB":  # ₽-итог (K6 §J-2: зеркало SQL)
+        if ((t["currency"] or "").upper() or base) == base:  # итог базовой (K6 §J-2: зеркало SQL)
             day_totals[t["date"]] = day_totals.get(t["date"], 0) + t["amount_kopecks"]
         else:
             day_fx[t["date"]] = day_fx.get(t["date"], 0) + 1

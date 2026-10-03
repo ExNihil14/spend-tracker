@@ -17,6 +17,7 @@ from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from itertools import pairwise
 
+from spendtrack.config import base_currency
 from spendtrack.store import Store
 
 MIN_OCCURRENCES = 3
@@ -82,14 +83,15 @@ def _check_gaps(gaps: list[int]) -> tuple[bool, int, int]:
 def detect_recurring(store: Store, today: date | None = None) -> list[dict]:
     """Список найденных рекуррингов: активные сверху, затем по убыванию цены."""
     ref = today or datetime.now(UTC).date()
+    base = base_currency()
     marks = ",".join("?" * len(EXCLUDED_CATEGORIES))
     rows = store.conn.execute(
         "SELECT merchant, amount_kopecks, date, category FROM transactions"
-        " WHERE amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = 'RUB' AND merchant IS NOT NULL AND merchant != ''"
+        " WHERE amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ? AND merchant IS NOT NULL AND merchant != ''"
         " AND date IS NOT NULL AND date != ''"
         f" AND category NOT IN ({marks})"
         " ORDER BY merchant, date, id",
-        EXCLUDED_CATEGORIES,
+        (base, base, *EXCLUDED_CATEGORIES),
     ).fetchall()
 
     by_merchant: dict[str, list[sqlite3.Row]] = {}

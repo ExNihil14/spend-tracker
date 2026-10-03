@@ -13,13 +13,13 @@ from spendtrack.colors import badge_text_color
 from spendtrack.config import PKG_DIR
 from spendtrack.deps import get_store
 from spendtrack.reports import BUDGET_EXCLUDED
-from spendtrack.store import Store, fmt_amount, fmt_money
+from spendtrack.store import Store, currency_symbol, fmt_amount, fmt_money
 from spendtrack.ui import oob_toast
 
 router = APIRouter()
 templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(fmt_money=fmt_money, badge_text=badge_text_color, static=static_url,
-                             cat_icon=cat_icon)
+                             cat_icon=cat_icon, currency_symbol=currency_symbol)
 
 
 def _catname(data: dict):

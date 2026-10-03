@@ -3,7 +3,7 @@
   <div class="px-5 py-2 text-sm text-danger border-b border-line" role="alert">{{ error }}</div>
   {% endif %}
   <p class="px-5 py-2 text-xs text-fg-muted">
-    Месячный лимит по категории, ₽. Пусто или 0 — снять. Считаются расходы месяца; возвраты уменьшают.
+    Месячный лимит по категории, {{ currency_symbol() }}. Пусто или 0 — снять. Считаются расходы месяца; возвраты уменьшают.
   </p>
   <div class="divide-y divide-line/60">
     {% for c in budget_categories %}

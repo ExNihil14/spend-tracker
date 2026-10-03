@@ -12,6 +12,8 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
+from spendtrack.config import base_currency
+
 CSV_HEADERS = ("Дата", "Описание", "Сумма", "Валюта", "Категория", "Источник", "Уверенность",
                "Мерчант", "Счёт", "Статус", "Предложение LLM")
 
@@ -49,7 +51,7 @@ def export_values(tx: dict) -> tuple:
         date.fromisoformat(tx["date"]),
         _safe_text(tx["description"]),
         tx["amount_kopecks"] / 100,
-        _safe_text(tx.get("currency") or "RUB"),
+        _safe_text(tx.get("currency") or base_currency()),
         _safe_text(tx.get("category") or ""),
         _safe_text(tx.get("category_source") or ""),
         float(tx.get("confidence") or 0.0),

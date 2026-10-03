@@ -20,7 +20,13 @@ from urllib.parse import urlencode
 from spendtrack import __version__
 from spendtrack.backup import backup_dir_for, find_snapshots, legacy_backup_dir
 from spendtrack.checksum import sha256_file
-from spendtrack.config import load_settings, repo_mode, resolve_data_dir, resolve_db_path
+from spendtrack.config import (
+    base_currency,
+    load_settings,
+    repo_mode,
+    resolve_data_dir,
+    resolve_db_path,
+)
 from spendtrack.store import SCHEMA_VERSION, Store
 from spendtrack.taxonomy import Taxonomy, load_taxonomy
 
@@ -344,6 +350,17 @@ def check_settings_config() -> dict:
     return _check("settings_config", OK, 0, "settings.toml читается")
 
 
+def check_base_currency(conn: sqlite3.Connection) -> dict:
+    """Базовая валюта установки (Ф0 «Беларусь/BYN»): валидный ISO-код; счётчик операций вне её итогов."""
+    base = base_currency()
+    if not (len(base) == 3 and base.isascii() and base.isalpha()):
+        return _check("base_currency", CRITICAL, 1, f"некорректный код: {base!r} (ожидается ISO 4217)")
+    foreign = int(conn.execute(
+        "SELECT COUNT(*) FROM transactions"
+        " WHERE COALESCE(UPPER(NULLIF(currency, '')), ?) <> ?", (base, base)).fetchone()[0])
+    return _check("base_currency", OK, 0, f"{base}; операций в других валютах (вне итогов): {foreign}")
+
+
 def _guarded(check_id: str, fn) -> dict:
     """Битая БД/нет доступа/неожиданная ошибка чтения — чек становится critical, прогон не падает.
 
@@ -397,6 +414,7 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
         names, ph = _names(tax)
         checks = [
             _guarded("settings_config", check_settings_config),
+            _guarded("base_currency", lambda: check_base_currency(conn)),
             _guarded("quick_check", lambda: check_quick_check(conn)),
             _guarded("fingerprint_dupes", lambda: check_fingerprint_dupes(conn)),
             _guarded("schema_version", lambda: check_schema_version(conn)),

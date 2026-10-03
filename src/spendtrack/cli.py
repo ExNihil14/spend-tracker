@@ -8,6 +8,7 @@ from decimal import InvalidOperation
 from pathlib import Path
 
 from spendtrack.categorize import categorize_transaction
+from spendtrack.config import base_currency
 from spendtrack.console import utf8_stdout
 from spendtrack.reports import confidence_calibration, report_month
 from spendtrack.store import Store, fmt_amount, normalize_currency, parse_amount
@@ -59,7 +60,9 @@ def cmd_add(args) -> int:
     )
     if tx_id:
         queue = " [в очередь]" if review_status == "pending" else ""
-        cur = "" if args.currency == "RUB" else f" {args.currency}"
+        base = base_currency()
+        shown = args.currency or base
+        cur = "" if shown == base else f" {shown}"
         print(f"OK id={tx_id} {fmt_amount(amount)}{cur} {args.description} -> {category}{queue}")
         return 0
     print("dup (уже есть)")
@@ -437,8 +440,8 @@ def main(argv: list[str] | None = None) -> int:
     a_add.add_argument("description")
     a_add.add_argument("--date", default="2026-09-12")
     a_add.add_argument("--category")
-    a_add.add_argument("--currency", type=_currency_arg, default="RUB",
-                       help="код валюты ISO 4217 (по умолчанию RUB)")
+    a_add.add_argument("--currency", type=_currency_arg, default=None,
+                       help="код валюты ISO 4217 (по умолчанию — базовая валюта из настроек)")
     a_add.set_defaults(fn=cmd_add)
 
     a_im = sub.add_parser("import")

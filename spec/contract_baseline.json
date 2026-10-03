@@ -300,6 +300,10 @@
    "args": "AcceptanceSettings = AcceptanceSettings()",
    "returns": ""
   },
+  "spendtrack.config:Settings.base_currency": {
+   "args": "str = 'RUB'",
+   "returns": ""
+  },
   "spendtrack.config:Settings.db_path": {
    "args": "Path | None = None",
    "returns": ""
@@ -339,6 +343,10 @@
   "spendtrack.config:Settings.settings_customise_sources": {
    "args": "cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings",
    "returns": ""
+  },
+  "spendtrack.config:base_currency": {
+   "args": "",
+   "returns": "str"
   },
   "spendtrack.config:ensure_config_dir": {
    "args": "",
@@ -530,6 +538,10 @@
   },
   "spendtrack.doctor:check_backup": {
    "args": "db_path: Path",
+   "returns": "dict"
+  },
+  "spendtrack.doctor:check_base_currency": {
+   "args": "conn: sqlite3.Connection",
    "returns": "dict"
   },
   "spendtrack.doctor:check_categories_invalid": {
@@ -825,7 +837,7 @@
    "returns": ""
   },
   "spendtrack.routers.api:TxIn.currency": {
-   "args": "str = 'RUB'",
+   "args": "str | None = None",
    "returns": ""
   },
   "spendtrack.routers.api:TxIn.date": {
@@ -1081,11 +1093,11 @@
    "returns": "None"
   },
   "spendtrack.store:Store.add_goal": {
-   "args": "self, title: str, target_kopecks: int, currency: str='RUB', due_month: str | None=None",
+   "args": "self, title: str, target_kopecks: int, currency: str | None=None, due_month: str | None=None",
    "returns": "int"
   },
   "spendtrack.store:Store.add_transaction": {
-   "args": "self, date: str, description: str, amount_kopecks: int, category: str, category_source: str, confidence: float=1.0, merchant: str | None=None, account_anon: str | None=None, import_batch: str | None=None, export_rowid: str='', category_llm: str | None=None, review_status: str='approved', statement_order: int | None=None, currency: str='RUB', commit: bool=True",
+   "args": "self, date: str, description: str, amount_kopecks: int, category: str, category_source: str, confidence: float=1.0, merchant: str | None=None, account_anon: str | None=None, import_batch: str | None=None, export_rowid: str='', category_llm: str | None=None, review_status: str='approved', statement_order: int | None=None, currency: str | None=None, commit: bool=True",
    "returns": "int | None"
   },
   "spendtrack.store:Store.approve_all_reviews": {
@@ -1200,6 +1212,10 @@
    "args": "confidence: float",
    "returns": "str"
   },
+  "spendtrack.store:currency_symbol": {
+   "args": "currency: str | None=None",
+   "returns": "str"
+  },
   "spendtrack.store:delta_words": {
    "args": "delta_k: int",
    "returns": "str"
@@ -1221,7 +1237,7 @@
    "returns": "str"
   },
   "spendtrack.store:fmt_money": {
-   "args": "kopecks: int, currency: str='RUB', signed: bool=True",
+   "args": "kopecks: int, currency: str | None=None, signed: bool=True",
    "returns": "str"
   },
   "spendtrack.store:fmt_month": {

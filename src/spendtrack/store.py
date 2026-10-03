@@ -10,7 +10,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
 
-from spendtrack.config import resolve_data_dir
+from spendtrack.config import base_currency, resolve_data_dir
 from spendtrack.config import settings as load_settings
 
 logger = logging.getLogger(__name__)
@@ -61,12 +61,22 @@ def _group_digits(digits: str) -> str:
     return "\u00a0".join(parts)
 
 
-def fmt_money(kopecks: int, currency: str = "RUB", signed: bool = True) -> str:
-    """Денежная форма для UI: «−155 365,18 ₽» / «+45 000,00 ₽» (ноль — «0,00 ₽»).
+_MONEY_SYMBOLS = MappingProxyType({"RUB": "₽", "BYN": "Br"})
 
-    Знак — U+2212 (WCAG 1.4.1), разряды — неразрывный пробел, десятичная запятая;
-    для не-RUB вместо ₽ подставляется код валюты. `signed=False` — без «+» у положительных
-    (лимиты/суммы без направления: бюджеты, перерасход). Машинные формы — `fmt_amount`.
+
+def currency_symbol(currency: str | None = None) -> str:
+    """Символ валюты для UI: «₽»/«Br» для известных, иначе ISO-код (единая точка для fmt_money/JS)."""
+    cur = (currency or base_currency()).upper()
+    return _MONEY_SYMBOLS.get(cur, cur)
+
+
+def fmt_money(kopecks: int, currency: str | None = None, signed: bool = True) -> str:
+    """Денежная форма для UI: «−155 365,18 ₽» / «+45 000,00 Br» (ноль — «0,00 ₽»).
+
+    Знак — U+2212 (WCAG 1.4.1), разряды — неразрывный пробел, десятичная запятая; валюта по
+    умолчанию — базовая из настроек, известные символы (₽/Br), иначе — код валюты.
+    `signed=False` — без «+» у положительных (лимиты/суммы без направления: бюджеты, перерасход).
+    Машинные формы — `fmt_amount`.
     """
     if kopecks == 0:
         sign = ""
@@ -75,8 +85,7 @@ def fmt_money(kopecks: int, currency: str = "RUB", signed: bool = True) -> str:
     else:
         sign = "+" if signed else ""
     whole, frac = divmod(abs(int(kopecks)), 100)
-    suffix = "₽" if currency == "RUB" else currency
-    return f"{sign}{_group_digits(str(whole))},{frac:02d} {suffix}"
+    return f"{sign}{_group_digits(str(whole))},{frac:02d} {currency_symbol(currency)}"
 
 
 _MONTHS_RU = ("", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
@@ -202,11 +211,12 @@ def fingerprint(date: str, amount_kopecks: int, desc: str, account_anon: str, ex
                 currency: str = "RUB") -> str:
     """sha1; export_rowid НЕ обязателен — дедуп без него работает.
 
-    Валюта входит в отпечаток только для НЕ-RUB: рублёвые отпечатки не меняются (реэкспорт
-    старой выписки остаётся no-op), а одинаковые суммы в разных валютах не склеиваются дедупом.
+    Валюта входит в отпечаток только для НЕ-базовой валюты установки (Ф0 «Беларусь/BYN»):
+    на RUB-базе рублёвые отпечатки не меняются (реэкспорт старой выписки остаётся no-op),
+    а одинаковые суммы в разных валютах не склеиваются дедупом.
     """
     raw = f"{date}|{amount_kopecks}|{_norm_desc(desc)}|{account_anon}|{export_rowid or ''}"
-    if currency != "RUB":
+    if currency != base_currency():
         raw += f"|{currency}"
     return hashlib.sha1(raw.encode()).hexdigest()
 
@@ -555,10 +565,11 @@ class Store:
         category_llm: str | None = None,
         review_status: str = "approved",
         statement_order: int | None = None,
-        currency: str = "RUB",
+        currency: str | None = None,
         commit: bool = True,
     ) -> int | None:
-        """Precondition: `currency` — ISO 4217 (или алиас); невалидный код → ValueError.
+        """Precondition: `currency` — ISO 4217 (или алиас); пусто/None → базовая валюта настроек;
+        невалидный код → ValueError.
 
         Границы (CLI/API/импорт) валидируют и нормализуют код до вызова Store.
         `commit=False` — для массовых вставок (импорт): одна транзакция на партию вместо
@@ -568,7 +579,11 @@ class Store:
         """
         code = normalize_currency(currency)
         if code is None:
-            raise ValueError(f"Неизвестная валюта: {currency!r} (ожидается ISO 4217, например RUB/USD/EUR)")
+            if currency is None or not str(currency).strip():
+                code = base_currency()  # пусто = базовая (BYN-установка не пишет RUB по умолчанию)
+            else:
+                raise ValueError(
+                    f"Неизвестная валюта: {currency!r} (ожидается ISO 4217, например RUB/USD/EUR)")
         fp = fingerprint(date, amount_kopecks, description, account_anon or "", export_rowid, code)
         existing = self.conn.execute("SELECT id FROM transactions WHERE fingerprint=?", (fp,)).fetchone()
         if existing:
@@ -872,7 +887,7 @@ class Store:
         return {r["category"]: r["amount_kopecks"] for r in rows}
 
     # ---- цели/копилки (v7, research 03.10) ----
-    def add_goal(self, title: str, target_kopecks: int, currency: str = "RUB",
+    def add_goal(self, title: str, target_kopecks: int, currency: str | None = None,
                  due_month: str | None = None) -> int:
         """Создать цель («виртуальный конверт»). Валидация здесь; SQL CHECK — второй рубеж."""
         t = (title or "").strip()
@@ -880,7 +895,7 @@ class Store:
             raise ValueError("название цели: от 1 до 120 символов")
         if not isinstance(target_kopecks, int) or target_kopecks <= 0:
             raise ValueError("сумма цели — целое число копеек > 0")
-        code = (currency or "").strip().upper()
+        code = (currency or base_currency()).strip().upper()
         if not re.fullmatch(r"[A-Z]{3}", code):
             raise ValueError("валюта цели — код ISO 4217 (3 латинские буквы)")
         if due_month is not None and not valid_month(due_month):

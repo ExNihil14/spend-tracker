@@ -30,6 +30,7 @@ from spendtrack.reports import budgets_progress
 from spendtrack.store import (
     Store,
     conf_level,
+    currency_symbol,
     fmt_amount,
     fmt_date,
     fmt_money,
@@ -46,6 +47,7 @@ templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(
     fmt_money=fmt_money, fmt_month=fmt_month, fmt_date=fmt_date, conf_level=conf_level,
     badge_text=badge_text_color, static=static_url, cat_icon=cat_icon,
+    currency_symbol=currency_symbol,
 )
 
 
@@ -54,7 +56,7 @@ class TxIn(BaseModel):
     description: str = Field(max_length=512)  # F8: без лимита мусор любого размера едет в БД и отчёты
     amount: str = Field(max_length=64)
     account: str | None = Field(default=None, max_length=128)
-    currency: str = "RUB"
+    currency: str | None = None
 
     @field_validator("date")
     @classmethod
@@ -82,7 +84,9 @@ class TxIn(BaseModel):
 
     @field_validator("currency")
     @classmethod
-    def _valid_currency(cls, value: str) -> str:
+    def _valid_currency(cls, value: str | None) -> str | None:
+        if value is None or not str(value).strip():
+            return None  # пусто → базовая валюта настроек (резолвится в Store)
         code = normalize_currency(value)
         if code is None:
             raise ValueError("Неизвестная валюта (ожидается код ISO 4217, например RUB/USD/EUR)")

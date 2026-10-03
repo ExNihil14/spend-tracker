@@ -75,9 +75,9 @@
           </tr>
         </thead>
         <tbody class="text-fg">
-          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Транзакция</td><td class="px-4 py-2.5">Одна операция из выписки или добавленная вручную.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«−450 ₽, Пятёрочка, 03.09»</td></tr>
-          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Расход</td><td class="px-4 py-2.5">Трата денег — сумма со знаком минус.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Кофе «−180 ₽»</td></tr>
-          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Доход</td><td class="px-4 py-2.5">Поступление денег — сумма со знаком плюс.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Зарплата «+55 000 ₽»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Транзакция</td><td class="px-4 py-2.5">Одна операция из выписки или добавленная вручную.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«−450 {{ currency_symbol() }}, Пятёрочка, 03.09»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Расход</td><td class="px-4 py-2.5">Трата денег — сумма со знаком минус.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Кофе «−180 {{ currency_symbol() }}»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Доход</td><td class="px-4 py-2.5">Поступление денег — сумма со знаком плюс.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Зарплата «+55 000 {{ currency_symbol() }}»</td></tr>
           <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Перевод</td><td class="px-4 py-2.5">Перемещение своих денег между счетами; не расход и не доход.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Со счёта на карту</td></tr>
           <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Категория</td><td class="px-4 py-2.5">Группа трат по смыслу ({{ categories | length }} фиксированных, список — в «Настройках»).</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Продукты (groceries), Транспорт (transport)</td></tr>
           <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Правило категоризации</td><td class="px-4 py-2.5">Ключевое слово в описании, по которому категория ставится автоматически.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«PYATEROCHKA → groceries»</td></tr>
@@ -87,7 +87,7 @@
           <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Отпечаток</td><td class="px-4 py-2.5">Невидимая метка строки; по ней повторный импорт не создаёт дубликат.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Один файл дважды = 0 новых</td></tr>
           <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Мерчант</td><td class="px-4 py-2.5">Нормализованное имя магазина или сервиса.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">PYATEROCHKA</td></tr>
           <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Подписка (рекурринг)</td><td class="px-4 py-2.5">Регулярное списание, найденное по серии похожих платежей.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">Netflix раз в месяц</td></tr>
-          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Бюджет</td><td class="px-4 py-2.5">Месячный лимит расходов по категории.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«Продукты — 15 000 ₽/мес»</td></tr>
+          <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Бюджет</td><td class="px-4 py-2.5">Месячный лимит расходов по категории.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«Продукты — 15 000 {{ currency_symbol() }}/мес»</td></tr>
           <tr class="border-b border-line/60"><td class="px-4 py-2.5 font-medium text-fg">Аномалия</td><td class="px-4 py-2.5">Пометка о нетипичной операции; ничего не меняется автоматически.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«В 4 раза больше обычного»</td></tr>
           <tr><td class="px-4 py-2.5 font-medium text-fg">Дайджест недели</td><td class="px-4 py-2.5">Сводка за неделю: расход/доход, топ-категории, подписки, аномалии.</td><td class="px-4 py-2.5 text-fg-muted hidden md:table-cell">«Дашборд → Дайджест»</td></tr>
         </tbody>
@@ -238,7 +238,7 @@
     </details>
     <details id="faq-multiuser" class="bg-surface border border-line rounded-xl p-4">
       <summary class="cursor-pointer font-medium text-fg">Можно ли вести несколько валют или несколько пользователей?</summary>
-      <p class="mt-2 text-sm text-fg-muted">Пользователь — один. Основная валюта — рубль: бюджеты и итоги считаются только по операциям в ₽. Операции в других валютах можно импортировать и видеть в списке (код валюты показан рядом с суммой), но в бюджеты и рублёвые итоги они не попадают — курсы не смешиваем; если в месяце такие операции есть, в итогах появляется сноска «не учтено N операций в валюте». Данные локальные и принадлежат только вам.</p>
+      <p class="mt-2 text-sm text-fg-muted">Пользователь — один. Основная валюта — {{ currency_symbol() }} (настраивается): бюджеты и итоги считаются только по операциям в ней. Операции в других валютах можно импортировать и видеть в списке (код валюты показан рядом с суммой), но в бюджеты и итоги они не попадают — курсы не смешиваем; если в месяце такие операции есть, в итогах появляется сноска «не учтено N операций в валюте». Данные локальные и принадлежат только вам.</p>
     </details>
   </div>
 
