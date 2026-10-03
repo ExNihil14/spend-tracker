@@ -45,7 +45,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > bootstrap: S1/S2/S3 (backup-knowledge `.part`→testzip, `serena_lost`, rc=2 при провале копии + тест ALL PASS) ✅,
 > S11 (start-detached: WorkDir pre-check → rc=3) ✅; S4/S6–S10 (verify/check-channels/go-usage/opencode-web +
 > тесты ALL PASS) ✅, канон `opencode.json` синхронизирован (MCP→V2 `servers`); suggestion-гард ✅;
-> контур 775+93; осталось — bootstrap O1-лок, O5/O6/O11 (опц.).
+> контур 775+93; остаток: O1 ✅ (region-lock `.backup.lock`), O5 закрыт фактом (бюджет едет за rename),
+> O6 оставлено осознанно (root-свап сбрасывает превью), O11 частично (aria «Открыть»/«Приоритет», catname).
+> **03.10 (окно 11:00 UTC):** очередь исчерпана; собрана **wave4** — `prompt_wave4_site.md`/`_ops.md` из
+> рабочих диффов (spend-tracker `ccd5520`→WD, bootstrap `57a3d07`→WD; включая O1/O11), dry-run pending=4,
+> поллер запущен 11:33 UTC (`out_wave4_site.md` в работе, deadline 14:00 UTC).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
