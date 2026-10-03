@@ -24,6 +24,21 @@ def test_health(client):
     assert r.json() == {"status": "ok", "transactions": 0}
 
 
+def test_get_one_returns_whitelist_only(client):
+    """get_one (тикет 03.10): ответ — только публичные поля; служебная внутрянка не утекает."""
+    tx_id = client.post("/api/transactions", json={
+        "date": "2026-09-12", "description": "ЛЕНТА", "amount": "-123.45",
+    }).json()["id"]
+
+    body = client.get(f"/api/transactions/{tx_id}").json()
+    assert set(body) == {
+        "id", "date", "description", "amount_kopecks", "currency", "category",
+        "category_llm", "category_source", "confidence", "merchant",
+        "review_status", "created", "updated",
+    }
+    assert not {"fingerprint", "account_anon", "export_rowid", "import_batch"} & set(body)
+
+
 def test_api_budgets(client):
     """Бюджеты: настройка через /settings, прогресс через GET /api/budgets (месяц последней транзакции)."""
     r = client.post("/settings/budgets", data={"category": "groceries", "amount": "2000"})

@@ -832,6 +832,58 @@
    "args": "str = Field(max_length=512)",
    "returns": ""
   },
+  "spendtrack.routers.api:TxOut.amount_kopecks": {
+   "args": "int = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.category": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.category_llm": {
+   "args": "str | None = None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.category_source": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.confidence": {
+   "args": "float = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.created": {
+   "args": "str | None = None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.currency": {
+   "args": "str | None = None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.date": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.description": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.id": {
+   "args": "int = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.merchant": {
+   "args": "str | None = None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.review_status": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.routers.api:TxOut.updated": {
+   "args": "str | None = None",
+   "returns": ""
+  },
   "spendtrack.routers.api:approve_all": {
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
@@ -1319,7 +1371,7 @@
   "GET /api/pending-count": "3f945ca0cf6b",
   "GET /api/reviews": "8c19c725fd2c",
   "GET /api/reviews/count": "8c19c725fd2c",
-  "GET /api/transactions/{tx_id}": "2717fc8e3fad",
+  "GET /api/transactions/{tx_id}": "a1a5fa6a5173",
   "GET /approve": "8c19c725fd2c",
   "GET /dashboard": "b67aa5b64d75",
   "GET /export.csv": "faec837bb47f",
@@ -1347,7 +1399,7 @@
   "POST /settings/rules/move": "8c19c725fd2c",
   "POST /settings/rules/preview": "8c19c725fd2c",
   "POST /settings/test": "8c19c725fd2c",
-  "components": "420db64e3416"
+  "components": "33c95e373208"
  },
  "schema": {
   "account_pseudonyms.original": "TEXT|notnull=0|pk=1|dflt=None",

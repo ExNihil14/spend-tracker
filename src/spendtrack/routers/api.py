@@ -302,7 +302,29 @@ def confirm(tx_id: int, body: ConfirmIn, store: Annotated[Store, Depends(get_sto
     return {"ok": True, "pending_count": store.pending_count()}
 
 
-@router.get("/transactions/{tx_id}")
+class TxOut(BaseModel):
+    """Публичное представление транзакции (тикет 03.10): стабильный whitelist полей без внутрянки.
+
+    Не отдаём: fingerprint, account_anon, export_rowid, import_batch — служебные поля
+    дедупа/импорта/псевдонимизации (ADJUDICATION_WEB_API: get_one).
+    """
+
+    id: int
+    date: str
+    description: str
+    amount_kopecks: int
+    currency: str | None = None
+    category: str
+    category_llm: str | None = None
+    category_source: str
+    confidence: float
+    merchant: str | None = None
+    review_status: str
+    created: str | None = None
+    updated: str | None = None
+
+
+@router.get("/transactions/{tx_id}", response_model=TxOut)
 def get_one(tx_id: int, store: Annotated[Store, Depends(get_store)]):
     tx = store.get_transaction(tx_id)
     if not tx:
