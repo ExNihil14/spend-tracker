@@ -54,6 +54,13 @@ def _marker(bdir: Path, status: str = "ok", age_days: float = 0, **extra) -> Pat
 
 
 # ---- restore_drill.py ----
+def test_restore_drill_lives_in_package():
+    """C2: дрилл переехал в пакет; scripts/restore_drill.py остаётся шимом для совместимости."""
+    from spendtrack.restore_drill import run_restore_drill
+
+    assert callable(run_restore_drill)
+
+
 def test_latest_backup_picks_newest(tmp_path):
     bdir = tmp_path / "backup"
     bdir.mkdir()

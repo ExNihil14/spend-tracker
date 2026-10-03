@@ -19,6 +19,25 @@ def test_env_var_beats_env_file(tmp_path, monkeypatch):
     assert load_settings(ROOT / "config").freel_llm_api_key == "from-env"
 
 
+def test_resolve_db_path_relative_is_resolved_from_cwd(tmp_path, monkeypatch):
+    """C2/S3: единая точка пути к БД — SPENDTRACK_DB_PATH резолвится в абсолютный (cwd-независимость)."""
+    from spendtrack.config import resolve_db_path
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "sub").mkdir()
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", "sub/spend.db")
+    assert resolve_db_path() == (tmp_path / "sub" / "spend.db").resolve()
+
+
+def test_default_db_path_is_single_source(tmp_path, monkeypatch):
+    """S3/C2: `backup.default_db_path` — та же единая точка, что `resolve_db_path` (без своего дефолта)."""
+    from spendtrack.backup import default_db_path
+    from spendtrack.config import resolve_db_path
+
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "x.db"))
+    assert default_db_path() == resolve_db_path()
+
+
 SETTINGS_TOML = """db_path = "A.db"
 port = 8766
 [llm]

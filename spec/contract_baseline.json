@@ -356,6 +356,10 @@
    "args": "",
    "returns": "Path"
   },
+  "spendtrack.config:resolve_db_path": {
+   "args": "settings_obj: Settings | None=None",
+   "returns": "Path"
+  },
   "spendtrack.config:settings": {
    "args": "",
    "returns": "Settings"
@@ -759,6 +763,30 @@
   "spendtrack.resilience:CircuitBreaker.report_success": {
    "args": "self",
    "returns": "None"
+  },
+  "spendtrack.restore_drill:MARKER_NAME": {
+   "args": "'last_restore_drill.json'",
+   "returns": ""
+  },
+  "spendtrack.restore_drill:inspect_db": {
+   "args": "path: Path",
+   "returns": "dict"
+  },
+  "spendtrack.restore_drill:latest_backup": {
+   "args": "backup_dir: Path",
+   "returns": "Path | None"
+  },
+  "spendtrack.restore_drill:live_stats": {
+   "args": "path: Path",
+   "returns": "dict | None"
+  },
+  "spendtrack.restore_drill:main": {
+   "args": "",
+   "returns": "int"
+  },
+  "spendtrack.restore_drill:run_restore_drill": {
+   "args": "db_path: Path | None=None, backup_dir: Path | None=None, marker_path: Path | None=None, now: datetime | None=None",
+   "returns": "dict"
   },
   "spendtrack.routers.api:ConfirmIn.category": {
    "args": "str = ",

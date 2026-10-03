@@ -381,9 +381,19 @@ def cmd_paths(args) -> int:
 
 
 def cmd_backup(args) -> int:
-    """Бэкап БД (VACUUM INTO) + ротация [+ внешняя копия] — доступно и при установке через uv tool."""
+    """Бэкап БД (VACUUM INTO) + ротация [+ внешняя копия]; `--drill` — проверка восстановимости."""
     from spendtrack.backup import run_backup
-    return run_backup(keep=args.keep, copy_to=args.copy_to, force=args.force)
+    rc = run_backup(keep=args.keep, copy_to=args.copy_to, force=args.force)
+    if rc != 0 or not getattr(args, "drill", False):
+        return rc
+    from spendtrack.restore_drill import run_restore_drill
+    result = run_restore_drill()
+    if result["status"] == "ok":
+        print(f"restore-drill: ok ({result['file']}; match count/sum: "
+              f"{result.get('count_match')}/{result.get('sum_match')})")
+        return 0
+    print(f"restore-drill: FAILED ({result.get('reason', 'нет причины')})", file=sys.stderr)
+    return 1
 
 
 def cmd_anonymize(args) -> int:
@@ -490,6 +500,8 @@ def main(argv: list[str] | None = None) -> int:
                       help="копия вне диска БД (USB/облачная папка)")
     a_bk.add_argument("--force", action="store_true",
                       help="разрешить копию на тот же диск (осознанное исключение)")
+    a_bk.add_argument("--drill", action="store_true",
+                      help="после снимка проверить восстановимость (restore-drill; маркер для doctor)")
     a_bk.set_defaults(fn=cmd_backup)
 
     a_srv = sub.add_parser("serve", help="запустить веб-интерфейс (127.0.0.1)")

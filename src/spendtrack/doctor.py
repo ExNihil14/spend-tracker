@@ -20,7 +20,7 @@ from urllib.parse import urlencode
 from spendtrack import __version__
 from spendtrack.backup import backup_dir_for, find_snapshots, legacy_backup_dir
 from spendtrack.checksum import sha256_file
-from spendtrack.config import load_settings, repo_mode, resolve_data_dir
+from spendtrack.config import load_settings, repo_mode, resolve_db_path
 from spendtrack.store import SCHEMA_VERSION, Store
 from spendtrack.taxonomy import Taxonomy, load_taxonomy
 
@@ -358,8 +358,7 @@ def overall_status(checks: list[dict]) -> str:
 
 def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = None) -> dict[str, Any]:
     """Полный прогон; возвращает {status, checks:[{id, severity, count, detail}]}."""
-    cfg = load_settings()
-    path = Path(db_path or cfg.db_path or resolve_data_dir() / "spend.db").expanduser().resolve()
+    path = Path(db_path).expanduser().resolve() if db_path else resolve_db_path()
     try:
         tax = taxonomy if taxonomy is not None else load_taxonomy()
     except Exception as e:  # noqa: BLE001 — битый taxonomy.toml = critical
@@ -444,7 +443,7 @@ def build_usage_summary(db_path: Path | str | None = None) -> dict[str, Any]:
     (канон — PRIVACY.md).
     """
     cfg = load_settings()
-    path = Path(db_path or cfg.db_path or resolve_data_dir() / "spend.db").expanduser().resolve()
+    path = Path(db_path).expanduser().resolve() if db_path else resolve_db_path()
     backup_dir = path.parent / "backup"
     out: dict[str, Any] = {
         "version": __version__,

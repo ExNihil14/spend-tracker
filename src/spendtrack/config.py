@@ -110,6 +110,18 @@ def resolve_data_dir() -> Path:
     return user_data_dir()
 
 
+def resolve_db_path(settings_obj: Settings | None = None) -> Path:
+    """Единая точка пути к БД: cfg.db_path (env-aware) → data_dir/spend.db; expanduser + resolve.
+
+    C2/S3 (тикеты 03.10): убирает третий дефолт (legacy ROOT) и cwd-зависимость в backup/doctor/drill —
+    относительный путь всегда указывает на один и тот же файл, откуда бы ни запускали.
+    """
+    cfg = settings_obj or load_settings()
+    if cfg.db_path:
+        return Path(cfg.db_path).expanduser().resolve()
+    return (resolve_data_dir() / "spend.db").resolve()
+
+
 def _atomic_copy(src: Path, dest: Path) -> None:
     """Копия через временный файл + replace: читатель не увидит недописанный файл."""
     tmp = dest.with_name(dest.name + ".tmp")

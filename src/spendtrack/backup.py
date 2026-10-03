@@ -25,7 +25,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from spendtrack.checksum import sha256_file
-from spendtrack.config import load_settings, resolve_data_dir
+from spendtrack.config import resolve_db_path
 from spendtrack.console import utf8_stdout
 
 OFFSITE_MARKER = "last_offsite_copy.json"
@@ -33,9 +33,8 @@ DEFAULT_KEEP = 14
 
 
 def default_db_path() -> Path:
-    """Путь БД как у остальных команд: SPENDTRACK_DB_PATH → data/ репо → user-data."""
-    cfg = load_settings()
-    return Path(cfg.db_path).expanduser() if cfg.db_path else resolve_data_dir() / "spend.db"
+    """Путь БД как у остальных команд: единая точка `config.resolve_db_path()` (S3/C2, 03.10)."""
+    return resolve_db_path()
 
 
 def same_device(a: Path, b: Path) -> bool:

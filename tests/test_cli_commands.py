@@ -89,6 +89,16 @@ def test_cli_backup_creates_snapshot(cli_db, capsys):
     assert len(list((cli_db.parent / "backup" / cli_db.stem).glob("spend-*.db"))) == 1
 
 
+def test_cli_backup_drill_runs_restore_check(cli_db, capsys):
+    """C2: `backup --drill` — снимок + проверка восстановимости (маркер для doctor)."""
+    assert cli.main(["backup", "--drill"]) == 0
+    out = capsys.readouterr().out
+    assert "restore-drill: ok" in out
+    bdir = cli_db.parent / "backup" / cli_db.stem
+    marker = json.loads((bdir / "last_restore_drill.json").read_text(encoding="utf-8"))
+    assert marker["status"] == "ok"
+
+
 def test_cli_backup_missing_db_reports(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "nope.db"))
     assert cli.main(["backup"]) == 1
