@@ -27,6 +27,17 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **АКТУАЛЬНО (03.10, вечер — копилки Ф0 в дереве, ждёт коммита).** Schema **v7**: `goals` + append-only
+> `goal_allocations` (STRICT+CHECK, FK RESTRICT; миграция аддитивная, v6-БД апгрейдится при старте) +
+> Store CRUD (`add_goal`/`list_goals`/`archive_goal`/`add_allocation`/`list_allocations`/`goal_progress`) +
+> 6 тестов (Python-валидация + SQL-второй рубеж). Контур: 802 unit + 93 e2e + ruff + contract ok
+> (snapshot schema 76 / api 348) + ratchet + cc (HX-413 вынесен в helper — без роста do_import) + css.
+> Сервисы уже перезапущены на этом коде: прод 8766 и демо 8799 — 200; обе БД на **v7** (spend.db и demo.db,
+> миграция со снимком). Урок: `doctor` открывает Store и **мигрирует БД** — если прод-код в памяти ещё старый
+> (v6), запросы падают 500 «БД новее приложения»: после snapshot'а схемы рестартить сервисы сразу. Грабли:
+> 8799 стартует только с `SPENDTRACK_DB_PATH=data/demo.db` — без него молча
+> поднимается на прод-БД (записано в скилл `verify-spendtrack`). Также 03.10 закоммичены:
+> `4164789` (TOCTOU), `bb38e71`+`641b3a4` (Dash-бэклог). Дальше — **Ф1 прогресс (UI/CLI)**.
 > **АКТУАЛЬНО (02.10, окно 11:00 UTC — 5/5 ✅; адъюдикация + фиксы, коммит по команде).** Окно закрыто 12:46 UTC:
 > js_a/js_b (Opus), templates_a/b (Opus, со 2–3-й попытки), bootstrap_scripts_astra (Astra). Вердикты:
 > js_b NO-GO (карта дней считала знаковый total_k → расходы нулями, aria-label врала) — фикс + e2e; templates_a
