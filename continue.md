@@ -76,6 +76,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > `build_usage_summary` не падает при битом конфиге; `paths_info` печатает раскладку без Settings. +4 теста;
 > контур 788 unit + 93 e2e; contract snapshot (api 328); live: неполный+BOM settings.toml → merge (port/db/llm).
 > Следующий шаг очереди — CI-smoke установки (docker build+run+doctor).
+> **Тикет CI-smoke установки закрыт (03.10):** `.github/workflows/ci.yml` — джоб `docker-smoke`
+> (build → run fresh volume → health → doctor/paths → cleanup, actions запинены, timeout 20 мин).
+> Локальный прогон-доказательство: образ собрался, health 200, `doctor: OK` (15 чеков, включая
+> `settings_config`), `paths` — installed-раскладка /data; SMOKE OK.
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:

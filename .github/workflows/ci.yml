@@ -141,3 +141,33 @@ jobs:
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7  # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-smoke:
+    # Тикет 03.10: смоук установки — образ собирается, сервер поднимается, doctor/paths работают внутри.
+    # Локальное доказательство прогона: C:\Users\HP\AppData\Local\Temp\opencode\docker_smoke.ps1.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
+
+      - name: Build image
+        run: docker build -t spendtrack:ci .
+
+      - name: Run + doctor smoke (fresh volume)
+        run: |
+          set -euo pipefail
+          docker run -d --name spendtrack-ci -p 127.0.0.1:8766:8766 spendtrack:ci
+          ok=0
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:8766/health >/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          if [ "$ok" != "1" ]; then
+            echo "health не поднялся"; docker logs spendtrack-ci; exit 1
+          fi
+          docker exec spendtrack-ci /app/.venv/bin/spendtrack doctor
+          docker exec spendtrack-ci /app/.venv/bin/spendtrack paths
+
+      - name: Cleanup
+        if: always()
+        run: docker rm -f spendtrack-ci || true
