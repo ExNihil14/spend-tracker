@@ -49,7 +49,7 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > Адаптеры — **data-gated** (нужен обезличенный образец от юзера). $0-ревью **выполнено** (`out_belarus_review_or.md`,
 > nemotron-ultra:free) и **адъюдицировано** (`ADJUDICATION_BELARUS_REVIEW_2026-10-03.md`): Ф0 ready, Ф1 data-gated
 > (образец Приорбанка; нет ~2 нед → закрыть), BY-правила — opt-in overlay, `.xls` без `xlrd` в core, PDF не раньше Ф3.
-> Тикет — в §7 стартера.
+> Тикет — в §7 стартера. Практический гид «как переключить локацию» — `GUIDE_LOCATION_BELARUS_BYN_2026-10-03.md`.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
