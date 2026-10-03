@@ -178,6 +178,7 @@ def _norm_desc(desc: str) -> str:
 
 
 _MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def valid_month(month: str | None) -> bool:
@@ -233,6 +234,34 @@ CREATE TABLE IF NOT EXISTS transactions(
 );
 """
 
+# v7 (03.10): цели/копилки — «виртуальный конверт» (research 03.10). Деньги физически
+# не двигаются; взносы append-only и подписанные (изъятие = отрицательный), прогресс — на лету.
+# STRICT+CHECK — щит нового слоя; цель не удаляется (архив), FK ON DELETE RESTRICT.
+_GOALS_DDL = """
+CREATE TABLE IF NOT EXISTS goals(
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120),
+  target_kopecks INTEGER NOT NULL CHECK(target_kopecks > 0),
+  currency TEXT NOT NULL DEFAULT 'RUB' CHECK(currency GLOB '[A-Z][A-Z][A-Z]'),
+  due_month TEXT CHECK(due_month IS NULL OR due_month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
+  created_month TEXT NOT NULL CHECK(created_month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'),
+  archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1)),
+  created TEXT NOT NULL,
+  updated TEXT NOT NULL
+) STRICT;
+
+CREATE TABLE IF NOT EXISTS goal_allocations(
+  id INTEGER PRIMARY KEY,
+  goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT,
+  date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0),
+  reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT,
+  created_at TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS idx_goal_alloc ON goal_allocations(goal_id, date);
+"""
+
 SCHEMA = _TX_DDL + """
 CREATE TABLE IF NOT EXISTS categories(
   name TEXT PRIMARY KEY,
@@ -283,10 +312,10 @@ CREATE TABLE IF NOT EXISTS budgets(
 CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);
 CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);
-"""
+""" + _GOALS_DDL
 
 
-SCHEMA_VERSION = 6  # текущая версия схемы (см. Store._migrate)
+SCHEMA_VERSION = 7  # текущая версия схемы (см. Store._migrate)
 
 
 class Store:
@@ -412,6 +441,17 @@ class Store:
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant)")
         self._mark_migration(6)
 
+    def _migrate_v7(self) -> None:
+        """Цели/копилки (research 03.10): goals + append-only goal_allocations (STRICT+CHECK, FK RESTRICT).
+
+        Аддитивно: старые данные не трогаются. executescript не используется — он неявно
+        коммитит, ломая общий откат `_migrate`; DDL выполняется отдельными statements.
+        """
+        for stmt in _GOALS_DDL.split(";"):
+            if stmt.strip():
+                self.conn.execute(stmt)
+        self._mark_migration(7)
+
     def _migrate_steps(self) -> None:
         if self._user_version() < 1:
             self._mark_migration(1)
@@ -425,6 +465,8 @@ class Store:
             self._migrate_v5()
         if self._user_version() < 6:
             self._migrate_v6()
+        if self._user_version() < 7:
+            self._migrate_v7()
         self._ensure_pending_index()
 
     def _ensure_pending_index(self) -> None:
@@ -435,7 +477,7 @@ class Store:
             " WHERE review_status='pending'")
 
     def _migrate(self) -> None:
-        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency; 6 — CHECK(date).
+        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency; 6 — CHECK(date); 7 — цели/копилки.
 
         БД новее приложения — отказ (старый код молча писал бы в незнакомую схему).
         Миграции идут в одной `BEGIN IMMEDIATE`-транзакции (DDL SQLite транзакционен): падение
@@ -828,6 +870,92 @@ class Store:
     def budget_map(self) -> dict[str, int]:
         rows = self.conn.execute("SELECT category, amount_kopecks FROM budgets").fetchall()
         return {r["category"]: r["amount_kopecks"] for r in rows}
+
+    # ---- цели/копилки (v7, research 03.10) ----
+    def add_goal(self, title: str, target_kopecks: int, currency: str = "RUB",
+                 due_month: str | None = None) -> int:
+        """Создать цель («виртуальный конверт»). Валидация здесь; SQL CHECK — второй рубеж."""
+        t = (title or "").strip()
+        if not 1 <= len(t) <= 120:
+            raise ValueError("название цели: от 1 до 120 символов")
+        if not isinstance(target_kopecks, int) or target_kopecks <= 0:
+            raise ValueError("сумма цели — целое число копеек > 0")
+        code = (currency or "").strip().upper()
+        if not re.fullmatch(r"[A-Z]{3}", code):
+            raise ValueError("валюта цели — код ISO 4217 (3 латинские буквы)")
+        if due_month is not None and not valid_month(due_month):
+            raise ValueError("срок цели — формат ГГГГ-ММ (или пусто)")
+        now = _now_iso()
+        cur = self.conn.execute(
+            "INSERT INTO goals(title, target_kopecks, currency, due_month, created_month,"
+            " archived, created, updated) VALUES(?,?,?,?,?,0,?,?)",
+            (t, int(target_kopecks), code, due_month, now[:7], now, now))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def list_goals(self, include_archived: bool = False) -> list[dict]:
+        sql = "SELECT * FROM goals"
+        if not include_archived:
+            sql += " WHERE archived=0"
+        sql += " ORDER BY id"
+        return [dict(r) for r in self.conn.execute(sql).fetchall()]
+
+    def archive_goal(self, goal_id: int, archived: bool = True) -> bool:
+        """Архив вместо удаления: взносы — история (FK ON DELETE RESTRICT). False — цели нет."""
+        cur = self.conn.execute("UPDATE goals SET archived=?, updated=? WHERE id=?",
+                                (1 if archived else 0, _now_iso(), int(goal_id)))
+        self.conn.commit()
+        return cur.rowcount > 0
+
+    def add_allocation(self, goal_id: int, date: str, amount_kopecks: int) -> int:
+        """Взнос (>0) или изъятие (<0) — append-only; дата не в будущем, цель не в архиве."""
+        goal = self.conn.execute("SELECT archived FROM goals WHERE id=?",
+                                 (int(goal_id),)).fetchone()
+        if goal is None:
+            raise ValueError(f"цель {goal_id} не найдена")
+        if goal["archived"]:
+            raise ValueError("цель в архиве — взносы невозможны")
+        if not isinstance(date, str) or not _DATE_RE.match(date):
+            raise ValueError("дата взноса — формат ГГГГ-ММ-ДД")
+        try:
+            d = datetime(int(date[:4]), int(date[5:7]), int(date[8:10]), tzinfo=UTC).date()
+        except ValueError:
+            raise ValueError("дата взноса — несуществующий день") from None
+        if d > datetime.now(UTC).date():
+            raise ValueError("дата взноса — не в будущем")
+        if not isinstance(amount_kopecks, int) or amount_kopecks == 0:
+            raise ValueError("сумма взноса — целое число копеек ≠ 0")
+        cur = self.conn.execute(
+            "INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
+            " VALUES(?,?,?,?)", (int(goal_id), date, int(amount_kopecks), _now_iso()))
+        self.conn.commit()
+        return int(cur.lastrowid)
+
+    def list_allocations(self, goal_id: int) -> list[dict]:
+        rows = self.conn.execute(
+            "SELECT * FROM goal_allocations WHERE goal_id=? ORDER BY date, id",
+            (int(goal_id),)).fetchall()
+        return [dict(r) for r in rows]
+
+    def goal_progress(self, goal_id: int) -> dict:
+        """Прогресс считается на лету (derived не храним) — подписанная сумма взносов."""
+        goal = self.conn.execute("SELECT * FROM goals WHERE id=?", (int(goal_id),)).fetchone()
+        if goal is None:
+            raise ValueError(f"цель {goal_id} не найдена")
+        agg = self.conn.execute(
+            "SELECT COALESCE(SUM(amount_kopecks), 0) AS s, COUNT(*) AS n"
+            " FROM goal_allocations WHERE goal_id=?", (int(goal_id),)).fetchone()
+        allocated, target = int(agg["s"]), int(goal["target_kopecks"])
+        return {
+            "goal_id": int(goal_id),
+            "title": goal["title"],
+            "currency": goal["currency"],
+            "target_kopecks": target,
+            "allocated_kopecks": allocated,
+            "remaining_kopecks": max(0, target - allocated),
+            "allocations": int(agg["n"]),
+            "done": allocated >= target,
+        }
 
     # ---- import batches ----
     def add_batch(self, filename: str, sha: str, nrows: int, commit: bool = True) -> str:
