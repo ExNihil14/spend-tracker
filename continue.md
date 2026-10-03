@@ -83,7 +83,12 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > **Тикет get_one-whitelist закрыт (03.10, TDD):** `GET /api/transactions/{id}` — `response_model=TxOut`
 > (публичный whitelist: без fingerprint/account_anon/export_rowid/import_batch); +тест «ровно эти поля»;
 > контур 789 unit + 93 e2e; contract snapshot (api 328→341, components обновлены).
-> Следующий шаг очереди — CHECK(date)-миграция.
+> **Тикет CHECK(date)-миграция закрыт (03.10, TDD):** schema **v6** — `CHECK(date GLOB 'YYYY-MM-DD')` на
+> `transactions` (щит слоя данных); легаси-апгрейд — пересборка таблицы (пересечение колонок, backfill NULL
+> created/updated); мусорные даты блокируют миграцию явной ошибкой (pre-migration-снимок рядом). +3 теста
+> (fresh-мусор / апгрейд v4→v6 / блокировка); контур 792 unit + 93 e2e; copy-check на копии прод-БД:
+> 8/8 строк, CHECK ok; live: прод и демо — на v6, `doctor: OK`, count 8/8. Contract snapshot (schema v6).
+> Следующий шаг очереди — двойной коммит approve_review / TOCTOU approve-all (или Dash-бэклог).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
