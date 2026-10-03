@@ -113,6 +113,11 @@ def _validation_422(exc: ValidationError) -> HTTPException:
     return HTTPException(422, detail=errors)
 
 
+# Dash 4.8 (тикет 03.10): тело /api/transactions ограничено ДО чтения JSON — поля ≤512 символов,
+# гигабайты в память ради последующего 422 не читаем.
+MAX_JSON_BYTES = 64 * 1024
+
+
 async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
     """Разбор JSON-тела: битая кодировка/не-объект → 400, неверные поля → 422 (а не 500)."""
     try:
@@ -132,6 +137,12 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
     ct = request.headers.get("content-type", "application/json")
     if "application/json" in ct:
+        try:
+            clen = int(request.headers.get("content-length") or 0)
+        except ValueError:
+            clen = 0
+        if clen > MAX_JSON_BYTES:  # Dash 4.8: лимит до парсинга (413 вместо чтения в память)
+            raise HTTPException(413, detail=f"тело превышает {MAX_JSON_BYTES // 1024} КБ")
         tx = await _json_payload(request, TxIn)
     else:
         form = await request.form()
@@ -370,7 +381,10 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
             except ValueError:
                 clen = 0
             if clen > 2 * MAX_CSV_BYTES:  # аудит 24.09: JSON читался целиком без лимита
-                raise HTTPException(413, detail=f"тело превышает {2 * MAX_CSV_BYTES // (1024 * 1024)} МБ")
+                msg = f"тело превышает {2 * MAX_CSV_BYTES // (1024 * 1024)} МБ"
+                if is_hx:  # HX-413 (тикет 03.10): дружелюбный фрагмент, как у multipart-лимита
+                    return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(msg)}</p>')
+                raise HTTPException(413, detail=msg)
             body = await _json_payload(request, ImportIn)
             raw: str | bytes = body.csv
             bank, filename = body.bank, "api.json"

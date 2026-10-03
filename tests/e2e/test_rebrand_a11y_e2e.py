@@ -141,14 +141,11 @@ def test_poster_focus_ring_is_light(page: Page, live_server):
     """
     page.goto(f"{live_server}/approve")
     expect(page.locator("#review-empty .poster")).to_be_visible()
-    for _ in range(40):
-        page.keyboard.press("Tab")
-        focused_in_poster = page.evaluate(
-            "() => !!(document.activeElement && document.activeElement.closest('#review-empty .poster'))")
-        if focused_in_poster:
-            break
-    else:
-        raise AssertionError("табом не дошли до CTA внутри постера")
+    # Dash 4.6 (#3): прямой фокус вместо хрупкого tab-loop до 40 итераций (ломается при новых
+    # фокусируемых элементах до постера); цель теста — computed-цвет кольца, а не порядок табов.
+    page.locator("#review-empty .poster a").first.focus()
+    assert page.evaluate(
+        "() => !!(document.activeElement && document.activeElement.closest('#review-empty .poster'))")
     # transition-colors анимирует и outline-color — ждём конечного значения (иначе читаем промежуточный кадр)
     page.wait_for_function(
         "() => getComputedStyle(document.activeElement).outlineColor === 'rgb(255, 255, 255)'",
@@ -180,9 +177,14 @@ def test_chart_instances_do_not_leak_on_month_swaps(page: Page, live_server, db_
 
     page.goto(f"{live_server}/dashboard")
     page.wait_for_function("() => window.Chart && Chart.getChart('dailyChart')")
-    for _ in range(5):  # Сен→Авг→Июл→Июн→Май→Апр: остаёмся в месяцах с данными
+    # Dash 4.6 (#2): без wait_for_timeout — ждём детерминированно URL месяца И перерисовку чарта
+    # (boost-свап: push-url + Chart после beforeSwap/load), иначе тест флакует на медленной машине.
+    for month in ("2026-08", "2026-07", "2026-06", "2026-05", "2026-04"):
         page.click('a[aria-label="Предыдущий месяц"]')
-        page.wait_for_timeout(250)
+        page.wait_for_function(
+            "(m) => location.search.includes('month=' + m)"
+            " && window.Chart && Chart.getChart('dailyChart')",
+            arg=month, timeout=5000)
     page.wait_for_function("() => window.Chart && Chart.getChart('dailyChart')")
     count = page.evaluate("() => Object.keys(window.Chart.instances).length")
     assert count <= 2, f"инстансов Chart.js: {count} (ожидалось ≤2 — по канвасам страницы)"

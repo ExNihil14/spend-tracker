@@ -812,6 +812,10 @@
    "args": "str = ",
    "returns": ""
   },
+  "spendtrack.routers.api:MAX_JSON_BYTES": {
+   "args": "64 * 1024",
+   "returns": ""
+  },
   "spendtrack.routers.api:TxIn.account": {
    "args": "str | None = Field(default=None, max_length=128)",
    "returns": ""

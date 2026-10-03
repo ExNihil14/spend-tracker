@@ -39,6 +39,22 @@ def test_get_one_returns_whitelist_only(client):
     assert not {"fingerprint", "account_anon", "export_rowid", "import_batch"} & set(body)
 
 
+def test_create_json_body_limit_413(client, monkeypatch):
+    """Dash 4.8 (тикет 03.10): тело POST /api/transactions ограничено ДО парсинга JSON."""
+    monkeypatch.setattr("spendtrack.routers.api.MAX_JSON_BYTES", 100)
+    r = client.post("/api/transactions",
+                    json={"date": "2026-09-12", "description": "x" * 200, "amount": "-1"})
+    assert r.status_code == 413
+
+
+def test_import_json_over_limit_hx_fragment(client, monkeypatch):
+    """HX-413 (тикет 03.10): переразмерный JSON в /api/import для htmx — фрагмент, а не сырой 413."""
+    monkeypatch.setattr("spendtrack.routers.api.MAX_CSV_BYTES", 10)
+    r = client.post("/api/import", json={"bank": "auto", "csv": "x" * 100},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200 and "Ошибка импорта" in r.text
+
+
 def test_api_budgets(client):
     """Бюджеты: настройка через /settings, прогресс через GET /api/budgets (месяц последней транзакции)."""
     r = client.post("/settings/budgets", data={"category": "groceries", "amount": "2000"})
