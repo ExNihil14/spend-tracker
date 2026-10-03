@@ -11,7 +11,7 @@ from spendtrack.categorize import categorize_transaction
 from spendtrack.config import base_currency
 from spendtrack.console import utf8_stdout
 from spendtrack.reports import confidence_calibration, report_month
-from spendtrack.store import Store, fmt_amount, normalize_currency, parse_amount
+from spendtrack.store import Store, fmt_amount, fmt_money, normalize_currency, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
 
@@ -162,6 +162,56 @@ def cmd_budget(args) -> int:
     return 0
 
 
+def cmd_goal(args) -> int:
+    """Цели/копилки (Ф1): list / add / allocate / archive; прогресс — на лету."""
+    from spendtrack.goals import goals_overview
+    store = make_store()
+    if args.goal_cmd == "list":
+        rows = goals_overview(store, include_archived=args.all)
+        if args.json:
+            print(json.dumps([{k: v for k, v in g.items() if k != "allocations"} for g in rows],
+                             ensure_ascii=False, indent=2))
+            return 0
+        if not rows:
+            print('Целей нет. Создать: spendtrack goal add "Отпуск" --target 150000')
+            return 0
+        for g in rows:
+            due = f", срок {g['due_month']}" if g["due_month"] else ""
+            state = " — цель набрана" if g["done"] else ""
+            archived = " [архив]" if g["archived"] else ""
+            print(f"  #{g['id']} {g['title']:<24} {g['pct']:>3}%"
+                  f"  {fmt_money(g['allocated_kopecks'], g['currency'], signed=False):>14}"
+                  f" из {fmt_money(g['target_kopecks'], g['currency'], signed=False):>14}{due}{state}{archived}")
+        return 0
+    if args.goal_cmd == "add":
+        try:
+            gid = store.add_goal(args.title, parse_amount(args.target),
+                                 currency=args.currency, due_month=args.due)
+        except ValueError as e:
+            print(f"ошибка: {e}", file=sys.stderr)
+            return 2
+        prog = store.goal_progress(gid)
+        print(f"OK цель #{gid}: {args.title} — {fmt_money(prog['target_kopecks'], prog['currency'], signed=False)}")
+        return 0
+    if args.goal_cmd == "allocate":
+        try:
+            aid = store.add_allocation(args.goal_id, args.date or date.today().isoformat(),  # noqa: DTZ011 — локальная календарная дата (как в cmd_budget)
+                                       parse_amount(args.amount))
+        except ValueError as e:
+            print(f"ошибка: {e}", file=sys.stderr)
+            return 2
+        prog = store.goal_progress(args.goal_id)
+        print(f"OK взнос #{aid}: {fmt_money(parse_amount(args.amount), prog['currency'], signed=True)}"
+              f" — прогресс {fmt_money(prog['allocated_kopecks'], prog['currency'], signed=False)}"
+              f" из {fmt_money(prog['target_kopecks'], prog['currency'], signed=False)}")
+        return 0
+    if not store.archive_goal(args.goal_id):  # archive
+        print(f"ошибка: цель #{args.goal_id} не найдена", file=sys.stderr)
+        return 2
+    print(f"OK цель #{args.goal_id} в архиве")
+    return 0
+
+
 def cmd_recurring(args) -> int:
     from spendtrack.recurring import recurring_summary
     store = make_store()
@@ -227,11 +277,17 @@ def cmd_digest(args) -> int:
     for u in digest["upcoming"]:
         when = (f"через {u['days_until']} дн" if u["days_until"] >= 0
                 else f"просрочено на {-u['days_until']} дн")
-        print(f"  Ожидается: {u['merchant']:<20} {fmt_amount(-u['price_k']):>10} ₽"
+        print(f"  Ожидается: {u['merchant']:<20} {fmt_money(-u['price_k'], signed=False):>14}"
               f"  {u['next_expected']} ({when})")
     print(f"  Аномалии: {len(digest['anomalies'])}")
     for a in digest["anomalies"]:
         print(f"    [{a['label']}] {a['date']} {a['merchant']}: {a['detail']}")
+    from spendtrack.goals import goals_overview
+    goals = goals_overview(store)
+    if goals:
+        preview = ", ".join(f"«{g['title']}» {g['pct']}%" for g in goals[:3])
+        more = f" и ещё {len(goals) - 3}" if len(goals) > 3 else ""
+        print(f"  Цели: {preview}{more}")
     return 0
 
 
@@ -478,6 +534,25 @@ def main(argv: list[str] | None = None) -> int:
     a_bg = sub.add_parser("budget", help="прогресс по бюджетам категорий")
     a_bg.add_argument("--month", default=None)
     a_bg.set_defaults(fn=cmd_budget)
+
+    a_goal = sub.add_parser("goal", help="цели/копилки: list / add / allocate / archive")
+    gsub = a_goal.add_subparsers(dest="goal_cmd", required=True)
+    g_list = gsub.add_parser("list", help="список целей с прогрессом")
+    g_list.add_argument("--all", action="store_true", help="включая архивные")
+    g_list.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
+    g_add = gsub.add_parser("add", help="создать цель")
+    g_add.add_argument("title")
+    g_add.add_argument("--target", required=True, help="сумма цели, напр. '150 000'")
+    g_add.add_argument("--due", default=None, help="срок YYYY-MM (необязательно)")
+    g_add.add_argument("--currency", type=_currency_arg, default=None,
+                       help="код валюты ISO 4217 (по умолчанию — базовая из настроек)")
+    g_alloc = gsub.add_parser("allocate", help="взнос «+» или изъятие «−»")
+    g_alloc.add_argument("goal_id", type=int)
+    g_alloc.add_argument("amount", help="напр. '25 000' или '-5000'")
+    g_alloc.add_argument("--date", type=_date_arg, default=None, help="YYYY-MM-DD (по умолчанию сегодня)")
+    g_arch = gsub.add_parser("archive", help="убрать цель в архив")
+    g_arch.add_argument("goal_id", type=int)
+    a_goal.set_defaults(fn=cmd_goal)
 
     a_doc = sub.add_parser("doctor", help="проверка целостности данных")
     a_doc.add_argument("--json", action="store_true", help="машинный вывод (JSON)")

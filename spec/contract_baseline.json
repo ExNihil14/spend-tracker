@@ -180,6 +180,10 @@
    "args": "args",
    "returns": "int"
   },
+  "spendtrack.cli:cmd_goal": {
+   "args": "args",
+   "returns": "int"
+  },
   "spendtrack.cli:cmd_import": {
    "args": "args",
    "returns": "int"
@@ -640,6 +644,14 @@
    "args": "txs: Iterable[dict], path_or_stream: str | Path | io.BytesIO",
    "returns": "int"
   },
+  "spendtrack.goals:goals_overview": {
+   "args": "store: Store, include_archived: bool=False",
+   "returns": "list[dict]"
+  },
+  "spendtrack.goals:goals_snapshot": {
+   "args": "store: Store",
+   "returns": "dict"
+  },
   "spendtrack.llm:LLMProvider.__decorators__": {
    "args": "@dataclass(frozen=True)",
    "returns": ""
@@ -816,6 +828,22 @@
    "args": "str = ",
    "returns": ""
   },
+  "spendtrack.routers.api:GoalIn.currency": {
+   "args": "str | None = None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:GoalIn.due_month": {
+   "args": "str | None = None",
+   "returns": ""
+  },
+  "spendtrack.routers.api:GoalIn.target": {
+   "args": "str = Field(max_length=64)",
+   "returns": ""
+  },
+  "spendtrack.routers.api:GoalIn.title": {
+   "args": "str = Field(max_length=120)",
+   "returns": ""
+  },
   "spendtrack.routers.api:ImportIn.bank": {
    "args": "str = 'auto'",
    "returns": ""
@@ -900,12 +928,20 @@
    "args": "str | None = None",
    "returns": ""
   },
+  "spendtrack.routers.api:allocate_goal": {
+   "args": "request: Request, goal_id: int, store: Annotated[Store, Depends(get_store)]",
+   "returns": ""
+  },
   "spendtrack.routers.api:approve_all": {
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:approve_review": {
    "args": "request: Request, tx_id: int, store: Annotated[Store, Depends(get_store)]",
+   "returns": ""
+  },
+  "spendtrack.routers.api:archive_goal": {
+   "args": "request: Request, goal_id: int, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.api:budgets": {
@@ -917,6 +953,10 @@
    "returns": ""
   },
   "spendtrack.routers.api:create": {
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
+   "returns": ""
+  },
+  "spendtrack.routers.api:create_goal": {
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
@@ -962,6 +1002,10 @@
   },
   "spendtrack.routers.frontend:export_xlsx": {
    "args": "store: Annotated[Store, Depends(get_store)], month: str | None=None, category: str | None=None, q: str | None=None",
+   "returns": ""
+  },
+  "spendtrack.routers.frontend:goals_page": {
+   "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
    "returns": ""
   },
   "spendtrack.routers.frontend:help_page": {
@@ -1420,12 +1464,16 @@
   "GET /dashboard": "b67aa5b64d75",
   "GET /export.csv": "faec837bb47f",
   "GET /export.xlsx": "faec837bb47f",
+  "GET /goals": "8c19c725fd2c",
   "GET /health": "3f945ca0cf6b",
   "GET /health/data": "1ca08b2f9205",
   "GET /help": "8c19c725fd2c",
   "GET /settings": "8c19c725fd2c",
   "GET /transactions/more": "115a21cad54f",
   "PATCH /api/transactions/{tx_id}": "d9157cd8f817",
+  "POST /api/goals": "3f945ca0cf6b",
+  "POST /api/goals/{goal_id}/allocate": "1502c7a117f3",
+  "POST /api/goals/{goal_id}/archive": "1502c7a117f3",
   "POST /api/import": "3f945ca0cf6b",
   "POST /api/reviews/approve-all": "8c19c725fd2c",
   "POST /api/reviews/{tx_id}/approve": "dfe579b5cfce",

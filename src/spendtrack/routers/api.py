@@ -26,6 +26,7 @@ from spendtrack.csv_import import (
     summarize,
 )
 from spendtrack.deps import get_store
+from spendtrack.goals import goals_snapshot
 from spendtrack.reports import budgets_progress
 from spendtrack.store import (
     Store,
@@ -95,6 +96,36 @@ class TxIn(BaseModel):
 
 class ConfirmIn(BaseModel):
     category: str
+
+
+class GoalIn(BaseModel):
+    """JSON-создание цели (CLI/тесты); htmx-форма идёт мимо модели — из form-data."""
+
+    title: str = Field(max_length=120)
+    target: str = Field(max_length=64)  # строка как у TxIn.amount: парсим в копейки
+    currency: str | None = None
+    due_month: str | None = None
+
+    @field_validator("target")
+    @classmethod
+    def _valid_target(cls, v: str) -> str:
+        try:
+            kopecks = parse_amount(v)
+        except (InvalidOperation, ValueError, OverflowError) as e:
+            raise ValueError("сумма цели не распознана") from e
+        if not 0 < kopecks <= MAX_AMOUNT_KOPECKS:
+            raise ValueError(f"сумма цели — больше нуля и до {fmt_money(MAX_AMOUNT_KOPECKS, signed=False)}")
+        return v
+
+    @field_validator("currency")
+    @classmethod
+    def _valid_goal_currency(cls, value: str | None) -> str | None:
+        if value is None or not str(value).strip():
+            return None  # пусто → базовая валюта настроек (резолвится в Store)
+        code = normalize_currency(value)
+        if code is None:
+            raise ValueError("Неизвестная валюта (ожидается код ISO 4217, например RUB/BYN)")
+        return code
 
 
 class ImportIn(BaseModel):
@@ -420,3 +451,55 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
             return HTMLResponse('<p class="text-danger">Пустой файл</p>')
         return HTMLResponse(f'<p class="text-info">Импортировано: {escape(summarize(result))}</p>')
     return result
+
+
+# ---- цели/копилки (Ф1: страница /goals + htmx-формы; движок — Ф2) ----
+
+def _goals_html(request: Request, store: Store) -> str:
+    """Фрагмент списка целей (htmx-свап после create/allocate/archive)."""
+    return templates.TemplateResponse(
+        request, "partials/goals_list.html", goals_snapshot(store)).body.decode()
+
+
+@router.post("/goals")
+async def create_goal(request: Request, store: Annotated[Store, Depends(get_store)]):
+    """Создать цель: JSON → {"id": N}; htmx-форма → обновлённый список + toast."""
+    ct = request.headers.get("content-type", "application/json")
+    if "application/json" in ct:
+        data = await _json_payload(request, GoalIn)
+        try:
+            gid = store.add_goal(data.title, parse_amount(data.target),
+                                 currency=data.currency, due_month=data.due_month)
+        except ValueError as e:
+            raise HTTPException(422, str(e)) from None
+        return {"id": gid}
+    form = await request.form()
+    try:
+        store.add_goal(str(form.get("title") or ""),
+                       parse_amount(str(form.get("target") or "")),
+                       currency=str(form.get("currency") or "") or None,
+                       due_month=str(form.get("due_month") or "") or None)
+    except (ValueError, InvalidOperation) as e:
+        return HTMLResponse(
+            f'<p class="text-danger text-sm">Не получилось: {escape(str(e) or "проверьте поля")}</p>')
+    return HTMLResponse(_goals_html(request, store) + oob_toast("Цель создана"))
+
+
+@router.post("/goals/{goal_id}/allocate")
+async def allocate_goal(request: Request, goal_id: int, store: Annotated[Store, Depends(get_store)]):
+    """Взнос (>0) или изъятие (<0); дата по умолчанию — сегодня."""
+    form = await request.form()
+    try:
+        store.add_allocation(goal_id, str(form.get("date") or "") or date.today().isoformat(),  # noqa: DTZ011 — локальная дата формы
+                             parse_amount(str(form.get("amount") or "")))
+    except (ValueError, InvalidOperation) as e:
+        return HTMLResponse(
+            f'<p class="text-danger text-sm">Не получилось: {escape(str(e) or "проверьте поля")}</p>')
+    return HTMLResponse(_goals_html(request, store) + oob_toast("Взнос записан"))
+
+
+@router.post("/goals/{goal_id}/archive")
+async def archive_goal(request: Request, goal_id: int, store: Annotated[Store, Depends(get_store)]):
+    if not store.archive_goal(goal_id):
+        raise HTTPException(404, "цель не найдена")
+    return HTMLResponse(_goals_html(request, store) + oob_toast("Цель в архиве"))

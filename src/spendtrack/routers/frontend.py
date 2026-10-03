@@ -16,6 +16,7 @@ from spendtrack.config import PKG_DIR, base_currency, load_settings
 from spendtrack.deps import get_store
 from spendtrack.digest import build_digest
 from spendtrack.export import csv_bytes, export_filename, write_xlsx
+from spendtrack.goals import goals_snapshot
 from spendtrack.recurring import detect_recurring, recurring_summary
 from spendtrack.reports import (
     budgets_progress,
@@ -105,6 +106,12 @@ def index(request: Request, store: Annotated[Store, Depends(get_store)], month: 
             "first_run": not has_any and store.batch_count() == 0,
         },
     )
+
+
+@router.get("/goals", response_class=HTMLResponse)
+def goals_page(request: Request, store: Annotated[Store, Depends(get_store)]):
+    """Страница целей/копилок (Ф1): прогресс, формы взносов, журнал, архив."""
+    return templates.TemplateResponse(request, "goals.html", goals_snapshot(store))
 
 
 @router.get("/export.csv")

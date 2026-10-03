@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="max-w-3xl">
+  <h1 class="text-xl font-semibold text-fg-strong mb-1">Цели</h1>
+  <p class="text-sm text-fg-muted mb-5">
+    Виртуальный конверт: вы отмечаете, сколько отложено «на цель». Деньги на счёте не блокируются —
+    это учёт намерения, приложение только считает прогресс.
+  </p>
+
+  <form hx-post="/api/goals" hx-target="#goals-list" hx-swap="outerHTML"
+        class="bg-surface border border-line rounded-2xl p-4 mb-6 grid gap-3 sm:grid-cols-[1fr_11rem_10rem_auto] sm:items-end">
+    <label class="block">
+      <span class="block text-xs text-fg-muted mb-1">Название</span>
+      <input name="title" required maxlength="120" placeholder="отпуск, подушка…"
+             class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm">
+    </label>
+    <label class="block">
+      <span class="block text-xs text-fg-muted mb-1">Сумма цели</span>
+      <input name="target" required placeholder="150 000" inputmode="decimal"
+             class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm">
+    </label>
+    <label class="block">
+      <span class="block text-xs text-fg-muted mb-1">Срок (месяц, необязательно)</span>
+      <input name="due_month" type="month"
+             class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm">
+    </label>
+    <button class="rounded-lg bg-accent-bg text-on-accent px-4 py-2 text-sm font-medium">Создать</button>
+  </form>
+
+  {% include "partials/goals_list.html" %}
+</section>
+{% endblock %}

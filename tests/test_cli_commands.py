@@ -44,6 +44,23 @@ def test_cli_count_prints_source_json(cli_db, capsys):
     assert json.loads(capsys.readouterr().out) == {"rule": 2}
 
 
+def test_cli_goal_add_list_allocate(cli_db, capsys):
+    """Ф1 целей: CLI goal add/allocate/list — публичный интерфейс (машинные суммы)."""
+    assert cli.main(["goal", "add", "Отпуск", "--target", "100 000"]) == 0
+    assert cli.main(["goal", "allocate", "1", "25 000"]) == 0
+    assert cli.main(["goal", "list"]) == 0
+    out = capsys.readouterr().out
+    assert "Отпуск" in out and "25%" in out
+
+    assert cli.main(["goal", "list", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload[0]["pct"] == 25 and payload[0]["allocated_kopecks"] == 2_500_000
+
+    assert cli.main(["goal", "archive", "1"]) == 0
+    assert cli.main(["goal", "list"]) == 0
+    assert "Целей нет" in capsys.readouterr().out
+
+
 def test_cli_import_cp1251_file_and_real_filename(tmp_path, monkeypatch, capsys):
     """CLI-импорт: cp1251-файл читается (bytes-путь), имя партии — из файла (ресёрч слоёв 23.09)."""
     db = tmp_path / "imp.db"

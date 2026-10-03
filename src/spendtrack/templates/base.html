@@ -59,6 +59,7 @@
     </a>
     <a href="/" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path == '/' else pill_off }} transition-colors"{% if path == '/' %} aria-current="page"{% endif %}>Расходы</a>
     <a href="/dashboard" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/dashboard') else pill_off }} transition-colors"{% if path.startswith('/dashboard') %} aria-current="page"{% endif %}>Дашборд</a>
+    <a href="/goals" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/goals') else pill_off }} transition-colors"{% if path.startswith('/goals') %} aria-current="page"{% endif %}>Цели</a>
     <a href="/settings" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/settings') else pill_off }} transition-colors"{% if path.startswith('/settings') %} aria-current="page"{% endif %}>Настройки</a>
     <a href="/approve" class="nav-pill px-3 py-1.5 rounded-full text-sm font-medium {{ pill_on if path.startswith('/approve') else pill_off }} transition-colors"{% if path.startswith('/approve') %} aria-current="page"{% endif %}>Подтвердить
       <span id="pending-count" class="chip-pop ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-warn-soft text-warn">{{ pending | default([]) | length }}</span>

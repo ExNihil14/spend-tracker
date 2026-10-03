@@ -1,0 +1,79 @@
+<section id="goals-list" class="grid gap-4">
+  {% if not goals and not archived %}
+  <div class="bg-surface border border-line rounded-2xl p-6 text-sm text-fg-muted">
+    Пока нет целей. Создайте первую — например, «Отпуск» или «Подушка»: укажите сумму и срок,
+    прогресс появится здесь. Деньги на счёте не блокируются.
+  </div>
+  {% endif %}
+
+  {% for g in goals %}
+  <article class="bg-surface border border-line rounded-2xl p-4">
+    <div class="flex items-baseline justify-between gap-3 flex-wrap">
+      <h2 class="font-medium text-fg-strong">{{ g.title }}</h2>
+      <span class="text-xs text-fg-muted">
+        {% if g.due_month %}срок: {{ fmt_month(g.due_month) }} · {% endif %}взносов: {{ g.allocations_count }}
+      </span>
+    </div>
+    <div class="mt-2 text-sm">
+      <span class="text-fg">{{ fmt_money(g.allocated_kopecks, g.currency, signed=False) }}</span>
+      <span class="text-fg-muted"> из {{ fmt_money(g.target_kopecks, g.currency, signed=False) }}</span>
+      {% if g.done %}
+      <span class="ml-2 text-income">цель набрана</span>
+      {% else %}
+      <span class="text-fg-muted">· осталось {{ fmt_money(g.remaining_kopecks, g.currency, signed=False) }}</span>
+      {% endif %}
+    </div>
+    <div role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ g.pct }}"
+         aria-label="Прогресс цели «{{ g.title }}»: {{ g.pct }}%"
+         class="mt-3 h-2 rounded-full bg-line overflow-hidden">
+      <div class="h-full rounded-full {{ 'bg-income' if g.done else 'bg-accent-bg' }}" style="width: {{ g.pct }}%"></div>
+    </div>
+    <div class="mt-4 flex flex-wrap items-end gap-4">
+      <form hx-post="/api/goals/{{ g.id }}/allocate" hx-target="#goals-list" hx-swap="outerHTML"
+            class="flex items-end gap-2">
+        <label class="block">
+          <span class="block text-xs text-fg-muted mb-1">Взнос «+» / изъятие «−»</span>
+          <input name="amount" required placeholder="5 000" inputmode="decimal"
+                 aria-label="Сумма взноса: плюс — пополнение, минус — изъятие"
+                 class="w-32 rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm">
+        </label>
+        <label class="block">
+          <span class="block text-xs text-fg-muted mb-1">Дата</span>
+          <input name="date" type="date" value="{{ today }}" max="{{ today }}" aria-label="Дата взноса"
+                 class="rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm">
+        </label>
+        <button class="rounded-lg border border-line-strong px-3 py-1.5 text-sm">Записать</button>
+      </form>
+      <form hx-post="/api/goals/{{ g.id }}/archive" hx-target="#goals-list" hx-swap="outerHTML"
+            hx-confirm="Убрать цель «{{ g.title }}» в архив? История взносов сохранится.">
+        <button class="text-xs text-fg-muted underline">В архив</button>
+      </form>
+    </div>
+    {% if g.allocations %}
+    <details class="mt-3">
+      <summary class="text-xs text-fg-muted cursor-pointer">Журнал взносов</summary>
+      <ul class="mt-2 text-xs text-fg-muted grid gap-1">
+        {% for a in g.allocations|reverse %}
+        <li>{{ fmt_date(a.date) }} — <span class="text-fg">{{ fmt_money(a.amount_kopecks, g.currency) }}</span></li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+  </article>
+  {% endfor %}
+
+  {% if archived %}
+  <details class="bg-surface border border-line rounded-2xl p-4">
+    <summary class="text-sm text-fg-muted cursor-pointer">Архив ({{ archived|length }})</summary>
+    <ul class="mt-2 text-sm grid gap-2">
+      {% for g in archived %}
+      <li class="flex justify-between gap-3 flex-wrap">
+        <span class="text-fg-muted">{{ g.title }}</span>
+        <span class="text-xs text-fg-muted">{{ fmt_money(g.allocated_kopecks, g.currency, signed=False) }} из
+          {{ fmt_money(g.target_kopecks, g.currency, signed=False) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
