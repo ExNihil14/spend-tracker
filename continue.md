@@ -80,6 +80,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (build → run fresh volume → health → doctor/paths → cleanup, actions запинены, timeout 20 мин).
 > Локальный прогон-доказательство: образ собрался, health 200, `doctor: OK` (15 чеков, включая
 > `settings_config`), `paths` — installed-раскладка /data; SMOKE OK.
+> **Тикет get_one-whitelist закрыт (03.10, TDD):** `GET /api/transactions/{id}` — `response_model=TxOut`
+> (публичный whitelist: без fingerprint/account_anon/export_rowid/import_batch); +тест «ровно эти поля»;
+> контур 789 unit + 93 e2e; contract snapshot (api 328→341, components обновлены).
+> Следующий шаг очереди — CHECK(date)-миграция.
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
