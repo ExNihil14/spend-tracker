@@ -93,6 +93,12 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > SELECT..UPDATE + откат всего пакета при сбое (P1-5); `approve_review` — UPDATE + few-shot-кэш **одной
 > транзакцией** (P1-7): сбой seed откатывает approve; публичные сигнатуры без изменений. +2 теста;
 > контур 794 unit + 93 e2e. Следующий шаг — Dash-бэклог (e2e-ниты, лимит тела POST, HX-413).
+> **Dash-бэклог закрыт (03.10, TDD):** `POST /api/transactions` — лимит JSON-тела `MAX_JSON_BYTES`=64 КБ
+> (413 до парсинга); `/api/import` — переразмерный JSON для htmx отдаёт дружелюбный фрагмент (HX-413);
+> e2e-ниты — вместо `wait_for_timeout(250)` детерминированное ожидание (URL месяца + Chart), вместо
+> tab-loop 40 — прямой `focus()` CTA. +2 unit-теста; контур 796 unit + 93 e2e; contract snapshot (api 342).
+> **Очередь тикетов пуста.** Дальше — продуктовые решения: копилки (research 03.10; schema будет v7 —
+> v6 занята CHECK(date)) или слой ②⁺ (Abacus/Zen).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
