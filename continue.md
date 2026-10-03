@@ -71,6 +71,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (порог `SPENDTRACK_LAZY_BACKUP_HOURS`, дефолт 168 ч, 0 — выключить; lock/ротация/никогда не бросает);
 > `cmd_serve` сообщает о созданном снимке, сбой — warning. +5 тестов; контур 784 unit + 93 e2e;
 > contract snapshot (api 327); live на temp-БД: created → fresh. Следующий шаг очереди — S1 (settings-merge).
+> **Тикет S1 закрыт (03.10, TDD):** `load_settings` — merge «пакетные дефолты ← пользовательский TOML»
+> (+ терпимость к BOM от Windows-редакторов); `doctor`: новый чек `settings_config` (critical вместо крэша),
+> `build_usage_summary` не падает при битом конфиге; `paths_info` печатает раскладку без Settings. +4 теста;
+> контур 788 unit + 93 e2e; contract snapshot (api 328); live: неполный+BOM settings.toml → merge (port/db/llm).
+> Следующий шаг очереди — CI-smoke установки (docker build+run+doctor).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
