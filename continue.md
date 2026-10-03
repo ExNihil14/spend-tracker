@@ -89,6 +89,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (fresh-мусор / апгрейд v4→v6 / блокировка); контур 792 unit + 93 e2e; copy-check на копии прод-БД:
 > 8/8 строк, CHECK ok; live: прод и демо — на v6, `doctor: OK`, count 8/8. Contract snapshot (schema v6).
 > Следующий шаг очереди — двойной коммит approve_review / TOCTOU approve-all (или Dash-бэклог).
+> **Тикет TOCTOU/двойной коммит закрыт (03.10, TDD):** `approve_all_reviews` — `BEGIN IMMEDIATE` вокруг
+> SELECT..UPDATE + откат всего пакета при сбое (P1-5); `approve_review` — UPDATE + few-shot-кэш **одной
+> транзакцией** (P1-7): сбой seed откатывает approve; публичные сигнатуры без изменений. +2 теста;
+> контур 794 unit + 93 e2e. Следующий шаг — Dash-бэклог (e2e-ниты, лимит тела POST, HX-413).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:

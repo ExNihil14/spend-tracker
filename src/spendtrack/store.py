@@ -566,16 +566,26 @@ class Store:
         return row["c"]
 
     def approve_review(self, tx_id: int, category: str) -> bool:
-        """Человек подтвердил предложенную категорию (или переопределил)."""
+        """Человек подтвердил предложенную категорию (или переопределил).
+
+        P1-7 (тикет 03.10): approve и few-shot-кэш — одна транзакция; сбой кэша откатывает approve
+        (раньше UPDATE коммитился до seed — крах оставлял «одобрено без кэша», повторный approve невозможен).
+        """
         cur = self.conn.execute(
             "UPDATE transactions SET category=?, category_source='rule', review_status='approved',"
             " updated=? WHERE id=? AND review_status='pending'",
             (category, _now_iso(), tx_id),
         )
+        if not cur.rowcount:
+            self.conn.rollback()
+            return False
+        try:
+            self._seed_merchant_cache_no_commit(tx_id)
+        except BaseException:
+            self.conn.rollback()
+            raise
         self.conn.commit()
-        if cur.rowcount:
-            self.seed_merchant_cache(tx_id)
-        return cur.rowcount > 0
+        return True
 
     def skip_review(self, tx_id: int) -> bool:
         cur = self.conn.execute(
@@ -596,34 +606,39 @@ class Store:
         LLM-догадка из пачки не должна перетирать ручную правку человека, уже лежащую в кэше
         (одиночный approve — осознанный выбор юзера, там upsert).
         """
-        where, extra = "review_status='pending'", []
-        if min_confidence > 0:
-            where += " AND confidence >= ?"
-            extra.append(min_confidence)
-        cat_expr, known_params = "COALESCE(category_llm, category, 'other')", []
-        if known:
-            ph = ",".join("?" * len(known))
-            cat_expr = (f"CASE WHEN category_llm IN ({ph}) THEN category_llm"
-                        " ELSE COALESCE(category, 'other') END")
-            known_params = sorted(known)
-        rows = self.conn.execute(
-            f"SELECT merchant, {cat_expr} AS cat FROM transactions WHERE {where}",
-            [*known_params, *extra]).fetchall()
-        now = _now_iso()
-        cur = self.conn.execute(
-            f"UPDATE transactions SET category={cat_expr},"
-            f" category_source='rule', review_status='approved', updated=? WHERE {where}",
-            [*known_params, now, *extra],
-        )
-        for r in rows:
-            if r["merchant"]:
-                key = hashlib.sha1(r["merchant"].upper().encode()).hexdigest()
-                self.conn.execute(
-                    "INSERT OR IGNORE INTO merchant_cache(key, merchant, category, updated)"
-                    " VALUES(?,?,?,?)",
-                    (key, r["merchant"], r["cat"], now),
-                )
-        self.conn.commit()
+        self.conn.execute("BEGIN IMMEDIATE")  # P1-5 (тикет 03.10): SELECT..UPDATE под write-lock — нет TOCTOU
+        try:
+            where, extra = "review_status='pending'", []
+            if min_confidence > 0:
+                where += " AND confidence >= ?"
+                extra.append(min_confidence)
+            cat_expr, known_params = "COALESCE(category_llm, category, 'other')", []
+            if known:
+                ph = ",".join("?" * len(known))
+                cat_expr = (f"CASE WHEN category_llm IN ({ph}) THEN category_llm"
+                            " ELSE COALESCE(category, 'other') END")
+                known_params = sorted(known)
+            rows = self.conn.execute(
+                f"SELECT merchant, {cat_expr} AS cat FROM transactions WHERE {where}",
+                [*known_params, *extra]).fetchall()
+            now = _now_iso()
+            cur = self.conn.execute(
+                f"UPDATE transactions SET category={cat_expr},"
+                f" category_source='rule', review_status='approved', updated=? WHERE {where}",
+                [*known_params, now, *extra],
+            )
+            for r in rows:
+                if r["merchant"]:
+                    key = hashlib.sha1(r["merchant"].upper().encode()).hexdigest()
+                    self.conn.execute(
+                        "INSERT OR IGNORE INTO merchant_cache(key, merchant, category, updated)"
+                        " VALUES(?,?,?,?)",
+                        (key, r["merchant"], r["cat"], now),
+                    )
+            self.conn.commit()
+        except BaseException:
+            self.conn.rollback()
+            raise
         return cur.rowcount
 
     def update_merchant(self, tx_id: int, merchant: str | None) -> None:
@@ -769,13 +784,20 @@ class Store:
         if commit:
             self.conn.commit()
 
-    def seed_merchant_cache(self, tx_id: int) -> None:
-        """Запоминает категорию по мерчанту после правки юзера (few-shot loop)."""
+    def _seed_merchant_cache_no_commit(self, tx_id: int) -> bool:
+        """few-shot-кэш для строки без собственного commit (для составных транзакций, P1-7)."""
         row = self.conn.execute(
             "SELECT merchant, category FROM transactions WHERE id=? AND merchant IS NOT NULL", (tx_id,)
         ).fetchone()
         if row and row["merchant"]:
-            self.merchant_cache_set(row["merchant"], row["category"])
+            self.merchant_cache_set(row["merchant"], row["category"], commit=False)
+            return True
+        return False
+
+    def seed_merchant_cache(self, tx_id: int) -> None:
+        """Запоминает категорию по мерчанту после правки юзера (few-shot loop)."""
+        if self._seed_merchant_cache_no_commit(tx_id):
+            self.conn.commit()
 
     # ---- examples (few-shot) ----
     def add_example(self, description: str, amount_kopecks: int, category: str) -> None:

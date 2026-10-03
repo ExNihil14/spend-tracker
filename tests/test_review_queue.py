@@ -371,6 +371,61 @@ def test_approve_page_flags_invalid_llm_suggestion(tmp_path, monkeypatch):
     assert 'value="groceries" selected' in html  # валидная строка — как раньше
 
 
+def test_approve_review_seed_failure_rolls_back(tmp_path, monkeypatch):
+    """P1-7 (тикет 03.10): сбой seed откатывает approve целиком — нет «одобрено без кэша»."""
+    s = Store(db_path=tmp_path / "q.db")
+    try:
+        tx_id = s.add_transaction(date="2026-09-01", description="X", amount_kopecks=-100,
+                                  category="other", category_source="llm_pending_review",
+                                  confidence=0.4, merchant="МАГАЗИН", review_status="pending")
+
+        def boom(*_a, **_k):
+            raise RuntimeError("seed упал")
+
+        monkeypatch.setattr(Store, "_seed_merchant_cache_no_commit", boom)
+        with pytest.raises(RuntimeError):
+            s.approve_review(tx_id, "other")
+
+        row = s.conn.execute(
+            "SELECT review_status FROM transactions WHERE id=?", (tx_id,)).fetchone()
+        assert row["review_status"] == "pending"  # откат: approve не состоялся
+        assert s.conn.execute("SELECT COUNT(*) c FROM merchant_cache").fetchone()["c"] == 0
+    finally:
+        s.close()
+
+
+def test_approve_all_rolls_back_on_failure(tmp_path, monkeypatch):
+    """P1-5 (тикет 03.10): сбой посреди пакетного approve откатывает весь пакет (одна транзакция)."""
+    import hashlib
+
+    s = Store(db_path=tmp_path / "qa.db")
+    try:
+        for i, m in enumerate(("МАГАЗИН", "АПТЕКА", "КАФЕ")):
+            s.add_transaction(date=f"2026-09-0{i + 1}", description=f"X{i}", amount_kopecks=-100,
+                              category="other", category_source="llm_pending_review",
+                              confidence=0.4, merchant=m, review_status="pending")
+
+        real_sha1 = hashlib.sha1
+        calls = {"n": 0}
+
+        def flaky(data=b""):
+            calls["n"] += 1
+            if calls["n"] >= 2:
+                raise RuntimeError("sha1 сломался")
+            return real_sha1(data)
+
+        monkeypatch.setattr("spendtrack.store.hashlib.sha1", flaky)
+        with pytest.raises(RuntimeError):
+            s.approve_all_reviews()
+
+        pending = s.conn.execute(
+            "SELECT COUNT(*) c FROM transactions WHERE review_status='pending'").fetchone()["c"]
+        assert pending == 3  # пакет откатился целиком
+        assert s.conn.execute("SELECT COUNT(*) c FROM merchant_cache").fetchone()["c"] == 0
+    finally:
+        s.close()
+
+
 def _seed_pending_rows(tmp_path, rows: list[tuple[str, float, str]]) -> None:
     """(описание, уверенность, категория-предложение) в БД клиентского фикстура."""
     s = Store(db_path=tmp_path / "api_w3.db")
