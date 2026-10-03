@@ -368,6 +368,13 @@ async def _read_form_payload(request: Request) -> tuple[str, str | bytes, str]:
             await form.close()
 
 
+def _import_limit_error(msg: str, is_hx: bool) -> HTMLResponse:
+    """Лимит тела импорта: htmx — дружелюбный фрагмент, API — сырой 413 (единая точка)."""
+    if is_hx:
+        return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(msg)}</p>')
+    raise HTTPException(413, detail=msg)
+
+
 @router.post("/import")
 async def do_import(request: Request, store: Annotated[Store, Depends(get_store)]):  # noqa: C901 — 11 (было 12); ветки формата/лимитов/HX осознанны
     """JSON | form-urlencoded | multipart — единый результат ImportOut/htmx."""
@@ -382,9 +389,7 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
                 clen = 0
             if clen > 2 * MAX_CSV_BYTES:  # аудит 24.09: JSON читался целиком без лимита
                 msg = f"тело превышает {2 * MAX_CSV_BYTES // (1024 * 1024)} МБ"
-                if is_hx:  # HX-413 (тикет 03.10): дружелюбный фрагмент, как у multipart-лимита
-                    return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(msg)}</p>')
-                raise HTTPException(413, detail=msg)
+                return _import_limit_error(msg, is_hx)
             body = await _json_payload(request, ImportIn)
             raw: str | bytes = body.csv
             bank, filename = body.bank, "api.json"
