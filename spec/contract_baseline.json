@@ -584,6 +584,10 @@
    "args": "conn: sqlite3.Connection",
    "returns": "dict"
   },
+  "spendtrack.doctor:check_settings_config": {
+   "args": "",
+   "returns": "dict"
+  },
   "spendtrack.doctor:overall_status": {
    "args": "checks: list[dict]",
    "returns": "str"

@@ -20,7 +20,7 @@ from urllib.parse import urlencode
 from spendtrack import __version__
 from spendtrack.backup import backup_dir_for, find_snapshots, legacy_backup_dir
 from spendtrack.checksum import sha256_file
-from spendtrack.config import load_settings, repo_mode, resolve_db_path
+from spendtrack.config import load_settings, repo_mode, resolve_data_dir, resolve_db_path
 from spendtrack.store import SCHEMA_VERSION, Store
 from spendtrack.taxonomy import Taxonomy, load_taxonomy
 
@@ -335,6 +335,15 @@ def check_disk_space(db_path: Path) -> dict:
     return _check("disk_space", OK, 0, f"свободно {free // (1 << 20)} МБ")
 
 
+def check_settings_config() -> dict:
+    """S1 (03.10): settings.toml должен читаться (merge пакетных дефолтов ← пользователь)."""
+    try:
+        load_settings()
+    except Exception as e:  # noqa: BLE001 — битый конфиг = critical, а не крэш doctor
+        return _check("settings_config", CRITICAL, 1, f"settings.toml: {e}")
+    return _check("settings_config", OK, 0, "settings.toml читается")
+
+
 def _guarded(check_id: str, fn) -> dict:
     """Битая БД/нет доступа/неожиданная ошибка чтения — чек становится critical, прогон не падает.
 
@@ -387,6 +396,7 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
         conn = store.conn
         names, ph = _names(tax)
         checks = [
+            _guarded("settings_config", check_settings_config),
             _guarded("quick_check", lambda: check_quick_check(conn)),
             _guarded("fingerprint_dupes", lambda: check_fingerprint_dupes(conn)),
             _guarded("schema_version", lambda: check_schema_version(conn)),
@@ -442,8 +452,17 @@ def build_usage_summary(db_path: Path | str | None = None) -> dict[str, Any]:
     и счётчики: суммы, описания, мерчанты, счета, пути и точные даты исключены by design
     (канон — PRIVACY.md).
     """
-    cfg = load_settings()
-    path = Path(db_path).expanduser().resolve() if db_path else resolve_db_path()
+    try:
+        cfg = load_settings()
+    except Exception:  # noqa: BLE001 — сводка должна собираться и при битом settings.toml (S1, 03.10)
+        cfg = None
+    if db_path:
+        path = Path(db_path).expanduser().resolve()
+    else:
+        try:
+            path = resolve_db_path()
+        except Exception:  # noqa: BLE001 — диагноз не должен падать из-за конфига
+            path = resolve_data_dir() / "spend.db"
     backup_dir = path.parent / "backup"
     out: dict[str, Any] = {
         "version": __version__,
@@ -457,7 +476,12 @@ def build_usage_summary(db_path: Path | str | None = None) -> dict[str, Any]:
     }
     from spendtrack.llm import llm_status
 
-    out["llm_mode"] = str(llm_status(cfg).get("mode", "off"))
+    out["llm_mode"] = "unknown"
+    if cfg is not None:
+        try:
+            out["llm_mode"] = str(llm_status(cfg).get("mode", "off"))
+        except Exception:  # noqa: BLE001 — LLM-статус не критичен для сводки
+            out["llm_mode"] = "unknown"
     try:
         tax = load_taxonomy()
         out["rules"] = len(tax.rules)

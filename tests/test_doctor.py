@@ -500,6 +500,19 @@ def test_taxonomy_config_critical(db_path, monkeypatch):
     assert report["status"] == "critical" and check["severity"] == "critical"
 
 
+def test_settings_config_critical(db_path, monkeypatch):
+    """S1 (03.10): нечитаемый settings.toml — critical-чек, а не падение doctor."""
+    def _boom():
+        raise ValueError("битый settings.toml")
+
+    monkeypatch.setattr("spendtrack.doctor.load_settings", _boom)
+    report = run_checks(db_path)
+    check = _check(report, "settings_config")
+    assert report["status"] == "critical" and check["severity"] == "critical"
+    usage = doctor.build_usage_summary(db_path)  # сводка не падает при битом settings.toml
+    assert usage["llm_mode"] == "unknown"
+
+
 def test_overall_status_precedence():
     assert overall_status([{"severity": "ok"}, {"severity": "info"}]) == "ok"
     assert overall_status([{"severity": "ok"}, {"severity": "warn"}, {"severity": "info"}]) == "warn"
@@ -579,7 +592,7 @@ def test_cli_doctor_json_ok(db_path, monkeypatch, capsys):
     report = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert report["status"] == "ok"
-    assert len(report["checks"]) == 14  # 13 + disk_space (ревью install_ops, S6)
+    assert len(report["checks"]) == 15  # 14 + settings_config (S1, 03.10)
 
 
 def test_cli_doctor_critical_exit1(db_path, monkeypatch, capsys):

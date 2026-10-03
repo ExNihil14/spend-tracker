@@ -149,14 +149,38 @@ def ensure_config_dir() -> Path:
     return target
 
 
+def _deep_merge(base: dict, user: dict) -> dict:
+    """Рекурсивный merge: пользовательские значения поверх пакетных дефолтов (S1, 03.10)."""
+    out = dict(base)
+    for key, value in user.items():
+        if isinstance(value, dict) and isinstance(out.get(key), dict):
+            out[key] = _deep_merge(out[key], value)
+        else:
+            out[key] = value
+    return out
+
+
 def load_settings(config_dir: Path | None = None) -> Settings:
+    """Настройки: пакетные дефолты ← пользовательский settings.toml (merge; S1, 03.10).
+
+    Неполный файл (нет секции/ключа) больше не роняет команды: недостающее берётся из
+    `src/spendtrack/defaults/settings.toml`. Синтаксически битый TOML — по-прежнему ошибка
+    (её явно показывают `doctor` как `settings_config: critical` и `paths` — раскладка без Settings).
+    """
     base = Path(config_dir) if config_dir else resolve_config_dir()
     path = base / "settings.toml"
-    if not path.is_file():
-        path = DEFAULTS_DIR / "settings.toml"  # установленный режим: дефолт из пакета
-    with open(path, "rb") as f:
-        data = tomllib.load(f)
-    return Settings(**data)
+    user_data: dict = {}
+    if path.is_file():
+        raw = path.read_bytes()
+        if raw.startswith(b"\xef\xbb\xbf"):  # BOM от Windows-редакторов (S1, 03.10) — tomllib его не глотает
+            raw = raw[3:]
+        user_data = tomllib.loads(raw.decode("utf-8"))
+    defaults_path = DEFAULTS_DIR / "settings.toml"
+    defaults: dict = {}
+    if defaults_path.is_file():
+        with open(defaults_path, "rb") as f:
+            defaults = tomllib.load(f)
+    return Settings(**_deep_merge(defaults, user_data))
 
 
 def settings() -> Settings:
@@ -164,13 +188,16 @@ def settings() -> Settings:
 
 
 def paths_info() -> dict:
-    """Текущая раскладка (диагностика `spendtrack paths` и поддержка)."""
-    cfg = load_settings()
-    db = cfg.db_path or (resolve_data_dir() / "spend.db")
-    return {
+    """Раскладка (диагностика `spendtrack paths`): не зависит от читаемости settings.toml (S1, 03.10)."""
+    info = {
         "mode": "repo" if repo_mode() else "installed",
         "package": str(PKG_DIR),
         "config_dir": str(resolve_config_dir()),
         "data_dir": str(resolve_data_dir()),
-        "db_path": str(db),
     }
+    try:
+        info["db_path"] = str(resolve_db_path())
+    except Exception as e:  # noqa: BLE001 — битый settings.toml не должен ломать диагностику
+        info["db_path"] = str(resolve_data_dir() / "spend.db")
+        info["db_note"] = f"settings.toml не читается: {e}"
+    return info

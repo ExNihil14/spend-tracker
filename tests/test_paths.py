@@ -39,6 +39,19 @@ def test_installed_mode_uses_user_dirs(tmp_path, monkeypatch):
     assert config.paths_info()["mode"] == "installed"
 
 
+def test_paths_info_survives_broken_settings(tmp_path, monkeypatch):
+    """S1: `paths` печатает раскладку даже при нечитаемом settings.toml."""
+    def _boom(*_a, **_k):
+        raise ValueError("битый settings.toml")
+
+    monkeypatch.setattr(config, "load_settings", _boom)
+    monkeypatch.setenv("SPENDTRACK_DATA_DIR", str(tmp_path / "d"))
+    info = config.paths_info()
+    assert info["data_dir"] == str(tmp_path / "d")
+    assert info["db_path"].endswith("spend.db")
+    assert "не читается" in info.get("db_note", "")
+
+
 def test_load_settings_falls_back_to_packaged_default(tmp_path, monkeypatch):
     monkeypatch.setenv("SPENDTRACK_CONFIG_DIR", str(tmp_path / "empty"))
     monkeypatch.delenv("SPENDTRACK_PORT", raising=False)

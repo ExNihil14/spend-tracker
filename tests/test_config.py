@@ -19,6 +19,27 @@ def test_env_var_beats_env_file(tmp_path, monkeypatch):
     assert load_settings(ROOT / "config").freel_llm_api_key == "from-env"
 
 
+def test_partial_settings_merge_with_defaults(tmp_path, monkeypatch):
+    """S1: неполный settings.toml (только db_path) не роняет команды — остальное из пакетных дефолтов."""
+    cfgdir = tmp_path / "cfg"
+    cfgdir.mkdir()
+    (cfgdir / "settings.toml").write_text('db_path = "mini.db"\n', encoding="utf-8")
+
+    s = load_settings(cfgdir)
+    assert s.db_path == Path("mini.db")
+    assert s.port == 8766 and s.llm.primary.base_url.startswith("https://")
+
+
+def test_settings_toml_with_bom_is_read(tmp_path):
+    """S1: BOM от Windows-редакторов (Notepad/PS Set-Content) не должен ронять конфиг."""
+    cfgdir = tmp_path / "cfg"
+    cfgdir.mkdir()
+    (cfgdir / "settings.toml").write_bytes(b"\xef\xbb\xbf" + b'db_path = "mini.db"\n')
+
+    s = load_settings(cfgdir)
+    assert s.db_path == Path("mini.db") and s.port == 8766
+
+
 def test_resolve_db_path_relative_is_resolved_from_cwd(tmp_path, monkeypatch):
     """C2/S3: единая точка пути к БД — SPENDTRACK_DB_PATH резолвится в абсолютный (cwd-независимость)."""
     from spendtrack.config import resolve_db_path
