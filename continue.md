@@ -50,6 +50,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > nemotron-ultra:free) и **адъюдицировано** (`ADJUDICATION_BELARUS_REVIEW_2026-10-03.md`): Ф0 ready, Ф1 data-gated
 > (образец Приорбанка; нет ~2 нед → закрыть), BY-правила — opt-in overlay, `.xls` без `xlrd` в core, PDF не раньше Ф3.
 > Тикет — в §7 стартера.
+> **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
+> in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
+> расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
+> +5 unit (test_anonymize); README/skill/ресёрч обновлены. Ф1 всё ещё data-gated (образец Приорбанка).
 > **Ф0 «базовая валюта» сделан (03.10, в дереве, ждёт коммита):** настройка `base_currency` (settings/env,
 > ISO-валидация, default RUB) + SQL-параметризация агрегатов (reports/digest/store/recurring/frontend/export/cli) +
 > символы `fmt_money`/`currency_symbol` (₽/Br, иначе код; JS дашборда — через `data-currency-symbol`) + doctor-чек

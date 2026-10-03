@@ -130,8 +130,9 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 <summary><strong>Банк изменил формат выписки — что делать?</strong></summary>
 Импорт честно скажет, каких колонок не хватает, и не тронет базу. Пришлите обезличенный образец (первые строки)
 в <a href="https://github.com/ExNihil14/spend-tracker/issues/new">issue</a> — адаптер обновим.
-Обезличить: `spendtrack anonymize выписка.csv` — описания, магазины и номера карт заменятся псевдонимами,
-формат выписки сохранится; по умолчанию остаются первые 5 строк (`--rows 0` — весь файл). Даты и суммы
+Обезличить: `spendtrack anonymize выписка.csv` (или `.xlsx`) — описания, магазины и номера карт заменятся
+псевдонимами, формат выписки сохранится; по умолчанию остаются первые 5 строк (`--rows 0` — весь файл).
+Legacy `.xls` сконвертируйте в `.xlsx`/CSV (Excel/LibreOffice). Даты и суммы
 не обезличиваются — просмотрите файл перед отправкой (issue публичный).
 </details>
 
@@ -368,7 +369,7 @@ Register-ScheduledTask -TaskName spendtrack-backup -Force `
 | `spendtrack export --format csv` | выгрузка CSV/XLSX (`--format xlsx`) |
 | `spendtrack doctor [--share]` | проверка целостности данных (+ анонимная сводка вручную) |
 | `spendtrack backup [--copy-to E:\backup] [--drill]` | бэкап базы + копия на другой диск (`--drill` — проверка восстановления) |
-| `spendtrack anonymize выписка.csv [--rows N]` | обезличить выписку для образца в issue |
+| `spendtrack anonymize выписка.csv\|xlsx [--rows N]` | обезличить выписку для образца в issue |
 | `spendtrack paths` | где лежат база и настройки |
 | `spendtrack llm-status` | какой режим ИИ сейчас |
 | `spendtrack confidence` | калибровка порога авто-приёма |
