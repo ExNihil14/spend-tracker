@@ -57,6 +57,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > +8 тестов; контур **810 unit + 93 e2e** + ruff + contract ok (snapshot api 352) + ratchet + cc + css; live:
 > BYN-режим на прод-БД (read-only) — doctor OK («вне итогов: 8»), отчёт 0.00 + сноска «не учтено 8».
 > Дальше — коммит по команде; Ф1 ждёт образец Приорбанка.
+> **Копилки Ф1 (прогресс UI/CLI) сделан (03.10, в дереве, ждёт коммита):** страница `/goals` (+ nav «Цели»),
+> htmx-формы создания/взноса/архива, прогресс-бар с aria, журнал взносов, пустое состояние; API `/api/goals*`;
+> CLI `goal list/add/allocate/archive` (+`--json`) + строка целей в `digest`; README/help. +8 unit (test_goals_ui)
+> + 2 e2e; контур **818 unit + 95 e2e** + ruff + contract snapshot api 363/routes 38; live на демо 8799:
+> цель создана, взнос 2500 → 25% (страница+фрагмент). Дальше — **Ф2 движок** (capacity/required/статусы).
 > **АКТУАЛЬНО (02.10, окно 11:00 UTC — 5/5 ✅; адъюдикация + фиксы, коммит по команде).** Окно закрыто 12:46 UTC:
 > js_a/js_b (Opus), templates_a/b (Opus, со 2–3-й попытки), bootstrap_scripts_astra (Astra). Вердикты:
 > js_b NO-GO (карта дней считала знаковый total_k → расходы нулями, aria-label врала) — фикс + e2e; templates_a
