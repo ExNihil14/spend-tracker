@@ -47,9 +47,26 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > тесты ALL PASS) ✅, канон `opencode.json` синхронизирован (MCP→V2 `servers`); suggestion-гард ✅;
 > контур 775+93; остаток: O1 ✅ (region-lock `.backup.lock`), O5 закрыт фактом (бюджет едет за rename),
 > O6 оставлено осознанно (root-свап сбрасывает превью), O11 частично (aria «Открыть»/«Приоритет», catname).
-> **03.10 (окно 11:00 UTC):** очередь исчерпана; собрана **wave4** — `prompt_wave4_site.md`/`_ops.md` из
-> рабочих диффов (spend-tracker `ccd5520`→WD, bootstrap `57a3d07`→WD; включая O1/O11), dry-run pending=4,
-> поллер запущен 11:33 UTC (`out_wave4_site.md` в работе, deadline 14:00 UTC).
+> **03.10 (окно 11:00 UTC):** wave4 → 402 «pool quota exhausted» в 12:16 — выходов 0 (окно потеряно).
+> **Разбор процесса:** `agentrouter_review\2026-09-27\ANALYSIS_BATCH_PROCESS_2026-10-03.md` — Opus-таймауты
+> 36% на 38–50 КБ (thinking 20–24K); Astra 7/7 ok на 60–96 КБ. **Политика v2:** Opus-часть ≤35 КБ / thinking 12K
+> (сплит >40), Astra — монолиты, таймауты с деградацией/переносом, preflight-гейт (`--dry-run`, `--pending`),
+> guard стартует при pending>0. **Очередь пересобрана: 7 джобов** (`p1/p2/p3`, `ops1/ops2`, astra site/ops),
+> preflight OK; поллер на новой очереди с 12:55 UTC (пробы до 14:00; иначе — окно 02:00 UTC).
+> **Ресерч «копилки/цели» (03.10):** `D:\dev\docs\machine\RESEARCH_SAVINGS_GOALS_2026-10-03.md` (75 КБ,
+> 24×[П]). Вердикты: расширяемо «виртуальным конвертом» (goal + append-only allocations, schema v6,
+> без привязки к балансам, которых у нас нет); советы — «числа считает код, LLM только формулирует»
+> (whitelist чисел + офлайн-шаблоны + opt-in шов); ревью Opus 5.5 оправдано, промпт готов (§9;
+> каналы: Abacus / Zen ~$0.32 / окно AgentRouter $0). Решение по тикету schema v6 — за юзером.
+> **Ревью выполнено** (Abacus `claude-opus-5-5`, 96 с, `out_goals_review_abacus.md`): NO-GO fixable —
+> STRICT/CHECK для v6, валюта неизменяема при аллокациях, id/created_at/idempotency, «полный месяц»
+> по покрытию импорта, **LLM: плейсхолдеры вместо whitelist**. Адъюдикация с факт-чеком —
+> `ADJUDICATION_GOALS_REVIEW_2026-10-03.md`; MVP: Ф0 schema+CRUD → Ф1 прогресс → Ф2 subset (LLM — LATER).
+
+> **Тикет C2 закрыт (03.10, TDD):** `spendtrack backup --drill` — снимок + проверка восстановимости;
+> `config.resolve_db_path()` — единая точка пути к БД (без legacy ROOT и cwd-зависимостей; переведены
+> drill/backup/doctor); дрилл перенесён в пакет (`scripts/restore_drill.py` — шим). Контур: 779 unit + 93 e2e,
+> contract snapshot (api 318→325; коммит — с трейлером `Contract-Change:`), live: `backup --drill` → ok (count/sum match).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
