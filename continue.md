@@ -67,6 +67,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > `config.resolve_db_path()` — единая точка пути к БД (без legacy ROOT и cwd-зависимостей; переведены
 > drill/backup/doctor); дрилл перенесён в пакет (`scripts/restore_drill.py` — шим). Контур: 779 unit + 93 e2e,
 > contract snapshot (api 318→325; коммит — с трейлером `Contract-Change:`), live: `backup --drill` → ok (count/sum match).
+> **Тикет C3 закрыт (03.10, TDD):** ленивый бэкап на старте `serve` — `backup.lazy_backup_if_stale()`
+> (порог `SPENDTRACK_LAZY_BACKUP_HOURS`, дефолт 168 ч, 0 — выключить; lock/ротация/никогда не бросает);
+> `cmd_serve` сообщает о созданном снимке, сбой — warning. +5 тестов; контур 784 unit + 93 e2e;
+> contract snapshot (api 327); live на temp-БД: created → fresh. Следующий шаг очереди — S1 (settings-merge).
 > **АКТУАЛЬНО (01.10, вечер — адъюдикация Astra×5, волна 1 ✅ в коммите `c9f75c6`).** Окно 11:00 UTC дало
 > Astra-проход (5/6: install_ops / llm_seam / tests_contour a+b / agent_env; `bootstrap_scripts_astra` —
 > пустой ответ → `bad/`, повтор в следующем окне). Артефакт адъюдикации:
