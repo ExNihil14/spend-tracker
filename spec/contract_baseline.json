@@ -44,6 +44,10 @@
    "args": "14",
    "returns": ""
   },
+  "spendtrack.backup:LAZY_BACKUP_HOURS": {
+   "args": "168",
+   "returns": ""
+  },
   "spendtrack.backup:LOCK_NAME": {
    "args": "'.backup.lock'",
    "returns": ""
@@ -71,6 +75,10 @@
   "spendtrack.backup:find_snapshots": {
    "args": "db_path: Path",
    "returns": "tuple[Path, list[Path]]"
+  },
+  "spendtrack.backup:lazy_backup_if_stale": {
+   "args": "db_path: Path | str | None=None, *, now: float | None=None",
+   "returns": "dict"
   },
   "spendtrack.backup:legacy_backup_dir": {
    "args": "db_path: Path",

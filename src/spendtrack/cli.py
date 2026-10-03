@@ -341,6 +341,21 @@ def cmd_doctor(args) -> int:
     return 1 if report["status"] == "critical" else 0
 
 
+def _lazy_backup_notice() -> None:
+    """C3 (03.10): ленивый бэкап на старте serve — не мешает запуску сервера ни при каких сбоях."""
+    try:
+        from spendtrack.backup import lazy_backup_if_stale
+
+        res = lazy_backup_if_stale()
+    except Exception as e:  # noqa: BLE001 — ленивый бэкап не должен блокировать/ронять serve
+        print(f"ленивый бэкап: пропущен ({e})", file=sys.stderr)
+        return
+    if res.get("status") == "created":
+        print(f"ленивый бэкап: {res['file']}")
+    elif res.get("status") == "failed":
+        print(f"ленивый бэкап не удался: {res.get('reason')}", file=sys.stderr)
+
+
 def cmd_serve(args) -> int:
     """Веб-интерфейс: `spendtrack serve` (+ `--open` для браузера)."""
     from spendtrack.config import ensure_config_dir, load_settings
@@ -362,6 +377,7 @@ def cmd_serve(args) -> int:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     print(f"Spendtrack: {url}  (Ctrl+C — остановить)")
     sys.stdout.flush()
+    _lazy_backup_notice()
     import uvicorn
     uvicorn.run("spendtrack.main:app", host=host, port=port, log_config=None)
     return 0

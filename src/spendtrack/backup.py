@@ -186,6 +186,47 @@ def _acquire_backup_lock(backup_dir: Path) -> Path | None:
     return lock
 
 
+LAZY_BACKUP_HOURS = 168  # C3: неделя — ленивый бэкап на старте `serve` (задача Планировщика — отдельно)
+
+
+def lazy_backup_if_stale(db_path: Path | str | None = None, *, now: float | None = None) -> dict:
+    """C3 (03.10): снимок на старте `serve`, если свежего нет или он старше порога.
+
+    Порог: SPENDTRACK_LAZY_BACKUP_HOURS (0 — выключить; дефолт 168 ч). Никогда не бросает:
+    сервер обязан подняться в любом случае. Возвращает {status}: off/skipped/fresh/locked/created/failed.
+    """
+    try:
+        hours = float(os.environ.get("SPENDTRACK_LAZY_BACKUP_HOURS") or LAZY_BACKUP_HOURS)
+    except ValueError:
+        hours = float(LAZY_BACKUP_HOURS)
+    if hours <= 0:
+        return {"status": "off"}
+    db = Path(db_path).expanduser() if db_path else default_db_path()
+    if not db.exists():
+        return {"status": "skipped", "reason": f"БД не найдена: {db}"}
+    _bdir, files = find_snapshots(db)
+    ref = time.time() if now is None else now
+    if files:
+        newest = max(files, key=lambda p: (p.stat().st_mtime, p.name))
+        try:
+            age_h = (ref - newest.stat().st_mtime) / 3600
+        except OSError:
+            age_h = None
+        if age_h is not None and age_h <= hours:
+            return {"status": "fresh", "file": newest.name, "age_h": round(age_h, 1)}
+    lock = _acquire_backup_lock(backup_dir_for(db))
+    if lock is None:
+        return {"status": "locked"}
+    try:
+        snap = make_snapshot(db)
+        rotate(backup_dir_for(db), DEFAULT_KEEP, current=snap)
+        return {"status": "created", "file": snap.name}
+    except (sqlite3.Error, OSError, RuntimeError) as e:
+        return {"status": "failed", "reason": str(e)}
+    finally:
+        lock.unlink(missing_ok=True)
+
+
 def run_backup(
     db_path: Path | str | None = None,
     *,
