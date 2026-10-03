@@ -8,9 +8,10 @@
 категории, бюджеты, список подписок и короткий отчёт о необычных тратах. Без облака, без подписки,
 без передачи данных третьим лицам.
 
-![Список транзакций](assets/screenshot-transactions.png)
+![Демо за 15 секунд: импорт выписки → подтверждение очереди → дайджест недели](landing/assets/demo.gif)
 
-Сайт: **<https://exnihil14.github.io/spend-tracker/>**
+Сайт: **<https://exnihil14.github.io/spend-tracker/>** · Статус: **бета** — проект активно развивается;
+перед обновлениями делайте `spendtrack backup` (данные не покидают ваш компьютер).
 
 ## Что умеет
 
@@ -23,6 +24,8 @@
   очередь разбирается и с клавиатуры (`j`/`k`, `Enter`, `s`, `1–9`).
 - **Подсказки правил** — если вы раз за разом исправляете одно и то же, приложение покажет, какие правила
   добавить: `spendtrack suggest-rules` (read-only, ничего не меняет само).
+- **Свои правила и категории** — редактор в «Настройках»: правила с живым превью и диагностикой
+  («мёртвое» правило, дубли), категории с цветом и иконкой.
 - **Бюджеты по категориям** — месячные лимиты и прогресс: видно, где ещё есть запас, а где перерасход.
 - **Подписки** — приложение само находит регулярные списания и предупреждает, если цена выросла.
 - **Дайджест недели** — расходы и доходы, топ-категории, самые дорогие дни и аномалии (крупные суммы,
@@ -30,7 +33,10 @@
 - **Экспорт без потерь** — CSV одной кнопкой на главной, Excel — командой `spendtrack export --format xlsx`;
   данные всегда можно забрать с собой.
 - **Валюты не смешиваются** — операции в валюте показываются с кодом (USD, EUR…), но бюджеты и итоги считаются только в рублях.
+- **Светлая и тёмная тема** — переключатель в шапке, выбор запоминается браузером.
 - **Проверка данных** — встроенный `doctor` проверяет целостность базы и состояние бэкапов.
+
+![Список транзакций: категории, фильтры по месяцу и поиск, экспорт CSV](assets/screenshot-transactions.png)
 
 ## Кому подойдёт
 
@@ -97,6 +103,8 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
    (клавиши: `j`/`k` — строки, `Enter` — одобрить, `s` — пропустить, `1–9` — категория).
 3. **Задайте бюджеты** — «Настройки» → «Бюджеты», по категориям.
 4. **Смотрите «Дашборд»** — бюджеты, подписки, дайджест недели и графики.
+
+![Очередь «Подтвердить»: предложение ИИ, уверенность и клавиши j/k/Enter/s](assets/screenshot-approve.png)
 
 Подробная справка со словарём терминов и легендой значков — на странице **«Помощь»** внутри приложения
 (меню → Помощь).
@@ -173,9 +181,7 @@ uv run spendtrack serve      # или .\run.ps1 на Windows
 ## Демо без своих данных
 
 Синтетическая витрина (~5 месяцев): подписки со скачком цены, аномалии, бюджеты с перерасходом, очередь
-подтверждения. Реальная база не затрагивается.
-
-![Демо за 15 секунд: импорт выписки → подтверждение очереди → дайджест недели](landing/assets/demo.gif)
+подтверждения. Реальная база не затрагивается — кадры выше сняты как раз на ней.
 
 ```bash
 uv run python scripts/demo_data.py seed     # данные в data/demo.db
@@ -356,7 +362,7 @@ Register-ScheduledTask -TaskName spendtrack-backup -Force `
 | `spendtrack digest` | дайджест недели и аномалии |
 | `spendtrack export --format csv` | выгрузка CSV/XLSX (`--format xlsx`) |
 | `spendtrack doctor [--share]` | проверка целостности данных (+ анонимная сводка вручную) |
-| `spendtrack backup [--copy-to E:\backup]` | бэкап базы + копия на другой диск |
+| `spendtrack backup [--copy-to E:\backup] [--drill]` | бэкап базы + копия на другой диск (`--drill` — проверка восстановления) |
 | `spendtrack anonymize выписка.csv [--rows N]` | обезличить выписку для образца в issue |
 | `spendtrack paths` | где лежат база и настройки |
 | `spendtrack llm-status` | какой режим ИИ сейчас |
@@ -393,6 +399,7 @@ uv run pip-audit --skip-editable   # уязвимости зависимосте
 uv lock --check                    # lock-файл актуален
 uv run python scripts/build_css.py # пересборка CSS после правок классов
 uv run python scripts/record_readme_screens.py  # пересъёмка скриншотов README (demo-БД)
+uv run python scripts/record_demo_gif.py        # пересборка лендинг-GIF «импорт → подтверждение → дайджест»
 ```
 
 - Архитектура и решения: [spec/ARCHITECTURE.md](spec/ARCHITECTURE.md) · контур верификации:
@@ -405,8 +412,8 @@ Local-first personal expense tracker (FastAPI + SQLite + htmx): import bank CSV 
 YooMoney/Yandex, plus Sber where CSV export is available — for individuals Sber sends CSV by e-mail, while the
 in-app statement is PDF),
 deterministic rule-based categorization with an
-optional bring-your-own LLM fallback, review queue, budgets, subscription detection and a weekly anomaly digest
-— all on your machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with
+optional bring-your-own LLM fallback, review queue, budgets, subscription detection, a weekly anomaly digest
+and an in-app category/rule editor with light/dark theme — all on your machine, no cloud, no bank APIs. Quick start: `uv sync && uv run spendtrack serve`; demo with
 synthetic data: `uv run python scripts/demo_data.py seed`. Runs as a background service too (Windows Task
 Scheduler/NSSM, macOS launchd, Linux systemd — templates in `deploy/`; see the «Работа в фоне» section).
 Backup and anonymization are built in (`spendtrack backup`, `spendtrack anonymize`); update/uninstall notes are

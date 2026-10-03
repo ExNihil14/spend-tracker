@@ -4,7 +4,7 @@
     uv run python scripts/record_readme_screens.py [--db data/demo.db] [--port 8796] [--out-dir assets]
 
 Скрипт берёт **изолированную копию** demo-БД (или сеет свежую), поднимает временный uvicorn и снимает
-три кадра 1280px для README: список расходов (видоискатель 1500px), «Настройки», «Дашборд».
+четыре кадра 1280px для README: список расходов (видоискатель 1500px), «Подтвердить», «Настройки», «Дашборд».
 Прод и реальные БД не трогаются: принимается только БД с именем `demo.db` (страховка от съёмки на живой БД).
 Данные синтетические (`scripts/demo_data.py`), сервер и браузер — локальные.
 
@@ -25,6 +25,7 @@ VIEWPORT_WIDTH = 1280
 # (имя файла в out-dir, путь, высота видоискателя) — имена фиксированы README-ссылками
 PLAN: tuple[tuple[str, str, int], ...] = (
     ("screenshot-transactions.png", "/", 1500),
+    ("screenshot-approve.png", "/approve", 900),
     ("screenshot-settings.png", "/settings", 900),
     ("screenshot-dashboard.png", "/dashboard", 900),
 )
