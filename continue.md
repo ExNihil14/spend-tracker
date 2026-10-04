@@ -69,8 +69,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > **863 unit + 96 e2e**, bootstrap-тесты ALL PASS, snapshot api=383. **Волна 6++ (ops1 SHOULD-1 +**
 > **store S4) — сделана:** деградация не отключает ротацию (пол 2×keep, рост ограничен; +5 проверок
 > bootstrap); `_migrate_v6` не читает отсутствующие колонки (схемы «created без updated» и «без обеих»
-> мигрируют; +2 теста). Контур **865 unit + 96 e2e**. Остаток: хвост окна (ops2+Astra) + ops1 OPT.
-> Коммит — по команде.
+> мигрируют; +2 теста). **Волна 6+++ (ops1 OPT) — сделана:** `<root>` в walk-ошибках, тесты (сбой
+> testzip, walk_errors, локальный credential сохраняет, happy-ротация), неполный архив —
+> `.incomplete.zip`. Контур **865 unit + 96 e2e**, bootstrap-тесты ALL PASS. Остаток: хвост окна
+> (ops2+Astra). Коммит — по команде.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
