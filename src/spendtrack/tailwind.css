@@ -157,6 +157,8 @@ button:active:not(:disabled),
 .heat-cell[data-level="3"] { background: color-mix(in srgb, var(--accent) 58%, var(--surface-2)); }
 .heat-cell[data-level="4"] { background: color-mix(in srgb, var(--accent) 85%, var(--surface-2)); }
 .sparkline { width: 7.5rem; height: 2rem; display: block; }
+/* Chart.js: канвас не должен выталкивать layout, если resize-хук не сработал (WebKit CI: +159px) */
+canvas { max-width: 100%; }
 /* Wave 1-preview: спарклайн — мягкая сглаженная area-кривая (цвет/градиент из токенов) */
 .sparkline stop { stop-color: var(--accent); }
 .spark-area { fill: url(#spark-grad); }

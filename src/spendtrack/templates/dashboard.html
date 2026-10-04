@@ -44,9 +44,9 @@
 </div>
 
 <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-  <div id="kpi-balance" class="lift col-span-2 bg-surface rounded-xl border border-line p-5 relative overflow-hidden">
+  <div id="kpi-balance" class="lift min-w-0 col-span-2 bg-surface rounded-xl border border-line p-5 relative overflow-hidden">
     <div class="text-xs font-medium text-fg-muted">Баланс месяца</div>
-    <div class="mt-1 text-3xl font-semibold text-fg-strong tabular-nums">{{ fmt_money(report.balance_k) }}</div>
+    <div class="mt-1 text-3xl font-semibold text-fg-strong tabular-nums [overflow-wrap:anywhere]">{{ fmt_money(report.balance_k) }}</div>
     {% if report.foreign_count %}<div class="text-xs text-fg-muted mt-1">не учтено в валюте: {{ report.foreign_count }}</div>{% endif %}
     <svg class="sparkline mt-3" id="spark-expense" viewBox="0 0 120 32" role="img"
          aria-label="Динамика расходов по дням">
@@ -62,13 +62,13 @@
       </g>
     </svg>
   </div>
-  <div class="lift rounded-xl border border-line p-4 bg-income-soft">
+  <div class="lift min-w-0 rounded-xl border border-line p-4 bg-income-soft">
     <div class="text-xs font-medium text-fg-muted">Доход</div>
-    <div class="mt-1 text-2xl font-semibold text-income tabular-nums">{{ fmt_money(report.income_k) }}</div>
+    <div class="mt-1 text-2xl font-semibold text-income tabular-nums [overflow-wrap:anywhere]">{{ fmt_money(report.income_k) }}</div>
   </div>
-  <div class="lift rounded-xl border border-line p-4 bg-accent-soft">
+  <div class="lift min-w-0 rounded-xl border border-line p-4 bg-accent-soft">
     <div class="text-xs font-medium text-fg-muted">Расход</div>
-    <div class="mt-1 text-2xl font-semibold text-fg-strong tabular-nums">{{ fmt_money(report.expense_k) }}</div>
+    <div class="mt-1 text-2xl font-semibold text-fg-strong tabular-nums [overflow-wrap:anywhere]">{{ fmt_money(report.expense_k) }}</div>
   </div>
 </div>
 
@@ -183,7 +183,7 @@
 <div class="grid md:grid-cols-2 gap-6 mb-8">
   <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
     <h2 class="text-[15px] font-semibold text-fg mb-3">Расходы по дням</h2>
-    <div class="relative h-56" data-chart-box><canvas id="dailyChart" class="w-full h-full" role="img"
+    <div class="relative h-56 overflow-hidden" data-chart-box><canvas id="dailyChart" class="w-full h-full" role="img"
         aria-label="Диаграмма расходов по дням за {{ fmt_month(current) }}"></canvas></div>
   </div>
   <div class="min-w-0 bg-surface rounded-xl p-5 border border-line">
@@ -191,7 +191,7 @@
       <h2 class="text-[15px] font-semibold text-fg">По категориям</h2>
       <span class="text-xs text-fg-muted">клик по категории — скрыть/показать; по сектору — список операций</span>
     </div>
-    <div class="relative h-56" data-chart-box><canvas id="catsChart" class="w-full h-full" role="img"
+    <div class="relative h-56 overflow-hidden" data-chart-box><canvas id="catsChart" class="w-full h-full" role="img"
         aria-label="Диаграмма расходов по категориям за {{ fmt_month(current) }}; значения — в таблице «Итоги по категориям» ниже"></canvas></div>
   </div>
 </div>
