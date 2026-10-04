@@ -193,8 +193,16 @@ def lazy_backup_if_stale(db_path: Path | str | None = None, *, now: float | None
     """C3 (03.10): снимок на старте `serve`, если свежего нет или он старше порога.
 
     Порог: SPENDTRACK_LAZY_BACKUP_HOURS (0 — выключить; дефолт 168 ч). Никогда не бросает:
-    сервер обязан подняться в любом случае. Возвращает {status}: off/skipped/fresh/locked/created/failed.
+    сервер обязан подняться в любом случае (любой сбой → {"status": "failed"}).
+    Возвращает {status}: off/skipped/fresh/locked/created/failed.
     """
+    try:
+        return _lazy_backup_impl(db_path, now=now)
+    except Exception as e:  # noqa: BLE001 — контракт «никогда не бросает» (ревью wave5, ops_spend №2)
+        return {"status": "failed", "reason": f"{type(e).__name__}: {e}"}
+
+
+def _lazy_backup_impl(db_path: Path | str | None, *, now: float | None) -> dict:
     try:
         hours = float(os.environ.get("SPENDTRACK_LAZY_BACKUP_HOURS") or LAZY_BACKUP_HOURS)
     except ValueError:

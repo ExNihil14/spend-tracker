@@ -619,3 +619,14 @@ def test_backup_missing_warns_for_nonempty_db(db_path):
     check = _check(run_checks(db_path), "backup")
     assert check["severity"] == "warn"
     assert "бэкапов нет" in check["detail"]
+
+
+def test_run_checks_broken_settings_without_db(tmp_path, monkeypatch):
+    """Ревью wave5 (ops_spend №1): битый settings.toml без --db — critical-отчёт, не трейсбек."""
+    monkeypatch.setenv("SPENDTRACK_CONFIG_DIR", str(tmp_path))
+    monkeypatch.delenv("SPENDTRACK_BASE_CURRENCY", raising=False)  # env выше TOML — не маскируем поломку
+    (tmp_path / "settings.toml").write_text('base_currency = "RUBL"\n', encoding="utf-8")
+    report = run_checks()
+    assert report["status"] == "critical"
+    assert any(c["id"] == "settings_config" and c["severity"] == "critical"
+               for c in report["checks"])

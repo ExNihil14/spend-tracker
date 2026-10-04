@@ -218,14 +218,20 @@ def anonymize_xlsx(
     pseudonyms = _Pseudonyms()
     anonymized: dict[str, str] = {}
     untouched: list[str] = []
-    total = written = 0
+    empty_headers: list[int] = []
+    total = written = outside = 0
     remaining = max_rows if max_rows and max_rows > 0 else None
 
     for ws in wb.worksheets:
         header_row, header = _find_header(ws)
         if header_row is None:
             continue
+        # строки ВЫШЕ шапки (титул банка — часто с ФИО) не обезличиваются: считаем и предупреждаем (C3)
+        for r in range(1, header_row):
+            if any(_strip(ws.cell(r, c).value) for c in range(1, ws.max_column + 1)):
+                outside += 1
         kinds = [_classify(_strip(name), extra) for name in header]
+        empty_headers.extend(i for i, name in enumerate(header) if not _strip(name))
         _label_columns(header, kinds, anonymized, untouched)
         rows_all = list(range(header_row + 1, ws.max_row + 1))
         keep = rows_all if remaining is None else rows_all[:remaining]
@@ -237,25 +243,36 @@ def anonymize_xlsx(
         if cut > 0:
             ws.delete_rows(header_row + len(keep) + 1, cut)
 
+    # метаданные книги — PII-канал (автор/последний редактор/заголовок): чистим ДО сохранения (ревью wave5, C3/S2)
+    props = wb.properties
+    props.creator = ""
+    props.lastModifiedBy = ""
+    props.title = ""
+    props.description = ""
+    props.keywords = ""
+    props.category = ""
     buf = BytesIO()
     wb.save(buf)
     report = {
         "anonymized": anonymized,
         "untouched": untouched,
-        "empty_headers": [],
+        "empty_headers": empty_headers,
         "unique": pseudonyms.unique,
         "rows_total": total,
         "rows_written": written,
+        "outside_rows": outside,
+        "xlsx": True,
     }
     return buf.getvalue(), report
 
 
 def _anonymize_payload(raw: bytes, suffix: str, extra: set[str], max_rows: int) -> tuple[bytes, dict]:
     """Выбор CSV/XLSX-пути (по расширению и магии ZIP); legacy .xls — понятная ошибка."""
-    if suffix == ".xls":
-        # NO-GO адъюдикации 03.10: legacy BIFF не тянем (xlrd вне core) — просим конвертацию
+    if suffix in (".xls", ".xlsm"):
+        # NO-GO адъюдикации 03.10 + ревью wave5 S6: legacy BIFF и макрос-книги не тянем
         raise ValueError(
-            "legacy .xls не поддерживается — сконвертируйте выписку в .xlsx (Excel/LibreOffice) или CSV")
+            "legacy/macro .xls/.xlsm не поддерживается — сконвертируйте выписку в .xlsx "
+            "(Excel/LibreOffice) или CSV")
     if suffix == ".xlsx" or (suffix != ".csv" and raw[:4] == b"PK\x03\x04"):
         return anonymize_xlsx(raw, extra, max_rows=max_rows)
     text, report = anonymize_csv(raw, extra, max_rows=max_rows)
@@ -295,6 +312,15 @@ def _print_report(report: dict, dst: Path) -> None:
     ]
     if written < total:
         warn.append(f"Строк в файле: {total}, оставлено: {written} (--rows 0 — все).")
+    if not report["anonymized"]:
+        warn.append("ВНИМАНИЕ: НИЧЕГО не обезличено — колонки не распознаны. Проверьте заголовки или "
+                    "укажите --anon-column; НЕ отправляйте файл как есть (ревью wave5, C1).")
+    if report.get("outside_rows"):
+        warn.append(f"ВНИМАНИЕ: {report['outside_rows']} строк(и) ВНЕ таблицы (титул/шапка отчёта) "
+                    "не обезличиваются — проверьте вручную (часто там ФИО).")
+    if report.get("xlsx"):
+        warn.append("ВНИМАНИЕ: имена листов и метаданные книги не обезличиваются (свойства книги очищены) — "
+                    "просмотрите файл перед отправкой.")
     if report.get("empty_headers"):
         warn.append("ВНИМАНИЕ: есть колонки без заголовка — проверьте их вручную (могут содержать PII).")
     print("\n".join(warn), file=sys.stderr, flush=True)

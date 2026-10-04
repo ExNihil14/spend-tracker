@@ -68,3 +68,15 @@ def test_serve_runs_lazy_backup(lazy_db, monkeypatch, capsys):
     out = capsys.readouterr().out
     assert "ленивый бэкап" in out
     assert len(_snaps(lazy_db)) == 1
+
+
+def test_lazy_never_raises_on_unexpected(monkeypatch, lazy_db):
+    """Ревью wave5 (ops_spend №2): контракт «никогда не бросает» — любой сбой → failed."""
+    from spendtrack import backup as B
+
+    def _boom(db):
+        raise ValueError("boom")
+
+    monkeypatch.setattr(B, "find_snapshots", _boom)
+    res = B.lazy_backup_if_stale()
+    assert res["status"] == "failed" and "ValueError" in res["reason"]

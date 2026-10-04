@@ -126,6 +126,8 @@ def resolve_db_path(settings_obj: Settings | None = None) -> Path:
 
     C2/S3 (тикеты 03.10): убирает третий дефолт (legacy ROOT) и cwd-зависимость в backup/doctor/drill —
     относительный путь всегда указывает на один и тот же файл, откуда бы ни запускали.
+    ПРИМЕЧАНИЕ (ревью wave5, ops_spend №3): относительный `SPENDTRACK_DB_PATH` раскрывается от ТЕКУЩЕГО
+    каталога (`resolve()`); cwd-независимость гарантируется только для дефолтного пути (data_dir).
     """
     cfg = settings_obj or load_settings()
     if cfg.db_path:

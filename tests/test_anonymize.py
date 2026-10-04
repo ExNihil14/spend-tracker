@@ -266,6 +266,62 @@ def test_run_anonymize_legacy_xls_asks_conversion(tmp_path, capsys):
     assert "xlsx" in capsys.readouterr().err.lower()
 
 
+def test_xlsx_nothing_anonymized_warns(tmp_path, capsys):
+    """Ревью wave5 C1: нулевое обезличивание — громкое предупреждение, а не тихий «успех»."""
+    src = tmp_path / "v.xlsx"
+    src.write_bytes(_xlsx_bytes([["1", "x"]], ["A", "B"]))
+    assert run_anonymize(src, max_rows=0) == 0
+    assert "НИЧЕГО не обезличено" in capsys.readouterr().err
+
+
+def test_xlsx_nonstring_cells_ok():
+    """Ревью wave5 C2: числа/None в PII-колонках не роняют обезличивание."""
+    from openpyxl import load_workbook
+
+    raw = _xlsx_bytes([[4111111111111111, None, 123.45]],
+                      ["Номер карты", "Описание", "Сумма операции"])
+    out, report = anonymize_xlsx(raw, max_rows=0)
+    ws = load_workbook(BytesIO(out)).active
+    assert str(ws.cell(2, 1).value).startswith("КАРТА_")
+    assert ws.cell(2, 2).value is None  # пустое не трогаем
+    assert ws.cell(2, 3).value == 123.45  # сумма не тронута
+    assert report["anonymized"]["Номер карты"] == "account"
+
+
+def test_xlsx_properties_cleared():
+    """Ревью wave5 C3/S2: метаданные книги (автор/заголовок) — PII-канал, чистим."""
+    from openpyxl import Workbook, load_workbook
+
+    wb = Workbook()
+    wb.properties.creator = "Иван Иванов"
+    wb.properties.title = "Выписка"
+    ws = wb.active
+    ws.append(["Описание"])
+    ws.append(["ЛЕНТА"])
+    buf = BytesIO()
+    wb.save(buf)
+    out, _report = anonymize_xlsx(buf.getvalue(), max_rows=0)
+    props = load_workbook(BytesIO(out)).properties
+    assert props.creator in ("", None) and props.title in ("", None)
+
+
+def test_xlsx_above_header_warned(tmp_path, capsys):
+    """Ревью wave5 C3: строки выше шапки (титул с ФИО) — предупреждение."""
+    src = tmp_path / "t.xlsx"
+    src.write_bytes(_xlsx_bytes([["1", "ЛЕНТА"]], ["Номер документа", "Описание"],
+                                title="Выписка по карточке Иванова И.И."))
+    assert run_anonymize(src, max_rows=0) == 0
+    assert "ВНЕ таблицы" in capsys.readouterr().err
+
+
+def test_run_anonymize_xlsm_rejected(tmp_path, capsys):
+    """Ревью wave5 S6: макрос-книга не может быть «обезличена» (VBA теряется) — отказ."""
+    src = tmp_path / "v.xlsm"
+    src.write_bytes(b"PK\x03\x04garbage")
+    assert run_anonymize(src) == 1
+    assert "xlsx" in capsys.readouterr().err.lower()
+
+
 def test_anonymized_sample_imports_same_shape(tmp_path):
     """Образец — валидная фикстура: импортируется (sber) с теми же датами/суммами/статусами."""
     raw = gen_sber(n=8, seed=11)

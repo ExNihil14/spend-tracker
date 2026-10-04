@@ -384,7 +384,11 @@ def overall_status(checks: list[dict]) -> str:
 
 def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = None) -> dict[str, Any]:
     """Полный прогон; возвращает {status, checks:[{id, severity, count, detail}]}."""
-    path = Path(db_path).expanduser().resolve() if db_path else resolve_db_path()
+    try:
+        path = Path(db_path).expanduser().resolve() if db_path else resolve_db_path()
+    except Exception as e:  # noqa: BLE001 — битый settings.toml без --db: диагностируем, не падаем
+        return {"status": CRITICAL,
+                "checks": [_check("settings_config", CRITICAL, 1, f"settings.toml: {e}")]}
     try:
         tax = taxonomy if taxonomy is not None else load_taxonomy()
     except Exception as e:  # noqa: BLE001 — битый taxonomy.toml = critical
