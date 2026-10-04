@@ -154,6 +154,18 @@ Backup-скрипты bootstrap (`backup-knowledge.py`, `backup-opencode-db.py`)
 - Doctor-фикс 17.09 (найден стрессом флейка): `_guarded` переводит **любое** упавшее исключение чека в critical,
   `quick_check` отдельно обрабатывает «PRAGMA упал» (malformed) — doctor не роняется на повреждённых данных.
 
+## Pre-commit: секреты не доезжают до коммита (Habr-ресёрч 04.10)
+
+- Установка (один раз; на этой машине уже сделано): ① `powershell -File scripts\install-gitleaks.ps1 -AddToPath`
+  (пин `v8.30.1` + sha256; Go/Docker не нужны); ② `uv tool install pre-commit` + `pre-commit install`
+  (именно `uv tool`, не `uvx`: хук запоминает путь к python, а uvx-путь эфемерный).
+- Проверено вживую: staged-секрет → хук блокирует коммит (rc=1). Нюанс: upstream `gitleaks-system` без
+  `pass_filenames: false` передаёт имя файла аргументом → gitleaks трактует его как `[repo]` и **молча пропускает**
+  (override в нашем конфиге + стат-гард в тесте).
+- CI-дубль: job `secret-scan` (gitleaks-action) — ловит и уже закоммиченное; pre-commit — до коммита.
+- Вручную (за юзером): GitHub → Settings → Code security → secret scanning + push protection (public — бесплатно).
+- Стат-гарды: `tests/test_repo_hygiene.py` (конфиг и CI-джоб не должны исчезнуть).
+
 ## Контракт-дельта (авто-гейт)
 - `scripts/contract_delta.py` — снапшот публичных контрактов: схема БД (user_version + колонки из tmp-БД Store),
   публичные сигнатуры `src/spendtrack` (AST, без импорта) + модульные UPPER-константы (лимиты/банки/версия

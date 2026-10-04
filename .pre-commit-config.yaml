@@ -1,0 +1,15 @@
+# Pre-commit-хуки (Habr-ресёрч 04.10, §3.5): секреты не доезжают до коммита.
+# Установка (один раз):
+#   1) gitleaks в PATH:  powershell -File scripts\install-gitleaks.ps1 -AddToPath
+#      (на этой машине Go/Docker нет — берём релизный бинарь; hook ниже — language: system)
+#   2) хук в git:        uvx pre-commit install
+# Ручной прогон:         uvx pre-commit run --all-files
+# CI-дубль (ловит уже закоммиченное): job `secret-scan` в .github/workflows/ci.yml
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1  # последний релиз (04.10.2026); при обновлении — сверить тег
+    hooks:
+      - id: gitleaks-system  # language: system → нужен gitleaks в PATH (см. install-gitleaks.ps1)
+        # ВАЖНО: entry сам читает staged-диф; без этого pre-commit передаёт имя файла аргументом,
+        # gitleaks трактует его как [repo] и МОЛЧА пропускает скан (проверено вживую 04.10).
+        pass_filenames: false
