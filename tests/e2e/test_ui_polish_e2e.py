@@ -97,14 +97,21 @@ def test_filter_change_keeps_single_tx_table(page: Page, live_server, db_path):
 
 
 def test_invalid_amount_shows_error_banner(page: Page, live_server):
-    """W1 ресёрча ошибок: 422 на «Добавить» виден пользователю (#error-banner, role=alert)."""
+    """W1/W2 ресёрча ошибок: 422 «Добавить» — баннер, aria-invalid и фокус на поле."""
     page.goto(f"{live_server}/")
     page.click('[data-toggle="add-panel"]')
     page.fill('#add-form input[name="description"]', "ТЕСТ ОШИБКА")
-    page.fill('#add-form input[name="amount"]', "abc")
+    amount = page.locator('#add-form input[name="amount"]')
+    amount.fill("abc")
     with page.expect_response(lambda r: "/api/transactions" in r.url):
         page.click("#add-form button")
     expect(page.locator("#error-banner")).to_contain_text("сумма")
+    expect(amount).to_have_attribute("aria-invalid", "true")  # W2-a11y: поле помечено
+    assert page.evaluate(
+        "() => document.activeElement === document.querySelector('#add-form input[name=\"amount\"]')"
+    ), "фокус должен уйти на ошибочное поле"
+    amount.fill("12.34")  # правка снимает пометку
+    expect(amount).not_to_have_attribute("aria-invalid", "true")
 
 
 def test_month_empty_note(page: Page, live_server, db_path):

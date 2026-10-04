@@ -164,6 +164,7 @@ def test_error_banner_hooks_present():
     root = Path(__file__).resolve().parents[1] / "src" / "spendtrack"
     js = (root / "static" / "app.js").read_text(encoding="utf-8")
     assert "htmx:responseError" in js and "htmx:sendError" in js
+    assert "aria-invalid" in js  # W2-a11y: пометка ошибочного поля + фокус (WCAG 3.3.1)
     base = (root / "templates" / "base.html").read_text(encoding="utf-8")
     assert 'id="error-banner"' in base and 'role="alert"' in base
 

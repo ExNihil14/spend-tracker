@@ -218,12 +218,63 @@
     } catch (err) { /* не JSON (HTML-страница ошибки) — оставляем fallback */ }
     return msg;
   }
+  function fieldNames(xhr) {
+    // pydantic-422: loc = ["amount"] или ["body","amount"] → имя поля (последний нечисловой сегмент)
+    var names = [];
+    if (!xhr) return names;
+    try {
+      var d = JSON.parse(xhr.responseText);
+      if (d && Array.isArray(d.detail)) {
+        d.detail.forEach(function (x) {
+          var loc = x && x.loc;
+          if (!Array.isArray(loc)) return;
+          for (var i = loc.length - 1; i >= 0; i--) {
+            var seg = loc[i];
+            if (typeof seg === 'string' && isNaN(Number(seg))) { names.push(seg); break; }
+          }
+        });
+      }
+    } catch (err) { /* не JSON */ }
+    return names;
+  }
+  function clearInvalid(root) {
+    (root || document).querySelectorAll('[aria-invalid="true"]').forEach(function (el) {
+      el.removeAttribute('aria-invalid');
+    });
+  }
   document.body.addEventListener('htmx:responseError', function (e) {
     var x = e.detail && e.detail.xhr;
     showError(errorText(x, 'Ошибка ' + (x ? x.status : '') + ' — действие не выполнено'));
+    // W2-a11y (WCAG 3.3.1/ARIA21): помечаем ошибочные поля и переносим фокус на первое
+    var elt = e.detail && e.detail.elt;
+    var form = elt && elt.closest ? elt.closest('form') : null;
+    if (!form) return;
+    clearInvalid(form);
+    var first = null;
+    fieldNames(x).forEach(function (name) {
+      var f = form.querySelector('[name="' + name + '"]');
+      if (f) {
+        f.setAttribute('aria-invalid', 'true');
+        if (!first) first = f;
+      }
+    });
+    if (first) first.focus();
   });
   document.body.addEventListener('htmx:sendError', function () {
     showError('Нет связи с сервером — проверьте, что приложение запущено');
+  });
+  document.body.addEventListener('input', function (e) {
+    var el = e.target;  // правка поля снимает пометку об ошибке
+    if (el && el.getAttribute && el.getAttribute('aria-invalid') === 'true') {
+      el.removeAttribute('aria-invalid');
+    }
+  });
+  document.body.addEventListener('htmx:afterRequest', function (e) {
+    if (e.detail && e.detail.successful) {
+      var elt = e.detail.elt;
+      var form = elt && elt.closest ? elt.closest('form') : null;
+      if (form) clearInvalid(form);
+    }
   });
 
   document.body.addEventListener('htmx:afterSwap', maybeConfetti);

@@ -20,6 +20,8 @@
     input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity: .75; }
     input[type="date"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
     input[type="date"] { accent-color: var(--accent); }
+    /* W2-a11y: ошибочное поле (aria-invalid) — рамка danger; текст ошибки — в #error-banner */
+    input[aria-invalid="true"] { border-color: var(--danger); }
     /* Уход строки очереди: видимая преемственность при approve/skip */
     tr.review-row { transition: opacity 160ms ease, transform 160ms ease; }
     tr.review-row.htmx-swapping { opacity: 0; transform: translateX(-16px); }

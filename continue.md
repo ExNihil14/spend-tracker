@@ -95,6 +95,9 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (тип+время, без тел); `CircuitBreaker.state()`; правило «DEBUG-логи только локально» — в REVIEW_CHECKLIST
 > и комментарии categorize. Контур **880 unit + 97 e2e**; contract: api **386** (snapshot в дереве —
 > коммит с трейлером `Contract-Change: api=386`).
+> **a11y-хвост ресёрча ошибок — закрыт (04.10, в дереве):** 422 помечает ошибочные поля `aria-invalid`
+> (+рамка danger), фокус уходит на первое ошибочное поле, правка поля снимает пометку (e2e проверяет
+> все три шага). **Ресёрч «обработка ошибок» исполнен полностью: W1 + W2 + a11y.** Контур 880 + 97.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
