@@ -59,8 +59,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > сделана:** предупреждения анонимайзера (нулевое обезличивание, PII вне таблицы, `.xlsm`-отказ,
 > свойства книги), doctor-краш, lazy_backup-контракт; bootstrap: CRIT-1/2 (`.part`-публикация, staging
 > в try/finally) + msvcrt/all-empty. **Волна 3 (тесты/UX) — сделана:** goals S1/S2/S4/S6/S10/S11 +
-> e2e-локаторы карточек, feed S4/S6, settings-контракт, ui_js S1–S3/S6, store-доки v6. Контур
-> **855 unit + 95 e2e**, bootstrap-тесты ALL PASS, snapshot api=383. Коммит — по команде.
+> e2e-локаторы карточек, feed S4/S6, settings-контракт, ui_js S1–S3/S6, store-доки v6. **Волна 6
+> («wave6-хвосты») — сделана:** feed S1/S2 (свап только `#tx-table` + OOB `#tx-actions`) и S3
+> («+ валюта» у смешанного дня), anonymize S3/S4/S5 (фантомный `max_row`, merge/фильтр, роутинг по
+> магии), settings №5, ops_spend №5/№6 (serve-порядок, CI docker-smoke), ops1 SHOULD-3/4
+> (`secure_delete`+VACUUM, атомарный маркер), Docker PATH. Контур **862 unit + 95 e2e**,
+> bootstrap-тесты ALL PASS, snapshot api=383. Остаток: хвост окна (ops2+Astra) + отложенное
+> (settings №2/№6, ops1 SHOULD-1). Коммит — по команде.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);

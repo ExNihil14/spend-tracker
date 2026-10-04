@@ -120,14 +120,16 @@ def test_help_links_disable_boost(client):
     assert '/help#faq-queue-why" hx-boost="false"' in client.get("/approve").text
 
 
-def test_filters_swap_outer_html(client):
-    """Фильтры свапают карточку #tx-card через outerHTML: шапка («✕»/экспорт) обновляется вместе
-    с таблицей; month — скрытым полем (иначе смена фильтра уводила на месяц последней операции)."""
+def test_filters_swap_table_with_oob_actions(client):
+    """Wave6 feed S1/S2: фильтры свапают только #tx-table (+OOB #tx-actions) — фокус/каретка и открытые
+    панели выживают; шапка («✕»/экспорт) обновляется OOB; month — скрытым полем (иначе смена фильтра
+    уводила на месяц последней операции)."""
     html = client.get("/").text
-    assert 'id="tx-card"' in html
-    assert html.count('hx-select="#tx-card" hx-swap="outerHTML"') >= 4
+    assert 'id="tx-card"' in html and 'id="tx-actions"' in html
+    assert html.count('hx-select="#tx-table"') >= 5  # форма + 2 селекта + поиск + refresh-list
+    assert html.count('hx-select-oob="#tx-actions:outerHTML"') == 4
+    assert 'hx-select="#tx-card"' not in html  # карточка больше не цель свапа фильтров
     assert 'name="month" value=' in html
-    assert html.count('hx-select="#tx-table" hx-swap="outerHTML"') >= 1  # refresh-list: лёгкий свап
 
 
 def test_fx_only_day_is_labeled_not_zero(client):

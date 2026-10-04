@@ -7,7 +7,8 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     SPENDTRACK_DATA_DIR=/data \
-    SPENDTRACK_CONFIG_DIR=/data/config
+    SPENDTRACK_CONFIG_DIR=/data/config \
+    PATH="/app/.venv/bin:$PATH"
 
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src

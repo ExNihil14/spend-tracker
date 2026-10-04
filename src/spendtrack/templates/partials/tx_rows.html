@@ -10,8 +10,9 @@
       <span class="h-px flex-1 bg-line" aria-hidden="true"></span>
       {% set day_total = day_totals.get(t.date) %}
       {% set day_fx_count = day_fx.get(t.date) %}
-      <span class="text-xs font-medium {{ 'text-income' if day_total is not none and day_total > 0 else 'text-fg-muted' }}">
-        {% if day_total is not none %}итог {{ fmt_money(day_total) }}
+      <span class="text-xs font-medium {{ 'text-income' if day_total is not none and day_total > 0 else 'text-fg-muted' }}"
+            {% if day_fx_count %}title="Операции в валюте в итог не входят"{% endif %}>
+        {% if day_total is not none %}итог {{ fmt_money(day_total) }}{% if day_fx_count %} + валюта{% endif %}
         {% elif day_fx_count %}только в валюте
         {% else %}итог {{ fmt_money(0) }}{% endif %}
       </span>

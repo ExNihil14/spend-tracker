@@ -156,7 +156,9 @@ jobs:
       - name: Run + doctor smoke (fresh volume)
         run: |
           set -euo pipefail
-          docker run -d --name spendtrack-ci -p 127.0.0.1:8766:8766 spendtrack:ci
+          mkdir -p "$RUNNER_TEMP/st-data"
+          docker run -d --name spendtrack-ci -p 127.0.0.1:8766:8766 \
+            -v "$RUNNER_TEMP/st-data:/data" spendtrack:ci
           ok=0
           for i in $(seq 1 40); do
             if curl -sf http://127.0.0.1:8766/health >/dev/null; then ok=1; break; fi
@@ -165,8 +167,15 @@ jobs:
           if [ "$ok" != "1" ]; then
             echo "health не поднялся"; docker logs spendtrack-ci; exit 1
           fi
-          docker exec spendtrack-ci /app/.venv/bin/spendtrack doctor
-          docker exec spendtrack-ci /app/.venv/bin/spendtrack paths
+          # wave6 №6: проверяем ДОКУМЕНТИРОВАННУЮ команду (PATH/entrypoint), а не абсолютный путь
+          if ! docker exec spendtrack-ci spendtrack doctor; then
+            echo "doctor упал"; docker logs spendtrack-ci; exit 1
+          fi
+          if ! docker exec spendtrack-ci spendtrack paths; then
+            echo "paths упал"; docker logs spendtrack-ci; exit 1
+          fi
+          # том смонтирован и реально используется (БД/снимки легли на volume, а не в ФС контейнера)
+          test -n "$(ls -A "$RUNNER_TEMP/st-data")"
 
       - name: Cleanup
         if: always()

@@ -130,3 +130,35 @@ def test_more_endpoint_fx_only_day_marker(tmp_path, monkeypatch):
     html = client.get("/transactions/more?month=2026-09&days=1&after=2026-09-09").text
     assert "только в валюте" in html  # FX-день подписан честно
     assert "итог 0,00" not in html
+
+
+def test_filters_swap_table_only_with_actions_oob(tmp_path, monkeypatch):
+    """Wave6 feed S1/S2: фильтры свапают только #tx-table (+OOB #tx-actions) — фокус и панели выживают."""
+    db = tmp_path / "oob.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    s = Store(db_path=db)
+    _seed(s)
+    s.close()
+    html = TestClient(app).get("/?month=2026-09").text
+    form = re.search(r'<form[^>]*id="filters"[^>]*>', html)
+    assert form is not None
+    tag = form.group(0)
+    assert 'hx-target="#tx-table"' in tag and 'hx-select="#tx-table"' in tag
+    assert html.count('hx-select-oob="#tx-actions:outerHTML"') == 4  # форма + 2 селекта + поиск
+    assert 'id="tx-actions"' in html
+    assert 'hx-target="#tx-card"' not in html  # карточка больше не цель свапа фильтров
+
+
+def test_mixed_day_marks_foreign_part(tmp_path, monkeypatch):
+    """Wave6 feed S3: смешанный день помечает валютную часть — «итог» не выглядит полным."""
+    db = tmp_path / "mix.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    s = Store(db_path=db)
+    s.add_transaction(date="2026-09-10", description="РУБЛЬ", amount_kopecks=-10000,
+                      category="other", category_source="manual")
+    s.add_transaction(date="2026-09-10", description="ДОЛЛАР", amount_kopecks=-1000,
+                      category="other", category_source="manual", currency="USD")
+    s.close()
+    html = TestClient(app).get("/?month=2026-09").text
+    assert "итог" in html and "+ валюта" in html
+    assert "Операции в валюте в итог не входят" in html

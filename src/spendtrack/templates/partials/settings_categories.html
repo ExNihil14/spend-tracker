@@ -46,7 +46,8 @@
           </form>
         </td>
         <td class="px-5 py-3 text-right">
-          <form hx-post="/settings/categories/delete" hx-target="#settings-root" hx-swap="outerHTML">
+          <form hx-post="/settings/categories/delete" hx-target="#settings-root" hx-swap="outerHTML"
+                hx-disabled-elt="find button">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
             {% set n = usage.get(c.name, 0) %}

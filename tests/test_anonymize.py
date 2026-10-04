@@ -322,6 +322,60 @@ def test_run_anonymize_xlsm_rejected(tmp_path, capsys):
     assert "xlsx" in capsys.readouterr().err.lower()
 
 
+def test_xlsx_phantom_rows_ignored():
+    """Wave6 S3: «раздутый» max_row (стили/остатки фильтра) не раздувает отчёт и не вешает delete_rows."""
+    from openpyxl import Workbook, load_workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Описание", "Сумма"])
+    ws.append(["ЛЕНТА", -100])
+    ws.cell(50_000, 1)  # обращение к далёкой ячейке раздувает max_row (значения нет)
+    buf = BytesIO()
+    wb.save(buf)
+    out, report = anonymize_xlsx(buf.getvalue(), max_rows=0)
+    assert report["rows_total"] == 1  # фантомные строки не считаются
+    assert load_workbook(BytesIO(out)).active.max_row >= 2  # файл открывается
+
+
+def test_xlsx_merge_and_filter_below_cut_dropped():
+    """Wave6 S4: merge/автофильтр ниже усечённой части не «висят» за пределами листа."""
+    from openpyxl import Workbook, load_workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Описание", "Сумма"])
+    for i in range(3):
+        ws.append([f"ОПЕРАЦИЯ {i}", -100 - i])
+    ws.merge_cells("A6:B6")
+    ws.cell(6, 1).value = "Итого"
+    ws.auto_filter.ref = "A1:B6"
+    buf = BytesIO()
+    wb.save(buf)
+    out, report = anonymize_xlsx(buf.getvalue(), max_rows=1)
+    ws2 = load_workbook(BytesIO(out)).active
+    assert report["merged_dropped"] == 1
+    assert not ws2.merged_cells.ranges
+    assert ws2.auto_filter.ref is None
+
+
+def test_xlsx_named_csv_routed_by_magic(tmp_path):
+    """Wave6 S5: XLSX под именем .csv — роутинг по магии; выход с расширением .xlsx."""
+    src = tmp_path / "v.csv"
+    src.write_bytes(_xlsx_bytes([["ЛЕНТА", "-100"]], ["Описание", "Сумма"]))
+    assert run_anonymize(src, max_rows=0) == 0
+    out = src.with_name("v.anon.xlsx")
+    assert out.exists() and out.read_bytes()[:4] == b"PK\x03\x04"
+
+
+def test_html_named_xlsx_asks_conversion(tmp_path, capsys):
+    """Wave6 S5: HTML-таблица под именем .xlsx — понятная просьба о конвертации, не «File is not a zip»."""
+    src = tmp_path / "v.xlsx"
+    src.write_bytes("<html><table><tr><td>ЛЕНТА</td></tr></table>".encode())
+    assert run_anonymize(src) == 1
+    assert "HTML" in capsys.readouterr().err
+
+
 def test_anonymized_sample_imports_same_shape(tmp_path):
     """Образец — валидная фикстура: импортируется (sber) с теми же датами/суммами/статусами."""
     raw = gen_sber(n=8, seed=11)

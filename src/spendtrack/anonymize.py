@@ -183,6 +183,36 @@ def _label_columns(header: list, kinds: list, anonymized: dict, untouched: list)
             untouched.append(label)
 
 
+def _last_data_row(ws, header_row: int) -> int:
+    """Реальная последняя строка с данными: `max_row` бывает раздут стилями/остатками автофильтра.
+
+    wave6 S3: максимум по УЖЕ существующим ячейкам (`ws._cells`) — обращение через `ws.cell()`
+    материализовало бы пустые строки, и `delete_rows` мог получить диапазон в сотни тысяч строк.
+    """
+    last = header_row
+    for (r, _c), cell in ws._cells.items():
+        if r > last and _strip(cell.value):
+            last = r
+    return last
+
+
+def _truncate_sheet(ws, drop_after: int, cut: int) -> int:
+    """Удалить строки ниже drop_after; → сколько merged-диапазонов пришлось снять.
+
+    wave6 S4: openpyxl не сдвигает merged-диапазоны/автофильтр при delete_rows — иначе merge
+    «висит» за пределами листа и Excel предлагает восстановление файла.
+    """
+    dropped = 0
+    for mr in list(ws.merged_cells.ranges):
+        if mr.max_row > drop_after:
+            ws.unmerge_cells(str(mr))
+            dropped += 1
+    if ws.auto_filter.ref:
+        ws.auto_filter.ref = None
+    ws.delete_rows(drop_after + 1, cut)
+    return dropped
+
+
 def _anonymize_sheet_rows(ws, header_row: int, kinds: list, keep: list, pseudonyms: _Pseudonyms) -> int:
     """Заменить PII в перечисленных строках листа; → сколько строк записано."""
     written = 0
@@ -219,7 +249,7 @@ def anonymize_xlsx(
     anonymized: dict[str, str] = {}
     untouched: list[str] = []
     empty_headers: list[int] = []
-    total = written = outside = 0
+    total = written = outside = merged_dropped = 0
     remaining = max_rows if max_rows and max_rows > 0 else None
 
     for ws in wb.worksheets:
@@ -233,7 +263,8 @@ def anonymize_xlsx(
         kinds = [_classify(_strip(name), extra) for name in header]
         empty_headers.extend(i for i, name in enumerate(header) if not _strip(name))
         _label_columns(header, kinds, anonymized, untouched)
-        rows_all = list(range(header_row + 1, ws.max_row + 1))
+        last_data = _last_data_row(ws, header_row)
+        rows_all = list(range(header_row + 1, last_data + 1))
         keep = rows_all if remaining is None else rows_all[:remaining]
         total += len(rows_all)
         written += _anonymize_sheet_rows(ws, header_row, kinds, keep, pseudonyms)
@@ -241,7 +272,7 @@ def anonymize_xlsx(
             remaining -= len(keep)
         cut = len(rows_all) - len(keep)
         if cut > 0:
-            ws.delete_rows(header_row + len(keep) + 1, cut)
+            merged_dropped += _truncate_sheet(ws, header_row + len(keep), cut)
 
     # метаданные книги — PII-канал (автор/последний редактор/заголовок): чистим ДО сохранения (ревью wave5, C3/S2)
     props = wb.properties
@@ -261,20 +292,30 @@ def anonymize_xlsx(
         "rows_total": total,
         "rows_written": written,
         "outside_rows": outside,
+        "merged_dropped": merged_dropped,
         "xlsx": True,
     }
     return buf.getvalue(), report
 
 
 def _anonymize_payload(raw: bytes, suffix: str, extra: set[str], max_rows: int) -> tuple[bytes, dict]:
-    """Выбор CSV/XLSX-пути (по расширению и магии ZIP); legacy .xls — понятная ошибка."""
-    if suffix in (".xls", ".xlsm"):
-        # NO-GO адъюдикации 03.10 + ревью wave5 S6: legacy BIFF и макрос-книги не тянем
+    """Роутинг по МАГИИ (расширение — подсказка): ZIP → XLSX; OLE/HTML → понятная просьба; иначе CSV."""
+    if suffix == ".xlsm":
+        # NO-GO адъюдикации 03.10 + ревью wave5 S6: макрос-книги не тянем (VBA теряется молча)
         raise ValueError(
-            "legacy/macro .xls/.xlsm не поддерживается — сконвертируйте выписку в .xlsx "
-            "(Excel/LibreOffice) или CSV")
-    if suffix == ".xlsx" or (suffix != ".csv" and raw[:4] == b"PK\x03\x04"):
+            "macro .xlsm не поддерживается — сконвертируйте выписку в .xlsx (Excel/LibreOffice) или CSV")
+    if raw[:4] == b"PK\x03\x04":
+        # wave6 S5: XLSX под именем .csv (частый экспорт) — тоже XLSX, а не «обезличенный» мусор
         return anonymize_xlsx(raw, extra, max_rows=max_rows)
+    if raw[:4] == b"\xd0\xcf\x11\xe0":
+        raise ValueError(
+            "legacy .xls (BIFF/OLE) не поддерживается — сконвертируйте выписку в .xlsx или CSV")
+    head = raw[:512].lstrip(b"\xef\xbb\xbf \t\r\n").lower()
+    if head.startswith((b"<html", b"<tabl", b"<?xml")):
+        raise ValueError("файл похож на HTML/XML-выгрузку — сконвертируйте её в .xlsx или CSV")
+    if suffix == ".xlsx":
+        raise ValueError(
+            "файл с расширением .xlsx не является xlsx-книгой (не zip-контейнер) — сконвертируйте его")
     text, report = anonymize_csv(raw, extra, max_rows=max_rows)
     # bytes, а не write_text: терминатор строк выписки (CRLF в cp1251-файлах) сохраняется
     # как есть — text-mode на Windows превратил бы «\r\n» в «\r\r\n».
@@ -323,6 +364,9 @@ def _print_report(report: dict, dst: Path) -> None:
                     "просмотрите файл перед отправкой.")
     if report.get("empty_headers"):
         warn.append("ВНИМАНИЕ: есть колонки без заголовка — проверьте их вручную (могут содержать PII).")
+    if report.get("merged_dropped"):
+        warn.append(f"ВНИМАНИЕ: {report['merged_dropped']} объединённых диапазонов ниже усечённой части "
+                    "удалены (openpyxl их не сдвигает) — проверьте файл.")
     print("\n".join(warn), file=sys.stderr, flush=True)
 
 
@@ -342,8 +386,8 @@ def run_anonymize(
     raw = _read_source(src)
     if raw is None:
         return 1
-    dst = Path(dst) if dst else src.with_name(src.stem + ".anon" + src.suffix)
-    if dst.resolve() == src.resolve():
+    out = Path(dst) if dst else None
+    if out is not None and out.resolve() == src.resolve():
         print("исходный и выходной файл совпадают — перезапись выписки запрещена; укажите другой путь",
               file=sys.stderr, flush=True)
         return 1
@@ -355,9 +399,12 @@ def run_anonymize(
     except Exception as e:  # noqa: BLE001 — битый XLSX (не zip) — понятная ошибка, а не трейс
         print(f"не удалось разобрать файл: {e}", file=sys.stderr, flush=True)
         return 1
-    if not _write_anonymized(data, dst):
+    if out is None:
+        # авто-имя: расширение — по фактическому формату (XLSX под именем .csv → .anon.xlsx) — wave6 S5
+        out = src.with_name(src.stem + ".anon" + (".xlsx" if report.get("xlsx") else src.suffix))
+    if not _write_anonymized(data, out):
         return 1
-    _print_report(report, dst)
+    _print_report(report, out)
     return 0
 
 

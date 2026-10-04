@@ -23,17 +23,17 @@
             class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Импорт CSV</button>
     <button type="button" id="add" data-toggle="add-panel" aria-expanded="false" aria-controls="add-panel"
             class="border border-line-strong text-fg hover:bg-line text-xs font-medium rounded-lg px-3 py-1.5 transition-colors">Добавить</button>
-    <form hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
+    <form hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-select-oob="#tx-actions:outerHTML" hx-swap="outerHTML" hx-push-url="true" class="flex flex-wrap gap-2 ml-auto" id="filters">
       <input type="hidden" name="month" value="{{ current }}">
       <select name="sort" aria-label="Сортировка"
               class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-              hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
+              hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-select-oob="#tx-actions:outerHTML" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
         <option value="recent" {% if sort == 'recent' %}selected{% endif %}>Сначала новые</option>
         <option value="amount" {% if sort == 'amount' %}selected{% endif %}>Крупные сначала</option>
       </select>
       <select name="category" aria-label="Фильтр по категории"
               class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-              hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
+              hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-select-oob="#tx-actions:outerHTML" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters" hx-trigger="change">
         <option value="">Все категории</option>
         {% for c in all_categories %}
         <option value="{{ c }}" {% if category == c %}selected{% endif %}>{{ catname(c) }}</option>
@@ -41,14 +41,18 @@
       </select>
       <input name="q" value="{{ q }}" placeholder="Поиск…" aria-label="Поиск по описанию"
              class="bg-surface-2 text-fg border border-line-strong rounded-lg px-2 py-1.5 text-sm w-36 focus:outline-none focus:ring-2 focus:ring-accent"
-             hx-get="/" hx-target="#tx-card" hx-select="#tx-card" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters"
+             hx-get="/" hx-target="#tx-table" hx-select="#tx-table" hx-select-oob="#tx-actions:outerHTML" hx-swap="outerHTML" hx-push-url="true" hx-include="#filters"
              hx-trigger="input changed delay:400ms">
-      {% if category or q %}<a href="/?month={{ current }}" class="text-accent hover:text-accent-hover text-sm px-2 py-1" aria-label="Сбросить фильтры">✕</a>{% endif %}
     </form>
-    <a href="/export.csv?month={{ current }}{% if category %}&category={{ category|urlencode }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}"
-       hx-boost="false"
-       class="text-fg hover:text-fg-strong text-sm px-3 py-1.5 rounded-lg border border-line-strong hover:bg-line transition-colors"
-       aria-label="Экспорт транзакций в CSV (открывается в Excel)" title="Экспорт CSV (Excel)">Экспорт CSV</a>
+    {# wave6 feed S1/S2: ✕ и «Экспорт CSV» — вне формы и свапаются OOB вместе с таблицей; сама форма
+       больше не цель свапа → фокус/каретка и открытые панели «Импорт»/«Добавить» выживают. #}
+    <div id="tx-actions" class="flex items-center gap-2">
+      {% if category or q %}<a href="/?month={{ current }}" class="text-accent hover:text-accent-hover text-sm px-2 py-1" aria-label="Сбросить фильтры">✕</a>{% endif %}
+      <a href="/export.csv?month={{ current }}{% if category %}&category={{ category|urlencode }}{% endif %}{% if q %}&q={{ q|urlencode }}{% endif %}"
+         hx-boost="false"
+         class="text-fg hover:text-fg-strong text-sm px-3 py-1.5 rounded-lg border border-line-strong hover:bg-line transition-colors"
+         aria-label="Экспорт транзакций в CSV (открывается в Excel)" title="Экспорт CSV (Excel)">Экспорт CSV</a>
+    </div>
   </div>
 
   <div id="import-panel" hidden class="px-5 py-4 border-b border-line bg-canvas/30">

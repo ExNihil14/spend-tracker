@@ -437,6 +437,15 @@ def cmd_serve(args) -> int:
         threading.Timer(1.0, lambda: webbrowser.open(url)).start()
     print(f"Spendtrack: {url}  (Ctrl+C — остановить)")
     sys.stdout.flush()
+    # wave6 ops_spend №5: БД (и миграции) инициализируем ДО ленивого бэкапа — на свежей установке
+    # Store открывается приложением позже, и первый снимок иначе не появлялся никогда
+    try:
+        from spendtrack.config import resolve_db_path
+        from spendtrack.store import Store
+
+        Store(db_path=resolve_db_path()).close()
+    except Exception as e:  # noqa: BLE001 — не мешаем запуску; сервер сообщит свою ошибку сам
+        print(f"инициализация БД: {e}", file=sys.stderr)
     _lazy_backup_notice()
     import uvicorn
     uvicorn.run("spendtrack.main:app", host=host, port=port, log_config=None)

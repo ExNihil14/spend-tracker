@@ -70,6 +70,19 @@ def test_serve_runs_lazy_backup(lazy_db, monkeypatch, capsys):
     assert len(_snaps(lazy_db)) == 1
 
 
+def test_serve_creates_db_before_lazy_backup(tmp_path, monkeypatch):
+    """Wave6 ops_spend №5: serve на свежем каталоге создаёт БД ДО ленивого бэкапа — первый снимок есть."""
+    import uvicorn
+
+    db = tmp_path / "fresh.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    monkeypatch.setattr(uvicorn, "run", lambda *a, **k: None)
+    assert not db.exists()
+    assert cli.main(["serve"]) == 0
+    assert db.exists()  # БД создана (миграции прошли)
+    assert len(_snaps(db)) == 1  # и ленивый бэкап успел сделать первый снимок
+
+
 def test_lazy_never_raises_on_unexpected(monkeypatch, lazy_db):
     """Ревью wave5 (ops_spend №2): контракт «никогда не бросает» — любой сбой → failed."""
     from spendtrack import backup as B

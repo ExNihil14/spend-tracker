@@ -41,7 +41,8 @@
           </td>
           <td class="px-5 py-2.5">
             <div class="flex items-center justify-end gap-1.5">
-              <form hx-post="/settings/rules/move" hx-target="#settings-root" hx-swap="outerHTML">
+              <form hx-post="/settings/rules/move" hx-target="#settings-root" hx-swap="outerHTML"
+                    hx-disabled-elt="find button">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
                 <input type="hidden" name="direction" value="up">
@@ -51,7 +52,8 @@
                                {{ 'bg-surface-2 text-fg-subtle cursor-not-allowed' if loop.first
                                   else 'bg-surface-2 hover:bg-line-strong text-fg' }}">↑</button>
               </form>
-              <form hx-post="/settings/rules/move" hx-target="#settings-root" hx-swap="outerHTML">
+              <form hx-post="/settings/rules/move" hx-target="#settings-root" hx-swap="outerHTML"
+                    hx-disabled-elt="find button">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
                 <input type="hidden" name="direction" value="down">
@@ -62,6 +64,7 @@
                                   else 'bg-surface-2 hover:bg-line-strong text-fg' }}">↓</button>
               </form>
               <form hx-post="/settings/rules/delete" hx-target="#settings-root" hx-swap="outerHTML"
+                    hx-disabled-elt="find button"
                     hx-confirm="Удалить правило «{{ a.pattern }}»?">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
