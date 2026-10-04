@@ -229,6 +229,59 @@ def _legacy_db(path, version: int, rows: list[tuple], budgets: list[tuple] | Non
     conn.close()
 
 
+def _legacy_db_custom(path, version: int, table_sql: str, insert_sql: str, values: list[tuple]):
+    """Собирает БД с ПРОИЗВОЛЬНОЙ формой таблицы transactions (для негативных форм v6-миграции)."""
+    conn = sqlite3.connect(path)
+    conn.executescript(table_sql)
+    conn.executemany(insert_sql, values)
+    conn.execute("CREATE TABLE schema_migrations (version INTEGER PRIMARY KEY,"
+                 " applied_at TEXT NOT NULL)")
+    conn.executemany("INSERT INTO schema_migrations VALUES (?, '2026-09-01T00:00:00+00:00')",
+                     [(v,) for v in range(1, version + 1)])
+    conn.execute(f"PRAGMA user_version = {version}")
+    conn.commit()
+    conn.close()
+
+
+def test_v5_created_without_updated_migrates(tmp_path):
+    """Wave6 store S4: схема с created без updated не роняет v6 (guard читал отсутствующую колонку)."""
+    db = tmp_path / "v5-cu.db"
+    table_sql = _V3_TABLE.replace("created TEXT, updated TEXT,", "created TEXT,")
+    _legacy_db_custom(
+        db, 5, table_sql,
+        "INSERT INTO transactions (fingerprint, date, description, amount_kopecks, category,"
+        " category_source, confidence, review_status, statement_order, created)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?)",
+        [("fp1", "2026-09-01", "ЛЕНТА", -100, "groceries", "rule", 1.0, "approved", 0, None)],
+    )
+    s = Store(db_path=db)
+    try:
+        row = s.conn.execute("SELECT created, updated FROM transactions").fetchone()
+        assert row["created"] and row["updated"]  # NULL-created до-заполнен, updated добавлен
+        assert s.conn.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+    finally:
+        s.close()
+
+
+def test_v5_without_created_updated_migrates(tmp_path):
+    """Wave6 store S4: схема вообще без created/updated — INSERT подставляет литералы (NOT NULL)."""
+    db = tmp_path / "v5-none.db"
+    table_sql = _V3_TABLE.replace("created TEXT, updated TEXT,", "")
+    _legacy_db_custom(
+        db, 5, table_sql,
+        "INSERT INTO transactions (fingerprint, date, description, amount_kopecks, category,"
+        " category_source, confidence, review_status, statement_order)"
+        " VALUES (?,?,?,?,?,?,?,?,?)",
+        [("fp1", "2026-09-01", "ЛЕНТА", -100, "groceries", "rule", 1.0, "approved", 0)],
+    )
+    s = Store(db_path=db)
+    try:
+        row = s.conn.execute("SELECT created, updated FROM transactions").fetchone()
+        assert row["created"] and row["updated"]
+    finally:
+        s.close()
+
+
 def _snapshot(store: Store) -> tuple:
     row = store.conn.execute(
         "SELECT COUNT(*) c, COALESCE(SUM(amount_kopecks),0) s FROM transactions").fetchone()

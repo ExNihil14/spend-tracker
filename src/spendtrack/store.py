@@ -436,23 +436,34 @@ class Store:
                 "исправьте данные и повторите; pre-migration-снимок лежит рядом с БД "
                 "(диагностика — `spendtrack doctor`)")
         old_cols = self._tx_columns()
+        now_sql = "strftime('%Y-%m-%dT%H:%M:%S+00:00','now')"
+        # wave6 store S4: guard читает только ФАКТИЧЕСКИ доступные колонки (схема с created без updated
+        # роняла миграцию «no such column: updated»)
         if "created" in old_cols:
+            src = f"COALESCE(updated, {now_sql})" if "updated" in old_cols else now_sql
             self.conn.execute(
-                "UPDATE transactions SET created = COALESCE(created, updated,"
-                " strftime('%Y-%m-%dT%H:%M:%S+00:00','now')) WHERE created IS NULL")
+                f"UPDATE transactions SET created = COALESCE(created, {src}) WHERE created IS NULL")
         if "updated" in old_cols:
+            src = f"COALESCE(created, {now_sql})" if "created" in old_cols else now_sql
             self.conn.execute(
-                "UPDATE transactions SET updated = COALESCE(updated, created,"
-                " strftime('%Y-%m-%dT%H:%M:%S+00:00','now')) WHERE updated IS NULL")
+                f"UPDATE transactions SET updated = COALESCE(updated, {src}) WHERE updated IS NULL")
         new_cols = ["id", "date", "description", "amount_kopecks", "currency", "category",
                     "category_source", "confidence", "merchant", "account_anon", "import_batch",
                     "fingerprint", "created", "updated", "category_llm", "review_status",
                     "statement_order"]
         copy_cols = [c for c in new_cols if c in old_cols]
-        cols = ", ".join(copy_cols)
+        # wave6 store S4: отсутствующие created/updated — литералы в INSERT (новые колонки NOT NULL)
+        insert_cols = list(copy_cols)
+        select_exprs = list(copy_cols)
+        for c in ("created", "updated"):
+            if c not in old_cols:
+                insert_cols.append(c)
+                select_exprs.append(now_sql)
+        cols = ", ".join(insert_cols)
+        exprs = ", ".join(select_exprs)
         self.conn.execute("ALTER TABLE transactions RENAME TO transactions_pre_v6")
         self.conn.execute(_TX_DDL)
-        self.conn.execute(f"INSERT INTO transactions ({cols}) SELECT {cols} FROM transactions_pre_v6")
+        self.conn.execute(f"INSERT INTO transactions ({cols}) SELECT {exprs} FROM transactions_pre_v6")
         self.conn.execute("DROP TABLE transactions_pre_v6")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date)")
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category)")

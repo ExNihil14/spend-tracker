@@ -66,8 +66,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (`secure_delete`+VACUUM, атомарный маркер), Docker PATH. **Волна 6+ (settings №2/№6) — сделана:**
 > `#tax-hash` вне root + OOB-хэш каждой мутации + подстановка на запрос (app.js) → свежесть без свапа
 > root; бюджеты — свап своей строки, иконка — строки, цвет — `swap=none` + тост. Контур
-> **863 unit + 96 e2e**, bootstrap-тесты ALL PASS, snapshot api=383. Остаток: хвост окна (ops2+Astra)
-> + отложенное (ops1 SHOULD-1, store S4). Коммит — по команде.
+> **863 unit + 96 e2e**, bootstrap-тесты ALL PASS, snapshot api=383. **Волна 6++ (ops1 SHOULD-1 +**
+> **store S4) — сделана:** деградация не отключает ротацию (пол 2×keep, рост ограничен; +5 проверок
+> bootstrap); `_migrate_v6` не читает отсутствующие колонки (схемы «created без updated» и «без обеих»
+> мигрируют; +2 теста). Контур **865 unit + 96 e2e**. Остаток: хвост окна (ops2+Astra) + ops1 OPT.
+> Коммит — по команде.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
