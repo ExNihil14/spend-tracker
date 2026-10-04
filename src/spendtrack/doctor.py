@@ -352,12 +352,12 @@ def check_settings_config() -> dict:
 
 def check_base_currency(conn: sqlite3.Connection) -> dict:
     """Базовая валюта установки (Ф0 «Беларусь/BYN»): валидный ISO-код; счётчик операций вне её итогов."""
-    base = base_currency()
+    base = base_currency().upper()
     if not (len(base) == 3 and base.isascii() and base.isalpha()):
         return _check("base_currency", CRITICAL, 1, f"некорректный код: {base!r} (ожидается ISO 4217)")
     foreign = int(conn.execute(
         "SELECT COUNT(*) FROM transactions"
-        " WHERE COALESCE(UPPER(NULLIF(currency, '')), ?) <> ?", (base, base)).fetchone()[0])
+        " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') <> ?", (base,)).fetchone()[0])
     return _check("base_currency", OK, 0, f"{base}; операций в других валютах (вне итогов): {foreign}")
 
 

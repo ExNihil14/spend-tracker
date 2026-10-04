@@ -42,7 +42,7 @@
       <span class="font-medium text-fg">Варианты ускорить:</span>
       <ul class="mt-1 grid gap-0.5">
         {% for v in g.plan.advice %}
-        <li>{% for it in v.items %}сократить «{{ catname(it.category) }}» на {{ it.pct }}%{% if not loop.last %} + {% endif %}{% endfor %} → +{{ fmt_money(v.total_month_k, g.currency, signed=False) }}/мес</li>
+        <li>{% for it in v["items"] %}сократить «{{ catname(it.category) }}» на {{ it.pct }}%{% if not loop.last %} + {% endif %}{% endfor %} → +{{ fmt_money(v.total_month_k, g.currency, signed=False) }}/мес</li>
         {% endfor %}
       </ul>
     </div>
@@ -66,11 +66,11 @@
           <input name="date" type="date" value="{{ today }}" max="{{ today }}" aria-label="Дата взноса"
                  class="rounded-lg border border-line-strong bg-surface px-3 py-1.5 text-sm">
         </label>
-        <button class="rounded-lg border border-line-strong px-3 py-1.5 text-sm">Записать</button>
+        <button class="rounded-lg border border-line-strong px-3 py-1.5 text-sm" hx-disabled-elt="this">Записать</button>
       </form>
       <form hx-post="/api/goals/{{ g.id }}/archive" hx-target="#goals-list" hx-swap="outerHTML"
             hx-confirm="Убрать цель «{{ g.title }}» в архив? История взносов сохранится.">
-        <button class="text-xs text-fg-muted underline">В архив</button>
+        <button class="text-xs text-fg-muted underline" hx-disabled-elt="this">В архив</button>
       </form>
     </div>
     {% if g.allocations %}

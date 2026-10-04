@@ -55,9 +55,9 @@ def _totals(store: Store, start: str, end: str) -> dict:
         " COALESCE(SUM(CASE WHEN amount_kopecks > 0 THEN amount_kopecks END), 0) AS income_k,"
         " COALESCE(SUM(CASE WHEN amount_kopecks < 0 THEN amount_kopecks END), 0) AS expense_k,"
         " COUNT(*) AS n"
-        " FROM transactions WHERE date >= ? AND date <= ? AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
+        " FROM transactions WHERE date >= ? AND date <= ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
         f" AND category NOT IN ({_EXCLUDED})",
-        (start, end, base, base, *_EXCLUDED_PARAMS),
+        (start, end, base, *_EXCLUDED_PARAMS),
     ).fetchone()
     return {
         "income_k": row["income_k"],
@@ -72,18 +72,18 @@ def _top_categories(store: Store, start: str, end: str,
     base = base_currency()
     rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS total_k, COUNT(*) AS n"
-        " FROM transactions WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
+        " FROM transactions WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
         f" AND category NOT IN ({_EXCLUDED})"
         " GROUP BY category ORDER BY total_k ASC LIMIT ?",
-        (start, end, base, base, *_EXCLUDED_PARAMS, TOP_CATEGORIES),
+        (start, end, base, *_EXCLUDED_PARAMS, TOP_CATEGORIES),
     ).fetchall()
     prev = {
         r["category"]: r["total_k"]
         for r in store.conn.execute(
             "SELECT category, SUM(amount_kopecks) AS total_k FROM transactions"
-            " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
+            " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
             f" AND category NOT IN ({_EXCLUDED}) GROUP BY category",
-            (prev_start, prev_end, base, base, *_EXCLUDED_PARAMS),
+            (prev_start, prev_end, base, *_EXCLUDED_PARAMS),
         ).fetchall()
     }
     return [
@@ -102,10 +102,10 @@ def _top_day(store: Store, start: str, end: str) -> dict | None:
     base = base_currency()
     row = store.conn.execute(
         "SELECT date, SUM(amount_kopecks) AS total_k FROM transactions"
-        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
+        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
         f" AND category NOT IN ({_EXCLUDED})"
         " GROUP BY date ORDER BY total_k ASC LIMIT 1",
-        (start, end, base, base, *_EXCLUDED_PARAMS),
+        (start, end, base, *_EXCLUDED_PARAMS),
     ).fetchone()
     return {"date": row["date"], "total_k": row["total_k"]} if row else None
 
@@ -114,9 +114,9 @@ def _large_expenses(store: Store, start: str, end: str, median_start: str) -> li
     base = base_currency()
     stats_rows = store.conn.execute(
         "SELECT category, amount_kopecks FROM transactions"
-        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
+        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
         f" AND category NOT IN ({_EXCLUDED})",
-        (median_start, end, base, base, *_EXCLUDED_PARAMS),
+        (median_start, end, base, *_EXCLUDED_PARAMS),
     ).fetchall()
     by_category: dict[str, list[int]] = {}
     for r in stats_rows:
@@ -124,10 +124,10 @@ def _large_expenses(store: Store, start: str, end: str, median_start: str) -> li
 
     candidates = store.conn.execute(
         "SELECT date, description, merchant, category, amount_kopecks FROM transactions"
-        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
+        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
         f" AND category NOT IN ({_EXCLUDED})"
         " ORDER BY amount_kopecks ASC, id ASC",
-        (start, end, base, base, *_EXCLUDED_PARAMS),
+        (start, end, base, *_EXCLUDED_PARAMS),
     ).fetchall()
 
     out: list[dict] = []
@@ -167,9 +167,9 @@ def _price_jumps(store: Store, subscriptions: list[dict], start: str, end: str) 
                   and s["price_k"] > 0]
         rows = store.conn.execute(
             "SELECT date, amount_kopecks FROM transactions"
-            " WHERE merchant = ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ? AND date > ? AND date <= ?"
+            " WHERE merchant = ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ? AND date > ? AND date <= ?"
             " ORDER BY date ASC, id ASC",
-            (sub["merchant"], base, base, sub["last_date"], end),
+            (sub["merchant"], base, sub["last_date"], end),
         ).fetchall()
         row = next(
             (r for r in rows
@@ -201,12 +201,12 @@ def _near_duplicates(store: Store, start: str, end: str) -> list[dict]:
     rows = store.conn.execute(
         "SELECT date, merchant, amount_kopecks, COUNT(*) AS n"
         " FROM transactions"
-        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?"
+        " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
         "   AND merchant IS NOT NULL AND merchant != ''"
         f"   AND category NOT IN ({_EXCLUDED})"
         " GROUP BY date, merchant, amount_kopecks"
         " HAVING COUNT(*) >= 2",
-        (start, end, base, base, *_EXCLUDED_PARAMS),
+        (start, end, base, *_EXCLUDED_PARAMS),
     ).fetchall()
     return [
         {

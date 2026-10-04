@@ -10,7 +10,7 @@ import sqlite3
 
 import pytest
 
-from spendtrack.store import _TX_DDL, SCHEMA_VERSION, Store
+from spendtrack.store import _TX_DDL, MAX_AMOUNT_KOPECKS, SCHEMA_VERSION, Store
 
 
 def test_add_goal_validates_and_returns_id(store):
@@ -99,23 +99,42 @@ def test_sql_layer_guards(store):
         store.conn.execute(
             "INSERT INTO goals(title, target_kopecks, currency, created_month, created, updated)"
             " VALUES('X', 0, 'RUB', '2026-09', ?, ?)", (now, now))
+    store.conn.rollback()
     with pytest.raises(sqlite3.IntegrityError):  # валюта не ISO-3 (lowercase)
         store.conn.execute(
             "INSERT INTO goals(title, target_kopecks, currency, created_month, created, updated)"
             " VALUES('X', 100, 'rub', '2026-09', ?, ?)", (now, now))
+    store.conn.rollback()
 
     gid = store.add_goal("Цель", 100_00)
     with pytest.raises(sqlite3.IntegrityError):  # взнос 0 копеек
         store.conn.execute(
             "INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
             " VALUES(?, '2026-09-01', 0, ?)", (gid, now))
+    store.conn.rollback()
     with pytest.raises(sqlite3.IntegrityError):  # дата вне формата
         store.conn.execute(
             "INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
             " VALUES(?, '01.09.2026', 100, ?)", (gid, now))
+    store.conn.rollback()
     store.add_allocation(gid, "2026-09-02", 100)
     with pytest.raises(sqlite3.IntegrityError):  # FK RESTRICT: удаление цели с взносами запрещено
         store.conn.execute("DELETE FROM goals WHERE id=?", (gid,))
+    store.conn.rollback()
+
+
+def test_add_transaction_rejects_invalid_dates(store):
+    """Ревью wave5 S5: календарная валидация даты в Store (CHECK — только второй рубеж)."""
+    for bad in ("2026-13-01", "2026-02-31", "20260901", ""):
+        with pytest.raises(ValueError):
+            store.add_transaction(date=bad, description="X", amount_kopecks=-100,
+                                  category="groceries", category_source="rule")
+
+
+def test_add_goal_rejects_over_limit(store):
+    """Ревью wave5 S4: лимит суммы общий с API/импортом (form-путь не шире JSON)."""
+    with pytest.raises(ValueError):
+        store.add_goal("X", MAX_AMOUNT_KOPECKS + 1)
 
 
 def test_goals_v7_on_fresh_and_legacy_db(tmp_path):

@@ -61,6 +61,12 @@ def test_cli_goal_add_list_allocate(cli_db, capsys):
     assert "Целей нет" in capsys.readouterr().out
 
 
+def test_cli_goal_bad_amount_no_traceback(cli_db, capsys):
+    """Ревью wave5 S2: неразборная сумма — понятная ошибка, не трейсбек."""
+    assert cli.main(["goal", "add", "Цель", "--target", "abc"]) == 2
+    assert "ошибка" in capsys.readouterr().err
+
+
 def test_cli_digest_prints_goals_line(cli_db, capsys):
     """Ф2: дайджест показывает строку целей со статусом движка."""
     s = Store(db_path=cli_db)

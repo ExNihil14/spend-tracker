@@ -50,13 +50,13 @@ discretionary = true
 name = "health"
 display_name = "Здоровье"
 color = "#14b8a6"
-discretionary = true
+discretionary = false
 
 [[categories]]
 name = "education"
 display_name = "Образование"
 color = "#6366f1"
-discretionary = true
+discretionary = false
 
 [[categories]]
 name = "entertainment"

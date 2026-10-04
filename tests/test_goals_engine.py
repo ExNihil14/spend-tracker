@@ -58,25 +58,25 @@ def test_done_overdue_no_deadline():
 
 
 def test_status_matrix_on_track_ahead_behind_at_risk():
-    g = _goal()  # взнос входит и в saved: A=115к → need 885к, required 110 625, pace 115к
-    on_track = G.goal_engine(g, [_alloc("2026-09-05", 115_000)], _stats(), today=TODAY)
-    assert on_track["status"] == "ON_TRACK" and on_track["required_k"] == 110_625
-    ahead = G.goal_engine(g, [_alloc("2026-09-05", 130_000)], _stats(), today=TODAY)
-    assert ahead["status"] == "AHEAD"  # cover 1 040 000 ≥ 1.1× need 957 000
+    g = _goal()  # 9 периодов (окт..июн включительно); взнос входит и в saved
+    on_track = G.goal_engine(g, [_alloc("2026-09-05", 105_000)], _stats(), today=TODAY)
+    assert on_track["status"] == "ON_TRACK" and on_track["required_k"] == 99_445
+    ahead = G.goal_engine(g, [_alloc("2026-09-05", 120_000)], _stats(), today=TODAY)
+    assert ahead["status"] == "AHEAD"  # cover 1 080 000 ≥ 1.1× need 968 000
     behind = G.goal_engine(g, [_alloc("2026-09-05", 50_000)], _stats(), today=TODAY)
-    assert behind["status"] == "BEHIND" and behind["gap_k"] == 550_000  # need 950к − cover 400к
+    assert behind["status"] == "BEHIND" and behind["gap_k"] == 500_000  # need 950к − cover 450к
     at_risk = G.goal_engine(g, [_alloc("2026-09-05", 50_000)],
                             _stats(weak=100_000), today=TODAY)
-    assert at_risk["status"] == "AT_RISK"  # required 118 750 > слабый месяц 100 000
+    assert at_risk["status"] == "AT_RISK"  # required 105 556 > слабый месяц 100 000
 
 
 def test_required_boundaries():
     # due = текущий месяц → весь остаток в этот месяц
     cur = G.goal_engine(_goal(target=10_000, due="2026-10"), [], _stats(), today=TODAY)
     assert cur["required_k"] == 10_000
-    # 12 периодов
+    # 12 месяцев до срока + текущий → 13 периодов
     year = G.goal_engine(_goal(target=1_200_000, due="2027-10"), [], _stats(), today=TODAY)
-    assert year["required_k"] == 100_000
+    assert year["required_k"] == 92_308
     # нехватка в 1 копейку — взнос всё равно ≥ 1
     one = G.goal_engine(_goal(target=1000), [_alloc("2026-09-01", 999)], _stats(), today=TODAY)
     assert one["need_k"] == 1 and one["required_k"] == 1
@@ -157,7 +157,7 @@ def test_snapshot_plans_portfolio_warning_and_queue(store):
     assert behind["plan"]["status"] == "BEHIND" and behind["plan"]["status_label"] == "нужен темп выше"
     codes = {w["code"] for w in behind["plan"]["warnings"]}
     assert "pending_queue" in codes and "goal_gap" in codes
-    assert snap["portfolio_warning"] and "Сумма меток" in snap["portfolio_warning"]
+    assert snap["portfolio_warning"] and "Взносы за последние" in snap["portfolio_warning"]
 
 
 def test_snapshot_insufficient_history_warning(store):
@@ -167,3 +167,17 @@ def test_snapshot_insufficient_history_warning(store):
     plan = snap["goals"][0]["plan"]
     assert plan["status"] == "INSUFFICIENT_DATA"
     assert any(w["code"] == "insufficient_history" for w in plan["warnings"])
+
+
+def test_discretionary_fallback_for_old_taxonomy():
+    """Ревью wave5 S8: старые установки без флагов получают встроенный дефолт (советы не выключены)."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    old = Taxonomy([Category("groceries", "#000"), Category("housing", "#000"),
+                    Category("transfers", "#000")], [])
+    names = G.discretionary_names(old)
+    assert "groceries" in names and "housing" not in names and "transfers" not in names
+
+    flagged = Taxonomy([Category("groceries", "#000", discretionary=True),
+                        Category("housing", "#000", discretionary=False)], [])
+    assert G.discretionary_names(flagged) == {"groceries"}

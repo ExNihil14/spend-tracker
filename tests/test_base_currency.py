@@ -7,6 +7,7 @@ settings.toml, default RUB), а не захардкоженный рубль. Т
 from __future__ import annotations
 
 import hashlib
+import os
 
 import pytest
 from pydantic import ValidationError
@@ -25,7 +26,8 @@ def _add(store: Store, day: str, kopecks: int, currency: str | None = None, desc
 
 # ---- настройка и форматирование ----
 
-def test_base_currency_setting_normalized_and_validated(tmp_path):
+def test_base_currency_setting_normalized_and_validated(tmp_path, monkeypatch):
+    monkeypatch.delenv("SPENDTRACK_BASE_CURRENCY", raising=False)  # env выше TOML — не мешаем тесту
     (tmp_path / "settings.toml").write_text('base_currency = "byn"\n', encoding="utf-8")
     assert load_settings(config_dir=tmp_path).base_currency == "BYN"
     (tmp_path / "settings.toml").write_text('base_currency = "RUBL"\n', encoding="utf-8")
@@ -103,16 +105,15 @@ def test_fingerprint_currency_policy(monkeypatch):
     raw = "2026-09-01|-100|X|a|"
     plain = hashlib.sha1(raw.encode()).hexdigest()
     with_byn = hashlib.sha1((raw + "|BYN").encode()).hexdigest()
-    with_rub = hashlib.sha1((raw + "|RUB").encode()).hexdigest()
 
     # база RUB (дефолт): RUB-отпечатки неизменны, BYN различается
     assert fingerprint("2026-09-01", -100, "X", "a", "", "RUB") == plain
     assert fingerprint("2026-09-01", -100, "X", "a", "", "BYN") == with_byn
 
-    # база BYN: исключается уже BYN, а RUB входит в отпечаток
+    # база BYN: правило НЕ зависит от базы (ревью wave5 C1) — RUB всегда plain, BYN всегда с кодом
     monkeypatch.setenv("SPENDTRACK_BASE_CURRENCY", "BYN")
-    assert fingerprint("2026-09-01", -100, "X", "a", "", "BYN") == plain
-    assert fingerprint("2026-09-01", -100, "X", "a", "", "RUB") == with_rub
+    assert fingerprint("2026-09-01", -100, "X", "a", "", "BYN") == with_byn
+    assert fingerprint("2026-09-01", -100, "X", "a", "", "RUB") == plain
 
 
 # ---- импорт: пустая валюта = базовая ----
@@ -122,3 +123,37 @@ def test_import_default_currency_is_base(monkeypatch):
     assert _row_tx("2026-09-01", "ЛЕНТА 077", "-10,00", "", "")["currency"] == "BYN"
     assert _row_tx("2026-09-01", "ЛЕНТА 077", "-10,00", "", "USD")["currency"] == "USD"
     assert _row_tx("2026-09-01", "ЛЕНТА 077", "-10,00", "", "руб")["currency"] == "RUB"
+
+
+def test_empty_currency_rows_treated_as_rub(monkeypatch, store):
+    """Ревью wave5 C2: пустая валюта — исторический RUB, а не текущая база: под BYN она в сноске."""
+    store.conn.execute(
+        "INSERT INTO transactions(date, description, amount_kopecks, currency, category,"
+        " category_source, created, updated)"
+        " VALUES('2026-09-05','ПУСТАЯ',-100,'','groceries','rule','t','t')")
+    store.conn.commit()
+    _add(store, "2026-09-10", -10_000, "BYN")
+
+    monkeypatch.setenv("SPENDTRACK_BASE_CURRENCY", "BYN")
+    rep = report_month(store, "2026-09")
+    assert rep["expense_k"] == -10_000 and rep["foreign_count"] == 1  # пустая — вне BYN-итогов
+
+    monkeypatch.setenv("SPENDTRACK_BASE_CURRENCY", "RUB")
+    rep_rub = report_month(store, "2026-09")
+    assert rep_rub["expense_k"] == -100 and rep_rub["foreign_count"] == 1  # BYN-строка — чужая
+
+
+def test_base_currency_cache_not_poisoned(tmp_path, monkeypatch):
+    """Ревью wave5 S1: ошибка конфига не оставляет стухшее значение в кэше."""
+    monkeypatch.setenv("SPENDTRACK_CONFIG_DIR", str(tmp_path))
+    monkeypatch.delenv("SPENDTRACK_BASE_CURRENCY", raising=False)  # env выше TOML — читаем файл
+    path = tmp_path / "settings.toml"
+    path.write_text('base_currency = "BYN"\n', encoding="utf-8")
+    assert base_currency() == "BYN"
+
+    path.write_text('base_currency = "RUBL"\n', encoding="utf-8")
+    os.utime(path, ns=(1, 1))  # ключ кэша = (path, env, mtime)
+    with pytest.raises(ValidationError):
+        base_currency()
+    with pytest.raises(ValidationError):  # кэш не «отравлен»: снова честная ошибка, не старое значение
+        base_currency()

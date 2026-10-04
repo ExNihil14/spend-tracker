@@ -87,11 +87,11 @@ def detect_recurring(store: Store, today: date | None = None) -> list[dict]:
     marks = ",".join("?" * len(EXCLUDED_CATEGORIES))
     rows = store.conn.execute(
         "SELECT merchant, amount_kopecks, date, category FROM transactions"
-        " WHERE amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ? AND merchant IS NOT NULL AND merchant != ''"
+        " WHERE amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ? AND merchant IS NOT NULL AND merchant != ''"
         " AND date IS NOT NULL AND date != ''"
         f" AND category NOT IN ({marks})"
         " ORDER BY merchant, date, id",
-        (base, base, *EXCLUDED_CATEGORIES),
+        (base, *EXCLUDED_CATEGORIES),
     ).fetchall()
 
     by_merchant: dict[str, list[sqlite3.Row]] = {}

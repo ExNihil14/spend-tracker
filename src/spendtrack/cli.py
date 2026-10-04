@@ -188,7 +188,7 @@ def cmd_goal(args) -> int:
         try:
             gid = store.add_goal(args.title, parse_amount(args.target),
                                  currency=args.currency, due_month=args.due)
-        except ValueError as e:
+        except (ValueError, InvalidOperation) as e:
             print(f"ошибка: {e}", file=sys.stderr)
             return 2
         prog = store.goal_progress(gid)
@@ -198,7 +198,7 @@ def cmd_goal(args) -> int:
         try:
             aid = store.add_allocation(args.goal_id, args.date or date.today().isoformat(),  # noqa: DTZ011 — локальная календарная дата (как в cmd_budget)
                                        parse_amount(args.amount))
-        except ValueError as e:
+        except (ValueError, InvalidOperation) as e:
             print(f"ошибка: {e}", file=sys.stderr)
             return 2
         prog = store.goal_progress(args.goal_id)

@@ -211,8 +211,11 @@ def base_currency() -> str:
         mtime = 0
     key = (str(path), os.environ.get("SPENDTRACK_BASE_CURRENCY", ""), mtime)
     if _base_cache["key"] != key:
+        # Сначала вычисляем значение: при ошибке конфига кэш не «отравляется» стухшим значением
+        # (ревью wave5, S1) — следующий вызов снова честно упадёт, а не вернёт старую базу.
+        value = load_settings().base_currency
         _base_cache["key"] = key
-        _base_cache["value"] = load_settings().base_currency
+        _base_cache["value"] = value
     return str(_base_cache["value"])
 
 

@@ -162,7 +162,8 @@ def _engine_deadline(res: dict, goal: dict, stats: dict, cur: str) -> None:
     """Ветка по сроку: OVERDUE / NO_DEADLINE / INSUFFICIENT_DATA / потоковые статусы."""
     need, pace = res["need_k"], res["pace_k"]
     due = goal["due_month"]
-    periods = max(0, months_between(cur, due)) if due is not None else 0
+    # +1: взнос можно сделать и в текущем месяце (ревью wave5 C1: было занижение на месяц)
+    periods = max(0, months_between(cur, due) + 1) if due is not None else 0
     if due is not None:
         res["required_k"] = ceil_div(need, max(1, periods))
     if due is not None and due < cur:
@@ -298,6 +299,18 @@ def _recurring_merchants(store: Store, ref: date) -> set[str]:
     return {str(s["merchant"]).upper() for s in detect_recurring(store, ref) if s["active"]}
 
 
+_DISCRETIONARY_EXCLUDED = {"housing", "utilities", "transfers", "income", "taxes"}
+
+
+def discretionary_names(taxonomy: Taxonomy) -> set[str]:
+    """Категории для what-if: явные флаги taxonomy; если флагов НЕТ вовсе (старые установки,
+    где `discretionary` ещё не было) — встроенный дефолт (все, кроме housing/utilities/transfers/
+    income/taxes), иначе советы молча не работали бы (ревью wave5, S8)."""
+    if any(c.discretionary for c in taxonomy.categories):
+        return {c.name for c in taxonomy.categories if c.discretionary}
+    return {c.name for c in taxonomy.categories} - _DISCRETIONARY_EXCLUDED
+
+
 def goal_plan(store: Store, goal: dict, series: list[dict], stats: dict, *,
               today: date | None = None, taxonomy: Taxonomy | None = None,
               recurring_merchants: set[str] | None = None) -> dict:
@@ -314,6 +327,10 @@ def goal_plan(store: Store, goal: dict, series: list[dict], stats: dict, *,
         res["warnings"].append({
             "code": "insufficient_history",
             "text": f"Мало истории ({stats['usable']} полн. мес) — прогноз пока грубый"})
+    if stats["usable"] >= MIN_USABLE_MONTHS and stats["capacity_k"] <= 0:
+        res["warnings"].append({
+            "code": "nonpositive_capacity",
+            "text": "В окне расходы больше доходов — проверьте, что доходы импортированы"})
     if res["status"] == "BEHIND":
         res["warnings"].append({
             "code": "goal_gap",
@@ -324,7 +341,7 @@ def goal_plan(store: Store, goal: dict, series: list[dict], stats: dict, *,
             "text": "Нужный взнос выше обычного месячного потока — темп придётся поднять"})
     if res["status"] in {"BEHIND", "AT_RISK"} and res["required_k"]:
         taxonomy = taxonomy or load_taxonomy()
-        discretionary = {c.name for c in taxonomy.categories if c.discretionary}
+        discretionary = discretionary_names(taxonomy)
         merchants = recurring_merchants if recurring_merchants is not None else _recurring_merchants(store, ref)
         avgs = category_monthly_avgs(store, today=ref, discretionary=discretionary,
                                      exclude_merchants=merchants)
@@ -386,13 +403,16 @@ def goals_snapshot(store: Store, *, today: date | None = None) -> dict:
         g["plan"] = goal_plan(store, g, series, stats, today=ref,
                               taxonomy=taxonomy, recurring_merchants=merchants)
     base = base_currency()
-    total_saved = sum(g["allocated_kopecks"] for g in active if g["currency"] == base)
+    floor_month = series[0]["month"] if series else ref.strftime("%Y-%m")
+    window_saved = sum(
+        a["amount_kopecks"] for g in active if g["currency"] == base
+        for a in g["allocations"] if a["amount_kopecks"] > 0 and str(a["date"])[:7] >= floor_month)
     net_window = max(0, sum(m["net_k"] for m in series if m["usable"]))
     portfolio_warning = None
-    if total_saved > net_window:
+    if window_saved > net_window:
         portfolio_warning = (
-            f"Сумма меток ({fmt_money(total_saved, signed=False)}) больше свободного потока за "
-            f"{stats['usable']} полн. мес — проверьте, что это посильно.")
+            f"Взносы за последние {stats['usable']} полн. мес ({fmt_money(window_saved, signed=False)}) "
+            f"больше свободного потока за тот же период — проверьте, что это посильно.")
     return {
         "goals": active,
         "archived": [g for g in all_goals if g["archived"]],
@@ -400,4 +420,5 @@ def goals_snapshot(store: Store, *, today: date | None = None) -> dict:
         "usable_months": stats["usable"],
         "portfolio_warning": portfolio_warning,
         "catname": taxonomy.display,
+        "pending": store.queued_for_review(),  # бейдж «Подтвердить» в nav (ревью wave5, ui_js C1)
     }

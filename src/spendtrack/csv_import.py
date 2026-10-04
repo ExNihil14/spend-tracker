@@ -10,7 +10,13 @@ from io import StringIO
 
 from spendtrack.categorize import categorize_transaction
 from spendtrack.config import base_currency
-from spendtrack.store import Store, fingerprint, normalize_currency, parse_amount
+from spendtrack.store import (
+    MAX_AMOUNT_KOPECKS,
+    Store,
+    fingerprint,
+    normalize_currency,
+    parse_amount,
+)
 from spendtrack.taxonomy import Taxonomy
 
 _DATE_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
@@ -18,7 +24,6 @@ _DATE_DDMMYYYY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})")
 _DATE_ISO_ALT = re.compile(r"^(\d{4})[/.](\d{1,2})[/.](\d{1,2})(?:\s|$)")  # 2026/09/05, 2026.9.5
 
 MAX_CSV_BYTES = 10 * 1024 * 1024          # 10 МБ: даже многолетняя выписка меньше; защита от OOM
-MAX_AMOUNT_KOPECKS = 100_000_000_000      # 1 млрд руб на операцию — санитарный предел (защита от мусорных строк)
 
 # Дрейф формата (POLISH_PLAN P1 #1): вместо тихого мисс-парсинга — отчёт `format_error`
 # с недостающими колонками и просьбой прислать обезличенный образец (spendtrack anonymize).

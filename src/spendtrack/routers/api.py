@@ -461,6 +461,13 @@ def _goals_html(request: Request, store: Store) -> str:
         request, "partials/goals_list.html", goals_snapshot(store)).body.decode()
 
 
+def _goals_error(message: str) -> str:
+    """OOB-ошибка в слот `#goals-error`: список целей НЕ затирается (ревью wave5, C2)."""
+    text = f"Не получилось: {escape(message)}" if message else ""
+    return (f'<p id="goals-error" hx-swap-oob="true" class="text-danger text-sm mb-2" '
+            f'role="alert">{text}</p>')
+
+
 @router.post("/goals")
 async def create_goal(request: Request, store: Annotated[Store, Depends(get_store)]):
     """Создать цель: JSON → {"id": N}; htmx-форма → обновлённый список + toast."""
@@ -480,9 +487,8 @@ async def create_goal(request: Request, store: Annotated[Store, Depends(get_stor
                        currency=str(form.get("currency") or "") or None,
                        due_month=str(form.get("due_month") or "") or None)
     except (ValueError, InvalidOperation) as e:
-        return HTMLResponse(
-            f'<p class="text-danger text-sm">Не получилось: {escape(str(e) or "проверьте поля")}</p>')
-    return HTMLResponse(_goals_html(request, store) + oob_toast("Цель создана"))
+        return HTMLResponse(_goals_html(request, store) + _goals_error(str(e) or "проверьте поля"))
+    return HTMLResponse(_goals_html(request, store) + _goals_error("") + oob_toast("Цель создана"))
 
 
 @router.post("/goals/{goal_id}/allocate")
@@ -493,13 +499,12 @@ async def allocate_goal(request: Request, goal_id: int, store: Annotated[Store, 
         store.add_allocation(goal_id, str(form.get("date") or "") or date.today().isoformat(),  # noqa: DTZ011 — локальная дата формы
                              parse_amount(str(form.get("amount") or "")))
     except (ValueError, InvalidOperation) as e:
-        return HTMLResponse(
-            f'<p class="text-danger text-sm">Не получилось: {escape(str(e) or "проверьте поля")}</p>')
-    return HTMLResponse(_goals_html(request, store) + oob_toast("Взнос записан"))
+        return HTMLResponse(_goals_html(request, store) + _goals_error(str(e) or "проверьте поля"))
+    return HTMLResponse(_goals_html(request, store) + _goals_error("") + oob_toast("Взнос записан"))
 
 
 @router.post("/goals/{goal_id}/archive")
 async def archive_goal(request: Request, goal_id: int, store: Annotated[Store, Depends(get_store)]):
     if not store.archive_goal(goal_id):
-        raise HTTPException(404, "цель не найдена")
-    return HTMLResponse(_goals_html(request, store) + oob_toast("Цель в архиве"))
+        return HTMLResponse(_goals_html(request, store) + _goals_error("цель не найдена"))
+    return HTMLResponse(_goals_html(request, store) + _goals_error("") + oob_toast("Цель в архиве"))

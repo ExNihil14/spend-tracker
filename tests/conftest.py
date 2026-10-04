@@ -63,6 +63,15 @@ def taxonomy():
     return load_taxonomy(ROOT / "config")
 
 
+@pytest.fixture(autouse=True)
+def _force_base_rub(monkeypatch):
+    """Изоляция от окружения машины: базовые тесты — RUB-установка (ревью wave5, S6).
+
+    Тесты, которым нужна другая база, выставляют свой env ПОСЛЕ этой фикстуры (monkeypatch поверх).
+    """
+    monkeypatch.setenv("SPENDTRACK_BASE_CURRENCY", "RUB")
+
+
 @pytest.fixture()
 def sample_txs() -> list[dict]:
     return [

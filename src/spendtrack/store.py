@@ -6,12 +6,17 @@ import re
 import sqlite3
 import uuid
 from datetime import UTC, datetime
+from datetime import date as _date_cls
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
 
 from spendtrack.config import base_currency, resolve_data_dir
 from spendtrack.config import settings as load_settings
+
+# Санитарный предел суммы на операцию (1 млрд руб в копейках) — общий для импорта/API/Store
+# (ревью wave5, S4: form-путь целей не должен принимать больше JSON-пути). csv_import реэкспортирует.
+MAX_AMOUNT_KOPECKS = 100_000_000_000
 
 logger = logging.getLogger(__name__)
 
@@ -211,12 +216,12 @@ def fingerprint(date: str, amount_kopecks: int, desc: str, account_anon: str, ex
                 currency: str = "RUB") -> str:
     """sha1; export_rowid НЕ обязателен — дедуп без него работает.
 
-    Валюта входит в отпечаток только для НЕ-базовой валюты установки (Ф0 «Беларусь/BYN»):
-    на RUB-базе рублёвые отпечатки не меняются (реэкспорт старой выписки остаётся no-op),
+    Валюта входит в отпечаток только для НЕ-RUB (base-НЕзависимо, ревью wave5 C1): отпечатки
+    не меняются при смене `base_currency` (повторный импорт старой выписки остаётся no-op),
     а одинаковые суммы в разных валютах не склеиваются дедупом.
     """
     raw = f"{date}|{amount_kopecks}|{_norm_desc(desc)}|{account_anon}|{export_rowid or ''}"
-    if currency != base_currency():
+    if currency != "RUB":
         raw += f"|{currency}"
     return hashlib.sha1(raw.encode()).hexdigest()
 
@@ -569,7 +574,7 @@ class Store:
         commit: bool = True,
     ) -> int | None:
         """Precondition: `currency` — ISO 4217 (или алиас); пусто/None → базовая валюта настроек;
-        невалидный код → ValueError.
+        невалидный код → ValueError; дата — реальный календарный день ГГГГ-ММ-ДД (ревью wave5 S5).
 
         Границы (CLI/API/импорт) валидируют и нормализуют код до вызова Store.
         `commit=False` — для массовых вставок (импорт): одна транзакция на партию вместо
@@ -584,6 +589,12 @@ class Store:
             else:
                 raise ValueError(
                     f"Неизвестная валюта: {currency!r} (ожидается ISO 4217, например RUB/USD/EUR)")
+        if not isinstance(date, str) or not _DATE_RE.match(date):
+            raise ValueError("дата — формат ГГГГ-ММ-ДД")
+        try:
+            datetime(int(date[:4]), int(date[5:7]), int(date[8:10]), tzinfo=UTC)
+        except ValueError:
+            raise ValueError("дата — несуществующий день") from None
         fp = fingerprint(date, amount_kopecks, description, account_anon or "", export_rowid, code)
         existing = self.conn.execute("SELECT id FROM transactions WHERE fingerprint=?", (fp,)).fetchone()
         if existing:
@@ -893,18 +904,19 @@ class Store:
         t = (title or "").strip()
         if not 1 <= len(t) <= 120:
             raise ValueError("название цели: от 1 до 120 символов")
-        if not isinstance(target_kopecks, int) or target_kopecks <= 0:
-            raise ValueError("сумма цели — целое число копеек > 0")
+        if not isinstance(target_kopecks, int) or not 0 < target_kopecks <= MAX_AMOUNT_KOPECKS:
+            raise ValueError("сумма цели — целое число копеек > 0 и в пределах лимита")
         code = (currency or base_currency()).strip().upper()
         if not re.fullmatch(r"[A-Z]{3}", code):
             raise ValueError("валюта цели — код ISO 4217 (3 латинские буквы)")
         if due_month is not None and not valid_month(due_month):
             raise ValueError("срок цели — формат ГГГГ-ММ (или пусто)")
         now = _now_iso()
+        month = _date_cls.today().strftime("%Y-%m")  # noqa: DTZ011 — локальный месяц намеренно (BYN UTC+3)
         cur = self.conn.execute(
             "INSERT INTO goals(title, target_kopecks, currency, due_month, created_month,"
             " archived, created, updated) VALUES(?,?,?,?,?,0,?,?)",
-            (t, int(target_kopecks), code, due_month, now[:7], now, now))
+            (t, int(target_kopecks), code, due_month, month, now, now))
         self.conn.commit()
         return int(cur.lastrowid)
 
@@ -923,27 +935,35 @@ class Store:
         return cur.rowcount > 0
 
     def add_allocation(self, goal_id: int, date: str, amount_kopecks: int) -> int:
-        """Взнос (>0) или изъятие (<0) — append-only; дата не в будущем, цель не в архиве."""
-        goal = self.conn.execute("SELECT archived FROM goals WHERE id=?",
-                                 (int(goal_id),)).fetchone()
-        if goal is None:
-            raise ValueError(f"цель {goal_id} не найдена")
-        if goal["archived"]:
-            raise ValueError("цель в архиве — взносы невозможны")
+        """Взнос (>0) или изъятие (<0) — append-only; дата не в будущем (локальная), цель не в архиве.
+
+        Проверка `archived` и INSERT — в одной `BEGIN IMMEDIATE`-транзакции (ревью wave5, S7: TOCTOU).
+        """
         if not isinstance(date, str) or not _DATE_RE.match(date):
             raise ValueError("дата взноса — формат ГГГГ-ММ-ДД")
         try:
             d = datetime(int(date[:4]), int(date[5:7]), int(date[8:10]), tzinfo=UTC).date()
         except ValueError:
             raise ValueError("дата взноса — несуществующий день") from None
-        if d > datetime.now(UTC).date():
+        if d > _date_cls.today():  # noqa: DTZ011 — локальная дата намеренно (BYN-установки UTC+3)
             raise ValueError("дата взноса — не в будущем")
         if not isinstance(amount_kopecks, int) or amount_kopecks == 0:
             raise ValueError("сумма взноса — целое число копеек ≠ 0")
-        cur = self.conn.execute(
-            "INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
-            " VALUES(?,?,?,?)", (int(goal_id), date, int(amount_kopecks), _now_iso()))
-        self.conn.commit()
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            goal = self.conn.execute("SELECT archived FROM goals WHERE id=?",
+                                     (int(goal_id),)).fetchone()
+            if goal is None:
+                raise ValueError(f"цель {goal_id} не найдена")
+            if goal["archived"]:
+                raise ValueError("цель в архиве — взносы невозможны")
+            cur = self.conn.execute(
+                "INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
+                " VALUES(?,?,?,?)", (int(goal_id), date, int(amount_kopecks), _now_iso()))
+            self.conn.commit()
+        except BaseException:
+            self.conn.rollback()
+            raise
         return int(cur.lastrowid)
 
     def list_allocations(self, goal_id: int) -> list[dict]:
