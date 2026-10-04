@@ -3,20 +3,20 @@
 <div id="settings-root">
   <div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
     <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">Категории</h2>
-    {% with error = error_cats | default(none) %}{% include "partials/settings_categories.html" %}{% endwith %}
+    {% with error = error_cats | default(error | default(none), true) %}{% include "partials/settings_categories.html" %}{% endwith %}
   </div>
 
   <div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
     <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">
       Правила <span class="text-fg-muted font-normal">(порядок = приоритет, первое совпадение выигрывает; ↑/↓ меняют приоритет)</span>
     </h2>
-    {% with error = error_rules | default(none) %}{% include "partials/settings_rules.html" %}{% endwith %}
+    {% with error = error_rules | default(error | default(none), true) %}{% include "partials/settings_rules.html" %}{% endwith %}
   </div>
 
   <div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
     <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">
       Бюджеты <span class="text-fg-muted font-normal">(месячные лимиты; прогресс — на дашборде)</span>
     </h2>
-    {% with error = error_budgets | default(none) %}{% include "partials/settings_budgets.html" %}{% endwith %}
+    {% with error = error_budgets | default(error | default(none), true) %}{% include "partials/settings_budgets.html" %}{% endwith %}
   </div>
 </div>

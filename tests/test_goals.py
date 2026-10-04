@@ -93,7 +93,12 @@ def test_archive_hides_from_default_list(store):
 
 
 def test_sql_layer_guards(store):
-    """STRICT/CHECK — второй рубеж: мимо Python-валидации всё равно не пройдёт."""
+    """STRICT/CHECK — второй рубеж формата/знака/валюты.
+
+    Честный предел (wave5 S2): календарную валидность дня/месяца (`2026-02-31`, `2027-13`),
+    append-only взносов и запрет пополнения архивной цели SQL НЕ проверяет — это гарантии
+    Python-слоя (`add_goal`/`add_allocation`), отдельного SQL-рубежа для них нет.
+    """
     now = "2026-09-01T00:00:00+00:00"
     with pytest.raises(sqlite3.IntegrityError):  # цель 0 копеек
         store.conn.execute(
@@ -104,6 +109,16 @@ def test_sql_layer_guards(store):
         store.conn.execute(
             "INSERT INTO goals(title, target_kopecks, currency, created_month, created, updated)"
             " VALUES('X', 100, 'rub', '2026-09', ?, ?)", (now, now))
+    store.conn.rollback()
+    with pytest.raises(sqlite3.IntegrityError):  # STRICT: текст в INTEGER-колонку (wave5 S2)
+        store.conn.execute(
+            "INSERT INTO goals(title, target_kopecks, currency, created_month, created, updated)"
+            " VALUES('X', 'сто', 'RUB', '2026-09', ?, ?)", (now, now))
+    store.conn.rollback()
+    with pytest.raises(sqlite3.IntegrityError):  # archived — только 0/1 (wave5 S2)
+        store.conn.execute(
+            "INSERT INTO goals(title, target_kopecks, currency, created_month, archived, created,"
+            " updated) VALUES('X', 100, 'RUB', '2026-09', 2, ?, ?)", (now, now))
     store.conn.rollback()
 
     gid = store.add_goal("Цель", 100_00)

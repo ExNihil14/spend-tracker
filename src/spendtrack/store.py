@@ -421,6 +421,8 @@ class Store:
         (`BEGIN IMMEDIATE`); копируем только пересечение колонок (легаси-формы различаются),
         NULL created/updated до-заполняем. Строки с датой вне формата — явный отказ
         (pre-migration-снимок уже сделан, данные не теряются).
+        S3 (wave5): кастомные индексы transactions, созданные вручную, пересборка НЕ восстанавливает —
+        свои idx_* создаём мы, чужие придётся создать заново (осознанный предел).
         """
         bad = self.conn.execute(
             "SELECT COUNT(*) FROM transactions"
@@ -431,7 +433,8 @@ class Store:
                 " WHERE date NOT GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]' LIMIT 5")]
             raise RuntimeError(
                 f"миграция v6: {bad} строк с датой вне формата YYYY-MM-DD (примеры: {samples}) — "
-                "исправьте данные и повторите; pre-migration-снимок лежит рядом с БД")
+                "исправьте данные и повторите; pre-migration-снимок лежит рядом с БД "
+                "(диагностика — `spendtrack doctor`)")
         old_cols = self._tx_columns()
         if "created" in old_cols:
             self.conn.execute(

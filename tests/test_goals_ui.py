@@ -46,7 +46,10 @@ def test_create_goal_validation_errors(client):
     r2 = client.post("/api/goals", data={"title": " ", "target": "100"},
                      headers={"hx-request": "true"})
     assert r2.status_code == 200 and "text-danger" in r2.text
+    assert "название цели" in r2.text  # текст ошибки, не только класс (wave5 S1)
     assert 'id="goals-list"' in r2.text  # список НЕ затирается ошибкой (ревью wave5, C2)
+    # wave5 S1: при ошибке запись НЕ создана (прямой денежный риск)
+    assert "Пока нет целей" in client.get("/goals").text
 
 
 def test_allocate_updates_progress_and_journal(client):
@@ -64,9 +67,37 @@ def test_allocate_updates_progress_and_journal(client):
 
 def test_allocate_validation_red_fragment(client):
     client.post("/api/goals", json={"title": "Цель", "target": "1000"})
+    client.post("/api/goals/1/allocate", data={"amount": "300"}, headers={"hx-request": "true"})
     r = client.post("/api/goals/1/allocate", data={"amount": "0"}, headers={"hx-request": "true"})
     assert r.status_code == 200 and "text-danger" in r.text
+    assert "сумма взноса" in r.text  # текст ошибки, не только класс (wave5 S1)
     assert 'id="goals-list"' in r.text  # список остаётся (ревью wave5, C2)
+    # wave5 S1: неудачный взнос не меняет прогресс (в фрагменте — прежние 30%)
+    assert 'aria-valuenow="30"' in r.text
+    assert 'aria-valuenow="30"' in client.get("/goals").text
+
+
+def test_goals_fractional_amounts(client, tmp_path):
+    """Wave5 S4: дробные суммы с запятой/пробелом («1 234,56») — копейки точные."""
+    r = client.post("/api/goals", data={"title": "Копейки", "target": "1 234,56"},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200 and "Копейки" in r.text  # цель создана, не ошибка
+    s = Store(db_path=tmp_path / "goals.db")
+    try:
+        assert s.list_goals()[0]["target_kopecks"] == 123_456
+    finally:
+        s.close()
+
+
+def test_goal_title_escaped_in_html_and_label(client):
+    """Wave5 S6: пользовательский title экранируется и в тексте, и в aria-label."""
+    payload = '<img src=x onerror=alert(1)>'
+    r = client.post("/api/goals", data={"title": payload, "target": "100"},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert "<img src=x" not in r.text and "&lt;img src=x" in r.text
+    page = client.get("/goals").text
+    assert "<img src=x" not in page and "&lt;img src=x" in page
 
 
 def test_archive_missing_returns_message(client):

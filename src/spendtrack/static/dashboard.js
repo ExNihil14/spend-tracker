@@ -342,7 +342,15 @@
     // S2 (Astra 02.10): события htmx всплывают до document — не зависим от window.htmx на момент
     // исполнения (порядок/defer/кэш) и от существования document.body.
     document.addEventListener('htmx:load', function () { initCharts(); });
-    document.addEventListener('htmx:beforeSwap', function () {
+    document.addEventListener('htmx:beforeSwap', function (e) {
+      // S3 (wave5): чужие свапы (refresh-list, OOB-тосты) не должны сносить графики —
+      // разрушаем только когда свап затрагивает контейнеры графиков (boost-смена месяца: target=body).
+      var tgt = e.detail && e.detail.target;
+      if (tgt && tgt !== document.body) {
+        var touches = (tgt.querySelector && tgt.querySelector('#dailyChart, #catsChart')) ||
+                      (tgt.closest && tgt.closest('#dailyChart, #catsChart'));
+        if (!touches) return;
+      }
       ['dailyChart', 'catsChart'].forEach(function (id) {
         var el = document.getElementById(id);
         var c = el && window.Chart && window.Chart.getChart(el);

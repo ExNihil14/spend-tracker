@@ -9,7 +9,7 @@
       <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-fg-muted">{{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}</span>
       <span class="h-px flex-1 bg-line" aria-hidden="true"></span>
       {% set day_total = day_totals.get(t.date) %}
-      {% set day_fx_count = (day_fx | default({})).get(t.date) %}
+      {% set day_fx_count = day_fx.get(t.date) %}
       <span class="text-xs font-medium {{ 'text-income' if day_total is not none and day_total > 0 else 'text-fg-muted' }}">
         {% if day_total is not none %}итог {{ fmt_money(day_total) }}
         {% elif day_fx_count %}только в валюте

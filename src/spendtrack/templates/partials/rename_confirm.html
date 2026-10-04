@@ -16,6 +16,7 @@
       </div>
     </div>
     <form hx-post="/settings/categories/rename" hx-target="#settings-root" hx-swap="outerHTML"
+          hx-select="#settings-root"
           class="flex items-center gap-2">
       <input type="hidden" name="file_hash" value="{{ preview.file_hash }}">
       <input type="hidden" name="name" value="{{ preview.old }}">

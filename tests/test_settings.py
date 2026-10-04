@@ -268,6 +268,22 @@ def test_settings_budgets_api_and_page(tax_env):
     assert "числом" in r3.text
 
 
+def test_mutations_return_settings_root_contract(tax_env):
+    """Wave5 settings №1/№3: мутации возвращают фрагмент #settings-root; ошибки — role=alert."""
+    client = TestClient(app)
+    ok = client.post("/settings/budgets", data={"category": "other", "amount": "1000"})
+    assert ok.status_code == 200 and 'id="settings-root"' in ok.text
+
+    err = client.post("/settings/budgets", data={"category": "other", "amount": "abc"})
+    assert 'id="settings-root"' in err.text and "числом" in err.text
+    assert 'role="alert"' in err.text
+
+    rules_err = client.post("/settings/rules",
+                            data={"pattern": "", "category": "other",
+                                  "file_hash": repo.file_hash()})
+    assert 'id="settings-root"' in rules_err.text and "паттерн" in rules_err.text
+
+
 def test_tester_winner_and_cache(tax_env):
     s = Store(db_path=tax_env.parent / "t.db")
     res = repo.test_description("ЛЕНТА 123", s)

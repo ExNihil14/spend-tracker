@@ -84,7 +84,8 @@
           var cnt = document.getElementById('pending-count');
           if (!cnt) return;
           // S2 (Astra 02.10): не доверяем форме ответа — null/строка давали «NaN» в счётчике.
-          var to = (d && typeof d.count === 'number' && isFinite(d.count)) ? Math.round(d.count) : 0;
+          var to = (d && typeof d.count === 'number' && isFinite(d.count)) ? Math.round(d.count) : null;
+          if (to === null) return; // S6 (wave5): невалидный ответ не обнуляет счётчик
           var from = parseInt(cnt.textContent, 10);
           animateCount(cnt, isNaN(from) ? to : from, to);
         })

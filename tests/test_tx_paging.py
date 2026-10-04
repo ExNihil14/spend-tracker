@@ -113,3 +113,20 @@ def test_index_month_fits_one_page(tmp_path, monkeypatch):
 
     html = TestClient(app).get("/?month=2026-09").text
     assert "more-sentinel" not in html  # 5 дней < 31 → всё на одной странице
+
+
+def test_more_endpoint_fx_only_day_marker(tmp_path, monkeypatch):
+    """Wave5 S4: /transactions/more передаёт day_fx — FX-день не деградирует в «итог 0,00»."""
+    db = tmp_path / "fx.db"
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(db))
+    s = Store(db_path=db)
+    s.add_transaction(date="2026-09-09", description="БАЗА", amount_kopecks=-1000,
+                      category="other", category_source="manual")
+    s.add_transaction(date="2026-09-05", description="USD", amount_kopecks=-500,
+                      category="other", category_source="manual", currency="USD")
+    s.close()
+
+    client = TestClient(app)
+    html = client.get("/transactions/more?month=2026-09&days=1&after=2026-09-09").text
+    assert "только в валюте" in html  # FX-день подписан честно
+    assert "итог 0,00" not in html

@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from datetime import date
 
+import pytest
+
 from spendtrack import goals as G
 from spendtrack.store import Store
 
@@ -40,7 +42,10 @@ def test_shift_between_ceil_median():
     assert G.shift_month("2026-12", 1) == "2027-01"
     assert G.months_between("2026-10", "2027-06") == 8
     assert G.months_between("2026-10", "2026-10") == 0
+    assert G.months_between("2027-01", "2026-10") == -3  # срок в прошлом (wave5 S10)
     assert G.ceil_div(1, 8) == 1 and G.ceil_div(16, 8) == 2 and G.ceil_div(17, 8) == 3
+    with pytest.raises(ZeroDivisionError):  # делитель защищает вызывающий (в движке — max(1, …))
+        G.ceil_div(5, 0)
     assert G.median_k([]) == 0 and G.median_k([5]) == 5
     assert G.median_k([1, 3, 5, 7]) == 4 and G.median_k([-3, -1, 5]) == -1
 
@@ -82,6 +87,24 @@ def test_required_boundaries():
     assert one["need_k"] == 1 and one["required_k"] == 1
 
 
+def test_status_boundary_equalities():
+    """Wave5 S10: равенства на границах — off-by-one не должен «съезжать»."""
+    g = _goal()
+    eq = G.goal_engine(g, [_alloc("2026-09-05", 100_000)], _stats(), today=TODAY)
+    assert eq["status"] == "ON_TRACK" and eq["gap_k"] == 0  # cover == need (не BEHIND)
+    # ровно 1.1×: target 1 010 000, взнос 110 000 → need 900к, cover 990к (990к×10 == 900к×11)
+    ahead = G.goal_engine(_goal(target=1_010_000), [_alloc("2026-09-05", 110_000)],
+                          _stats(), today=TODAY)
+    assert ahead["status"] == "AHEAD"
+    # required ровно равен слабому месяцу (130 000): строгий `>` не даёт AT_RISK
+    eqw = G.goal_engine(_goal(target=1_170_000), [], _stats(), today=TODAY)
+    assert eqw["required_k"] == 130_000 and eqw["status"] == "BEHIND"
+    # pace = 0 со сроком: BEHIND, без прогноза темпа; required — округление вверх
+    zero = G.goal_engine(g, [], _stats(), today=TODAY)
+    assert zero["status"] == "BEHIND" and zero["months_at_pace"] is None
+    assert zero["required_k"] == 111_112
+
+
 def test_insufficient_and_non_base():
     insuff = G.goal_engine(_goal(), [], _stats(usable=2), today=TODAY)
     assert insuff["status"] == "INSUFFICIENT_DATA"
@@ -108,8 +131,10 @@ def test_series_coverage_and_transfers(store):
     _add(store, "2026-09-30", -10_000)   # конец месяца → usable
     _add(store, "2026-08-15", -5_000)    # 1 транзакция в середине → исключён
     _add(store, "2026-07-01", 100_000, category="transfers")  # transfers не считаем вовсе
+    _add(store, "2026-10-01", -500_000)  # wave5 S11: текущий (неполный) месяц в окно не входит
     series = G.monthly_net_series(store, today=TODAY)
     by = {m["month"]: m for m in series}
+    assert "2026-10" not in by  # серия — только полные календарные месяцы
     assert by["2026-09"]["usable"] and by["2026-09"]["net_k"] == -10_000
     assert not by["2026-08"]["usable"]
     assert by["2026-07"]["n"] == 0

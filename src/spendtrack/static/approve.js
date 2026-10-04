@@ -13,6 +13,10 @@
   'use strict';
 
   if (!document.getElementById('review-rows')) return;
+  // S2 (wave5): при boost-навигации <script> переисполняется, а document-листенеры прошлого
+  // запуска живы — второй набор дублировал бы change/POST и «прыгал» фокусом (два idx).
+  if (window.__spendtrackApprove) return;
+  window.__spendtrackApprove = true;
 
   var idx = -1;
   var keyboard = false;
@@ -82,7 +86,12 @@
     // чужой регион не должны перекидывать фокус (фоновые свапы «крали» фокус без действий юзера).
     var tgt = e.detail && e.detail.target;
     var tb = getTbody();
-    if (!tgt || !tb || (tgt !== tb && !tb.contains(tgt))) return;
+    if (!tb) return;
+    // S1 (wave5): при outerHTML-свапе htmx отдаёт в target СТАРЫЙ (отсоединённый) узел —
+    // принимаем и его, если это контейнер очереди (bulk) или строка (approve строки).
+    var isQueue = !tgt || tgt === tb || tb.contains(tgt) ||
+                  tgt.id === 'review-rows' || tgt.tagName === 'TR';
+    if (!isQueue) return;
     var list = rows();
     if (!list.length) { idx = -1; return; }
     if (idx >= list.length) idx = list.length - 1;
