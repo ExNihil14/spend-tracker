@@ -192,6 +192,40 @@
     }
   });
 
+  // W1 ресёрча ошибок: ошибки-не-2xx и сетевые сбои htmx больше не «молчат» —
+  // текст (detail) показываем в #error-banner (role=alert), авто-скрытие 8 с.
+  function showError(msg) {
+    var box = document.getElementById('error-banner');
+    if (!box) return;
+    box.textContent = msg;
+    box.classList.remove('opacity-0', 'pointer-events-none');
+    clearTimeout(window.__errorTimer);
+    window.__errorTimer = setTimeout(function () {
+      box.classList.add('opacity-0', 'pointer-events-none');
+    }, 8000);
+  }
+  function errorText(xhr, fallback) {
+    var msg = fallback;
+    if (!xhr) return msg;
+    try {
+      var d = JSON.parse(xhr.responseText);
+      if (d && typeof d.detail === 'string' && d.detail) {
+        msg = d.detail;
+      } else if (d && Array.isArray(d.detail)) {  // pydantic-422: detail — список
+        var parts = d.detail.map(function (x) { return x && x.msg; }).filter(Boolean);
+        if (parts.length) msg = parts.join('; ');
+      }
+    } catch (err) { /* не JSON (HTML-страница ошибки) — оставляем fallback */ }
+    return msg;
+  }
+  document.body.addEventListener('htmx:responseError', function (e) {
+    var x = e.detail && e.detail.xhr;
+    showError(errorText(x, 'Ошибка ' + (x ? x.status : '') + ' — действие не выполнено'));
+  });
+  document.body.addEventListener('htmx:sendError', function () {
+    showError('Нет связи с сервером — проверьте, что приложение запущено');
+  });
+
   document.body.addEventListener('htmx:afterSwap', maybeConfetti);
   document.body.addEventListener('htmx:oobAfterSwap', maybeConfetti);
 })();

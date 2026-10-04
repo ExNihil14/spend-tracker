@@ -1,6 +1,13 @@
 {# S2 (Astra 02.10): общий контейнер секций настроек. Любая мутация свапает его целиком,
    поэтому соседние формы всегда несут свежий file_hash — оптимистическая блокировка не протухает. #}
 <div id="settings-root">
+  {% if taxonomy_broken %}
+  {# W1 ресёрча ошибок: битый taxonomy.toml — баннер вместо plain-500; секции недоступны до починки #}
+  <div class="px-5 py-4 text-sm text-danger border-b border-line" role="alert">
+    Файл taxonomy.toml не читается: {{ taxonomy_broken }}. Исправьте файл (рядом с конфигом — бэкапы)
+    и обновите страницу; операции с категориями/правилами/бюджетами недоступны до починки.
+  </div>
+  {% else %}
   <div class="bg-surface rounded-xl border border-line mb-8 overflow-hidden">
     <h2 class="px-5 py-3 text-[15px] font-semibold text-fg border-b border-line">Категории</h2>
     {% with error = error_cats | default(error | default(none), true) %}{% include "partials/settings_categories.html" %}{% endwith %}
@@ -19,4 +26,5 @@
     </h2>
     {% with error = error_budgets | default(error | default(none), true) %}{% include "partials/settings_budgets.html" %}{% endwith %}
   </div>
+  {% endif %}
 </div>

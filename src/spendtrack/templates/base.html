@@ -88,6 +88,11 @@
 <div id="toast" role="status" aria-live="polite"
      class="fixed bottom-4 right-4 z-50 opacity-0 pointer-events-none transition-opacity duration-200
             bg-surface-2 border border-line-strong text-fg-strong text-sm rounded-lg px-4 py-2 shadow-xl"></div>
+{# W1 ресёрча ошибок: видимая ошибка для htmx-сбоев (текст кладёт app.js; role=alert — assertive) #}
+<div id="error-banner" role="alert"
+     class="fixed bottom-4 right-4 z-50 opacity-0 pointer-events-none transition-opacity duration-200
+            bg-surface-2 border border-line-strong text-danger text-sm rounded-lg px-4 py-2 shadow-xl"
+     style="bottom: 5.5rem"></div>
 {# Скрипты конкретной страницы: htmx исполняет их и при boost-свопе (в отличие от <head>) #}
 {% block scripts %}{% endblock %}
 </body>

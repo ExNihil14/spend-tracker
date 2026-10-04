@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from datetime import date
 from decimal import InvalidOperation
@@ -426,7 +427,12 @@ def cmd_serve(args) -> int:
         print(f"не удалось создать каталог конфига: {e}", file=sys.stderr)
         print("проверьте права на пользовательскую папку или задайте SPENDTRACK_CONFIG_DIR", file=sys.stderr)
         return 1
-    cfg = load_settings()
+    try:
+        cfg = load_settings()
+    except (ValueError, OSError) as e:  # TOMLDecodeError/ValidationError ⊂ ValueError (W1 ресёрча ошибок)
+        print(f"настройки не читаются: {e}", file=sys.stderr)
+        print("исправьте settings.toml (или задайте SPENDTRACK_CONFIG_DIR) и повторите", file=sys.stderr)
+        return 1
     host = args.host or "127.0.0.1"
     port = int(args.port or cfg.port)
     display_host = "127.0.0.1" if host == "0.0.0.0" else host
@@ -620,7 +626,13 @@ def main(argv: list[str] | None = None) -> int:
 
     args = p.parse_args(argv)
     if args.cmd and hasattr(args, "fn"):
-        return int(args.fn(args)) or 0
+        try:
+            return int(args.fn(args)) or 0
+        except sqlite3.OperationalError as e:
+            # W1 ресёрча ошибок: занятая/недоступная БД — человеческое сообщение, не трейсбек
+            print(f"БД занята или недоступна: {e} — повторите через несколько секунд",
+                  file=sys.stderr, flush=True)
+            return 1
     p.print_help()
     return 1
 

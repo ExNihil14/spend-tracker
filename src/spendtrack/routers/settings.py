@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from tomllib import TOMLDecodeError
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
@@ -21,6 +22,10 @@ templates = Jinja2Templates(directory=PKG_DIR / "templates")
 templates.env.globals.update(fmt_money=fmt_money, badge_text=badge_text_color, static=static_url,
                              cat_icon=cat_icon, currency_symbol=currency_symbol)
 
+# W1 ресёрча ошибок: битый/недоступный taxonomy.toml — «ошибка пользователя»: показываем баннер,
+# а не plain-500 (TOMLDecodeError ⊂ ValueError; OSError — нет файла/прав)
+_TAX_ERRORS = (repo.TaxonomyError, TOMLDecodeError, OSError)
+
 
 def _catname(data: dict):
     """Отображаемое имя категории из TOML (display_name; fallback — слаг)."""
@@ -29,11 +34,20 @@ def _catname(data: dict):
 
 
 def _context(store: Store) -> dict:
-    data = repo.load_raw()
+    broken = None
+    try:
+        data = repo.load_raw()
+        file_hash = repo.file_hash()
+        icons = sprite_icon_names()  # тоже читает taxonomy.toml (cat_icons)
+    except _TAX_ERRORS as e:
+        data = {"categories": [], "rules": []}
+        file_hash = ""
+        icons = []
+        broken = str(e)
     usage = repo.usage_counts(store)
     pending = store.pending_count()
     budgets = store.budget_map()
-    analysis = repo.analyze_rules(data)
+    analysis = repo.analyze_rules(data) if broken is None else []
     return {
         "catname": _catname(data),
         "categories": data.get("categories", []),
@@ -45,10 +59,11 @@ def _context(store: Store) -> dict:
         "budget_categories": [c for c in data.get("categories", [])
                               if c["name"] not in BUDGET_EXCLUDED],
         "fmt": fmt_amount,
-        "file_hash": repo.file_hash(),
-        "icons": sprite_icon_names(),
+        "file_hash": file_hash,
+        "icons": icons,
         "dead_count": sum(1 for a in analysis if a["dead"]),
         "duplicate_count": sum(1 for a in analysis if a["duplicate_of"] is not None),
+        "taxonomy_broken": broken,
     }
 
 
@@ -81,7 +96,7 @@ async def add_category(request: Request, store: Annotated[Store, Depends(get_sto
     try:
         repo.add_category(str(form.get("name") or ""), str(form.get("color") or ""),
                           str(form.get("file_hash") or ""), str(form.get("icon") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _cats_fragment(request, store, str(e))
     return _cats_fragment(request, store)
 
@@ -93,7 +108,7 @@ async def set_icon(request: Request, store: Annotated[Store, Depends(get_store)]
     try:
         repo.set_icon(str(form.get("name") or ""), str(form.get("icon") or ""),
                       str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _cats_fragment(request, store, str(e))
     return HTMLResponse(_cats_fragment(request, store).body.decode() + oob_toast("Сохранено"))
 
@@ -105,7 +120,7 @@ async def set_color(request: Request, store: Annotated[Store, Depends(get_store)
     try:
         repo.set_color(str(form.get("name") or ""), str(form.get("color") or ""),
                        str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _cats_fragment(request, store, str(e))
     return HTMLResponse(_cats_fragment(request, store).body.decode() + oob_toast("Сохранено"))
 
@@ -116,7 +131,7 @@ async def delete_category(request: Request, store: Annotated[Store, Depends(get_
     try:
         repo.delete_category(str(form.get("name") or ""), store,
                              str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _cats_fragment(request, store, str(e))
     return _cats_fragment(request, store)
 
@@ -128,7 +143,7 @@ async def rename_preview(request: Request, store: Annotated[Store, Depends(get_s
         preview = repo.rename_preview(str(form.get("name") or ""),
                                       str(form.get("new_name") or ""), store,
                                       str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return templates.TemplateResponse(request, "partials/rename_confirm.html",
                                           {"preview": None, "error": str(e)})
     return templates.TemplateResponse(request, "partials/rename_confirm.html",
@@ -141,7 +156,7 @@ async def rename_category(request: Request, store: Annotated[Store, Depends(get_
     try:
         repo.rename_category(str(form.get("name") or ""), str(form.get("new_name") or ""),
                              store, str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _cats_fragment(request, store, str(e))
     return _cats_fragment(request, store)
 
@@ -156,7 +171,7 @@ async def set_budget(request: Request, store: Annotated[Store, Depends(get_store
     form = await request.form()
     try:
         repo.set_budget(str(form.get("category") or ""), str(form.get("amount") or ""), store)
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _budgets_fragment(request, store, str(e))
     return HTMLResponse(_budgets_fragment(request, store).body.decode() + oob_toast("Сохранено"))
 
@@ -178,7 +193,7 @@ async def add_rule(request: Request, store: Annotated[Store, Depends(get_store)]
     try:
         repo.add_rule(str(form.get("pattern") or ""), str(form.get("category") or ""),
                       str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _rules_fragment(request, store, str(e))
     return _rules_fragment(request, store)
 
@@ -188,7 +203,7 @@ async def delete_rule(request: Request, store: Annotated[Store, Depends(get_stor
     form = await request.form()
     try:
         repo.delete_rule(_parse_index(form.get("index")), str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _rules_fragment(request, store, str(e))
     return _rules_fragment(request, store)
 
@@ -199,7 +214,7 @@ async def move_rule(request: Request, store: Annotated[Store, Depends(get_store)
     try:
         repo.move_rule(_parse_index(form.get("index")), str(form.get("direction") or ""),
                        str(form.get("file_hash") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return _rules_fragment(request, store, str(e))
     return _rules_fragment(request, store)
 
@@ -213,7 +228,7 @@ async def preview_rule(request: Request):
                                           {"preview": None, "error": None})
     try:
         result = repo.preview_rule(pattern, str(form.get("category") or ""))
-    except repo.TaxonomyError as e:
+    except _TAX_ERRORS as e:
         return templates.TemplateResponse(request, "partials/rule_preview.html",
                                           {"error": str(e), "preview": None})
     return templates.TemplateResponse(request, "partials/rule_preview.html",

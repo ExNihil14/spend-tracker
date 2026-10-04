@@ -58,6 +58,16 @@ def test_serve_reports_unwritable_config(monkeypatch, capsys):
     assert "SPENDTRACK_CONFIG_DIR" in err
 
 
+def test_serve_broken_settings_friendly_error(tmp_path, monkeypatch, capsys):
+    """W1 ресёрча ошибок: `serve` с битым settings.toml — понятная ошибка rc=1, не трейсбек."""
+    monkeypatch.setenv("SPENDTRACK_CONFIG_DIR", str(tmp_path))
+    monkeypatch.delenv("SPENDTRACK_BASE_CURRENCY", raising=False)  # env маскирует поломку TOML
+    (tmp_path / "settings.toml").write_text('base_currency = "RUBL"\n', encoding="utf-8")
+    assert cli.main(["serve"]) == 1
+    err = capsys.readouterr().err
+    assert "настройки не читаются" in err and "Traceback" not in err
+
+
 def test_paths_json(capsys):
     assert cli.main(["paths", "--json"]) == 0
     info = json.loads(capsys.readouterr().out)

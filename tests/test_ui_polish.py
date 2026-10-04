@@ -157,6 +157,17 @@ def test_dashboard_heatmap_counts_spend_not_signed_total():
     assert "d.total_k > max" not in heat  # старый знаковый максимум
 
 
+def test_error_banner_hooks_present():
+    """W1 ресёрча ошибок: htmx-ошибки и сетевые сбои показываются пользователю (стат-гард)."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "src" / "spendtrack"
+    js = (root / "static" / "app.js").read_text(encoding="utf-8")
+    assert "htmx:responseError" in js and "htmx:sendError" in js
+    base = (root / "templates" / "base.html").read_text(encoding="utf-8")
+    assert 'id="error-banner"' in base and 'role="alert"' in base
+
+
 def test_untrusted_description_is_escaped_everywhere(client):
     """S6 (Astra 02.10): описание из выписки — недоверенный ввод; на страницах не должно быть
     исполняемых фрагментов (XSS-поверхность: таблица, фильтр, очередь, дашборд)."""

@@ -73,6 +73,22 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > testzip, walk_errors, локальный credential сохраняет, happy-ротация), неполный архив —
 > `.incomplete.zip`. Контур **865 unit + 96 e2e**, bootstrap-тесты ALL PASS. Остаток: хвост окна
 > (ops2+Astra). Коммит — по команде.
+> **Ресёрч «обработка ошибок» (04.10, фоновый субагент):** `D:\dev\docs\machine\RESEARCH_ERROR_HANDLING_2026-10-04.md`
+> (327 строк, 15 первоисточников, метки [П]/[Ч]). Топ-разрывы: htmx не показывает не-2xx (нет `htmx:responseError`;
+> молчат create 422/413, reviews 404/409), нет глобального `exception_handler` (500 = plain-text, HX тихо стоит),
+> `OperationalError` (busy >5 c) → 500 без текста, строки/коды ошибок рассыпаны (нет реестра под `t()`), a11y:
+> импорт/создание в `role=status`, нет `aria-invalid`. Сильные стороны: миграции/дедуп-гонка/approve-транзакции/
+> LLM-цепочка с breaker — не трогать. **Предложение волн:** W1 — htmx-ошибки видимы + глобальный handler(Exception)
+> + OperationalError→503 + битый taxonomy на `/settings` + serve-TOML (все S, TDD); W2 — `errors.py`-реестр строк/кодов,
+> таблица CLI-кодов, a11y ошибок (alert/aria-invalid), `llm-status`: last_error, DEBUG-PII-правило. Ждёт команды.
+> Проверить вручную (§5 дока): сумма `abc` в UI, битый CSV, повторный approve, занятая БД >5 c, битый taxonomy,
+> `serve` с битым settings, NVDA на ошибках.
+> **W1 ресёрча ошибок — сделана (04.10, в дереве):** htmx-ошибки видимы (#error-banner role=alert +
+> `htmx:responseError/sendError`), глобальные handler'ы 500/503 (JSON для HX/API, HTML для браузера; лог без
+> query/тела), `OperationalError`→503 (в тесте — реальная занятая БД), битый taxonomy.toml → баннер /settings
+> (и в мутациях), serve/CLI при битом TOML/занятой БД → rc=1 без трейсбека. TDD: 9 красных → зелёные;
+> контур **874 unit + 97 e2e**. W2 (реестр строк/кодов под `t()`, CLI-таблица, a11y alert/aria-invalid,
+> `llm-status`: last_error) — по команде.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);

@@ -96,6 +96,17 @@ def test_filter_change_keeps_single_tx_table(page: Page, live_server, db_path):
     assert page.locator("#tx-table").count() == 1
 
 
+def test_invalid_amount_shows_error_banner(page: Page, live_server):
+    """W1 ресёрча ошибок: 422 на «Добавить» виден пользователю (#error-banner, role=alert)."""
+    page.goto(f"{live_server}/")
+    page.click('[data-toggle="add-panel"]')
+    page.fill('#add-form input[name="description"]', "ТЕСТ ОШИБКА")
+    page.fill('#add-form input[name="amount"]', "abc")
+    with page.expect_response(lambda r: "/api/transactions" in r.url):
+        page.click("#add-form button")
+    expect(page.locator("#error-banner")).to_contain_text("сумма")
+
+
 def test_month_empty_note(page: Page, live_server, db_path):
     """Пустой месяц при наличии данных: подсказка с импортом, а не пустая таблица без объяснений."""
     _seed(str(db_path), "2026-09-10", "ЛЕНТА МЕСЯЦ", -10000)

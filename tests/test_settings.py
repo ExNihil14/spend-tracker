@@ -281,6 +281,17 @@ def test_tax_hash_oob_and_targeted_swaps(tax_env):
     assert 'id="settings-budgets-error"' in page
 
 
+def test_broken_taxonomy_shows_banner(tax_env):
+    """W1 ресёрча ошибок: битый taxonomy.toml — баннер на /settings и в мутациях, а не plain-500."""
+    tax_env.write_text("[[categories]\nbroken = true\n", encoding="utf-8")  # невалидный TOML
+    client = TestClient(app)
+    r = client.get("/settings")
+    assert r.status_code == 200
+    assert 'role="alert"' in r.text and "taxonomy.toml" in r.text
+    r2 = client.post("/settings/budgets", data={"category": "other", "amount": "1000"})
+    assert r2.status_code == 200 and "taxonomy.toml" in r2.text
+
+
 def test_mutations_return_settings_root_contract(tax_env):
     """Wave5 settings №1/№3: мутации возвращают фрагмент #settings-root; ошибки — role=alert."""
     client = TestClient(app)

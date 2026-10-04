@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import logging
 import os
+import sqlite3
 import threading
 from contextlib import asynccontextmanager
 from logging.handlers import RotatingFileHandler
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -69,6 +70,47 @@ app.include_router(settings_router)
 app.include_router(api_router, prefix="/api")
 
 app.mount("/static", StaticFiles(directory=PKG_DIR / "static"), name="static")
+
+logger = logging.getLogger("spendtrack")
+
+
+def _error_page(message: str, status: int) -> HTMLResponse:
+    """Минимальная HTML-страница для «браузерных» сбоев (W1 ресёрча ошибок)."""
+    return HTMLResponse(
+        '<!doctype html><html lang="ru"><head><meta charset="utf-8">'
+        f"<title>Ошибка {status}</title></head>"
+        '<body style="font-family:system-ui;padding:2rem;max-width:36rem">'
+        f'<h1 style="font-size:1.1rem">Ошибка {status}</h1>'
+        f'<p role="alert">{message}</p>'
+        '<p><a href="/">На главную</a></p></body></html>',
+        status_code=status,
+    )
+
+
+def _wants_json(request: Request) -> bool:
+    return (request.headers.get("hx-request", "").lower() == "true"
+            or request.url.path.startswith("/api"))
+
+
+@app.exception_handler(sqlite3.OperationalError)
+async def _db_operational_error(request: Request, exc: sqlite3.OperationalError):
+    """W1 ресёрча ошибок: занятая/недоступная БД — 503 с человеческим текстом, а не 500."""
+    logger.warning("db operational error: %s %s: %s", request.method, request.url.path, exc)
+    detail = "База данных занята или недоступна — повторите через несколько секунд"
+    if _wants_json(request):
+        return JSONResponse({"detail": detail}, status_code=503)
+    return _error_page(detail, 503)
+
+
+@app.exception_handler(Exception)
+async def _unhandled_error(request: Request, exc: Exception):
+    """W1 ресёрча ошибок: 500 с понятным телом; в лог — метод/путь/тип (без query и тела)."""
+    logger.error("unhandled error: %s %s: %s", request.method, request.url.path,
+                 type(exc).__name__, exc_info=exc)
+    detail = "Внутренняя ошибка — подробности в логе приложения"
+    if _wants_json(request):
+        return JSONResponse({"detail": detail}, status_code=500)
+    return _error_page(detail, 500)
 
 # Минимальный CSP для локального приложения: ограничиваем источники/встраивание.
 # script-src — строго 'self': inline-скрипты и hx-on::* вынесены в /static/app.js (см. base.html),
