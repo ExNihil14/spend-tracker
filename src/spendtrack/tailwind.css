@@ -99,10 +99,11 @@ button:active:not(:disabled),
   transform: scaleX(calc(var(--p, 0) / 100));
   transition: transform var(--dur-3) var(--ease-decelerate);
 }
-/* Wave 1.3: две темы — иконка тоггла меняется по [data-theme] (обе svg в разметке; JS не участвует в свопе) */
-.theme-ico-moon { display: none; }
-[data-theme="dark"] .theme-ico-sun { display: none; }
-[data-theme="dark"] .theme-ico-moon { display: block; }
+/* Иконка тоггла показывает ДЕЙСТВИЕ (не текущую тему): светлая → луна («переключить на тёмную»),
+   тёмная → солнце; обе svg в разметке, JS в свопе не участвует */
+.theme-ico-sun { display: none; }
+[data-theme="dark"] .theme-ico-moon { display: none; }
+[data-theme="dark"] .theme-ico-sun { display: block; }
 /* Ревью Opus 5 (C2, 30.09): экстремальный reflow/zoom (высота <500px) — sticky-шапка отключается,
    чтобы не перекрывать сфокусированный элемент (SC 2.4.11 / 1.4.10). */
 @media (max-height: 500px) {

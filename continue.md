@@ -98,6 +98,31 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > **a11y-хвост ресёрча ошибок — закрыт (04.10, в дереве):** 422 помечает ошибочные поля `aria-invalid`
 > (+рамка danger), фокус уходит на первое ошибочное поле, правка поля снимает пометку (e2e проверяет
 > все три шага). **Ресёрч «обработка ошибок» исполнен полностью: W1 + W2 + a11y.** Контур 880 + 97.
+> **Ресёрч Habr «free-сервисы + важные статьи» (04.10, фоновый субагент):**
+> `D:\dev\docs\machine\RESEARCH_HABR_FREE_SERVICES_2026-10-04.md` (183 строки; валидность — по офиц. страницам).
+> Живое: OpenRouter :free (20/мин, 50/день → 1000 при ≥$10), Render Free (демо-кандидат), Neon/Supabase/Turso,
+> UptimeRobot, Tailscale Funnel, Actions/Codespaces. Мёртвое/платное: FreeLLMAPI, Roo Code, Fly.io/Koyeb (free нет).
+> Статьи-рецепты: idempotency+SW-outbox (волна 3), WAL-Reset (наш SQLite 3.53.1 — фикс есть), FastAPI+SQLite
+> прод-стек, gitleaks/секреты, htmx 4.0 (не мигрировать до stable). **Адъюдикация:** по команде берём — S:
+> `integrity_check` в restore_drill, аудит toggle→set-state, pre-commit gitleaks, правило «.env не читать»;
+> отложено — PWA/idempotency (волна 3), демо Render+UptimeRobot+GoatCounter (роадмап), кандидаты в free-цепочку
+> (Gemini free учится на данных — выписки нельзя); вручную за юзером — secret scanning+push protection,
+> лимиты Groq/Mistral/Together, видимость порта Codespaces.
+> **Habr-адъюдикация исполнена (04.10, в дереве):** pre-commit gitleaks — установлен и **провалидирован вживую**
+> (staged-секрет блокирует коммит; найдена ловушка upstream-хука: без `pass_filenames: false` gitleaks молча
+> пропускает); правило «`.env` не читать» — в AGENTS.md; `integrity_check` в restore_drill и toggle→set-state —
+> **отклонены фактами** (integrity_check уже стоит; toggle-роутов нет — всё set-state). **Блок 2 — результаты (04.10):**
+> GitHub secret scanning+push protection — ✅ ON, алертов нет; Groq — ✗ 403 (браузер и сеть); Mistral — ✗ Free без API
+> («Upgrade to use your API keys»); Together — ✗ ключ deprecated + мин. платёж (⚠️ ключ засветился в чате — **отозвать**);
+> Cohere/Cerebras — 403 с сети (браузером: Cohere 403 и в браузере; Cerebras — Cloudflare-бот-блок) → не закладываться.
+> Кандидатов в free-цепочку нет — остаётся OpenRouter :free + локальные шимы. **Блок 2 закрыт полностью:**
+> Codespaces 8766 = Private ✓.
+> **Иконка темы (04.10, в дереве):** тоггл показывает ДЕЙСТВИЕ (светлая → луна, тёмная → солнце), title —
+> «Переключить на … тему»; e2e обновлён (rebrand 13 passed), CSS пересобран (34 003 Б). Рестарт не требуется
+> (шаблоны/статика), коммит — по команде.
+> **Анализ DeepSeek Harness (04.10):** `D:\dev\docs\machine\ANALYSIS_DEEPSEEK_HARNESS_2026-10-04.md` — вывод:
+> как замена opencode не нужен; точечно — проба на локальной Ollama (30 мин, нулевой бюджет, изолированный
+> workspace) для GUI/XLSX-кейсов; идеи (GitHub-review-сессии, reminders, плагины) — в бэклог. НЕ внедряем сейчас.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);

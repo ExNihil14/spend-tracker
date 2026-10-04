@@ -16,7 +16,7 @@
     var btn = document.getElementById('theme-toggle');
     if (btn) {
       btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
-      btn.setAttribute('title', dark ? 'Тема: тёмная' : 'Тема: светлая');
+      btn.setAttribute('title', dark ? 'Переключить на светлую тему' : 'Переключить на тёмную тему');
     }
     // O1 (Astra 02.10): при boost-навигации тема не менялась — не дёргаем слушателей
     // (Chart.js пересчитывал палитру на каждом afterSwap без причины). Кнопку синхронизируем

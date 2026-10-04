@@ -40,16 +40,20 @@ def test_theme_toggle_two_states(page: Page, live_server):
     page.goto(f"{live_server}/")
     html = page.locator("html")
     assert html.get_attribute("data-theme") == "light"  # дефолт — светлая
+    # иконка показывает ДЕЙСТВИЕ: в светлой — луна («переключить на тёмную»)
+    assert page.locator("#theme-toggle .theme-ico-moon").is_visible()
+    assert not page.locator("#theme-toggle .theme-ico-sun").is_visible()
     page.locator("#theme-toggle").click()
     assert html.get_attribute("data-theme") == "dark"   # один клик — целевая тема
     assert page.locator("#theme-toggle").get_attribute("aria-pressed") == "true"
-    assert page.locator("#theme-toggle .theme-ico-moon").is_visible()
-    assert not page.locator("#theme-toggle .theme-ico-sun").is_visible()
+    # в тёмной — солнце («переключить на светлую»)
+    assert page.locator("#theme-toggle .theme-ico-sun").is_visible()
+    assert not page.locator("#theme-toggle .theme-ico-moon").is_visible()
     page.reload()
     assert html.get_attribute("data-theme") == "dark"   # localStorage пережил перезагрузку
     page.locator("#theme-toggle").click()
     assert html.get_attribute("data-theme") == "light"
-    assert page.locator("#theme-toggle .theme-ico-sun").is_visible()
+    assert page.locator("#theme-toggle .theme-ico-moon").is_visible()
 
     # легаси «system» (до Wave 1.3) — нормализуется в светлую, без авто-следования ОС
     page.evaluate("() => localStorage.setItem('spendtrack-theme', 'system')")
