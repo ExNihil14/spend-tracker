@@ -268,6 +268,19 @@ def test_settings_budgets_api_and_page(tax_env):
     assert "числом" in r3.text
 
 
+def test_tax_hash_oob_and_targeted_swaps(tax_env):
+    """Wave6 №2/№6: #tax-hash вне root + OOB-обновление; бюджеты/иконка — точечный свап, цвет — none."""
+    client = TestClient(app)
+    page = client.get("/settings").text
+    assert 'id="tax-hash"' in page
+    r = client.post("/settings/budgets", data={"category": "other", "amount": "1000"})
+    assert 'id="tax-hash"' in r.text and "hx-swap-oob" in r.text
+    assert 'hx-select="#budget-form-other"' in page and 'hx-target="this"' in page
+    assert 'hx-select="#cat-row-other"' in page
+    assert 'hx-post="/settings/categories/color" hx-target="#settings-root" hx-swap="none"' in page
+    assert 'id="settings-budgets-error"' in page
+
+
 def test_mutations_return_settings_root_contract(tax_env):
     """Wave5 settings №1/№3: мутации возвращают фрагмент #settings-root; ошибки — role=alert."""
     client = TestClient(app)

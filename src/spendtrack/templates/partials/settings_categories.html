@@ -15,15 +15,16 @@
     </thead>
     <tbody>
       {% for c in categories %}
-      <tr class="border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
+      <tr id="cat-row-{{ c.name | urlencode }}" class="border-b border-line/60 last:border-0 hover:bg-line/30 transition-colors">
         <td class="px-5 py-3">
           <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium"
                 style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ cat_icon(c.name) }}{{ catname(c.name) }}</span>
         </td>
         <td class="px-5 py-3 text-right text-fg-muted">{{ usage.get(c.name, 0) }}</td>
         <td class="px-5 py-3">
-          {# S3 (Astra 02.10): id — чтобы htmx вернул фокус после свопа; delay — пикер не свопит на каждом движении #}
-          <form hx-post="/settings/categories/color" hx-target="#settings-root" hx-swap="outerHTML"
+          {# wave6 №6: свап root во время открытого нативного пикера терял финальный выбор —
+             hx-swap="none" + OOB-тост/хэш: пикер не выдёргивается из DOM #}
+          <form hx-post="/settings/categories/color" hx-target="#settings-root" hx-swap="none"
                 hx-trigger="change delay:300ms" class="flex items-center gap-2">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">
@@ -34,7 +35,10 @@
         </td>
         <td class="px-5 py-3">
           {% set cur_icon = (c.icon or c.name) if (c.icon or c.name) in icons else 'tag' %}
-          <form hx-post="/settings/categories/icon" hx-target="#settings-root" hx-swap="outerHTML"
+          {# wave6 №2: свап только своей строки — набранное в других секциях не стирается #}
+          <form hx-post="/settings/categories/icon" hx-target="closest tr" hx-swap="outerHTML"
+                hx-select="#cat-row-{{ c.name | urlencode }}"
+                hx-select-oob="#tax-hash:outerHTML,#toast:outerHTML"
                 hx-trigger="change" class="flex items-center gap-2">
             <input type="hidden" name="file_hash" value="{{ file_hash }}">
             <input type="hidden" name="name" value="{{ c.name }}">

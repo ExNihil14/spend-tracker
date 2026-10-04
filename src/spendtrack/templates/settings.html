@@ -6,6 +6,9 @@
     <code class="font-mono text-xs">config/taxonomy.toml</code> вручную.
   </div>
 </noscript>
+{# wave6 №2: «источник истины» для file_hash форм настроек — вне #settings-root, обновляется OOB;
+   формы берут значение на момент запроса (app.js: htmx:configRequest) #}
+<input type="hidden" id="tax-hash" value="{{ file_hash }}">
 {% include "partials/settings_root.html" %}
 
 <div class="bg-surface rounded-xl border border-line p-5">

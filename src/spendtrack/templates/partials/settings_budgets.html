@@ -1,7 +1,7 @@
 <div id="settings-budgets">
-  {% if error %}
-  <div class="px-5 py-2 text-sm text-danger border-b border-line" role="alert">{{ error }}</div>
-  {% endif %}
+  {# wave6 №2: баннер ошибки всегда в DOM (hidden без ошибки) — его можно точечно обновлять OOB #}
+  <div id="settings-budgets-error" {% if not error %}hidden{% endif %}
+       class="px-5 py-2 text-sm text-danger border-b border-line" role="alert">{{ error or "" }}</div>
   <p class="px-5 py-2 text-xs text-fg-muted">
     Месячный лимит по категории, {{ currency_symbol() }}. Пусто или 0 — снять. Считаются расходы месяца; возвраты уменьшают.
   </p>
@@ -9,8 +9,13 @@
     {% for c in budget_categories %}
     {% set b = budgets.get(c.name) %}
     {# O3 (Astra 02.10): Enter в поле даёт и change, и submit — drop гасит дубль запроса #}
-    <form hx-post="/settings/budgets" hx-target="#settings-root" hx-swap="outerHTML"
-          hx-trigger="change, submit" hx-sync="this:drop" class="flex flex-wrap items-center gap-3 px-5 py-2.5">
+    {# wave6 №2: свап только своей строки — набранное в других секциях/полях не стирается #}
+    <form hx-post="/settings/budgets" hx-target="this" hx-swap="outerHTML"
+          hx-select="#budget-form-{{ c.name | urlencode }}"
+          hx-select-oob="#tax-hash:outerHTML,#settings-budgets-error:outerHTML,#toast:outerHTML"
+          hx-trigger="change, submit" hx-sync="this:drop"
+          id="budget-form-{{ c.name | urlencode }}"
+          class="flex flex-wrap items-center gap-3 px-5 py-2.5">
       <input type="hidden" name="category" value="{{ c.name }}">
       <span class="inline-block w-40 px-2.5 py-0.5 rounded-full text-xs font-medium"
             style="background:{{ c.color }};color:{{ badge_text(c.color) }}">{{ catname(c.name) }}</span>

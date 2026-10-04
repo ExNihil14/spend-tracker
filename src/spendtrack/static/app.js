@@ -182,6 +182,16 @@
     document.body.appendChild(host);
     setTimeout(function () { if (host.parentNode) host.parentNode.removeChild(host); }, 1700);
   }
+  // wave6 №2: свежий file_hash taxonomy подставляется в формы настроек на момент запроса —
+  // точечные свапы секций больше не обязаны менять весь root ради hidden-хэшей
+  document.body.addEventListener('htmx:configRequest', function (e) {
+    var h = document.getElementById('tax-hash');
+    if (!h || !e.detail || !e.detail.parameters) return;
+    if (Object.prototype.hasOwnProperty.call(e.detail.parameters, 'file_hash')) {
+      e.detail.parameters.file_hash = h.value;
+    }
+  });
+
   document.body.addEventListener('htmx:afterSwap', maybeConfetti);
   document.body.addEventListener('htmx:oobAfterSwap', maybeConfetti);
 })();

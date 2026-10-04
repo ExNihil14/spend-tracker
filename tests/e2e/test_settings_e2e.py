@@ -252,3 +252,22 @@ def test_budget_input_keeps_focus_after_swap(page: Page, live_server):
         "() => { const el = document.activeElement;"
         " return !!el && el.tagName === 'INPUT' && el.name === 'amount'; }"
     ), "фокус улетел из очереди бюджетов после свопа"
+
+
+def test_budget_autosave_keeps_typed_work_and_hash(page: Page, live_server):
+    """Wave6 №2: автосейв бюджета свапает только свою строку — набранное не стирается, хэш свеж."""
+    page.goto(f"{live_server}/settings")
+    pattern = page.locator('#settings-rules input[name="pattern"]')
+    pattern.fill("ЧЕРНОВИК ПРАВИЛА")
+    amount = page.locator('#settings-budgets input[name="amount"]').first
+    amount.fill("777")
+    with page.expect_response(lambda r: "/settings/budgets" in r.url):
+        page.keyboard.press("Tab")
+    _wait_single(page, "#settings-budgets")
+    assert pattern.input_value() == "ЧЕРНОВИК ПРАВИЛА"  # набранное в другой секции не стёрто свапом
+
+    # кнопка ↓ первого правила не оторвана и работает со свежим хэшем (без «изменён снаружи»)
+    with page.expect_response(lambda r: "/settings/rules/move" in r.url):
+        page.locator('#settings-rules form[hx-post="/settings/rules/move"] button').nth(1).click()
+    _wait_single(page, "#settings-rules")
+    assert "изменён снаружи" not in page.locator("#settings-root").inner_text()

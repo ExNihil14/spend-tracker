@@ -58,10 +58,17 @@ def settings(request: Request, store: Annotated[Store, Depends(get_store)]):
 
 
 def _root_fragment(request: Request, store: Store, **errors: str | None) -> HTMLResponse:
-    """S2 (Astra 02.10): мутации возвращают весь #settings-root — file_hash всех секций свежий."""
+    """Мутации возвращают #settings-root (+ OOB-хэш taxonomy).
+
+    S2 (Astra 02.10): root-свап даёт свежие формы. wave6 №2: точечные свапы (бюджеты/цвет/иконка)
+    не обязаны менять весь root — свежий file_hash для остальных форм едет отдельным OOB-элементом
+    (страница держит его в #tax-hash вне root; app.js подставляет на момент запроса).
+    """
     ctx = _context(store)
     ctx.update(errors)
-    return templates.TemplateResponse(request, "partials/settings_root.html", ctx)
+    resp = templates.TemplateResponse(request, "partials/settings_root.html", ctx)
+    oob = f'<input type="hidden" id="tax-hash" value="{ctx["file_hash"]}" hx-swap-oob="outerHTML">'
+    return HTMLResponse(resp.body.decode() + oob)
 
 
 def _cats_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:

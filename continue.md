@@ -63,9 +63,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > («wave6-хвосты») — сделана:** feed S1/S2 (свап только `#tx-table` + OOB `#tx-actions`) и S3
 > («+ валюта» у смешанного дня), anonymize S3/S4/S5 (фантомный `max_row`, merge/фильтр, роутинг по
 > магии), settings №5, ops_spend №5/№6 (serve-порядок, CI docker-smoke), ops1 SHOULD-3/4
-> (`secure_delete`+VACUUM, атомарный маркер), Docker PATH. Контур **862 unit + 95 e2e**,
-> bootstrap-тесты ALL PASS, snapshot api=383. Остаток: хвост окна (ops2+Astra) + отложенное
-> (settings №2/№6, ops1 SHOULD-1). Коммит — по команде.
+> (`secure_delete`+VACUUM, атомарный маркер), Docker PATH. **Волна 6+ (settings №2/№6) — сделана:**
+> `#tax-hash` вне root + OOB-хэш каждой мутации + подстановка на запрос (app.js) → свежесть без свапа
+> root; бюджеты — свап своей строки, иконка — строки, цвет — `swap=none` + тост. Контур
+> **863 unit + 96 e2e**, bootstrap-тесты ALL PASS, snapshot api=383. Остаток: хвост окна (ops2+Astra)
+> + отложенное (ops1 SHOULD-1, store S4). Коммит — по команде.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
