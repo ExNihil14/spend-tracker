@@ -55,8 +55,11 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > 500** (`v.items` в `goals_list.html` — Jinja-коллизия; падала страница целей и фрагмент ПОСЛЕ коммита) —
 > починен сразу с регресс-тестом; **волна 1 фиксов в дереве** (fingerprint base-независим, periods+1,
 > пустые валюты→RUB-фолбэк, кэш без отравления, даты/TOCTOU, taxonomy health/education+fallback,
-> `#goals-error`-слот, disabled-elt, портфель-горизонт, pending-бейдж). Контур **843 unit + 95 e2e**,
-> snapshot api=383. Далее: волна 2 (anonymize+ops) и волна 3 (тесты/UX); коммит — по команде.
+> `#goals-error`-слот, disabled-elt, портфель-горизонт, pending-бейдж). **Волна 2 (anonymize+ops) —
+> сделана:** предупреждения анонимайзера (нулевое обезличивание, PII вне таблицы, `.xlsm`-отказ,
+> свойства книги), doctor-краш, lazy_backup-контракт; bootstrap: CRIT-1/2 (`.part`-публикация, staging
+> в try/finally) + msvcrt/all-empty. Контур **850 unit + 95 e2e**, bootstrap-тесты ALL PASS,
+> snapshot api=383. Осталась волна 3 (тесты/UX-хвосты); коммит — по команде.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
