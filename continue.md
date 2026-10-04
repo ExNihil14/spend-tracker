@@ -89,6 +89,12 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (и в мутациях), serve/CLI при битом TOML/занятой БД → rc=1 без трейсбека. TDD: 9 красных → зелёные;
 > контур **874 unit + 97 e2e**. W2 (реестр строк/кодов под `t()`, CLI-таблица, a11y alert/aria-invalid,
 > `llm-status`: last_error) — по команде.
+> **W2 ресёрча ошибок — сделана (04.10, в дереве):** `errors.py` — реестр кодов/строк (500/503, суммы,
+> «не число») с тестом-связкой; ошибки импорта (HX) — `role="alert"`; `add` при дубле — отдельный код **4**
+> (штатный no-op; таблица кодов — `spec/PIPELINE.md`); `llm-status` показывает `breaker` и последний сбой
+> (тип+время, без тел); `CircuitBreaker.state()`; правило «DEBUG-логи только локально» — в REVIEW_CHECKLIST
+> и комментарии categorize. Контур **880 unit + 97 e2e**; contract: api **386** (snapshot в дереве —
+> коммит с трейлером `Contract-Change: api=386`).
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);

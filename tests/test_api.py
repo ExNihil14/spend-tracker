@@ -128,6 +128,13 @@ def test_patch_invalid_category_422(client):
     assert r.status_code == 422
 
 
+def test_import_error_fragment_is_alert(client):
+    """W2 ресёрча ошибок: ошибка импорта (HX) — role=alert (скринридер озвучит, не только цвет)."""
+    r = client.post("/api/import", json={"bank": "auto", "csv": "Дата проводки;Назначение;Сумма\n01.09.2026;ЛЕНТА;100\n"},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200 and 'role="alert"' in r.text
+
+
 def test_import_endpoint(client):
     csv_data = "Дата;Сумма операции;Категория;Описание;Счёт\n02.09.2026;-1200,00;Транспорт;UBER MUNCHEN;4081781"
     r = client.post("/api/import", json={"bank": "tinkoff", "csv": csv_data})

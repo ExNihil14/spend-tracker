@@ -616,6 +616,14 @@
    "args": "usage: dict[str, Any]",
    "returns": "str"
   },
+  "spendtrack.errors:ERRORS": {
+   "args": "{'db_busy': 'База данных занята или недоступна — повторите через несколько секунд', 'internal': 'Внутренняя ошибка — подробности в логе приложения', 'amount_unrecognized': 'сумма не распознана', 'goal_amount_unrecognized': 'сумма цели не распознана', 'not_a_number': 'не число: {value!r}'}",
+   "returns": ""
+  },
+  "spendtrack.errors:text": {
+   "args": "code: str, **fmt: object",
+   "returns": "str"
+  },
   "spendtrack.export:CSV_HEADERS": {
    "args": "('Дата', 'Описание', 'Сумма', 'Валюта', 'Категория', 'Источник', 'Уверенность', 'Мерчант', 'Счёт', 'Статус', 'Предложение LLM')",
    "returns": ""
@@ -875,6 +883,10 @@
   "spendtrack.resilience:CircuitBreaker.report_success": {
    "args": "self",
    "returns": "None"
+  },
+  "spendtrack.resilience:CircuitBreaker.state": {
+   "args": "self",
+   "returns": "str"
   },
   "spendtrack.restore_drill:MARKER_NAME": {
    "args": "'last_restore_drill.json'",

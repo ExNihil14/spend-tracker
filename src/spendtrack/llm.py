@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import threading
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlparse
@@ -21,6 +22,8 @@ REQUEST_TIMEOUT_S = httpx.Timeout(30.0, connect=3.0)  # read=30 (батч), conn
 
 _breakers: dict[str, CircuitBreaker] = {}
 _br_lock = threading.Lock()
+# W2 ресёрча ошибок: последний сбой по провайдеру (тип + время) — для llm-status; без тел/промптов
+_last_errors: dict[str, dict] = {}
 
 
 @dataclass(frozen=True)
@@ -156,7 +159,8 @@ def _safe_origin(url: str) -> str:
 def llm_status(cfg: Settings | None = None) -> dict[str, Any]:
     """Текущий режим LLM без сети и без секретов (для CLI/диагностики).
 
-    Возвращает новый dict на каждый вызов; внутреннее состояние модуля не шарится (значение-снимок).
+    Возвращает новый dict на каждый вызов; внутреннее состояние модуля не шарится (значение-снимок),
+    включая диагностику W2: состояние breaker и последний сбой по провайдеру (тип + время).
     """
     cfg = cfg or load_settings()
     providers = resolve_providers(cfg)
@@ -169,7 +173,9 @@ def llm_status(cfg: Settings | None = None) -> dict[str, Any]:
         "mode": mode,
         "providers": [
             {"source": p.source, "base_url": _safe_origin(p.base_url), "model": p.model,
-             "local": p.local, "has_key": p.api_key != "no-key"}
+             "local": p.local, "has_key": p.api_key != "no-key",
+             "breaker": _breaker(p.source).state(),
+             "last_error": (dict(_last_errors[p.source]) if p.source in _last_errors else None)}
             for p in providers
         ],
     }
@@ -236,6 +242,7 @@ def call_llm(
                 # S10 (Astra 01.10): HTTP-200 с пустым телом — не «успех»: breaker не закрываем,
                 # fallback должен иметь шанс; пустой ответ бесполезен вызывающему коду.
                 log.warning("llm[%s]: пустой ответ — трактуем как сбой", provider.source)
+                _last_errors[provider.source] = {"type": "empty_response", "at": time.time()}
                 br.report_failure()
                 continue
             br.report_success()
@@ -243,6 +250,7 @@ def call_llm(
         except Exception as e:  # noqa: BLE001
             # S2: сбой виден в логе (тип ошибки; тело ответа не логируем — там может быть эхо промпта)
             log.warning("llm[%s]: %s", provider.source, type(e).__name__)
+            _last_errors[provider.source] = {"type": type(e).__name__, "at": time.time()}
             br.report_failure()
             continue
 

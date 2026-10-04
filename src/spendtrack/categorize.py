@@ -105,6 +105,7 @@ def classify_with_injectable(
     bucket = f"{int(conf * 10) / 10:.1f}"
     desc = tx.get("description", "")
     # S8: в INFO — только хэш описания (сырое описание уезжает в issue/поддержку); полный текст — DEBUG
+    # W2 ресёрча ошибок: DEBUG-логи — только локально, в issue/ревью их не прикладываем (REVIEW_CHECKLIST)
     logger.info("llm_decision: conf=%.3f bucket=%s accepted=%s desc_hash=%s",
                 conf, bucket, conf >= acceptance, hashlib.sha1(desc.encode()).hexdigest()[:8])
     logger.debug("llm_decision desc=%s", desc[:40])

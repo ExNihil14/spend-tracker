@@ -12,6 +12,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
+from spendtrack import errors
 from spendtrack.config import PKG_DIR, ensure_config_dir, load_settings, resolve_data_dir
 from spendtrack.routers.api import router as api_router
 from spendtrack.routers.frontend import router as frontend_router
@@ -96,7 +97,7 @@ def _wants_json(request: Request) -> bool:
 async def _db_operational_error(request: Request, exc: sqlite3.OperationalError):
     """W1 ресёрча ошибок: занятая/недоступная БД — 503 с человеческим текстом, а не 500."""
     logger.warning("db operational error: %s %s: %s", request.method, request.url.path, exc)
-    detail = "База данных занята или недоступна — повторите через несколько секунд"
+    detail = errors.text("db_busy")
     if _wants_json(request):
         return JSONResponse({"detail": detail}, status_code=503)
     return _error_page(detail, 503)
@@ -107,7 +108,7 @@ async def _unhandled_error(request: Request, exc: Exception):
     """W1 ресёрча ошибок: 500 с понятным телом; в лог — метод/путь/тип (без query и тела)."""
     logger.error("unhandled error: %s %s: %s", request.method, request.url.path,
                  type(exc).__name__, exc_info=exc)
-    detail = "Внутренняя ошибка — подробности в логе приложения"
+    detail = errors.text("internal")
     if _wants_json(request):
         return JSONResponse({"detail": detail}, status_code=500)
     return _error_page(detail, 500)

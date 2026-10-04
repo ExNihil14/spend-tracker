@@ -4,6 +4,7 @@ import argparse
 import json
 import sqlite3
 import sys
+import time
 from datetime import date
 from decimal import InvalidOperation
 from pathlib import Path
@@ -67,7 +68,7 @@ def cmd_add(args) -> int:
         print(f"OK id={tx_id} {fmt_amount(amount)}{cur} {args.description} -> {category}{queue}")
         return 0
     print("dup (уже есть)")
-    return 1
+    return 4  # W2 ресёрча ошибок: отдельный код «штатный no-op» — скрипты отличают от ошибок (1)
 
 
 def cmd_import(args) -> int:
@@ -347,7 +348,13 @@ def cmd_llm_status(args) -> int:
         return 0
     for p in status["providers"]:
         key = "установлен" if p["has_key"] else "не нужен"
-        print(f"   {p['source']:<9} {p['base_url']}  model={p['model']}  ключ: {key}")
+        br = p.get("breaker", "closed")
+        extra = "" if br == "closed" else f"  breaker={br}"
+        print(f"   {p['source']:<9} {p['base_url']}  model={p['model']}  ключ: {key}{extra}")
+        err = p.get("last_error")
+        if err:
+            ago = max(0, int(time.time() - err.get("at", 0)))
+            print(f"   последний сбой: {err.get('type', '?')} ({ago} с назад)")
     if status["mode"] == "free":
         print("   полный контроль над данными: BYO-ключ или Ollama (см. README/PRIVACY.md)")
     return 0

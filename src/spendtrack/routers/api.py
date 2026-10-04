@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, ValidationError, field_validator
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.formparsers import MultiPartException
 
+from spendtrack import errors
 from spendtrack.assets import static_url
 from spendtrack.cat_icons import cat_icon
 from spendtrack.categorize import categorize_transaction
@@ -75,7 +76,7 @@ class TxIn(BaseModel):
         try:
             kopecks = parse_amount(v)  # аудит 24.09: «abc» давало 500 вместо 422
         except (InvalidOperation, ValueError, OverflowError) as e:
-            raise ValueError("сумма не распознана") from e
+            raise ValueError(errors.text("amount_unrecognized")) from e
         # Dash 4.8: тот же санитарный лимит, что у CSV-импорта (MAX_AMOUNT_KOPECKS) —
         # один вход не должен принимать то, что другой молча отбрасывает; int64-безопасность сохраняется.
         if not -MAX_AMOUNT_KOPECKS <= kopecks <= MAX_AMOUNT_KOPECKS:
@@ -112,7 +113,7 @@ class GoalIn(BaseModel):
         try:
             kopecks = parse_amount(v)
         except (InvalidOperation, ValueError, OverflowError) as e:
-            raise ValueError("сумма цели не распознана") from e
+            raise ValueError(errors.text("goal_amount_unrecognized")) from e
         if not 0 < kopecks <= MAX_AMOUNT_KOPECKS:
             raise ValueError(f"сумма цели — больше нуля и до {fmt_money(MAX_AMOUNT_KOPECKS, signed=False)}")
         return v
@@ -441,14 +442,14 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
         # F5: без лога это глушитель — сбой превращается в зелёный 200 без следа
         logging.getLogger("spendtrack").exception("import failed: %s", filename)
         if is_hx:
-            return HTMLResponse(f'<p class="text-danger">Ошибка импорта: {escape(str(e))}</p>')
+            return HTMLResponse(f'<p class="text-danger" role="alert">Ошибка импорта: {escape(str(e))}</p>')
         raise
     if is_hx:
         if result["status"] == "format_error":
             return HTMLResponse(
-                f'<p class="text-danger">Ошибка импорта: {escape(str(result["message"]))}</p>')
+                f'<p class="text-danger" role="alert">Ошибка импорта: {escape(str(result["message"]))}</p>')
         if result["status"] == "empty":
-            return HTMLResponse('<p class="text-danger">Пустой файл</p>')
+            return HTMLResponse('<p class="text-danger" role="alert">Пустой файл</p>')
         return HTMLResponse(f'<p class="text-info">Импортировано: {escape(summarize(result))}</p>')
     return result
 

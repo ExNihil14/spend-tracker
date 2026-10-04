@@ -40,6 +40,11 @@ class CircuitBreaker:
                 return True
             return False  # open или half-open (кто-то уже пробует)
 
+    def state(self) -> str:
+        """Текущее состояние (closed/open/half-open) — для диагностики (llm-status, W2)."""
+        with self._lock:
+            return self._state
+
     def report_success(self) -> None:
         with self._lock:
             self._fails = 0

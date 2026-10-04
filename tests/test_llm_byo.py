@@ -22,6 +22,37 @@ def _clean_breakers():
     llm_mod._breakers.clear()
 
 
+def test_llm_status_reports_breaker_and_last_error(monkeypatch):
+    """W2 ресёрча ошибок: llm-status показывает breaker и последний сбой («почему LLM молчит»)."""
+    monkeypatch.setenv("SPENDTRACK_LLM_BASE_URL", "https://llm.example.invalid/v1")
+    monkeypatch.setenv("SPENDTRACK_LLM_MODEL", "w2-model")
+    monkeypatch.setenv("SPENDTRACK_LLM_API_KEY", "k")
+    llm_mod._last_errors.clear()
+
+    class _Completions:
+        def create(self, **kwargs):
+            raise RuntimeError("nope")
+
+    class _Chat:
+        completions = _Completions()
+
+    class _StubClient:
+        chat = _Chat()
+
+        def __init__(self, **kwargs):
+            pass
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(llm_mod, "OpenAI", _StubClient)
+    for _ in range(3):
+        assert llm_mod.call_llm("s", "u")["source"] == "failed"
+    prov = llm_mod.llm_status()["providers"][0]
+    assert prov["breaker"] == "open"
+    assert prov["last_error"]["type"] == "RuntimeError"
+
+
 def _settings(**overrides) -> Settings:
     """Герметичные настройки: env/`.env` не влияют (все поля заданы явно)."""
     data: dict = {

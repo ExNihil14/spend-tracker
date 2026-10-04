@@ -11,6 +11,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 from types import MappingProxyType
 
+from spendtrack import errors
 from spendtrack.config import base_currency, resolve_data_dir
 from spendtrack.config import settings as load_settings
 
@@ -33,7 +34,7 @@ def parse_amount(value: str | float) -> int:
     s = s.replace("\u2212", "-").replace("\u2013", "-").replace("\u2014", "-")
     d = Decimal(s)
     if not d.is_finite():  # «nan», «inf», «-infinity» — Decimal их принимает, но это не деньги
-        raise InvalidOperation(f"не число: {value!r}")
+        raise InvalidOperation(errors.text("not_a_number", value=value))
     d = d.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     return int(d * 100)
 

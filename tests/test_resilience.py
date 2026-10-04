@@ -5,6 +5,18 @@ import time
 from spendtrack.resilience import CircuitBreaker
 
 
+def test_state_reports_lifecycle():
+    """W2 ресёрча ошибок: состояние breaker читаемо снаружи (для llm-status)."""
+    br = CircuitBreaker("t2", fail_threshold=2, recovery_s=0.01)
+    assert br.state() == "closed"
+    br.report_failure()
+    br.report_failure()
+    assert br.state() == "open"
+    time.sleep(0.02)
+    assert br.allowed() is True  # recovery_s истёк → half-open проба
+    assert br.state() == "half-open"
+
+
 def test_opens_after_threshold():
     br = CircuitBreaker("t", fail_threshold=3, recovery_s=60)
     for _ in range(3):

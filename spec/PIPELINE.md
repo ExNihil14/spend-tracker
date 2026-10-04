@@ -27,6 +27,18 @@ uv run python scripts/demo_data.py seed          # демо-витрина в da
 uv run spendtrack anonymize file.csv [out.csv] [--rows N] [--anon-column "ФИО"]  # обезличить образец (dev: scripts/anonymize.py)
 ```
 
+## CLI: коды возврата (контракт, W2 ресёрча ошибок)
+
+| Код | Значение |
+|---|---|
+| 0 | успех (в т.ч. `anonymize` с предупреждениями; `serve`, если ленивый снимок не создан) |
+| 1 | ошибка операции: сумма/файл не разобраны, лимиты импорта, нет БД, сбой снимка/offsite, битый `settings.toml` у `serve`, занятая/недоступная БД |
+| 2 | доменная ошибка: `goal` (валидация/не найдено) |
+| 4 | `add`: дубль (fingerprint уже есть) — штатный no-op, запись НЕ добавлена |
+
+Backup-скрипты bootstrap (`backup-knowledge.py`, `backup-opencode-db.py`) используют свои коды:
+2 — деградация/BAD-архив, 3 — параллельный прогон (лок занят).
+
 ## Экспорт CSV/XLSX (read-only, «выход без потерь»)
 - CLI `spendtrack export [--format csv|xlsx] [--month YYYY-MM] [--category] [--search] [--from/--to] [--out FILE]`
   — по умолчанию **все** транзакции; файл `spend-export-<дата>.<ext>`.

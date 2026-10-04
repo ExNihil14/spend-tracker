@@ -113,6 +113,16 @@ def test_cli_confirm_updates_category_and_reports_not_found(cli_db, capsys):
     assert "not found" in capsys.readouterr().out
 
 
+def test_cli_add_duplicate_returns_4(tmp_path, monkeypatch, capsys):
+    """W2 ресёрча ошибок: дубль — отдельный код 4 (штатный no-op), скрипты отличают его от ошибок."""
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "dup.db"))
+    argv = ["add", "-1", "дубль-тест", "--category", "other"]
+    assert cli.main(argv) == 0
+    capsys.readouterr()
+    assert cli.main(argv) == 4
+    assert "dup" in capsys.readouterr().out
+
+
 def test_cli_backup_creates_snapshot(cli_db, capsys):
     """`spendtrack backup` доступен установкам через uv tool (P1-3): снимок рядом с БД."""
     assert cli.main(["backup"]) == 0

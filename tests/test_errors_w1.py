@@ -11,7 +11,7 @@ import sqlite3
 import pytest
 from fastapi.testclient import TestClient
 
-from spendtrack import cli
+from spendtrack import cli, errors
 from spendtrack.deps import get_store
 from spendtrack.main import app
 from spendtrack.store import Store
@@ -48,7 +48,7 @@ def test_unhandled_error_api_json_and_log_without_query(client, caplog, monkeypa
         r = client.post("/api/transactions?q=СЕКРЕТ", json={
             "date": "2026-09-01", "description": "X", "amount": "-1.00"})
     assert r.status_code == 500
-    assert "Внутренняя ошибка" in r.json()["detail"]
+    assert r.json()["detail"] == errors.text("internal")  # текст — из реестра (W2)
     assert "/api/transactions" in caplog.text  # путь в логе есть
     assert "СЕКРЕТ" not in caplog.text  # query-строка — нет (приватность)
 
@@ -70,7 +70,7 @@ def test_operational_error_stub_returns_503(client):
     app.dependency_overrides[get_store] = lambda: _BusyStore()
     r = client.post("/api/transactions", json={
         "date": "2026-09-01", "description": "X", "amount": "-1.00"})
-    assert r.status_code == 503 and "повторите" in r.json()["detail"].lower()
+    assert r.status_code == 503 and r.json()["detail"] == errors.text("db_busy")
 
 
 def test_real_busy_db_returns_503(client, tmp_path):
@@ -84,7 +84,7 @@ def test_real_busy_db_returns_503(client, tmp_path):
     try:
         r = client.post("/api/transactions", json={
             "date": "2026-09-01", "description": "X", "amount": "-1.00"})
-        assert r.status_code == 503
+        assert r.status_code == 503 and r.json()["detail"] == errors.text("db_busy")
     finally:
         holder.rollback()
         holder.close()
