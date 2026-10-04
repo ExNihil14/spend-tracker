@@ -50,6 +50,13 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > nemotron-ultra:free) и **адъюдицировано** (`ADJUDICATION_BELARUS_REVIEW_2026-10-03.md`): Ф0 ready, Ф1 data-gated
 > (образец Приорбанка; нет ~2 нед → закрыть), BY-правила — opt-in overlay, `.xls` без `xlrd` в core, PDF не раньше Ф3.
 > Тикет — в §7 стартера. Практический гид «как переключить локацию» — `GUIDE_LOCATION_BELARUS_BYN_2026-10-03.md`.
+> **AgentRouter wave5 (04.10): 11/17 готово** (пул 402 после `ops1`; хвост ops2+Astra — следующее окно).
+> Адъюдикация — `agentrouter_review/2026-09-27/ADJUDICATION_WAVE5_2026-10-04.md`. Улов: **живой critical
+> 500** (`v.items` в `goals_list.html` — Jinja-коллизия; падала страница целей и фрагмент ПОСЛЕ коммита) —
+> починен сразу с регресс-тестом; **волна 1 фиксов в дереве** (fingerprint base-независим, periods+1,
+> пустые валюты→RUB-фолбэк, кэш без отравления, даты/TOCTOU, taxonomy health/education+fallback,
+> `#goals-error`-слот, disabled-elt, портфель-горизонт, pending-бейдж). Контур **843 unit + 95 e2e**,
+> snapshot api=383. Далее: волна 2 (anonymize+ops) и волна 3 (тесты/UX); коммит — по команде.
 > **BYN-prep: `anonymize` под XLSX сделан (03.10, в дереве, ждёт коммита):** `anonymize_xlsx` (openpyxl,
 > in-place: шапка в первых 10 строках, псевдонимы сквозные, строки за `--rows` удаляются), CLI-роутинг по
 > расширению/магии ZIP, legacy `.xls` — понятная ошибка «сконвертируйте в .xlsx/CSV» (NO-GO без xlrd);
