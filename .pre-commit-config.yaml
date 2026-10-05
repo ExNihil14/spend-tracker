@@ -4,6 +4,8 @@
 #      (на этой машине Go/Docker нет — берём релизный бинарь; hook ниже — language: system)
 #   2) хук в git:        uvx pre-commit install
 # Ручной прогон:         uvx pre-commit run --all-files
+#                        (это staged-проверка; полный аудит истории — `gitleaks git` вне хука:
+#                         run --all-files НЕ заменяет скан уже закоммиченного [Astra site_tail 05.10])
 # CI-дубль (ловит уже закоммиченное): job `secret-scan` в .github/workflows/ci.yml
 repos:
   - repo: https://github.com/gitleaks/gitleaks

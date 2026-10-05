@@ -13,6 +13,8 @@
 
 ## Frontend
 - htmx + Jinja2 server-rendered шаблоны (templates/{base,index,approve}.html).
+- htmx зафиксирован: 2.x-линия (vendored `htmx.min.js` 2.0.4); **миграция на htmx 4 — не раньше stable**
+  (решение 04.10, `RESEARCH_HABR_FREE_SERVICES_2026-10-04.md`); сниппеты 4.x в код не копировать без тикета.
 - Tailwind CSS v4: **prebuilt CSS** (`src/spendtrack/static/app.css`, ~70 КБ, собирается официальным
   standalone-CLI без Node: `uv run python scripts/build_css.py`; вход — `src/spendtrack/tailwind.css`,
   шаблоны подключаются через `@source`). Browser build (Play CDN) не используется в проде.

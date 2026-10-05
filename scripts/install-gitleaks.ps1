@@ -26,8 +26,14 @@ Write-Host "установлено: $exe"
 & $exe version
 if ($AddToPath) {
     $userPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    if ($userPath -notlike "*$Dest*") {
-        [Environment]::SetEnvironmentVariable("PATH", "$userPath;$Dest", "User")
+    $destNorm = $Dest.TrimEnd('\')
+    # Astra site_tail 05.10: сравнение по ЭЛЕМЕНТУ PATH, а не подстроке (иначе "gitleaks-old" ложно = «уже есть»)
+    $entries = @(($userPath -split ';') | ForEach-Object { $_.Trim().TrimEnd('\') } | Where-Object { $_ })
+    $present = @($entries | Where-Object { $_.Equals($destNorm, [System.StringComparison]::OrdinalIgnoreCase) }).Count -gt 0
+    if (-not $present) {
+        $base = if ([string]::IsNullOrWhiteSpace($userPath)) { '' } else { $userPath.TrimEnd(';') }
+        $newPath = if ($base) { "$base;$Dest" } else { $Dest }
+        [Environment]::SetEnvironmentVariable("PATH", $newPath, "User")
         Write-Host "PATH (User) дополнен: $Dest (активируется в новых процессах)"
     } else {
         Write-Host "PATH уже содержит $Dest"
