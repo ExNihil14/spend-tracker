@@ -141,6 +141,26 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > **PR #6** (dependabot setup-uv) — open. Go — STOP (месяц 89%). Хендофф:
 > `C:\Users\HP\AppData\Local\Temp\opencode\HANDOFF_2026-10-05_spendtracker.md`; стартер обновлён
 > (`SESSION_START_PROMPT.md`, 05.10 утро).
+> **Сессия 05.10 (вечер) закрыта:** окно 11:00 UTC — Astra отдала 1 вывод: **`site_tail` ✅** (адъюдицирован:
+> GO; **5 правок приняты и в дереве**, каждая red→green: приватность логов — ASCII-канарейка + percent-encoded;
+> `test_repo_hygiene` — структурный YAML по активным узлам; `llm.py` — `_err_lock`/`_mark_error` (+ монотонность
+> last_error, снимок под локом); `install-gitleaks.ps1` — сравнение PATH по элементу; e2e
+> `test_poster_cta_reachable_by_keyboard` — Tab-цикл вместо хардкода 40). Далее WAF держал окно до ~12:2x UTC
+> (разбор/уроки — `agentrouter_review/2026-09-27/ANALYSIS_WAF_2026-10-05.md`), **пул закрылся 12:19 (402)** →
+> окно исчерпано; **7 Astra остаются в pending**. **Поллер усилен:** v8.4 (Opus-fallback: 18 под-заданий по
+> `FB_PLAN`, 15 fb-сплитов ≤37 КБ, `check_fb_splits.py` — 0 пропусков/0 лишних), v8.4.3 (канарейка: status
+> 403/405 → проход без заданий), **v8.4.4 (402 = сон до дедлайна без запросов)**; оффлайн-тесты
+> `test_run_fallback.py` 7/7; watcher-канон `watch_window.ps1` (вычисляемое окно, выход по `pool_closed`).
+> Поллер остановлен вручную 16:05 (после 402 «пинговал» впустую), **guard возвращён** авто-задачей (17:05;
+> одноразовая задача удалена). **Грабля демо-запуска:** `$env:SPENDTRACK_DB_PATH` в `-Command` start-detached
+> раскрывался вызывающей оболочкой → стенд молча поднимался на ПРОД-БД; правильный вызов (одинарные кавычки
+> через переменную) и проверка свежего `detach-*.ps1` — предупреждение в шапке `start-detached.ps1`.
+> **Контур: 884 unit + 98 e2e + ruff + contract ok + ratchet + cc + build_css — зелёные**; прод 8766 и демо
+> 8799 (demo.db подтверждён `/api/budgets`) — 200/200 на коде дерева. **Abacus (190 кр):** анализ
+> `ANALYSIS_ABACUS_REVIEW_BUDGET_2026-10-05.md` (варианты A/B/C — решение за юзером). **Открыто:** коммит
+> (9 файлов spend + bootstrap `agentrouter_chat.py`/`start-detached.ps1`), push `b224358`/`f3871fc`,
+> site_ui решение (Astra: скип/в конец), канонизация `continue.md` (WARN аудита), выписка Приорбанка.
+> Следующее окно — **02:00 UTC 06.10** (05:00 local); стартер обновлён (`SESSION_START_PROMPT.md`, 05.10 вечер).
 > **Анализ DeepSeek Harness (04.10):** `D:\dev\docs\machine\ANALYSIS_DEEPSEEK_HARNESS_2026-10-04.md` — вывод:
 > как замена opencode не нужен; точечно — проба на локальной Ollama (30 мин, нулевой бюджет, изолированный
 > workspace) для GUI/XLSX-кейсов; идеи (GitHub-review-сессии, reminders, плагины) — в бэклог. НЕ внедряем сейчас.
