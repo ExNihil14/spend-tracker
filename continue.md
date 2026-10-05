@@ -120,6 +120,27 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > **Иконка темы (04.10, в дереве):** тоггл показывает ДЕЙСТВИЕ (светлая → луна, тёмная → солнце), title —
 > «Переключить на … тему»; e2e обновлён (rebrand 13 passed), CSS пересобран (34 003 Б). Рестарт не требуется
 > (шаблоны/статика), коммит — по команде.
+> **Сессия 04.10 закрыта:** `origin/main = c355e30` (push выполнен 22:16); bootstrap: `.pre-commit-config.yaml` —
+> коммит `8e7a3d2` (запушен 22:27); сервисы 200/200; guard жив (хвост окна: **ops2 ✅ 05.10 02:06** (ждёт адъюдикации); **7 Astra** — WAF-блок Alibaba (405) с 02:08, следующее окно 11:00 UTC = 14:00 local; поллер пропатчен: WAF-backoff 15→30→60 мин + точный парсинг кодов + skip sensitive_words; preflight v2 OK, pending 7).
+> Хендофф новой сессии: `C:\Users\HP\AppData\Local\Temp\opencode\HANDOFF_2026-10-04_spendtracker.md`;
+> стартер обновлён: `D:\dev\docs\machine\SESSION_START_PROMPT.md`.
+> **CI-инцидент закрыт (05.10, ~00:00): ✅ исправлено и запушено** (`3513a86` fix(deps) + `d46336b` fix(ui);
+> origin/main = `d46336b`). CI прогон **37234190816 — зелёный** (все 5 джобов: lint-and-test, e2e, cross-browser,
+> docker-smoke, secret-scan; ранее скипавшиеся шаги contract/ratchet прошли). Причины были: urllib3 2.7.0
+> (PYSEC-2026-4175/76/77), +1px reflow на `/dashboard` при 320px (числа KPI), webkit-канвас +159px после resize.
+> Прод NSSM и демо 8799 перезапущены (200/200; живой чек 320px/resize = 0 overflow). Урок: сверять `gh run list`
+> перед «зелёно» (локальный контур ≠ CI).
+
+> **Сессия 05.10 (утро) закрыта:** `origin/main = d46336b` (CI зелёный), `M continue.md` (эти заметки — коммит по
+> команде); bootstrap: `origin/main = 9c31847`, **ahead 1** (`f3871fc`, волна ops2-3) — push по команде.
+> **AgentRouter:** ночное окно — `ops2` ✅ (адъюдицирован полностью: волны ops2-1/2/3); Astra 0/7 — WAF-блок
+> Alibaba (405) + sensitive_words (site_ui 2/2; словарного триггера нет); поллер v8.2 (WAF-backoff 15→30→60 мин,
+> точный парсинг кодов, per-run skip) + guard v3 (проба только в окне, таймаут, cap 3); pending 7, preflight OK;
+> **следующее окно 11:00 UTC 05.10 = 14:00 local**. **Прочее:** sensitive-ревью исполнено; S-волна контент-анализов
+> → PLAYBOOKS (ledger §E); Shemsedinov 6 видео/83 записи (+шортсы 119; `T90` — не дубль qA); `-Sfib` — 429.
+> **PR #6** (dependabot setup-uv) — open. Go — STOP (месяц 89%). Хендофф:
+> `C:\Users\HP\AppData\Local\Temp\opencode\HANDOFF_2026-10-05_spendtracker.md`; стартер обновлён
+> (`SESSION_START_PROMPT.md`, 05.10 утро).
 > **Анализ DeepSeek Harness (04.10):** `D:\dev\docs\machine\ANALYSIS_DEEPSEEK_HARNESS_2026-10-04.md` — вывод:
 > как замена opencode не нужен; точечно — проба на локальной Ollama (30 мин, нулевой бюджет, изолированный
 > workspace) для GUI/XLSX-кейсов; идеи (GitHub-review-сессии, reminders, плагины) — в бэклог. НЕ внедряем сейчас.
