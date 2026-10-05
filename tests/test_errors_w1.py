@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from urllib.parse import quote
 
 import pytest
 from fastapi.testclient import TestClient
@@ -44,13 +45,17 @@ def client():
 def test_unhandled_error_api_json_and_log_without_query(client, caplog, monkeypatch):
     monkeypatch.setattr(logging.getLogger("spendtrack"), "propagate", True)  # lifespan мог выключить
     app.dependency_overrides[get_store] = lambda: _BoomStore()
+    canary = "PRIVATE_QUERY_CANARY_7421"  # ASCII: не кодируется — ловится и при логе полного URL
+    encoded = quote("СЕКРЕТ", safe="")    # percent-encoded форма (дыра, найденная Astra site_tail 05.10)
     with caplog.at_level(logging.WARNING, logger="spendtrack"):
-        r = client.post("/api/transactions?q=СЕКРЕТ", json={
+        r = client.post(f"/api/transactions?q={canary}&note=СЕКРЕТ", json={
             "date": "2026-09-01", "description": "X", "amount": "-1.00"})
     assert r.status_code == 500
     assert r.json()["detail"] == errors.text("internal")  # текст — из реестра (W2)
     assert "/api/transactions" in caplog.text  # путь в логе есть
-    assert "СЕКРЕТ" not in caplog.text  # query-строка — нет (приватность)
+    assert canary not in caplog.text          # query — ни в сыром ASCII-виде
+    assert "СЕКРЕТ" not in caplog.text        # ни в сырой кириллице
+    assert encoded not in caplog.text         # ни в percent-encoded виде (encoded-секрет тоже виден)
 
 
 def test_unhandled_error_hx_returns_json(client):

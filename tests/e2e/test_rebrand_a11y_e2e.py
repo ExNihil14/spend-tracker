@@ -156,6 +156,33 @@ def test_poster_focus_ring_is_light(page: Page, live_server):
         timeout=2000)
 
 
+def test_poster_cta_reachable_by_keyboard(page: Page, live_server):
+    """Astra site_tail 05.10: CTA постера достижим РЕАЛЬНЫМ Tab'ом (страховка от `tabindex="-1"`).
+
+    Прямой `.focus()` в цветовом тесте выше не ловит выпадение CTA из tab-порядка.
+    Критерий выхода — полный цикл фокуса (повтор элемента / уход фокуса на body), без произвольного
+    лимита нажатий: не встретили CTA за цикл — он выпал из последовательности.
+    """
+    page.goto(f"{live_server}/approve")
+    expect(page.locator("#review-empty .poster")).to_be_visible()
+    page.evaluate("() => { window.__tabSeen = new WeakSet(); }")
+    reached = False
+    for presses in range(1, 400):  # предохранитель от зависания; критерий выхода — цикл, не число
+        page.keyboard.press("Tab")
+        state = page.evaluate(
+            "() => { const el = document.activeElement;"
+            " if (!el || el === document.body || el === document.documentElement) return 'body';"
+            " if (window.__tabSeen.has(el)) return 'cycle';"
+            " window.__tabSeen.add(el);"
+            " return el.closest('#review-empty .poster') ? 'poster' : 'other'; }")
+        if state == "poster":
+            reached = True
+            break
+        if state in ("cycle", "body") and presses > 1:
+            break
+    assert reached, "CTA постера выпал из tab-порядка (не достигнут за полный цикл фокуса)"
+
+
 def test_sticky_nav_reflow_guard(page: Page, live_server):
     """Ревью Opus 5 (C2): анкоры не прячутся под sticky (scroll-padding) + при высоте <500px шапка не sticky."""
     page.goto(f"{live_server}/")
