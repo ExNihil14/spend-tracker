@@ -58,6 +58,7 @@ def test_offline_without_keys_never_touches_network(monkeypatch):
                 "SPENDTRACK_ALLOW_LOCAL_LLM"):
         monkeypatch.delenv(var, raising=False)
     llm_mod._breakers.clear()
+    llm_mod._last_errors.clear()
 
     def explode(*args, **kwargs):
         raise AssertionError("OpenAI-клиент не должен создаваться в офлайн-режиме")
@@ -73,6 +74,7 @@ def test_circuit_breaker_skips_dead_primary(monkeypatch):
     _enable_all_providers(monkeypatch)
     cfg = load_settings()
     llm_mod._breakers.clear()
+    llm_mod._last_errors.clear()
     called: list[str] = []
 
     def fake_openai(base_url, api_key="", timeout=..., max_retries=None):

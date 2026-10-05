@@ -22,7 +22,9 @@ REQUEST_TIMEOUT_S = httpx.Timeout(30.0, connect=3.0)  # read=30 (батч), conn
 
 _breakers: dict[str, CircuitBreaker] = {}
 _br_lock = threading.Lock()
-# W2 ресёрча ошибок: последний сбой по провайдеру (тип + время) — для llm-status; без тел/промптов
+# W2 ресёрча ошибок: последний сбой по провайдеру (тип + время) — для llm-status; без тел/промптов.
+# Astra site_tail 05.10: публикация/чтение — под локом, «старая» запись не затирает более новую.
+_err_lock = threading.Lock()
 _last_errors: dict[str, dict] = {}
 
 
@@ -42,6 +44,19 @@ def _breaker(source: str) -> CircuitBreaker:
         if source not in _breakers:
             _breakers[source] = CircuitBreaker(source, fail_threshold=3, recovery_s=1800.0)
         return _breakers[source]
+
+
+def _mark_error(source: str, err_type: str) -> None:
+    """Публикация последнего сбоя провайдера (тип + время) — под локом, «старая» запись не затирает новую.
+
+    Astra site_tail 05.10: без синхронизации медленный поток мог опубликовать сбой ПОЗЖЕ более нового
+    (диагностика врала); время берём внутри критической секции. HTTP-вызов под лок не помещаем.
+    """
+    now = time.time()
+    with _err_lock:
+        prev = _last_errors.get(source)
+        if prev is None or now >= prev.get("at", 0.0):
+            _last_errors[source] = {"type": err_type, "at": now}
 
 
 def _env_key_for(base_url: str, cfg: Settings) -> str:
@@ -161,6 +176,8 @@ def llm_status(cfg: Settings | None = None) -> dict[str, Any]:
 
     Возвращает новый dict на каждый вызов; внутреннее состояние модуля не шарится (значение-снимок),
     включая диагностику W2: состояние breaker и последний сбой по провайдеру (тип + время).
+    ВАЖНО (Astra site_tail 05.10): диагностика process-local — история другого процесса (serve/CLI) здесь
+    не видна; «последний сбой» относится к текущему процессу.
     """
     cfg = cfg or load_settings()
     providers = resolve_providers(cfg)
@@ -169,13 +186,15 @@ def llm_status(cfg: Settings | None = None) -> dict[str, Any]:
                 "note": "LLM выключен: данные не покидают машину, спорные строки — в очередь"}
     first = providers[0]
     mode = first.source if first.source in ("byo", "ollama") else "free"
+    with _err_lock:  # согласованный снимок last_error (breaker читается под своим локом в state())
+        last_errors = {src: dict(err) for src, err in _last_errors.items()}
     return {
         "mode": mode,
         "providers": [
             {"source": p.source, "base_url": _safe_origin(p.base_url), "model": p.model,
              "local": p.local, "has_key": p.api_key != "no-key",
              "breaker": _breaker(p.source).state(),
-             "last_error": (dict(_last_errors[p.source]) if p.source in _last_errors else None)}
+             "last_error": last_errors.get(p.source)}
             for p in providers
         ],
     }
@@ -242,7 +261,7 @@ def call_llm(
                 # S10 (Astra 01.10): HTTP-200 с пустым телом — не «успех»: breaker не закрываем,
                 # fallback должен иметь шанс; пустой ответ бесполезен вызывающему коду.
                 log.warning("llm[%s]: пустой ответ — трактуем как сбой", provider.source)
-                _last_errors[provider.source] = {"type": "empty_response", "at": time.time()}
+                _mark_error(provider.source, "empty_response")
                 br.report_failure()
                 continue
             br.report_success()
@@ -250,7 +269,7 @@ def call_llm(
         except Exception as e:  # noqa: BLE001
             # S2: сбой виден в логе (тип ошибки; тело ответа не логируем — там может быть эхо промпта)
             log.warning("llm[%s]: %s", provider.source, type(e).__name__)
-            _last_errors[provider.source] = {"type": type(e).__name__, "at": time.time()}
+            _mark_error(provider.source, type(e).__name__)
             br.report_failure()
             continue
 

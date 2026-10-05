@@ -15,11 +15,13 @@ OK_JSON = '{"category":"groceries","confidence":0.95,"merchant":"X","reason":"r"
 
 
 @pytest.fixture(autouse=True)
-def _clean_breakers():
-    """Breakers — модульное состояние: изолируем тесты друг от друга."""
+def _clean_llm_state():
+    """Breakers/last_errors — модульное состояние: изолируем тесты друг от друга (Astra site_tail 05.10)."""
     llm_mod._breakers.clear()
+    llm_mod._last_errors.clear()
     yield
     llm_mod._breakers.clear()
+    llm_mod._last_errors.clear()
 
 
 def test_llm_status_reports_breaker_and_last_error(monkeypatch):
@@ -27,7 +29,6 @@ def test_llm_status_reports_breaker_and_last_error(monkeypatch):
     monkeypatch.setenv("SPENDTRACK_LLM_BASE_URL", "https://llm.example.invalid/v1")
     monkeypatch.setenv("SPENDTRACK_LLM_MODEL", "w2-model")
     monkeypatch.setenv("SPENDTRACK_LLM_API_KEY", "k")
-    llm_mod._last_errors.clear()
 
     class _Completions:
         def create(self, **kwargs):
@@ -50,7 +51,24 @@ def test_llm_status_reports_breaker_and_last_error(monkeypatch):
         assert llm_mod.call_llm("s", "u")["source"] == "failed"
     prov = llm_mod.llm_status()["providers"][0]
     assert prov["breaker"] == "open"
-    assert prov["last_error"]["type"] == "RuntimeError"
+    err = prov["last_error"]
+    assert set(err) == {"type", "at"}          # контракт: только тип+время, без текста исключения
+    assert err["type"] == "RuntimeError"
+    assert isinstance(err["at"], float)
+    err["type"] = "mutated"                    # снимок независим: мутация ответа не течёт в модуль
+    assert llm_mod.llm_status()["providers"][0]["last_error"]["type"] == "RuntimeError"
+
+
+def test_last_error_keeps_newest(monkeypatch):
+    """Astra site_tail 05.10: «старая» публикация не затирает более новую (порядок под локом)."""
+    clock = {"t": 100.0}
+    monkeypatch.setattr(llm_mod.time, "time", lambda: clock["t"])
+    llm_mod._mark_error("s", "Old")
+    clock["t"] = 200.0
+    llm_mod._mark_error("s", "New")
+    clock["t"] = 150.0
+    llm_mod._mark_error("s", "Stale")
+    assert llm_mod._last_errors["s"] == {"type": "New", "at": 200.0}
 
 
 def _settings(**overrides) -> Settings:
