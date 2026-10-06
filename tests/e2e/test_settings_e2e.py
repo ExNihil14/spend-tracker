@@ -291,3 +291,54 @@ def test_budget_autosave_keeps_typed_work_and_hash(page: Page, live_server, taxo
     after = _patterns(page)
     assert after.index(before[0]) == 1  # переставилось именно показанное первым правило
     assert "изменён снаружи" not in page.locator("#settings-root").inner_text()
+
+
+def test_two_tabs_hash_protocol(page: Page, context, live_server, taxonomy_path):
+    """wave5 C1 (optional): двухвкладочный протокол `#tax-hash` — бюджет не легализует устаревшую вкладку.
+
+    Сценарий блокера: вкладка A показывает [A, B] (хэш H0); вкладка B переставляет B вверх (H1);
+    вкладка A сохраняет бюджет (новый токен публиковать нельзя) и удаляет показанное первым правило —
+    сервер обязан отклонить конфликтом, а не снести B.
+    """
+    a, b = "E2E 2TAB A", "E2E 2TAB B"
+    page.goto(f"{live_server}/settings")
+    for pattern in (a, b):
+        page.fill('#settings-rules input[name="pattern"]', pattern)
+        page.click('#settings-rules form[hx-post="/settings/rules"] button[type="submit"]')
+        _wait_single(page, "#settings-rules")
+    hash0 = page.locator("#tax-hash").input_value()
+
+    tab2 = context.new_page()
+    tab2.goto(f"{live_server}/settings")
+    with tab2.expect_response(lambda r: "/settings/rules/move" in r.url):
+        tab2.locator(f'tr[data-pattern="{b}"] button[title="Переместить выше"]').click()
+    _wait_single(tab2, "#settings-rules")
+    hash1 = tab2.locator("#tax-hash").input_value()
+    assert hash1 != hash0  # вторая вкладка изменила файл
+
+    # вкладка A (устаревшая): автосейв бюджета не должен публиковать свежий taxonomy-хэш
+    amount = page.locator('#settings-budgets input[name="amount"]').first
+    amount.fill("1234")
+    with page.expect_response(lambda r: "/settings/budgets" in r.url):
+        page.keyboard.press("Tab")
+    _wait_single(page, "#settings-budgets")
+    assert page.locator("#tax-hash").input_value() == hash0
+
+    # удаление «показанного первым» правила из устаревшей вкладки — конфликт; B остаётся в файле
+    page.on("dialog", lambda d: d.accept())
+    with page.expect_response(lambda r: "/settings/rules/delete" in r.url):
+        page.locator("#settings-rules tbody tr").first.locator(
+            'button[title="Удалить правило"]').click()
+    _wait_single(page, "#settings-rules")
+    assert "изменён снаружи" in page.locator("#settings-root").inner_text()
+    text = taxonomy_path.read_text(encoding="utf-8")
+    assert a in text and b in text  # «не то» правило не удалено
+
+    # уборка: свежая вкладка B удаляет оба тестовых правила
+    tab2.reload()
+    tab2.on("dialog", lambda d: d.accept())
+    for pattern in (b, a):
+        tab2.locator(f'tr[data-pattern="{pattern}"] button[title="Удалить правило"]').click()
+        _wait_single(tab2, "#settings-rules")
+    assert a not in taxonomy_path.read_text(encoding="utf-8")
+    tab2.close()
