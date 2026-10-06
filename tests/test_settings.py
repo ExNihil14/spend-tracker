@@ -521,6 +521,57 @@ def test_move_rule_swaps_and_bounds(tax_env):
         repo.move_rule(0, "sideways", None)
 
 
+def test_rule_ids_written_and_stable(tax_env):
+    """UUID правил (wave5): save назначает id каждому правилу; повторные записи их сохраняют."""
+    repo.add_rule("ПРАВИЛО ПЕРВОЕ", "other", repo.file_hash())
+    rules = repo.load_raw()["rules"]
+    rid = rules[-1]["id"]
+    assert isinstance(rid, str) and len(rid) >= 8
+    assert all(r.get("id") for r in rules)  # legacy-правила тоже получили id при save
+    repo.add_rule("ПРАВИЛО ВТОРОЕ", "cafe", repo.file_hash())
+    after = repo.load_raw()["rules"]
+    assert [r["id"] for r in after[:len(rules)]] == [r["id"] for r in rules]  # id стабильны
+    assert after[-1]["id"] != rid
+
+
+def test_delete_and_move_rule_by_id(tax_env):
+    """Адресация по id: операция применяется к правилу с этим id, даже если index указывает на другое."""
+    repo.add_rule("ВТОРОЕ ПРАВИЛО", "cafe", repo.file_hash())
+    target = repo.load_raw()["rules"][-1]["id"]
+    repo.move_rule(0, "up", repo.file_hash(), rule_id=target)  # index «не тот» — выигрывает id
+    assert _patterns()[-2] == "ВТОРОЕ ПРАВИЛО"
+    repo.delete_rule(0, repo.file_hash(), rule_id=target)      # снова «не тот» index
+    assert "ВТОРОЕ ПРАВИЛО" not in _patterns()
+    assert "ЛЕНТА" in _patterns()  # правило с index=0 осталось
+
+
+def test_rule_unknown_id_refused(tax_env):
+    """Неизвестный id — явный конфликт (правило удалено/подменено), а не «удалили что попало»."""
+    repo.add_rule("ПРАВИЛО", "other", repo.file_hash())
+    with pytest.raises(repo.TaxonomyError):
+        repo.delete_rule(0, repo.file_hash(), rule_id="deadbeef")
+
+
+def test_settings_rule_forms_carry_stable_id(tax_env):
+    """UI: формы правил несут hidden rule_id (устойчивая адресация при перестановках)."""
+    repo.add_rule("ПРАВИЛО 2", "other", repo.file_hash())
+    client = TestClient(app)
+    page = client.get("/settings").text
+    for r in repo.load_raw()["rules"]:
+        assert f'name="rule_id" value="{r["id"]}"' in page
+
+
+def test_settings_delete_rule_route_by_id(tax_env):
+    """Роут удаления: id важнее index (защита от удаления «не того» правила)."""
+    repo.add_rule("РОУТ ВТОРОЕ", "cafe", repo.file_hash())
+    rid = repo.load_raw()["rules"][-1]["id"]
+    client = TestClient(app)
+    r = client.post("/settings/rules/delete",
+                    data={"index": 0, "rule_id": rid, "file_hash": repo.file_hash()})
+    assert r.status_code == 200
+    assert "РОУТ ВТОРОЕ" not in _patterns() and "ЛЕНТА" in _patterns()
+
+
 def test_analyze_rules_dead_duplicate_invalid(tax_env):
     tax_env.write_text(
         """[[categories]]

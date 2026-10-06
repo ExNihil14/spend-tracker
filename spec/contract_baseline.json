@@ -1469,7 +1469,7 @@
    "returns": "None"
   },
   "spendtrack.taxonomy_repo:delete_rule": {
-   "args": "index: int, expected_hash: str | None",
+   "args": "index: int, expected_hash: str | None, rule_id: str | None=None",
    "returns": "None"
   },
   "spendtrack.taxonomy_repo:file_hash": {
@@ -1481,7 +1481,7 @@
    "returns": "dict"
   },
   "spendtrack.taxonomy_repo:move_rule": {
-   "args": "index: int, direction: str, expected_hash: str | None",
+   "args": "index: int, direction: str, expected_hash: str | None, rule_id: str | None=None",
    "returns": "None"
   },
   "spendtrack.taxonomy_repo:preview_rule": {

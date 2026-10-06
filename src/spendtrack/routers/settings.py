@@ -209,7 +209,8 @@ async def add_rule(request: Request, store: Annotated[Store, Depends(get_store)]
 async def delete_rule(request: Request, store: Annotated[Store, Depends(get_store)]):
     form = await request.form()
     try:
-        repo.delete_rule(_parse_index(form.get("index")), str(form.get("file_hash") or ""))
+        repo.delete_rule(_parse_index(form.get("index")), str(form.get("file_hash") or ""),
+                         str(form.get("rule_id") or "") or None)
     except _TAX_ERRORS as e:
         return _rules_fragment(request, store, str(e))
     return _rules_fragment(request, store)
@@ -220,7 +221,7 @@ async def move_rule(request: Request, store: Annotated[Store, Depends(get_store)
     form = await request.form()
     try:
         repo.move_rule(_parse_index(form.get("index")), str(form.get("direction") or ""),
-                       str(form.get("file_hash") or ""))
+                       str(form.get("file_hash") or ""), str(form.get("rule_id") or "") or None)
     except _TAX_ERRORS as e:
         return _rules_fragment(request, store, str(e))
     return _rules_fragment(request, store)

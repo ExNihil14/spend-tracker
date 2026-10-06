@@ -14,6 +14,7 @@ import re
 import sqlite3
 import tempfile
 import tomllib
+import uuid
 from datetime import UTC, datetime
 from decimal import InvalidOperation
 from pathlib import Path
@@ -119,13 +120,48 @@ def _dump(data: dict) -> str:
             lines.append(f'icon = "{c["icon"]}"')
         lines += [f'color = "{c["color"]}"', ""]
     for r in data.get("rules", []):
-        lines += ["[[rules]]", f'pattern = "{r["pattern"]}"', f'category = "{r["category"]}"', ""]
+        lines.append("[[rules]]")
+        if r.get("id"):
+            lines.append(f'id = "{r["id"]}"')  # wave5: устойчивый идентификатор (адресация вместо index)
+        lines += [f'pattern = "{r["pattern"]}"', f'category = "{r["category"]}"', ""]
     return "\n".join(lines)
+
+
+def _ensure_rule_ids(rules: list[dict]) -> None:
+    """wave5: каждому правилу — стабильный id (генерируется один раз при первой записи).
+
+    Дубли/пустые id (ручная правка файла) перегенерируются; существующие не трогаем.
+    """
+    seen: set[str] = set()
+    for r in rules:
+        rid = r.get("id")
+        if not isinstance(rid, str) or not rid or rid in seen:
+            rid = uuid.uuid4().hex[:8]
+            while rid in seen:
+                rid = uuid.uuid4().hex[:8]
+            r["id"] = rid
+        seen.add(rid)
+
+
+def _rule_index(rules: list[dict], index: int, rule_id: str | None) -> int:
+    """Индекс правила: приоритет — устойчивый id; иначе index (legacy-файлы без id).
+
+    Неизвестный id — явный конфликт (правило удалено/подменено), а не «применили к чужому».
+    """
+    if rule_id:
+        for i, r in enumerate(rules):
+            if r.get("id") == rule_id:
+                return i
+        raise TaxonomyError("правило не найдено по идентификатору — обновите страницу и повторите")
+    if not 0 <= index < len(rules):
+        raise TaxonomyError("правило не найдено (список изменился — обновите страницу)")
+    return index
 
 
 def save(data: dict, expected_hash: str | None, action: str, key: str, old=None, new=None) -> None:
     if expected_hash and expected_hash != file_hash():
         raise TaxonomyError("файл taxonomy.toml изменён снаружи — обновите страницу и повторите")
+    _ensure_rule_ids(data.get("rules", []))  # wave5: id назначаются при первой записи и далее стабильны
     text = _dump(data)
     back = tomllib.loads(text)  # parse-back: структура обязана остаться валидной
     if len(back.get("categories", [])) != len(data.get("categories", [])) or \
@@ -355,28 +391,29 @@ def add_rule(pattern: str, category: str, expected_hash: str | None) -> None:
     save(data, expected_hash, "add_rule", pattern, None, dict(rule))
 
 
-def delete_rule(index: int, expected_hash: str | None) -> None:
+def delete_rule(index: int, expected_hash: str | None, rule_id: str | None = None) -> None:
+    """Удалить правило: при `rule_id` — по устойчивому id (index — legacy-фолбэк)."""
     data = load_raw()
     rules = data.get("rules", [])
-    if not 0 <= index < len(rules):
-        raise TaxonomyError("правило не найдено (список изменился — обновите страницу)")
-    removed = rules.pop(index)
+    i = _rule_index(rules, index, rule_id)
+    removed = rules.pop(i)
     save(data, expected_hash, "delete_rule", removed["pattern"], dict(removed), None)
 
 
-def move_rule(index: int, direction: str, expected_hash: str | None) -> None:
+def move_rule(index: int, direction: str, expected_hash: str | None,
+              rule_id: str | None = None) -> None:
+    """Переставить правило: при `rule_id` — по устойчивому id (index — legacy-фолбэк)."""
     data = load_raw()
     rules = data.get("rules", [])
-    if not 0 <= index < len(rules):
-        raise TaxonomyError("правило не найдено (список изменился — обновите страницу)")
+    i = _rule_index(rules, index, rule_id)
     if direction not in ("up", "down"):
         raise TaxonomyError("направление перемещения: up|down")
-    target = index - 1 if direction == "up" else index + 1
+    target = i - 1 if direction == "up" else i + 1
     if not 0 <= target < len(rules):
         raise TaxonomyError("правило уже в начале списка" if direction == "up"
                             else "правило уже в конце списка")
-    rules[index], rules[target] = rules[target], rules[index]
-    save(data, expected_hash, "move_rule", rules[target]["pattern"], index, target)
+    rules[i], rules[target] = rules[target], rules[i]
+    save(data, expected_hash, "move_rule", rules[target]["pattern"], i, target)
 
 
 def analyze_rules(data: dict | None = None) -> list[dict]:
@@ -404,6 +441,7 @@ def analyze_rules(data: dict | None = None) -> list[dict]:
                 shadowed_by = j
         out.append({
             "index": i,
+            "id": r.get("id") or "",  # wave5: устойчивая адресация форм правил
             "pattern": r["pattern"],
             "category": r["category"],
             "invalid_category": not valid[i],

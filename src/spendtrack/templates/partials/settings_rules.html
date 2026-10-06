@@ -45,6 +45,7 @@
                     hx-disabled-elt="find button">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
+                <input type="hidden" name="rule_id" value="{{ a.id }}">
                 <input type="hidden" name="direction" value="up">
                 <button type="submit" title="Переместить выше" aria-label="Переместить правило #{{ a.index }} выше"
                         id="rule-up-{{ a.pattern | urlencode }}" {% if loop.first %}disabled{% endif %}
@@ -56,6 +57,7 @@
                     hx-disabled-elt="find button">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
+                <input type="hidden" name="rule_id" value="{{ a.id }}">
                 <input type="hidden" name="direction" value="down">
                 <button type="submit" title="Переместить ниже" aria-label="Переместить правило #{{ a.index }} ниже"
                         id="rule-down-{{ a.pattern | urlencode }}" {% if loop.last %}disabled{% endif %}
@@ -68,6 +70,7 @@
                     hx-confirm="Удалить правило «{{ a.pattern }}»?">
                 <input type="hidden" name="file_hash" value="{{ file_hash }}">
                 <input type="hidden" name="index" value="{{ a.index }}">
+                <input type="hidden" name="rule_id" value="{{ a.id }}">
                 <button type="submit" title="Удалить правило"
                         class="text-xs rounded-lg px-3 py-1.5 border border-line text-fg-muted hover:text-danger hover:border-danger transition-colors">Удалить</button>
               </form>
