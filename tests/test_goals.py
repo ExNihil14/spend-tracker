@@ -146,10 +146,83 @@ def test_add_transaction_rejects_invalid_dates(store):
                                   category="groceries", category_source="rule")
 
 
+def test_dates_reject_newline_and_non_ascii_digits(store):
+    """wave5 №6: `$`+match пропускал «2026-09-01\\n» и не-ASCII цифры (`\\d`) — падал CHECK, не валидатор."""
+    for bad in ("2026-09-01\n", "٢٠٢٦-09-01", "2026-٠٩-01"):
+        with pytest.raises(ValueError):
+            store.add_transaction(date=bad, description="X", amount_kopecks=-100,
+                                  category="groceries", category_source="rule")
+    gid = store.add_goal("Цель", 100_00)
+    for bad in ("2026-09-01\n", "٢٠٢٦-09-01"):
+        with pytest.raises(ValueError):
+            store.add_allocation(gid, bad, 100)
+
+
 def test_add_goal_rejects_over_limit(store):
     """Ревью wave5 S4: лимит суммы общий с API/импортом (form-путь не шире JSON)."""
     with pytest.raises(ValueError):
         store.add_goal("X", MAX_AMOUNT_KOPECKS + 1)
+
+
+def test_allocation_rejects_over_limit(store):
+    """wave5 №3: у взносов тот же предел, что у целей (SUM не переполняется → не ложный 503)."""
+    gid = store.add_goal("Техника", 100_000_00)
+    for amount in (MAX_AMOUNT_KOPECKS + 1, -(MAX_AMOUNT_KOPECKS + 1)):
+        with pytest.raises(ValueError):
+            store.add_allocation(gid, "2026-09-10", amount)
+    assert store.list_allocations(gid) == []  # отказ без вставленной строки
+    assert store.add_allocation(gid, "2026-09-10", MAX_AMOUNT_KOPECKS) > 0  # граница включительна
+    assert store.goal_progress(gid)["allocated_kopecks"] == MAX_AMOUNT_KOPECKS
+
+
+def test_allocations_check_limit_second_layer(store):
+    """wave5 №3: предел взноса — и в SQL CHECK (второй рубеж схемы)."""
+    gid = store.add_goal("Цель", 100_00)
+    with pytest.raises(sqlite3.IntegrityError):
+        store.conn.execute(
+            "INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
+            " VALUES(?, '2026-09-01', ?, 'now')", (gid, MAX_AMOUNT_KOPECKS + 1))
+    store.conn.rollback()
+
+
+def test_goals_v8_migration_applies_allocation_limit(tmp_path):
+    """wave5 №3: уже созданные v7-БД получают CHECK предела взносов; данные не теряются."""
+    db = tmp_path / "v7.db"
+    con = sqlite3.connect(db)
+    con.executescript(_TX_DDL)
+    con.executescript("""
+CREATE TABLE goals(
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120),
+  target_kopecks INTEGER NOT NULL CHECK(target_kopecks > 0),
+  currency TEXT NOT NULL DEFAULT 'RUB' CHECK(currency GLOB '[A-Z][A-Z][A-Z]'),
+  due_month TEXT, created_month TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0,
+  created TEXT NOT NULL, updated TEXT NOT NULL) STRICT;
+CREATE TABLE goal_allocations(
+  id INTEGER PRIMARY KEY,
+  goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT,
+  date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0),
+  reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT,
+  created_at TEXT NOT NULL) STRICT;
+""")
+    con.execute("INSERT INTO goals(title, target_kopecks, currency, created_month, created, updated)"
+                " VALUES('Цель', 100000, 'RUB', '2026-09', 't', 't')")
+    con.execute("INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
+                " VALUES(1, '2026-09-01', 500, 't')")
+    con.execute("PRAGMA user_version = 7")
+    con.commit()
+    con.close()
+
+    s = Store(db_path=db)  # апгрейд v7 → v8: пересборка goal_allocations с CHECK
+    assert s._user_version() == SCHEMA_VERSION == 8
+    assert [a["amount_kopecks"] for a in s.list_allocations(1)] == [500]
+    with pytest.raises(sqlite3.IntegrityError):
+        s.conn.execute(
+            "INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
+            " VALUES(1, '2026-09-02', ?, 't')", (MAX_AMOUNT_KOPECKS + 1,))
+    s.conn.rollback()
+    s.close()
 
 
 def test_goals_v7_on_fresh_and_legacy_db(tmp_path):

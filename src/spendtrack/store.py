@@ -193,7 +193,9 @@ def _norm_desc(desc: str) -> str:
 
 
 _MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# wave5 №6: ASCII-цифры + fullmatch — `\d` матчил не-ASCII цифры, а `$`+match — «2026-09-01\n»;
+# строки проходили Python-валидацию и падали на SQL CHECK (IntegrityError вместо ValueError).
+_DATE_RE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 
 def valid_month(month: str | None) -> bool:
@@ -253,7 +255,8 @@ CREATE TABLE IF NOT EXISTS transactions(
 # v7 (03.10): цели/копилки — «виртуальный конверт» (research 03.10). Деньги физически
 # не двигаются; взносы append-only и подписанные (изъятие = отрицательный), прогресс — на лету.
 # STRICT+CHECK — щит нового слоя; цель не удаляется (архив), FK ON DELETE RESTRICT.
-_GOALS_DDL = """
+# v8 (06.10, wave5 №3): предел суммы взноса в CHECK — интерполяция MAX_AMOUNT_KOPECKS (единый лимит).
+_GOALS_DDL = f"""
 CREATE TABLE IF NOT EXISTS goals(
   id INTEGER PRIMARY KEY,
   title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120),
@@ -270,7 +273,7 @@ CREATE TABLE IF NOT EXISTS goal_allocations(
   id INTEGER PRIMARY KEY,
   goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT,
   date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0),
+  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0 AND abs(amount_kopecks) <= {MAX_AMOUNT_KOPECKS}),
   reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT,
   created_at TEXT NOT NULL
 ) STRICT;
@@ -331,7 +334,7 @@ CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);
 """ + _GOALS_DDL
 
 
-SCHEMA_VERSION = 7  # текущая версия схемы (см. Store._migrate)
+SCHEMA_VERSION = 8  # текущая версия схемы (см. Store._migrate)
 
 
 class Store:
@@ -482,6 +485,32 @@ class Store:
                 self.conn.execute(stmt)
         self._mark_migration(7)
 
+    def _migrate_v8(self) -> None:
+        """v8 (wave5 №3): CHECK предела суммы взноса для уже созданных v7-БД.
+
+        SQLite не умеет добавить CHECK к существующей таблице — пересборка goal_allocations
+        с переносом данных 1:1. Нарушающие строки (могли появиться только мимо Store) блокируют
+        миграцию явной ошибкой; транзакция `_migrate` откатит всё, БД останется рабочей на v7.
+        """
+        bad = self.conn.execute(
+            "SELECT COUNT(1) FROM goal_allocations WHERE abs(amount_kopecks) > ?",
+            (MAX_AMOUNT_KOPECKS,)).fetchone()[0]
+        if bad:
+            raise RuntimeError(
+                f"в goal_allocations {bad} строк(и) сверх лимита {MAX_AMOUNT_KOPECKS} копеек — "
+                "исправьте их и запустите приложение снова (данные не тронуты)")
+        self.conn.execute("DROP INDEX IF EXISTS idx_goal_alloc")
+        self.conn.execute("ALTER TABLE goal_allocations RENAME TO goal_allocations_pre_v8")
+        for stmt in _GOALS_DDL.split(";"):
+            if stmt.strip():
+                self.conn.execute(stmt)
+        self.conn.execute(
+            "INSERT INTO goal_allocations(id, goal_id, date, amount_kopecks, reverses_id, created_at)"
+            " SELECT id, goal_id, date, amount_kopecks, reverses_id, created_at"
+            " FROM goal_allocations_pre_v8")
+        self.conn.execute("DROP TABLE goal_allocations_pre_v8")
+        self._mark_migration(8)
+
     def _migrate_steps(self) -> None:
         if self._user_version() < 1:
             self._mark_migration(1)
@@ -497,6 +526,8 @@ class Store:
             self._migrate_v6()
         if self._user_version() < 7:
             self._migrate_v7()
+        if self._user_version() < 8:
+            self._migrate_v8()
         self._ensure_pending_index()
 
     def _ensure_pending_index(self) -> None:
@@ -507,7 +538,7 @@ class Store:
             " WHERE review_status='pending'")
 
     def _migrate(self) -> None:
-        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency; 6 — CHECK(date); 7 — цели/копилки.
+        """Версии: 1 — базовая схема; 2 — Work 3; 3 — statement_order; 4 — budgets; 5 — currency; 6 — CHECK(date); 7 — цели/копилки; 8 — предел суммы взноса (wave5 №3).
 
         БД новее приложения — отказ (старый код молча писал бы в незнакомую схему).
         Миграции идут в одной `BEGIN IMMEDIATE`-транзакции (DDL SQLite транзакционен): падение
@@ -604,7 +635,7 @@ class Store:
             else:
                 raise ValueError(
                     f"Неизвестная валюта: {currency!r} (ожидается ISO 4217, например RUB/USD/EUR)")
-        if not isinstance(date, str) or not _DATE_RE.match(date):
+        if not isinstance(date, str) or not _DATE_RE.fullmatch(date):
             raise ValueError("дата — формат ГГГГ-ММ-ДД")
         try:
             datetime(int(date[:4]), int(date[5:7]), int(date[8:10]), tzinfo=UTC)
@@ -954,7 +985,7 @@ class Store:
 
         Проверка `archived` и INSERT — в одной `BEGIN IMMEDIATE`-транзакции (ревью wave5, S7: TOCTOU).
         """
-        if not isinstance(date, str) or not _DATE_RE.match(date):
+        if not isinstance(date, str) or not _DATE_RE.fullmatch(date):
             raise ValueError("дата взноса — формат ГГГГ-ММ-ДД")
         try:
             d = datetime(int(date[:4]), int(date[5:7]), int(date[8:10]), tzinfo=UTC).date()
@@ -962,8 +993,10 @@ class Store:
             raise ValueError("дата взноса — несуществующий день") from None
         if d > _date_cls.today():  # noqa: DTZ011 — локальная дата намеренно (BYN-установки UTC+3)
             raise ValueError("дата взноса — не в будущем")
-        if not isinstance(amount_kopecks, int) or amount_kopecks == 0:
-            raise ValueError("сумма взноса — целое число копеек ≠ 0")
+        # wave5 №3: предел как у целей — иначе SUM(INTEGER) переполнялся и давал ложный 503
+        if (not isinstance(amount_kopecks, int)
+                or not 0 < abs(amount_kopecks) <= MAX_AMOUNT_KOPECKS):
+            raise ValueError("сумма взноса — целое число копеек ≠ 0 и в пределах лимита")
         self.conn.execute("BEGIN IMMEDIATE")
         try:
             goal = self.conn.execute("SELECT archived FROM goals WHERE id=?",
