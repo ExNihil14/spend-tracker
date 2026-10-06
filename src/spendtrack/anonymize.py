@@ -233,11 +233,14 @@ def _last_data_row(ws, header_row: int) -> int:
     return last
 
 
-def _truncate_sheet(ws, drop_after: int, cut: int) -> int:
-    """Удалить строки ниже drop_after; → сколько merged-диапазонов пришлось снять.
+def _truncate_sheet(ws, drop_after: int) -> int:
+    """Удалить ВСЁ ниже `drop_after` разреженно; → сколько merged-диапазонов пришлось снять.
 
-    wave6 S4: openpyxl не сдвигает merged-диапазоны/автофильтр при delete_rows — иначе merge
+    wave6 S4: openpyxl не сдвигает merged-диапазоны/автофильтр при удалении — иначе merge
     «висит» за пределами листа и Excel предлагает восстановление файла.
+    anon-7 (wave5): `delete_rows` в openpyxl 3.1.5 материализует весь хвост (`_move_cells` →
+    `iter_rows(min_row)` до `max_row`: styled-фантом на строке 1M дал замер ~120 с на 10 строках).
+    Удаляем существующие ячейки и размеры строк ниже границы точечно — без движения фантомов.
     """
     dropped = 0
     for mr in list(ws.merged_cells.ranges):
@@ -246,7 +249,11 @@ def _truncate_sheet(ws, drop_after: int, cut: int) -> int:
             dropped += 1
     if ws.auto_filter.ref:
         ws.auto_filter.ref = None
-    ws.delete_rows(drop_after + 1, cut)
+    for key in [k for k in list(ws._cells) if k[0] > drop_after]:
+        del ws._cells[key]
+    for r in [r for r in list(ws.row_dimensions) if r > drop_after]:
+        del ws.row_dimensions[r]
+    ws._current_row = max((r for r, _ in ws._cells), default=0)
     return dropped
 
 
@@ -339,7 +346,7 @@ def anonymize_xlsx(
             remaining -= len(keep)
         cut = len(rows_all) - len(keep)
         if cut > 0:
-            merged_dropped += _truncate_sheet(ws, header_row + len(keep), cut)
+            merged_dropped += _truncate_sheet(ws, header_row + len(keep))
 
     # метаданные книги — PII-канал: заменяем ВЕСЬ набор на безопасный (allowlist, wave5 should-5;
     # прежний список полей не закрывал subject/identifier и т.п.)

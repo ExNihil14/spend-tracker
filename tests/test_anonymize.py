@@ -338,6 +338,36 @@ def test_xlsx_phantom_rows_ignored():
     assert load_workbook(BytesIO(out)).active.max_row >= 2  # файл открывается
 
 
+def test_xlsx_truncation_with_styled_phantom_stays_fast():
+    """anon-7 (wave5): styled-фантом на строке 1M не материализует хвост при усечении.
+
+    У openpyxl 3.1.5 `delete_rows` тянет `iter_rows(min_row)` до `max_row` (`_move_cells`):
+    замер на 10 строках данных со styled-фантомом — ~120 с. Фикс — разреженное удаление
+    существующих ячеек/размеров строк, без движения фантомного хвоста (и без него в выходе).
+    """
+    import time
+
+    from openpyxl import Workbook, load_workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Описание", "Сумма"])
+    for i in range(10):
+        ws.append([f"ЛЕНТА {i}", -100 - i])
+    ws.cell(1_000_000, 20).number_format = "0.00"  # styled-фантом переживает save/load
+    buf = BytesIO()
+    wb.save(buf)
+
+    t0 = time.perf_counter()
+    out, report = anonymize_xlsx(buf.getvalue(), max_rows=2)
+    dt = time.perf_counter() - t0
+    assert report["rows_total"] == 10 and report["rows_written"] == 2
+    assert dt < 20, f"усечение заняло {dt:.1f} с (регрессия delete_rows/materialization)"
+    out_ws = load_workbook(BytesIO(out)).active
+    assert out_ws.max_row == 3  # хвост удалён целиком — фантом не «уехал» вверх
+    assert out_ws.cell(2, 1).value == "ОПЕРАЦИЯ_0001"
+
+
 def test_xlsx_merge_and_filter_below_cut_dropped():
     """Wave6 S4: merge/автофильтр ниже усечённой части не «висят» за пределами листа."""
     from openpyxl import Workbook, load_workbook
