@@ -72,22 +72,28 @@ def settings(request: Request, store: Annotated[Store, Depends(get_store)]):
     return templates.TemplateResponse(request, "settings.html", _context(store))
 
 
-def _root_fragment(request: Request, store: Store, **errors: str | None) -> HTMLResponse:
-    """Мутации возвращают #settings-root (+ OOB-хэш taxonomy).
+def _root_fragment(request: Request, store: Store, *, publish_hash: bool = True,
+                   **errors: str | None) -> HTMLResponse:
+    """Мутации возвращают #settings-root (+ OOB-хэш taxonomy только из taxonomy-ответов).
 
     S2 (Astra 02.10): root-свап даёт свежие формы. wave6 №2: точечные свапы (бюджеты/цвет/иконка)
     не обязаны менять весь root — свежий file_hash для остальных форм едет отдельным OOB-элементом
     (страница держит его в #tax-hash вне root; app.js подставляет на момент запроса).
+    wave5 C1: токен публикуется ТОЛЬКО теми ответами, где taxonomy-ревизия согласована с DOM:
+    бюджеты taxonomy не меняют, а ошибочные ответы (конфликт версии/валидация) не должны
+    легализовать устаревшие формы (иначе удаляется «не то» правило).
     """
     ctx = _context(store)
     ctx.update(errors)
     resp = templates.TemplateResponse(request, "partials/settings_root.html", ctx)
-    oob = f'<input type="hidden" id="tax-hash" value="{ctx["file_hash"]}" hx-swap-oob="outerHTML">'
-    return HTMLResponse(resp.body.decode() + oob)
+    body = resp.body.decode()
+    if publish_hash:
+        body += f'<input type="hidden" id="tax-hash" value="{ctx["file_hash"]}" hx-swap-oob="outerHTML">'
+    return HTMLResponse(body)
 
 
 def _cats_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:
-    return _root_fragment(request, store, error_cats=error)
+    return _root_fragment(request, store, publish_hash=error is None, error_cats=error)
 
 
 @router.post("/settings/categories", response_class=HTMLResponse)
@@ -162,7 +168,8 @@ async def rename_category(request: Request, store: Annotated[Store, Depends(get_
 
 
 def _budgets_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:
-    return _root_fragment(request, store, error_budgets=error)
+    # wave5 C1: бюджет taxonomy НЕ меняет — свой taxonomy-хэш в ответе не публикуем вообще
+    return _root_fragment(request, store, publish_hash=False, error_budgets=error)
 
 
 @router.post("/settings/budgets", response_class=HTMLResponse)
@@ -177,7 +184,7 @@ async def set_budget(request: Request, store: Annotated[Store, Depends(get_store
 
 
 def _rules_fragment(request: Request, store: Store, error: str | None = None) -> HTMLResponse:
-    return _root_fragment(request, store, error_rules=error)
+    return _root_fragment(request, store, publish_hash=error is None, error_rules=error)
 
 
 def _parse_index(raw: object) -> int:

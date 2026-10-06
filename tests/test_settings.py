@@ -269,16 +269,37 @@ def test_settings_budgets_api_and_page(tax_env):
 
 
 def test_tax_hash_oob_and_targeted_swaps(tax_env):
-    """Wave6 №2/№6: #tax-hash вне root + OOB-обновление; бюджеты/иконка — точечный свап, цвет — none."""
+    """wave5 C1: бюджет НЕ публикует taxonomy-хэш (он taxonomy не меняет); точечные свапы сохранены."""
     client = TestClient(app)
     page = client.get("/settings").text
     assert 'id="tax-hash"' in page
-    r = client.post("/settings/budgets", data={"category": "other", "amount": "1000"})
-    assert 'id="tax-hash"' in r.text and "hx-swap-oob" in r.text
+    budget = client.post("/settings/budgets", data={"category": "other", "amount": "1000"})
+    assert budget.status_code == 200
+    # C1 (wave5): свежий токен из бюджетного ответа легализовал бы устаревшие формы правил
+    assert 'id="tax-hash"' not in budget.text
+    icon = client.post("/settings/categories/icon",
+                       data={"name": "cafe", "icon": "star", "file_hash": repo.file_hash()})
+    assert 'id="tax-hash"' in icon.text and "hx-swap-oob" in icon.text  # taxonomy-мутация — токен свежий
+    budget_err = client.post("/settings/budgets", data={"category": "other", "amount": "abc"})
+    assert "числом" in budget_err.text and 'id="tax-hash"' not in budget_err.text
     assert 'hx-select="#budget-form-other"' in page and 'hx-target="this"' in page
     assert 'hx-select="#cat-row-other"' in page
     assert 'hx-post="/settings/categories/color" hx-target="#settings-root" hx-swap="none"' in page
     assert 'id="settings-budgets-error"' in page
+
+
+def test_conflict_error_does_not_publish_new_hash(tax_env):
+    """wave5 C1: конфликт версии не выдаёт оставшимся формам новый токен (иначе удаляется «не то» правило)."""
+    client = TestClient(app)
+    stale = repo.file_hash()
+    repo.set_color("other", "#123456", stale)  # «другая вкладка» изменила файл
+    assert repo.file_hash() != stale
+    r = client.post("/settings/rules/delete", data={"index": 0, "file_hash": stale})
+    assert r.status_code == 200 and "изменён снаружи" in r.text
+    assert 'id="tax-hash"' not in r.text  # ни старого, ни нового токена
+    err = client.post("/settings/categories",
+                      data={"name": "bad name", "color": "#112233", "file_hash": repo.file_hash()})
+    assert "имя" in err.text and 'id="tax-hash"' not in err.text
 
 
 def test_broken_taxonomy_shows_banner(tax_env):

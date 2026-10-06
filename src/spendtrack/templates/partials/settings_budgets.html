@@ -12,7 +12,7 @@
     {# wave6 №2: свап только своей строки — набранное в других секциях/полях не стирается #}
     <form hx-post="/settings/budgets" hx-target="this" hx-swap="outerHTML"
           hx-select="#budget-form-{{ c.name | urlencode }}"
-          hx-select-oob="#tax-hash:outerHTML,#settings-budgets-error:outerHTML,#toast:outerHTML"
+          hx-select-oob="#settings-budgets-error:outerHTML,#toast:outerHTML"
           hx-trigger="change, submit" hx-sync="this:drop"
           id="budget-form-{{ c.name | urlencode }}"
           class="flex flex-wrap items-center gap-3 px-5 py-2.5">

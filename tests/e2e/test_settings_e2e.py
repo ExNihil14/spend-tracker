@@ -254,9 +254,14 @@ def test_budget_input_keeps_focus_after_swap(page: Page, live_server):
     ), "фокус улетел из очереди бюджетов после свопа"
 
 
-def test_budget_autosave_keeps_typed_work_and_hash(page: Page, live_server):
-    """Wave6 №2: автосейв бюджета свапает только свою строку — набранное не стирается, хэш свеж."""
+def test_budget_autosave_keeps_typed_work_and_hash(page: Page, live_server, taxonomy_path):
+    """wave5 C1: автосейв бюджета НЕ публикует taxonomy-токен; черновики соседних секций живы.
+
+    Свежесть токена проверяет именно taxonomy-мутация (иконка — точечный свап с OOB-хэшем):
+    после неё действие из несвапнутой формы правил проходит без «изменён снаружи» и меняет файл.
+    """
     page.goto(f"{live_server}/settings")
+    hash_before = page.locator("#tax-hash").input_value()
     pattern = page.locator('#settings-rules input[name="pattern"]')
     pattern.fill("ЧЕРНОВИК ПРАВИЛА")
     amount = page.locator('#settings-budgets input[name="amount"]').first
@@ -265,9 +270,24 @@ def test_budget_autosave_keeps_typed_work_and_hash(page: Page, live_server):
         page.keyboard.press("Tab")
     _wait_single(page, "#settings-budgets")
     assert pattern.input_value() == "ЧЕРНОВИК ПРАВИЛА"  # набранное в другой секции не стёрто свапом
+    assert page.locator("#tax-hash").input_value() == hash_before  # бюджет taxonomy не меняет — токен не публикуется
+
+    row = page.locator("#settings-categories tbody tr").first
+    select = row.locator('select[name="icon"]')
+    current = select.input_value()
+    new_icon = "tag" if current == "star" else "star"
+    with page.expect_response(lambda r: "/settings/categories/icon" in r.url):
+        select.select_option(new_icon)
+    _wait_single(page, "#settings-categories")
+    hash_after = page.locator("#tax-hash").input_value()
+    assert hash_after != hash_before  # taxonomy-мутация публикует свежий токен
+    assert f'icon = "{new_icon}"' in taxonomy_path.read_text(encoding="utf-8")
 
     # кнопка ↓ первого правила не оторвана и работает со свежим хэшем (без «изменён снаружи»)
+    before = _patterns(page)
     with page.expect_response(lambda r: "/settings/rules/move" in r.url):
         page.locator('#settings-rules form[hx-post="/settings/rules/move"] button').nth(1).click()
     _wait_single(page, "#settings-rules")
+    after = _patterns(page)
+    assert after.index(before[0]) == 1  # переставилось именно показанное первым правило
     assert "изменён снаружи" not in page.locator("#settings-root").inner_text()
