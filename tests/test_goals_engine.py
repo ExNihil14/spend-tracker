@@ -218,6 +218,37 @@ def test_what_if_uses_flow_capacity():
     assert G.what_if(100_000, 0, avgs, capacity_k=-50_000)[0]["items"][0]["pct"] == 15  # 100к + 50к
 
 
+def test_what_if_uses_floor_for_residual_deficit():
+    """wave6_ui should: остаточный дефицит на период (floor) учитывается, даже когда base ≤ 0."""
+    avgs = [{"category": "groceries", "avg_k": 1_000_000}]
+    assert G.what_if(50_000, 100_000, avgs, capacity_k=100_000) == []  # base 0 → советов нет
+    advice = G.what_if(50_000, 100_000, avgs, capacity_k=100_000, floor_k=50_000)
+    assert advice and advice[0]["items"][0]["pct"] == 5  # 5% × 1 000 000 ≥ 50 000
+
+
+def test_goal_plan_advice_when_current_month_already_paid(store):
+    """wave6_ui should (сценарий ревью): взнос текущего месяца уже в saved — совет всё равно строится."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    for day in ("2026-04-30", "2026-05-31", "2026-06-30", "2026-07-31", "2026-08-31", "2026-09-30"):
+        _add(store, day, 1_000_000, category="income")
+        _add(store, day, -300_000, category="groceries")
+    gid = store.add_goal("Цель", 250_000, due_month="2026-10")  # срок — текущий месяц
+    store.conn.execute("UPDATE goals SET created_month='2026-09' WHERE id=?", (gid,))
+    store.conn.commit()
+    store.add_allocation(gid, "2026-09-10", 100_000)
+    store.add_allocation(gid, "2026-10-01", 100_000)  # текущий месяц уже оплачен
+    series = G.monthly_net_series(store, today=TODAY)
+    stats = G.robust_stats(series)
+    tax = Taxonomy([Category("groceries", "#000", discretionary=True),
+                    Category("income", "#000", discretionary=False)], [])
+    plan = G.goal_plan(store, store.list_goals()[0], series, stats, today=TODAY,
+                       taxonomy=tax, recurring_merchants=set())
+    assert plan["need_k"] == 50_000 and plan["cur_rest_k"] == 0
+    assert plan["status"] == "BEHIND"
+    assert plan["advice"], "floor = ceil(gap/periods) = 50 000 — совет обязан построиться"
+
+
 def test_goal_plan_warns_flow_deficit(store):
     """S6: при отрицательном потоке советов может не быть, но предупреждение о кассовом дефиците — есть."""
     from spendtrack.taxonomy import Category, Taxonomy

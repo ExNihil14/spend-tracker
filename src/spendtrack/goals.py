@@ -278,16 +278,20 @@ def category_monthly_avgs(store: Store, *, months: int = MONTHS_WINDOW, today: d
 
 
 def what_if(required_k: int, pace_k: int, avgs: list[dict],
-            capacity_k: int | None = None) -> list[dict]:
+            capacity_k: int | None = None, floor_k: int = 0) -> list[dict]:
     """Варианты «сократить X на Y%»: сначала одиночные (щадящий %, затем сумма), затем пары ≤ 40%.
 
     wave5 S6: дефицит учитывает и поток: `max(0, required − min(pace, capacity))` — советы не должны
     выглядеть достаточным финансированием, пока сокращения не закрывают и кассовый дефицит.
+    Окно 06.10 (wave6_ui): `floor_k` — нижняя граница дополнительной МЕСЯЧНОЙ экономии (остаточный
+    дефицит на период, `ceil(gap/periods)`): base не должен обнулять совет, когда взнос текущего
+    месяца уже учтён в покрытии (S3) — иначе остаётся gap, а советов нет.
     """
     if capacity_k is not None:
-        deficit = max(0, required_k - min(pace_k, capacity_k))
+        base = max(0, required_k - min(pace_k, capacity_k))
     else:
-        deficit = max(0, required_k - pace_k)
+        base = max(0, required_k - pace_k)
+    deficit = max(base, floor_k)
     if deficit <= 0 or not avgs:
         return []
     singles = _single_candidates(deficit, avgs)
@@ -396,8 +400,14 @@ def goal_plan(store: Store, goal: dict, series: list[dict], stats: dict, *,
         usable = {m["month"] for m in window if m["usable"]}
         avgs = category_monthly_avgs(store, today=ref, discretionary=discretionary,
                                      exclude_merchants=merchants, usable_months=usable)
+        # 06.10 (wave6_ui): нижняя граница совета — остаточный дефицит на период (S3-согласованно);
+        # взнос текущего месяца уже в покрытии, поэтому base = required − pace мог обнулить совет
+        cur = ref.strftime("%Y-%m")
+        due = goal.get("due_month")
+        periods = max(1, months_between(cur, due) + 1) if due else 1
+        floor_k = ceil_div(res["gap_k"] or 0, periods)
         res["advice"] = what_if(res["required_k"], res["pace_k"], avgs,
-                                capacity_k=stats["capacity_k"])
+                                capacity_k=stats["capacity_k"], floor_k=floor_k)
         if stats["capacity_k"] < 0:
             # wave5 S6: сокращения покрывают цель, но не создают деньги (поток в окне отрицательный)
             res["warnings"].append({

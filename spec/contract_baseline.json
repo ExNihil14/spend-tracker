@@ -733,7 +733,7 @@
    "returns": "str"
   },
   "spendtrack.goals:what_if": {
-   "args": "required_k: int, pace_k: int, avgs: list[dict], capacity_k: int | None=None",
+   "args": "required_k: int, pace_k: int, avgs: list[dict], capacity_k: int | None=None, floor_k: int=0",
    "returns": "list[dict]"
   },
   "spendtrack.llm:LLMProvider.__decorators__": {
@@ -1637,7 +1637,7 @@
   "table:budgets": "CREATE TABLE budgets( category TEXT PRIMARY KEY, -- имя категории таксономии amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks > 0), updated TEXT NOT NULL )",
   "table:categories": "CREATE TABLE categories( name TEXT PRIMARY KEY, color TEXT NOT NULL DEFAULT '#9ca3af' )",
   "table:examples": "CREATE TABLE examples( id INTEGER PRIMARY KEY, description TEXT NOT NULL, amount_kopecks INTEGER NOT NULL, category TEXT NOT NULL )",
-  "table:goal_allocations": "CREATE TABLE goal_allocations( id INTEGER PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT, date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0 AND abs(amount_kopecks) <= 100000000000), reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT, created_at TEXT NOT NULL ) STRICT",
+  "table:goal_allocations": "CREATE TABLE goal_allocations( id INTEGER PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT, date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0 AND amount_kopecks BETWEEN -100000000000 AND 100000000000), reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT, created_at TEXT NOT NULL ) STRICT",
   "table:goals": "CREATE TABLE goals( id INTEGER PRIMARY KEY, title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120), target_kopecks INTEGER NOT NULL CHECK(target_kopecks > 0), currency TEXT NOT NULL DEFAULT 'RUB' CHECK(currency GLOB '[A-Z][A-Z][A-Z]'), due_month TEXT CHECK(due_month IS NULL OR due_month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'), created_month TEXT NOT NULL CHECK(created_month GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'), archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1)), created TEXT NOT NULL, updated TEXT NOT NULL ) STRICT",
   "table:import_batches": "CREATE TABLE import_batches( id TEXT PRIMARY KEY, filename TEXT NOT NULL, sha TEXT NOT NULL, nrows INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'ok', created TEXT NOT NULL )",
   "table:merchant_cache": "CREATE TABLE merchant_cache( key TEXT PRIMARY KEY, -- sha1(merchant.upper()); от категории НЕ зависит merchant TEXT NOT NULL, category TEXT NOT NULL, confidence REAL NOT NULL DEFAULT 1.0, updated TEXT NOT NULL )",

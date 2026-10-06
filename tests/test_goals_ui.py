@@ -184,8 +184,9 @@ def test_advice_renders_on_page_and_fragment(tmp_path, monkeypatch):
     monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "adv.db"))
     s = Store(db_path=tmp_path / "adv.db")
     cur = date.today().strftime("%Y-%m")  # noqa: DTZ011 — локальная дата, как в рендере
-    # доход 1 000 000: поток ПОЛОЖИТЕЛЬНЫЙ (wave5 S6: при отрицательном советы не строятся вовсе),
-    # поэтому сценарий детерминированно проверяет рендеринг непустых советов (`v.items` — Jinja-коллизия)
+    # доход 1 000 000: поток положительный — сценарий про рендеринг НЕПУСТЫХ советов; при
+    # отрицательном потоке дефицит растёт (советы могут не найтись) — это отдельный кейс S6
+    # (см. test_what_if_uses_flow_capacity: совет возможен и при отрицательной capacity)
     for k in range(1, 7):  # 6 полных месяцев до текущего — вечнозелёно
         m = shift_month(cur, -k)
         y, mm = int(m[:4]), int(m[5:7])
