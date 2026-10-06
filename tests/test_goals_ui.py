@@ -31,6 +31,8 @@ def test_create_goal_json_and_page(client):
     assert "Отпуск" in page
     assert 'aria-valuenow="0"' in page
     assert "срок: Июнь 2027" in page
+    # wave5 S3: у цели без истории (pace=0) строки прогноза нет — не показываем пустой «темп»
+    assert "при текущем темпе" not in page
 
 
 def test_create_goal_form_fragment(client):
@@ -182,11 +184,13 @@ def test_advice_renders_on_page_and_fragment(tmp_path, monkeypatch):
     monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "adv.db"))
     s = Store(db_path=tmp_path / "adv.db")
     cur = date.today().strftime("%Y-%m")  # noqa: DTZ011 — локальная дата, как в рендере
+    # доход 1 000 000: поток ПОЛОЖИТЕЛЬНЫЙ (wave5 S6: при отрицательном советы не строятся вовсе),
+    # поэтому сценарий детерминированно проверяет рендеринг непустых советов (`v.items` — Jinja-коллизия)
     for k in range(1, 7):  # 6 полных месяцев до текущего — вечнозелёно
         m = shift_month(cur, -k)
         y, mm = int(m[:4]), int(m[5:7])
         last = (date(y + (mm == 12), mm % 12 + 1, 1) - timedelta(days=1)).isoformat()
-        s.add_transaction(date=last, description="ДОХОД", amount_kopecks=200_000,
+        s.add_transaction(date=last, description="ДОХОД", amount_kopecks=1_000_000,
                           category="income", category_source="rule")
         s.add_transaction(date=last, description="ЛЕНТА", amount_kopecks=-400_000,
                           category="groceries", category_source="rule")

@@ -115,19 +115,32 @@ def robust_stats(series: list[dict]) -> dict:
 
 
 def monthly_contrib_median(allocations: list[dict], today: date | None = None,
-                           months: int = MONTHS_WINDOW) -> int:
-    """pace: медиана положительных взносов по месяцам за окно (факт пользователя)."""
+                           months: int = MONTHS_WINDOW,
+                           created_month: str | None = None) -> int:
+    """pace: медиана ЧИСТЫХ месячных взносов (wave5 S4) по полным месяцам существования цели.
+
+    - окно: от `max(created_month, cur−months)` до `cur−1` включительно (текущий месяц неполный);
+    - изъятия учитываются (signed); нулевой месяц существования — это 0 в выборке
+      (иначе один старый взнос превращался в «вечный месячный темп»);
+    - месяцы ДО появления цели не размывают выборку; нет ни одного полного месяца — 0.
+    """
     ref = today or date.today()  # noqa: DTZ011
-    floor_month = shift_month(ref.strftime("%Y-%m"), -months)
+    cur = ref.strftime("%Y-%m")
+    window_floor = shift_month(cur, -months)
+    floor = max(created_month, window_floor) if created_month else window_floor
+    if floor >= cur:
+        return 0
     sums: dict[str, int] = {}
     for a in allocations:
-        amount = int(a["amount_kopecks"])
-        if amount <= 0:
-            continue
         m = str(a["date"])[:7]
-        if m >= floor_month:
-            sums[m] = sums.get(m, 0) + amount
-    return median_k(list(sums.values()))
+        if floor <= m < cur:
+            sums[m] = sums.get(m, 0) + int(a["amount_kopecks"])
+    values: list[int] = []
+    m = floor
+    while m < cur:
+        values.append(sums.get(m, 0))
+        m = shift_month(m, 1)
+    return median_k(values)
 
 
 # ---- движок одной цели (чистая функция) ----
@@ -141,10 +154,16 @@ def goal_engine(goal: dict, allocations: list[dict], stats: dict, *,
     saved = sum(int(a["amount_kopecks"]) for a in allocations)
     need = max(0, target - saved)
     pct = 100 if need == 0 else max(0, min(99, saved * 100 // target))
+    pace = monthly_contrib_median(allocations, ref, created_month=goal.get("created_month"))
+    # wave5 S3: сколько ОСТАЛОСЬ внести в текущем месяце обычным темпом (взнос этого месяца уже в saved).
+    # Изъятия слот НЕ возвращают: считаем только положительные взносы месяца (осознанно; см.
+    # EXPERT_GOALS_S3_S6_DESIGN — cur_rest консервативен и не завышается после изъятий).
+    contrib_cur = sum(int(a["amount_kopecks"]) for a in allocations
+                      if int(a["amount_kopecks"]) > 0 and str(a["date"])[:7] == cur)
     res = {
         "status": None, "status_label": "", "saved_k": saved, "need_k": need, "progress_pct": pct,
         "required_k": None, "gap_k": None, "projected_k": None, "months_at_pace": None,
-        "new_due_month": None, "pace_k": monthly_contrib_median(allocations, ref),
+        "new_due_month": None, "pace_k": pace, "cur_rest_k": max(0, pace - contrib_cur),
         "capacity_k": stats["capacity_k"], "weakest_k": stats["weakest_k"],
         "usable_months": stats["usable"], "advice": [], "warnings": [],
     }
@@ -159,11 +178,15 @@ def goal_engine(goal: dict, allocations: list[dict], stats: dict, *,
 
 
 def _engine_deadline(res: dict, goal: dict, stats: dict, cur: str) -> None:
-    """Ветка по сроку: OVERDUE / NO_DEADLINE / INSUFFICIENT_DATA / потоковые статусы."""
+    """Ветка по сроку: OVERDUE / NO_DEADLINE / INSUFFICIENT_DATA / потоковые статусы.
+
+    wave5 S3: `periods = months_future + 1` (текущий месяц — тоже возможность взноса, +1 ревью C1),
+    но покрытие считается как «остаток текущего месяца + полные будущие» — без двойного счёта.
+    """
     need, pace = res["need_k"], res["pace_k"]
     due = goal["due_month"]
-    # +1: взнос можно сделать и в текущем месяце (ревью wave5 C1: было занижение на месяц)
-    periods = max(0, months_between(cur, due) + 1) if due is not None else 0
+    months_future = max(0, months_between(cur, due)) if due is not None else 0
+    periods = months_future + 1
     if due is not None:
         res["required_k"] = ceil_div(need, max(1, periods))
     if due is not None and due < cur:
@@ -171,27 +194,31 @@ def _engine_deadline(res: dict, goal: dict, stats: dict, cur: str) -> None:
         res["gap_k"] = need
     elif due is None:
         res["status"] = "NO_DEADLINE"
-        _pace_forecast(res, need, pace, cur)
+        _pace_forecast(res, need, pace, cur, res["cur_rest_k"])
     elif stats["usable"] < MIN_USABLE_MONTHS:
         res["status"] = "INSUFFICIENT_DATA"
-        _pace_forecast(res, need, pace, cur)
+        _pace_forecast(res, need, pace, cur, res["cur_rest_k"])
     else:
-        _flow_status(res, need, pace, max(1, periods), stats, cur)
+        _flow_status(res, need, pace, months_future, stats, cur, res["cur_rest_k"])
 
 
-def _pace_forecast(res: dict, need: int, pace: int, cur: str) -> None:
-    """Прогноз по темпу пользователя: месяцев до цели и сдвинутый срок (нейтрально, без угроз)."""
-    if pace > 0:
-        res["months_at_pace"] = ceil_div(need, pace)
+def _pace_forecast(res: dict, need: int, pace: int, cur: str, cur_rest: int) -> None:
+    """Прогноз по темпу: сначала остаток текущего месяца, затем полные месяцы (wave5 S3, без сдвига)."""
+    if need <= cur_rest:
+        res["months_at_pace"] = 0
+        res["new_due_month"] = cur  # успеваем в текущем месяце
+    elif pace > 0:
+        res["months_at_pace"] = ceil_div(need - cur_rest, pace)
         res["new_due_month"] = shift_month(cur, res["months_at_pace"])
 
 
-def _flow_status(res: dict, need: int, pace: int, periods: int, stats: dict, cur: str) -> None:
+def _flow_status(res: dict, need: int, pace: int, months_future: int, stats: dict, cur: str,
+                 cur_rest: int) -> None:
     """Потоковые статусы: AT_RISK → BEHIND → AHEAD (запас ≥10%) → ON_TRACK."""
-    cover = pace * periods
+    cover = cur_rest + pace * months_future  # wave5 S3: остаток текущего месяца + полные будущие
     res["projected_k"] = res["saved_k"] + cover
     res["gap_k"] = max(0, need - cover)
-    _pace_forecast(res, need, pace, cur)
+    _pace_forecast(res, need, pace, cur, cur_rest)
     required = res["required_k"] or 0
     if required > stats["capacity_k"] or required > stats["weakest_k"]:
         res["status"] = "AT_RISK"
@@ -207,16 +234,23 @@ def _flow_status(res: dict, need: int, pace: int, periods: int, stats: dict, cur
 
 def category_monthly_avgs(store: Store, *, months: int = MONTHS_WINDOW, today: date | None = None,
                           discretionary: set[str] | None = None,
-                          exclude_merchants: set[str] | None = None) -> list[dict]:
-    """Медианы месячных расходов по дискреционным категориям (рефанды уменьшают, пол 0).
+                          exclude_merchants: set[str] | None = None,
+                          usable_months: set[str] | None = None) -> list[dict]:
+    """Месячная база РАСХОДОВ по дискреционным категориям (рефанды уменьшают, пол 0).
 
-    Медиана — по месяцам, где категория была активна (нулевые месяцы «не тратил вовсе» размывали
-    бы совет; «missing ≠ 0» относится к net-ряду цели, здесь месяц без операций = 0 трат).
+    wave5 S5: база — СРЕДНЕЕ по пригодным месяцам окна, включая нули категории (месяц без трат = 0):
+    разовый расход больше не превращается в «постоянную экономию N/мес» и не финансирует месячный
+    дефицит. `usable_months` (из net-ряда, передаёт `goal_plan`) — точный набор месяцев;
+    None — все полные месяцы окна; пустой набор — базы нет (совет не строится).
     """
     ref = today or date.today()  # noqa: DTZ011
     base = base_currency()
     cur = ref.strftime("%Y-%m")
     first = shift_month(cur, -months)
+    window_months = [shift_month(first, i) for i in range(months)]
+    considered = sorted(set(window_months) & usable_months) if usable_months is not None else window_months
+    if not considered:
+        return []  # нет пригодных месяцев (или пустое окно) — честной базы для совета нет
     start, end = month_bounds(first)[0], month_bounds(cur)[0]
     sql = ("SELECT substr(date, 1, 7) m, category, SUM(amount_kopecks) s FROM transactions"
            " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), ?) = ?")
@@ -231,19 +265,29 @@ def category_monthly_avgs(store: Store, *, months: int = MONTHS_WINDOW, today: d
         spent = max(0, -int(r["s"]))  # рефанды уменьшают расход, ниже нуля не уходим
         by_cat.setdefault(r["category"], {})[r["m"]] = spent
     out: list[dict] = []
+    months_n = len(considered)
     for cat, per_month in by_cat.items():
         if discretionary is not None and cat not in discretionary:
             continue
-        avg = median_k(list(per_month.values()))
+        # wave5 S5: месячная база = среднее по пригодным месяцам, нули категории — в выборке
+        avg = sum(per_month.get(m, 0) for m in considered) // months_n
         if avg > 0:
             out.append({"category": cat, "avg_k": avg})
     out.sort(key=lambda a: (-a["avg_k"], a["category"]))
     return out
 
 
-def what_if(required_k: int, pace_k: int, avgs: list[dict]) -> list[dict]:
-    """Варианты «сократить X на Y%»: сначала одиночные (щадящий %, затем сумма), затем пары ≤ 40%."""
-    deficit = max(0, required_k - pace_k)
+def what_if(required_k: int, pace_k: int, avgs: list[dict],
+            capacity_k: int | None = None) -> list[dict]:
+    """Варианты «сократить X на Y%»: сначала одиночные (щадящий %, затем сумма), затем пары ≤ 40%.
+
+    wave5 S6: дефицит учитывает и поток: `max(0, required − min(pace, capacity))` — советы не должны
+    выглядеть достаточным финансированием, пока сокращения не закрывают и кассовый дефицит.
+    """
+    if capacity_k is not None:
+        deficit = max(0, required_k - min(pace_k, capacity_k))
+    else:
+        deficit = max(0, required_k - pace_k)
     if deficit <= 0 or not avgs:
         return []
     singles = _single_candidates(deficit, avgs)
@@ -349,9 +393,17 @@ def goal_plan(store: Store, goal: dict, series: list[dict], stats: dict, *,
         taxonomy = taxonomy or load_taxonomy()
         discretionary = discretionary_names(taxonomy)
         merchants = recurring_merchants if recurring_merchants is not None else _recurring_merchants(store, ref)
+        usable = {m["month"] for m in window if m["usable"]}
         avgs = category_monthly_avgs(store, today=ref, discretionary=discretionary,
-                                     exclude_merchants=merchants)
-        res["advice"] = what_if(res["required_k"], res["pace_k"], avgs)
+                                     exclude_merchants=merchants, usable_months=usable)
+        res["advice"] = what_if(res["required_k"], res["pace_k"], avgs,
+                                capacity_k=stats["capacity_k"])
+        if stats["capacity_k"] < 0:
+            # wave5 S6: сокращения покрывают цель, но не создают деньги (поток в окне отрицательный)
+            res["warnings"].append({
+                "code": "flow_deficit",
+                "text": f"Поток в окне: {fmt_money(stats['capacity_k'])}/мес — советы покрывают цель, "
+                        "но не создают деньги; нужен источник дохода"})
     pending = store.pending_count()
     if pending:
         res["warnings"].append({

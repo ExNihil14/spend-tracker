@@ -20,9 +20,10 @@ def _stats(usable: int = 6, cap: int = 200_000, weak: int = 130_000) -> dict:
             "vol": 0.0, "tx_total": 100}
 
 
-def _goal(target: int = 1_000_000, due: str | None = "2027-06", currency: str = "RUB") -> dict:
+def _goal(target: int = 1_000_000, due: str | None = "2027-06", currency: str = "RUB",
+          created: str = "2026-09") -> dict:
     return {"id": 1, "title": "Цель", "target_kopecks": target, "due_month": due,
-            "currency": currency}
+            "currency": currency, "created_month": created}
 
 
 def _alloc(day: str, amount: int) -> dict:
@@ -58,7 +59,7 @@ def test_done_overdue_no_deadline():
     over = G.goal_engine(_goal(due="2026-08"), [], _stats(), today=TODAY)
     assert over["status"] == "OVERDUE" and over["gap_k"] == 1_000_000
     nd = G.goal_engine(_goal(due=None), [_alloc("2026-09-05", 100_000)], _stats(), today=TODAY)
-    assert nd["status"] == "NO_DEADLINE" and nd["months_at_pace"] == 9  # need 900к / pace 100к
+    assert nd["status"] == "NO_DEADLINE" and nd["months_at_pace"] == 8  # остаток тек. месяца 100к + 8×100к
     assert G.goal_engine(_goal(due=None), [], _stats(), today=TODAY)["months_at_pace"] is None
 
 
@@ -85,6 +86,38 @@ def test_required_boundaries():
     # нехватка в 1 копейку — взнос всё равно ≥ 1
     one = G.goal_engine(_goal(target=1000), [_alloc("2026-09-01", 999)], _stats(), today=TODAY)
     assert one["need_k"] == 1 and one["required_k"] == 1
+
+
+def test_engine_current_month_contribution_not_double_counted():
+    """S3 (wave5): взнос текущего месяца уже в saved — cover не планирует ещё один полный (без ложного AHEAD)."""
+    allocs = [_alloc("2026-09-10", 100_000), _alloc("2026-10-01", 100_000)]
+    res = G.goal_engine(_goal(target=1_000_000), allocs, _stats(), today=TODAY)
+    # saved 200к, need 800к; cover = 0 (остаток месяца) + 100к × 8 полных = 800к → ровно ON_TRACK
+    assert res["cur_rest_k"] == 0 and res["projected_k"] == 1_000_000
+    assert res["status"] == "ON_TRACK" and res["gap_k"] == 0
+    assert res["months_at_pace"] == 8  # (800к − 0) / 100к — без сдвига на +1
+
+
+def test_engine_forecast_keeps_current_month_available():
+    """S3: если остаток текущего месяца покрывает нехватку — прогноз в ТЕКУЩЕМ месяце (было +1)."""
+    res = G.goal_engine(_goal(target=1_000_000), [_alloc("2026-09-10", 900_000)], _stats(), today=TODAY)
+    assert res["need_k"] == 100_000 and res["cur_rest_k"] == 900_000  # обычный темп месяца ещё не выбран
+    assert res["months_at_pace"] == 0 and res["new_due_month"] == "2026-10"
+
+
+def test_net_pace_counts_withdrawals_and_zero_months():
+    """S4 (wave5): +100к/−100к ×6 → чистый темп 0 → ложный ON_TRACK исчезает."""
+    allocs: list[dict] = []
+    for m in ("2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"):
+        allocs += [_alloc(f"{m}-05", 100_000), _alloc(f"{m}-20", -100_000)]
+    res = G.goal_engine(_goal(created="2026-04"), allocs, _stats(), today=TODAY)
+    assert res["pace_k"] == 0 and res["status"] == "BEHIND"
+
+
+def test_net_pace_ignores_months_before_creation():
+    """S4: месяцы до появления цели не размывают темп нулями (окно — от created_month)."""
+    res = G.goal_engine(_goal(created="2026-09"), [_alloc("2026-09-05", 100_000)], _stats(), today=TODAY)
+    assert res["pace_k"] == 100_000
 
 
 def test_status_boundary_equalities():
@@ -142,23 +175,66 @@ def test_series_coverage_and_transfers(store):
     assert stats["usable"] == 1 and stats["capacity_k"] == -10_000 and stats["excluded"] == 5
 
 
-def test_category_avgs_refunds_floor_and_median(store):
+def test_category_avgs_refunds_floor_and_average(store):
     _add(store, "2026-09-10", -30_000)                 # сентябрь: 30к расход
     _add(store, "2026-09-12", 10_000)                  #   рефанд −10к → 20к
     _add(store, "2026-08-10", -50_000)                 # август: 50к
     _add(store, "2026-07-05", -10_000, category="restaurants")
-    _add(store, "2026-07-06", 15_000, category="restaurants")  # рефанд больше → пол 0 → без совета
+    _add(store, "2026-07-06", 15_000, category="restaurants")  # рефанд больше → пол 0
     _add(store, "2026-09-11", -20_000, category="housing")     # не дискреционная
-    avgs = G.category_monthly_avgs(store, today=TODAY, discretionary={"groceries", "restaurants"})
+    # wave5 S5: база — среднее по пригодным месяцам (авг+сен), нули/рефанды корректны
+    avgs = G.category_monthly_avgs(store, today=TODAY, discretionary={"groceries", "restaurants"},
+                                   usable_months={"2026-08", "2026-09"})
     assert [(a["category"], a["avg_k"]) for a in avgs] == [("groceries", 35_000)]
+    assert "restaurants" not in [a["category"] for a in avgs]  # июль вне пригодных месяцев → база 0
 
 
 def test_category_avgs_excludes_recurring_merchants(store):
     _add(store, "2026-09-10", -30_000, category="subscriptions", merchant="NETFLIX")
     _add(store, "2026-09-11", -20_000, category="subscriptions", merchant="OKKO")
     avgs = G.category_monthly_avgs(store, today=TODAY, discretionary={"subscriptions"},
-                                   exclude_merchants={"NETFLIX"})
+                                   exclude_merchants={"NETFLIX"}, usable_months={"2026-09"})
     assert [(a["category"], a["avg_k"]) for a in avgs] == [("subscriptions", 20_000)]
+
+
+def test_category_avgs_zero_fill_over_usable_months(store):
+    """S5 (wave5): разовый расход 120к в одном из 6 пригодных месяцев → база 20к/мес, не 120к."""
+    _add(store, "2026-09-10", -120_000, category="travel")
+    usable = {"2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09"}
+    avgs = G.category_monthly_avgs(store, today=TODAY, discretionary={"travel"}, usable_months=usable)
+    assert [(a["category"], a["avg_k"]) for a in avgs] == [("travel", 20_000)]
+
+
+def test_category_avgs_no_base_without_usable_months(store):
+    """S5: нет пригодных месяцев — честной базы нет (goal_plan в этом случае даёт insufficient_history)."""
+    _add(store, "2026-09-10", -120_000, category="travel")
+    assert G.category_monthly_avgs(store, today=TODAY, discretionary={"travel"}, usable_months=set()) == []
+
+
+def test_what_if_uses_flow_capacity():
+    """S6 (wave5): дефицит совета учитывает и поток (capacity): при отрицательном — сокращение больше."""
+    avgs = [{"category": "groceries", "avg_k": 1_000_000}]
+    assert G.what_if(100_000, 0, avgs)[0]["items"][0]["pct"] == 10          # дефицит 100к
+    assert G.what_if(100_000, 0, avgs, capacity_k=-50_000)[0]["items"][0]["pct"] == 15  # 100к + 50к
+
+
+def test_goal_plan_warns_flow_deficit(store):
+    """S6: при отрицательном потоке советов может не быть, но предупреждение о кассовом дефиците — есть."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    for day in ("2026-04-30", "2026-05-31", "2026-06-30", "2026-07-31", "2026-08-31", "2026-09-30"):
+        _add(store, day, 200_000, category="income")
+        _add(store, day, -400_000, category="groceries")
+    store.add_goal("Цель", 1_000_000, due_month="2027-06")
+    series = G.monthly_net_series(store, today=TODAY)
+    stats = G.robust_stats(series)
+    assert stats["capacity_k"] < 0
+    tax = Taxonomy([Category("groceries", "#000", discretionary=True),
+                    Category("income", "#000", discretionary=False)], [])
+    goal = store.list_goals()[0]
+    plan = G.goal_plan(store, goal, series, stats, today=TODAY, taxonomy=tax, recurring_merchants=set())
+    assert plan["status"] == "AT_RISK"
+    assert any(w["code"] == "flow_deficit" for w in plan["warnings"])  # сокращения не создают деньги
 
 
 def _seed_full_months(store: Store) -> None:

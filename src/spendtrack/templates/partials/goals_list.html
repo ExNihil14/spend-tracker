@@ -28,7 +28,7 @@
       {% if g.plan.required_k is not none %}
       <span class="text-fg-muted">чтобы успеть: {{ fmt_money(g.plan.required_k, g.currency, signed=False) }}/мес</span>
       {% endif %}
-      {% if g.plan.months_at_pace %}
+      {% if g.plan.new_due_month %}
       <span class="text-fg-muted">при текущем темпе — {{ fmt_month(g.plan.new_due_month) }}</span>
       {% endif %}
     </div>

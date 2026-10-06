@@ -681,7 +681,7 @@
    "returns": ""
   },
   "spendtrack.goals:category_monthly_avgs": {
-   "args": "store: Store, *, months: int=MONTHS_WINDOW, today: date | None=None, discretionary: set[str] | None=None, exclude_merchants: set[str] | None=None",
+   "args": "store: Store, *, months: int=MONTHS_WINDOW, today: date | None=None, discretionary: set[str] | None=None, exclude_merchants: set[str] | None=None, usable_months: set[str] | None=None",
    "returns": "list[dict]"
   },
   "spendtrack.goals:ceil_div": {
@@ -713,7 +713,7 @@
    "returns": "int"
   },
   "spendtrack.goals:monthly_contrib_median": {
-   "args": "allocations: list[dict], today: date | None=None, months: int=MONTHS_WINDOW",
+   "args": "allocations: list[dict], today: date | None=None, months: int=MONTHS_WINDOW, created_month: str | None=None",
    "returns": "int"
   },
   "spendtrack.goals:monthly_net_series": {
@@ -733,7 +733,7 @@
    "returns": "str"
   },
   "spendtrack.goals:what_if": {
-   "args": "required_k: int, pace_k: int, avgs: list[dict]",
+   "args": "required_k: int, pace_k: int, avgs: list[dict], capacity_k: int | None=None",
    "returns": "list[dict]"
   },
   "spendtrack.llm:LLMProvider.__decorators__": {
