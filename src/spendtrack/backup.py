@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import shutil
 import sqlite3
@@ -189,12 +190,59 @@ def _acquire_backup_lock(backup_dir: Path) -> Path | None:
 LAZY_BACKUP_HOURS = 168  # C3: неделя — ленивый бэкап на старте `serve` (задача Планировщика — отдельно)
 
 
+def _lazy_hours() -> float:
+    """Порог свежести: env → дефолт; битый/±inf/nan — как ошибка настройки (дефолт)."""
+    try:
+        value = float(os.environ.get("SPENDTRACK_LAZY_BACKUP_HOURS") or LAZY_BACKUP_HOURS)
+    except ValueError:
+        value = float(LAZY_BACKUP_HOURS)
+    return value if math.isfinite(value) else float(LAZY_BACKUP_HOURS)
+
+
+def _newest_valid_snapshot(files, ref: float,
+                           skew_s: float = 60.0) -> tuple[Path | None, float | None, list[str]]:
+    """Самый свежий ПРИГОДНЫЙ снимок, его возраст (часы) и пропущенные «будущие» mtime.
+
+    wave5 core_ops-3: снимок с mtime в будущем (битые часы/подмена) не должен выигрывать max
+    и «вечно свежестью» подавлять новые бэкапы; небольшой скос часов допускаем.
+    """
+    best: tuple[Path, float] | None = None
+    future: list[str] = []
+    for f in files:
+        try:
+            mtime = f.stat().st_mtime
+        except OSError:
+            continue
+        if mtime > ref + skew_s:
+            future.append(f.name)
+            continue
+        if best is None or mtime > best[1]:
+            best = (f, mtime)
+    if best is None:
+        return None, None, future
+    return best[0], (ref - best[1]) / 3600, future
+
+
+def _future_note(future: list[str]) -> dict:
+    return {"future_skipped": future} if future else {}
+
+
+def _check_fresh(files, ref: float, hours: float) -> tuple[dict | None, list[str]]:
+    """Вердикт «свежий снимок уже есть» (или None) + пропущенные future-mtime."""
+    newest, age_h, future = _newest_valid_snapshot(files, ref)
+    if age_h is not None and age_h <= hours:
+        return {"status": "fresh", "file": newest.name, "age_h": round(age_h, 1)}, future
+    return None, future
+
+
 def lazy_backup_if_stale(db_path: Path | str | None = None, *, now: float | None = None) -> dict:
     """C3 (03.10): снимок на старте `serve`, если свежего нет или он старше порога.
 
     Порог: SPENDTRACK_LAZY_BACKUP_HOURS (0 — выключить; дефолт 168 ч). Никогда не бросает:
     сервер обязан подняться в любом случае (любой сбой → {"status": "failed"}).
     Возвращает {status}: off/skipped/fresh/locked/created/failed.
+    wave5 core_ops: своей ротации у хука нет (retention — у явного бэкап-джоба), свежесть
+    перепроверяется под lock (TOCTOU), future-mtime отсеиваются.
     """
     try:
         return _lazy_backup_impl(db_path, now=now)
@@ -203,10 +251,7 @@ def lazy_backup_if_stale(db_path: Path | str | None = None, *, now: float | None
 
 
 def _lazy_backup_impl(db_path: Path | str | None, *, now: float | None) -> dict:
-    try:
-        hours = float(os.environ.get("SPENDTRACK_LAZY_BACKUP_HOURS") or LAZY_BACKUP_HOURS)
-    except ValueError:
-        hours = float(LAZY_BACKUP_HOURS)
+    hours = _lazy_hours()
     if hours <= 0:
         return {"status": "off"}
     db = Path(db_path).expanduser() if db_path else default_db_path()
@@ -214,21 +259,22 @@ def _lazy_backup_impl(db_path: Path | str | None, *, now: float | None) -> dict:
         return {"status": "skipped", "reason": f"БД не найдена: {db}"}
     _bdir, files = find_snapshots(db)
     ref = time.time() if now is None else now
-    if files:
-        newest = max(files, key=lambda p: (p.stat().st_mtime, p.name))
-        try:
-            age_h = (ref - newest.stat().st_mtime) / 3600
-        except OSError:
-            age_h = None
-        if age_h is not None and age_h <= hours:
-            return {"status": "fresh", "file": newest.name, "age_h": round(age_h, 1)}
+    verdict, future = _check_fresh(files, ref, hours)
+    if verdict is not None:
+        return {**verdict, **_future_note(future)}
     lock = _acquire_backup_lock(backup_dir_for(db))
     if lock is None:
         return {"status": "locked"}
     try:
+        # wave5 core_ops-2 (TOCTOU): пока ждали lock, сосед мог создать снимок — проверяем снова
+        _bdir2, files2 = find_snapshots(db)
+        ref2 = time.time() if now is None else now
+        verdict, future2 = _check_fresh(files2, ref2, hours)
+        if verdict is not None:
+            return {**verdict, **_future_note(future + future2)}
         snap = make_snapshot(db)
-        rotate(backup_dir_for(db), DEFAULT_KEEP, current=snap)
-        return {"status": "created", "file": snap.name}
+        # wave5 core_ops-1: БЕЗ своей ротации — retention задаёт явный бэкап-джоб с его keep
+        return {"status": "created", "file": snap.name, **_future_note(future + future2)}
     except (sqlite3.Error, OSError, RuntimeError) as e:
         return {"status": "failed", "reason": str(e)}
     finally:
