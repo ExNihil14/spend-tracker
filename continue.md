@@ -27,6 +27,25 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **📦 ОКНО 06.10 11:00 UTC — итог + фиксы (в дереве, ждут коммита).** Astra отдала **4/4**:
+> `ops_srv`, `wave6_core`, `wave6_ui`, `ops_delta` (exit=0; WAF отпустил к 11:46 UTC, astra
+> degraded 96.4%); `site_ui` — 5/5 `sensitive_words` → статический skip (v8.4.5) + Opus-fallback,
+> который упёрся в **402 (пул закрыт 12:11 UTC)**; оригинал в pending. Полная адъюдикация —
+> `ADJUDICATION_WAVE5_2026-10-04.md` §«Окно 06.10». **Исправлено сразу (TDD red→green):**
+> ① **critical миграции v8** — v7-БД с отменой взноса падала на `DROP ... FOREIGN KEY constraint
+> failed` (подтверждено пробником): `UPDATE goal_allocations_pre_v8 SET reverses_id=NULL` перед DROP
+> + диапазонный CHECK/скан (`BETWEEN`, без SQL `abs(INT64_MIN)`); ② UUID-правил — дубли `id` →
+> явный отказ до адресации/записи, резерв всех id, полный `uuid4().hex`, `_rule_index` — ровно одно
+> совпадение; ③ советов — `floor_k = ceil(gap/периоды)` (S3-согласованность: взнос текущего месяца
+> не вычитается дважды); ④ **сериализация `discretionary` в TOML** (был тихий сброс флагов при любой
+> UI-мутации — blind spot ревью); ⑤ **backup-knowledge fail-closed**: legacy `serena_lost` мигрирует
+> в ожидания, битый маркер → rc=2 ранним выходом (без записи/ротации). **Контур: 934 unit + 100 e2e**
+> + ruff + ratchet + cc + build_css — зелёные (contract-snapshot повторить перед коммитом: сигнатура
+> `what_if` менялась); прод 8766 и демо 8799 перезапущены 200/200.
+> **Очередь фиксов:** Волна 4 (bootstrap: guard-cap fail-closed, check-channels auth/NOT_CHECKED,
+> go-usage проценты/`-Raw`, opencode-web WaitSec, тесты каналов) + 4b (verify: единый архив/возраст,
+> MCP-состояния); Волна 5 (spend: fallback шапки anon, hyperlink-значения, docker-smoke sentinel,
+> hardlink-guard).
 > **📦 ВОЛНА 3c wave5 (UUID правил) — сделана 06.10 (TDD, в дереве, ждёт коммита).** У правил
 > taxonomy.toml — устойчивый `id` (8 hex; назначается при первой записи, существующие не трогаются,
 > дубли/пустые перегенерируются); формы правил (`move` ↑/↓, `delete`) шлют `rule_id`; `delete_rule`/
