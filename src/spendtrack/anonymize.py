@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import re
 import sys
 from io import BytesIO, StringIO
@@ -179,11 +180,12 @@ def _find_header(ws, extra: set[str], scan: int = 10) -> tuple[int | None, list 
 
     Кандидат — строка с хотя бы одной известной колонкой (включая одноколоночные таблицы); больше
     распознанных колонок — сильнее, значения-«данные» среди прочих ячеек — слабее (титул банка).
-    Известных колонок нет вовсе — первая строка с ≥2 непустыми ячейками (прежнее поведение).
+    Известных колонок нет вовсе — ОТКАЗ (волна 5, окно 06.10): прежний fallback «первая строка с
+    ≥2 непустыми ячейками» мог объявить шапкой строку ДАННЫХ и молча записать файл без единого
+    обезличенного значения (C2-дыра). Отказ — наверх, вызывающий сам решает (сообщение с --anon-column).
     Ничья между кандидатами → ValueError: тихая догадка могла бы обезличить не ту таблицу (C1).
     """
     ranked: list[tuple[int, int, int, list]] = []
-    fallback: tuple[int, list] | None = None
     for r_idx in range(1, min(ws.max_row, scan) + 1):
         values = [ws.cell(r_idx, c).value for c in range(1, ws.max_column + 1)]
         nonempty = [v for v in values if _strip(v)]
@@ -194,10 +196,8 @@ def _find_header(ws, extra: set[str], scan: int = 10) -> tuple[int | None, list 
                          if _strip(v) and not _classify(_strip(v), extra) and _looks_like_data(v))
         if score:
             ranked.append((score, -suspicious, r_idx, values))
-        elif fallback is None and len(nonempty) >= 2:
-            fallback = (r_idx, values)
     if not ranked:
-        return fallback if fallback is not None else (None, None)
+        return None, None
     ranked.sort(key=lambda c: (c[0], c[1]), reverse=True)
     best = ranked[0]
     tied = [c[2] for c in ranked if (c[0], c[1]) == (best[0], best[1])]
@@ -264,12 +264,22 @@ def _count_outside(ws, header_row: int) -> int:
 
 
 def _strip_cell_metadata(ws) -> None:
-    """should-4 (wave5): комментарии/гиперссылки — PII-канал; снимаем со ВСЕХ существующих ячеек."""
+    """should-4 (wave5) + волна 5 (окно 06.10): комментарии/гиперссылки — PII-канал.
+
+    Снимаем со ВСЕХ существующих ячеек; если ЗНАЧЕНИЕ ячейки буквально повторяет цель ссылки
+    (Excel хранит URL как текст пустой ячейки), значение тоже очищается — иначе URL (часто с
+    токеном) оставался бы в файле после снятия самой гиперссылки.
+    """
     for cell in ws._cells.values():
         if cell.comment is not None:
             cell.comment = None
         if cell.hyperlink is not None:
+            link = cell.hyperlink
+            targets = {t for t in (_strip(getattr(link, "target", None)),
+                                   _strip(getattr(link, "location", None))) if t}
             cell.hyperlink = None
+            if isinstance(cell.value, str) and _strip(cell.value) in targets:
+                cell.value = None
 
 
 def _check_formulas(ws) -> None:
@@ -328,10 +338,11 @@ def anonymize_xlsx(
             continue  # действительно пустой лист — пропускаем (C2)
         header_row, header = _find_header(ws, extra)
         if header_row is None:
-            # C2 (wave5): раньше непустой лист без шапки молча сохранялся целиком
+            # C2 (wave5) + волна 5: раньше непустой лист без шапки молча сохранялся целиком,
+            # а fallback «шапка из строки данных» давал файл без единого обезличенного значения
             raise ValueError(
-                f"лист «{ws.title}»: не найдена строка-шапка (нет известных колонок и/или <2 непустых "
-                "ячеек) — обезличивание отменено, файл не записан; приведите лист к одной таблице или "
+                f"лист «{ws.title}»: не найдена строка-шапка (нет ни одной известной колонки) — "
+                "обезличивание отменено, файл не записан; приведите лист к одной таблице или "
                 "укажите --anon-column")
         outside += _count_outside(ws, header_row)
         kinds = [_classify(_strip(name), extra) for name in header]
@@ -443,6 +454,23 @@ def _print_report(report: dict, dst: Path) -> None:
     print("\n".join(warn), file=sys.stderr, flush=True)
 
 
+def _same_file(a: Path, b: Path) -> bool:
+    """Совпадение файла-назначения с источником: тот же путь/симлинк ИЛИ hardlink (общий inode).
+
+    resolve() НЕ ловит hardlink (две записи каталога на один inode): запись в такую «копию»
+    обнулила бы исходную выписку. samefile сравнивает устройство+inode — ловит.
+    """
+    try:
+        if a.resolve() == b.resolve():
+            return True
+    except OSError:
+        pass
+    try:
+        return a.exists() and b.exists() and os.path.samefile(a, b)
+    except OSError:
+        return False
+
+
 def run_anonymize(
     src: Path | str,
     dst: Path | str | None = None,
@@ -460,7 +488,7 @@ def run_anonymize(
     if raw is None:
         return 1
     out = Path(dst) if dst else None
-    if out is not None and out.resolve() == src.resolve():
+    if out is not None and _same_file(out, src):
         print("исходный и выходной файл совпадают — перезапись выписки запрещена; укажите другой путь",
               file=sys.stderr, flush=True)
         return 1
@@ -475,9 +503,9 @@ def run_anonymize(
     if out is None:
         # авто-имя: расширение — по фактическому формату (XLSX под именем .csv → .anon.xlsx) — wave6 S5
         out = src.with_name(src.stem + ".anon" + (".xlsx" if report.get("xlsx") else src.suffix))
-    if out.resolve() == src.resolve():
-        # C3 (wave5, регрессия): guard действует и для авто-имени — симлинк v.anon.csv → v.csv
-        # иначе затирал бы исходную выписку
+    if _same_file(out, src):
+        # C3 (wave5, регрессия) + волна 5: guard действует и для авто-имени — симлинк/hardlink
+        # v.anon.csv → v.csv, иначе затирал бы исходную выписку
         print("исходный и выходной файл совпадают — перезапись выписки запрещена; укажите другой путь",
               file=sys.stderr, flush=True)
         return 1

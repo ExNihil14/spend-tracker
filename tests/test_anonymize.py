@@ -5,6 +5,7 @@ CLI-команда — `spendtrack anonymize` (модуль `spendtrack.anonymiz
 """
 from __future__ import annotations
 
+import os
 from io import BytesIO
 
 import pytest
@@ -266,12 +267,53 @@ def test_run_anonymize_legacy_xls_asks_conversion(tmp_path, capsys):
     assert "xlsx" in capsys.readouterr().err.lower()
 
 
-def test_xlsx_nothing_anonymized_warns(tmp_path, capsys):
-    """Ревью wave5 C1: нулевое обезличивание — громкое предупреждение, а не тихий «успех»."""
+def test_xlsx_no_known_columns_refuses(tmp_path, capsys):
+    """Волна 5 (окно 06.10): нет известных колонок — ОТКАЗ, а не «файл без единого обезличенного
+    значения» (прежний fallback мог объявить шапкой строку данных). Ревью wave5 C2."""
     src = tmp_path / "v.xlsx"
     src.write_bytes(_xlsx_bytes([["1", "x"]], ["A", "B"]))
-    assert run_anonymize(src, max_rows=0) == 0
-    assert "НИЧЕГО не обезличено" in capsys.readouterr().err
+    assert run_anonymize(src, max_rows=0) == 1
+    assert not (tmp_path / "v.anon.xlsx").exists()
+    err = capsys.readouterr().err
+    assert "не найдена строка-шапка" in err and "--anon-column" in err
+
+
+def test_xlsx_hyperlink_url_value_removed(tmp_path):
+    """Волна 5 (окно 06.10, should): текст гиперссылки (URL в значении пустой ячейки) вычищается
+    вместе со снятием самой гиперссылки — раньше URL оставался в файле."""
+    from openpyxl import Workbook, load_workbook
+
+    src = tmp_path / "link.xlsx"
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Дата", "Описание"])
+    ws.append(["2026-01-01", "кофе"])
+    url = "https://bank.example/statement?token=SECRET123"
+    ws["C2"] = url  # Excel хранит текст ссылки в значении ячейки
+    ws["C2"].hyperlink = url
+    wb.save(src)
+
+    custom = tmp_path / "link.anon.xlsx"
+    assert main([str(src), "-o", str(custom)]) == 0
+    ws2 = load_workbook(custom).active
+    assert ws2["C2"].hyperlink is None
+    assert ws2["C2"].value is None  # URL-текст не остаётся
+    assert ws2["B2"].value == "ОПЕРАЦИЯ_0001"
+
+
+def test_run_anonymize_hardlink_guard(tmp_path, capsys):
+    """Волна 5 (окно 06.10, слепая зона ревью): hardlink на выписку — тот же inode; запись в «копию»
+    обнулила бы источник. resolve() такое не ловит, samefile — ловит."""
+    src = tmp_path / "v.csv"
+    src.write_text("Дата;Описание\n2026-01-01;ЛЕНТА\n", encoding="utf-8")
+    link = tmp_path / "v.link.csv"
+    try:
+        os.link(src, link)
+    except OSError:
+        pytest.skip("hardlinks недоступны на этой ФС")
+    assert run_anonymize(src, link, max_rows=0) == 1
+    assert src.read_text(encoding="utf-8") == "Дата;Описание\n2026-01-01;ЛЕНТА\n"  # источник не тронут
+    assert "совпадают" in capsys.readouterr().err
 
 
 def test_xlsx_nonstring_cells_ok():

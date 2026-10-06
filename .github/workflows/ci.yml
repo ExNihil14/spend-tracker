@@ -186,9 +186,13 @@ jobs:
             echo "нет файла БД на томе: /data/spend.db"; exit 1
           fi
           # контрольная запись через приложение → пересоздание контейнера с ТЕМ ЖЕ томом → запись обязана пережить
-          docker exec spendtrack-ci spendtrack add -12.34 "SMOKE persist" --category other
-          if ! docker exec spendtrack-ci spendtrack count | grep -q '"manual"'; then
-            echo "контрольная запись не видна в БД до пересоздания"; exit 1
+          # волна 5 (окно 06.10): уникальный маркер + проверка ЗАПИСИ В БД (/data/spend.db), а не
+          # наличия source='manual' (любая ручная запись делала sentinel-проверку зелёной)
+          smoke="SMOKE persist ${GITHUB_RUN_ID:-local}-$(date +%s%N)"
+          check_sql='import sqlite3,sys; n=sqlite3.connect("/data/spend.db").execute("SELECT COUNT(*) FROM transactions WHERE description=?",(sys.argv[1],)).fetchone()[0]; sys.exit(0 if n==1 else 1)'
+          docker exec spendtrack-ci spendtrack add -12.34 "$smoke" --category other
+          if ! docker exec spendtrack-ci /app/.venv/bin/python -c "$check_sql" "$smoke"; then
+            echo "контрольная запись не видна в БД /data/spend.db до пересоздания"; exit 1
           fi
           docker rm -f spendtrack-ci
           docker run -d --name spendtrack-ci -p 127.0.0.1:8766:8766 \
@@ -201,7 +205,7 @@ jobs:
           if [ "$ok" != "1" ]; then
             echo "health не поднялся после пересоздания"; docker logs spendtrack-ci; exit 1
           fi
-          if ! docker exec spendtrack-ci spendtrack count | grep -q '"manual"'; then
+          if ! docker exec spendtrack-ci /app/.venv/bin/python -c "$check_sql" "$smoke"; then
             echo "контрольная запись НЕ пережила пересоздание контейнера (БД не на томе?)"; exit 1
           fi
           # и на хосте виден именно файл БД тома (а не только служебные каталоги)

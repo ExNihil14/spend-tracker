@@ -42,10 +42,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > в ожидания, битый маркер → rc=2 ранним выходом (без записи/ротации). **Контур: 934 unit + 100 e2e**
 > + ruff + ratchet + cc + build_css — зелёные (contract-snapshot повторить перед коммитом: сигнатура
 > `what_if` менялась); прод 8766 и демо 8799 перезапущены 200/200.
-> **Очередь фиксов:** Волна 4 (bootstrap: guard-cap fail-closed, check-channels auth/NOT_CHECKED,
-> go-usage проценты/`-Raw`, opencode-web WaitSec, тесты каналов) + 4b (verify: единый архив/возраст,
-> MCP-состояния); Волна 5 (spend: fallback шапки anon, hyperlink-значения, docker-smoke sentinel,
-> hardlink-guard).
+> **Очередь фиксов: Волны 4/4b/5 — ВЫПОЛНЕНЫ 06.10** (guard fail-closed 9/9, check-channels
+> герметичный 6/6, go-usage 12/12, opencode-web бюджет, verify единый архив + MCP fail-closed;
+> anon отказ/hyperlink/hardlink, docker-smoke SQL-sentinel). Код-долг окна закрыт; бэклог:
+> NO_DEADLINE-тест `flow_deficit`, DB-тест маркера с `--copy-to`, недельная сверка «Use balance».
 > **📦 ВОЛНА 3c wave5 (UUID правил) — сделана 06.10 (TDD, в дереве, ждёт коммита).** У правил
 > taxonomy.toml — устойчивый `id` (8 hex; назначается при первой записи, существующие не трогаются,
 > дубли/пустые перегенерируются); формы правил (`move` ↑/↓, `delete`) шлют `rule_id`; `delete_rule`/
