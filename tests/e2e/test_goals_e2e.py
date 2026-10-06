@@ -1,6 +1,8 @@
 """Ф1 целей (e2e): пустое состояние, создание, прогресс с a11y, взнос, архив."""
 from __future__ import annotations
 
+import sqlite3
+
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -44,3 +46,25 @@ def test_goals_allocate_and_archive(page: Page, live_server):
     expect(page.locator("#goals-list")).to_contain_text("Архив")
     expect(page.locator("article").filter(has_text="Подушка")).to_have_count(0)
     expect(card.locator('form[hx-post$="/allocate"]')).to_have_count(0)
+
+
+def test_allocate_error_keeps_draft_date_and_focus(page: Page, live_server, db_path):
+    """S8 (wave5): ошибка взноса не перерисовывает список — черновик, выбранная дата и фокус живы."""
+    conn = sqlite3.connect(str(db_path))
+    conn.execute("INSERT INTO goals(title, target_kopecks, currency, created_month, archived,"
+                 " created, updated) VALUES('Черновик', 100000, 'RUB', '2026-10', 0, 't', 't')")
+    conn.commit()
+    conn.close()
+
+    page.goto(f"{live_server}/goals")
+    card = page.locator("article").filter(has_text="Черновик")
+    amount = card.locator('input[name="amount"]')
+    date_input = card.locator('input[name="date"]')
+    amount.fill("abc")
+    date_input.fill("2026-09-10")
+    amount.focus()
+    amount.press("Enter")
+    expect(page.locator("#goals-error")).to_contain_text("Не получилось")
+    assert amount.input_value() == "abc"              # черновик не сброшен
+    assert date_input.input_value() == "2026-09-10"   # выбранная дата сохранена
+    assert amount.evaluate("el => document.activeElement === el"), "фокус ушёл из поля суммы"

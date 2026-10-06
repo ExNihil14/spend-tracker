@@ -456,10 +456,16 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
 
 # ---- цели/копилки (Ф1: страница /goals + htmx-формы; движок — Ф2) ----
 
-def _goals_html(request: Request, store: Store) -> str:
-    """Фрагмент списка целей (htmx-свап после create/allocate/archive)."""
-    return templates.TemplateResponse(
-        request, "partials/goals_list.html", goals_snapshot(store)).body.decode()
+def _goals_payload(request: Request, store: Store, *, error: str = "", toast: str = "") -> str:
+    """Ответ мутаций целей: список + OOB-контейнер портфеля (S9) + OOB-ошибка + тост."""
+    snap = goals_snapshot(store)
+    parts = [templates.TemplateResponse(request, "partials/goals_list.html", snap).body.decode()]
+    parts.append(templates.TemplateResponse(
+        request, "partials/goals_portfolio.html", {**snap, "oob": True}).body.decode())
+    parts += [_goals_error(error)]
+    if toast:
+        parts.append(oob_toast(toast))
+    return "".join(parts)
 
 
 def _goals_error(message: str) -> str:
@@ -488,8 +494,8 @@ async def create_goal(request: Request, store: Annotated[Store, Depends(get_stor
                        currency=str(form.get("currency") or "") or None,
                        due_month=str(form.get("due_month") or "") or None)
     except (ValueError, InvalidOperation) as e:
-        return HTMLResponse(_goals_html(request, store) + _goals_error(str(e) or "проверьте поля"))
-    return HTMLResponse(_goals_html(request, store) + _goals_error("") + oob_toast("Цель создана"))
+        return HTMLResponse(_goals_payload(request, store, error=str(e) or "проверьте поля"))
+    return HTMLResponse(_goals_payload(request, store, toast="Цель создана"))
 
 
 @router.post("/goals/{goal_id}/allocate")
@@ -500,12 +506,15 @@ async def allocate_goal(request: Request, goal_id: int, store: Annotated[Store, 
         store.add_allocation(goal_id, str(form.get("date") or "") or date.today().isoformat(),  # noqa: DTZ011 — локальная дата формы
                              parse_amount(str(form.get("amount") or "")))
     except (ValueError, InvalidOperation) as e:
-        return HTMLResponse(_goals_html(request, store) + _goals_error(str(e) or "проверьте поля"))
-    return HTMLResponse(_goals_html(request, store) + _goals_error("") + oob_toast("Взнос записан"))
+        # wave5 S8: при ошибке список НЕ перерисовывается (иначе теряются черновик, дата и фокус) —
+        # только OOB-ошибка; HX-Reswap: none отменяет основной свап
+        return HTMLResponse(_goals_error(str(e) or "проверьте поля"),
+                            headers={"HX-Reswap": "none"})
+    return HTMLResponse(_goals_payload(request, store, toast="Взнос записан"))
 
 
 @router.post("/goals/{goal_id}/archive")
 async def archive_goal(request: Request, goal_id: int, store: Annotated[Store, Depends(get_store)]):
     if not store.archive_goal(goal_id):
-        return HTMLResponse(_goals_html(request, store) + _goals_error("цель не найдена"))
-    return HTMLResponse(_goals_html(request, store) + _goals_error("") + oob_toast("Цель в архиве"))
+        return HTMLResponse(_goals_payload(request, store, error="цель не найдена"))
+    return HTMLResponse(_goals_payload(request, store, toast="Цель в архиве"))

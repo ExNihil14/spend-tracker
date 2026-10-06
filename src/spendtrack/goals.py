@@ -299,15 +299,21 @@ def _recurring_merchants(store: Store, ref: date) -> set[str]:
     return {str(s["merchant"]).upper() for s in detect_recurring(store, ref) if s["active"]}
 
 
-_DISCRETIONARY_EXCLUDED = {"housing", "utilities", "transfers", "income", "taxes"}
+_DISCRETIONARY_EXCLUDED = {"housing", "utilities", "transfers", "income", "taxes",
+                           "health", "education"}  # wave5 S1: здоровье/учёбу не советуем резать
 
 
 def discretionary_names(taxonomy: Taxonomy) -> set[str]:
-    """Категории для what-if: явные флаги taxonomy; если флагов НЕТ вовсе (старые установки,
-    где `discretionary` ещё не было) — встроенный дефолт (все, кроме housing/utilities/transfers/
-    income/taxes), иначе советы молча не работали бы (ревью wave5, S8)."""
-    if any(c.discretionary for c in taxonomy.categories):
-        return {c.name for c in taxonomy.categories if c.discretionary}
+    """Категории для what-if: явные флаги taxonomy; fallback — только если флагов НЕТ ВООБЩЕ.
+
+    wave5 S1: `None` (поля нет) отличается от явного `False`; конфиг со всеми явными `false`
+    больше не включает fallback. Старые установки без флагов получают встроенный allowlist
+    (кроме housing/utilities/transfers/income/taxes + health/education), иначе советы молча
+    не работали бы (ревью wave5, S8).
+    """
+    explicit = [c for c in taxonomy.categories if c.discretionary is not None]
+    if explicit:
+        return {c.name for c in explicit if c.discretionary}
     return {c.name for c in taxonomy.categories} - _DISCRETIONARY_EXCLUDED
 
 
@@ -403,10 +409,12 @@ def goals_snapshot(store: Store, *, today: date | None = None) -> dict:
         g["plan"] = goal_plan(store, g, series, stats, today=ref,
                               taxonomy=taxonomy, recurring_merchants=merchants)
     base = base_currency()
-    floor_month = series[0]["month"] if series else ref.strftime("%Y-%m")
+    # wave5 S2: поток и взносы сравниваются по ОДНОМУ набору месяцев — пригодные полные месяцы окна
+    # (текущий не входит: у него нет полного потока; начало окна больше не теряется)
+    usable_months = {m["month"] for m in series if m["usable"]}
     window_saved = sum(
         a["amount_kopecks"] for g in active if g["currency"] == base
-        for a in g["allocations"] if a["amount_kopecks"] > 0 and str(a["date"])[:7] >= floor_month)
+        for a in g["allocations"] if a["amount_kopecks"] > 0 and str(a["date"])[:7] in usable_months)
     net_window = max(0, sum(m["net_k"] for m in series if m["usable"]))
     portfolio_warning = None
     if window_saved > net_window:

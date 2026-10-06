@@ -71,10 +71,52 @@ def test_allocate_validation_red_fragment(client):
     r = client.post("/api/goals/1/allocate", data={"amount": "0"}, headers={"hx-request": "true"})
     assert r.status_code == 200 and "text-danger" in r.text
     assert "сумма взноса" in r.text  # текст ошибки, не только класс (wave5 S1)
-    assert 'id="goals-list"' in r.text  # список остаётся (ревью wave5, C2)
-    # wave5 S1: неудачный взнос не меняет прогресс (в фрагменте — прежние 30%)
-    assert 'aria-valuenow="30"' in r.text
+    # wave5 S8: список/формы НЕ перерисовываются — черновик, дата и фокус остаются у пользователя
+    assert r.headers.get("hx-reswap") == "none"
+    assert 'id="goals-list"' not in r.text
+    # wave5 S1: неудачный взнос не меняет прогресс
     assert 'aria-valuenow="30"' in client.get("/goals").text
+
+
+def test_goal_forms_disable_buttons_via_form_attribute(client):
+    """S7 (wave5): блокировка кнопки — на ФОРМЕ (find button); hx-sync drop гасит двойной submit."""
+    client.post("/api/goals", json={"title": "Цель", "target": "1000"})
+    page = client.get("/goals").text
+    for endpoint in ('hx-post="/api/goals"', 'hx-post="/api/goals/1/allocate"',
+                     'hx-post="/api/goals/1/archive"'):
+        form = page[page.index(endpoint):]
+        form = form[:form.index(">")]
+        assert 'hx-disabled-elt="find button"' in form, endpoint
+        assert 'hx-sync="this:drop"' in form, endpoint
+    assert 'hx-disabled-elt="this"' not in page  # на кнопках-потомках атрибут не работает
+
+
+def test_allocate_success_publishes_portfolio_oob(tmp_path, monkeypatch):
+    """S9 (wave5): портфельное предупреждение обновляется OOB ответами мутаций (без reload)."""
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "goal-port.db"))
+    s = Store(db_path=tmp_path / "goal-port.db")
+    cur = date.today().strftime("%Y-%m")  # noqa: DTZ011 — локальная дата, как в рендере
+    for k in range(1, 7):  # 6 полных месяцев: поток +60 000 копеек
+        m = shift_month(cur, -k)
+        y, mm = int(m[:4]), int(m[5:7])
+        last = (date(y + (mm == 12), mm % 12 + 1, 1) - timedelta(days=1)).isoformat()
+        s.add_transaction(date=last, description="ДОХОД", amount_kopecks=10_000,
+                          category="income", category_source="rule")
+    s.add_goal("Цель", 5_000_000)
+    prev = shift_month(cur, -1)
+    y, mm = int(prev[:4]), int(prev[5:7])
+    prev_last = (date(y + (mm == 12), mm % 12 + 1, 1) - timedelta(days=1)).isoformat()
+    s.close()
+
+    client = TestClient(app)
+    page = client.get("/goals").text
+    assert 'id="goals-portfolio"' in page and "Взносы за последние" not in page
+
+    r = client.post("/api/goals/1/allocate", data={"amount": "100 000", "date": prev_last},
+                    headers={"hx-request": "true"})
+    assert r.status_code == 200
+    assert 'id="goals-portfolio"' in r.text and 'hx-swap-oob' in r.text
+    assert "Взносы за последние" in r.text  # предупреждение доехало без перезагрузки
 
 
 def test_goals_fractional_amounts(client, tmp_path):

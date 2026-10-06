@@ -6,15 +6,11 @@
     Виртуальный конверт: вы отмечаете, сколько отложено «на цель». Деньги на счёте не блокируются —
     это учёт намерения, приложение только считает прогресс.
   </p>
-  {% if portfolio_warning %}
-  <p class="text-sm text-warn mb-4" role="status">{{ portfolio_warning }}</p>
-  {% endif %}
-  {% if usable_months %}
-  <p class="text-xs text-fg-muted mb-4">Оценка темпа — по {{ usable_months }} полным месяцам (текущий не учитывается).</p>
-  {% endif %}
+  {% include "partials/goals_portfolio.html" %}
   <p id="goals-error" class="text-danger text-sm mb-2" role="alert"></p>
 
   <form hx-post="/api/goals" hx-target="#goals-list" hx-swap="outerHTML"
+        hx-disabled-elt="find button" hx-sync="this:drop"
         class="bg-surface border border-line rounded-2xl p-4 mb-6 grid gap-3 sm:grid-cols-[1fr_11rem_10rem_auto] sm:items-end">
     <label class="block">
       <span class="block text-xs text-fg-muted mb-1">Название</span>
@@ -31,7 +27,7 @@
       <input name="due_month" type="month"
              class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm">
     </label>
-    <button class="rounded-lg bg-accent-bg text-on-accent px-4 py-2 text-sm font-medium" hx-disabled-elt="this">Создать</button>
+    <button class="rounded-lg bg-accent-bg text-on-accent px-4 py-2 text-sm font-medium">Создать</button>
   </form>
 
   {% include "partials/goals_list.html" %}

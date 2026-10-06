@@ -8,15 +8,16 @@ from spendtrack.config import DEFAULTS_DIR, resolve_config_dir
 
 class Category:
     def __init__(self, name: str, color: str, display_name: str | None = None,
-                 icon: str | None = None, discretionary: bool = False):
+                 icon: str | None = None, discretionary: bool | None = None):
         self.name = name
         self.color = color
         self.display_name = display_name or name
         # Иконка: явное поле taxonomy.toml (имя символа спрайта); пусто — фолбэк-цепочка в cat_icons
         self.icon = (icon or "").strip()
-        # Ф2 целей: флаг «дискреционная» — только такие категории попадают в советы what-if
-        # (без флага в TOML — False: советов нет, безопасный дефолт; адъюдикация 03.10)
-        self.discretionary = bool(discretionary)
+        # Ф2 целей: флаг «дискреционная» — только такие категории попадают в советы what-if.
+        # wave5 S1: None (флага нет в TOML) ОТЛИЧАЕТСЯ от явного False — иначе all-false конфиг
+        # включал fallback и снова разрешал советы по запрещённым категориям.
+        self.discretionary = None if discretionary is None else bool(discretionary)
 
 
 class Rule:
@@ -49,7 +50,7 @@ def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
     with open(path, "rb") as f:
         data = tomllib.load(f)
     categories = [Category(c["name"], c.get("color", "#9ca3af"), c.get("display_name"),
-                           c.get("icon"), c.get("discretionary", False))
+                           c.get("icon"), c.get("discretionary", None))
                   for c in data.get("categories", [])]
     rules = [Rule(r["pattern"], r["category"]) for r in data.get("rules", [])]
     return Taxonomy(categories, rules)

@@ -206,3 +206,35 @@ def test_discretionary_fallback_for_old_taxonomy():
     flagged = Taxonomy([Category("groceries", "#000", discretionary=True),
                         Category("housing", "#000", discretionary=False)], [])
     assert G.discretionary_names(flagged) == {"groceries"}
+
+
+def test_discretionary_flags_distinguish_absent_from_false():
+    """S1 (wave5): явные all-false НЕ включают fallback; legacy-дефолт не советует health/education."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    all_false = Taxonomy([Category("groceries", "#000", discretionary=False),
+                          Category("health", "#000", discretionary=False)], [])
+    assert G.discretionary_names(all_false) == set()  # советы выключены явно (не «нет флагов»)
+
+    old = Taxonomy([Category("groceries", "#000"), Category("health", "#000"),
+                    Category("education", "#000"), Category("housing", "#000"),
+                    Category("restaurants", "#000")], [])
+    assert G.discretionary_names(old) == {"groceries", "restaurants"}  # здоровье/учёба не режем
+
+
+def test_portfolio_warning_uses_same_usable_months(store):
+    """S2 (wave5): взносы сравниваются с потоком по ОДНОМУ набору месяцев — начало окна не теряется."""
+    _seed_full_months(store)  # апрель–сентябрь, поток +1.2M
+    gid = store.add_goal("Цель", 5_000_000)
+    store.add_allocation(gid, "2026-08-15", 1_300_000)  # август: раньше молча пропускался
+    snap = G.goals_snapshot(store, today=TODAY)
+    assert snap["portfolio_warning"] and "Взносы" in snap["portfolio_warning"]
+
+
+def test_portfolio_warning_excludes_current_month(store):
+    """S2: взнос текущего месяца (окно неполное) не считается против полного потока."""
+    _seed_full_months(store)  # поток по полным месяцам = 1.2M
+    gid = store.add_goal("Цель", 5_000_000)
+    store.add_allocation(gid, "2026-10-01", 2_000_000)  # текущий месяц
+    snap = G.goals_snapshot(store, today=TODAY)
+    assert snap["portfolio_warning"] is None
