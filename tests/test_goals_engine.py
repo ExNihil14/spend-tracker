@@ -211,6 +211,30 @@ def test_category_avgs_no_base_without_usable_months(store):
     assert G.category_monthly_avgs(store, today=TODAY, discretionary={"travel"}, usable_months=set()) == []
 
 
+def test_no_deadline_negative_flow_scope(store):
+    """wave6_ui blind spot: область `flow_deficit` — при NO_DEADLINE советного предупреждения нет
+    (советов тоже нет), но прямой сигнал `nonpositive_capacity` обязан быть: фиксируем поведение."""
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    for day in ("2026-04-30", "2026-05-31", "2026-06-30", "2026-07-31", "2026-08-31", "2026-09-30"):
+        _add(store, day, 1_000_000, category="income")
+        _add(store, day, -1_200_000, category="groceries")  # поток отрицательный каждый месяц
+    gid = store.add_goal("Цель без срока", 500_000)  # due_month не задан → NO_DEADLINE
+    store.add_allocation(gid, "2026-09-10", 100_000)
+    series = G.monthly_net_series(store, today=TODAY)
+    stats = G.robust_stats(series)
+    tax = Taxonomy([Category("groceries", "#000", discretionary=True),
+                    Category("income", "#000", discretionary=False)], [])
+    plan = G.goal_plan(store, store.list_goals()[0], series, stats, today=TODAY,
+                       taxonomy=tax, recurring_merchants=set())
+    codes = {w["code"] for w in plan["warnings"]}
+    assert plan["status"] == "NO_DEADLINE"
+    assert plan["required_k"] is None       # без срока обязательного взноса нет
+    assert plan["advice"] == []             # советы не строятся вне BEHIND/AT_RISK
+    assert "nonpositive_capacity" in codes  # прямой сигнал о потоке есть и для NO_DEADLINE
+    assert "flow_deficit" not in codes      # советный flow_deficit — только в ветке советов
+
+
 def test_what_if_uses_flow_capacity():
     """S6 (wave5): дефицит совета учитывает и поток (capacity): при отрицательном — сокращение больше."""
     avgs = [{"category": "groceries", "avg_k": 1_000_000}]

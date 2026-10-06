@@ -44,8 +44,9 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > `what_if` менялась); прод 8766 и демо 8799 перезапущены 200/200.
 > **Очередь фиксов: Волны 4/4b/5 — ВЫПОЛНЕНЫ 06.10** (guard fail-closed 9/9, check-channels
 > герметичный 6/6, go-usage 12/12, opencode-web бюджет, verify единый архив + MCP fail-closed;
-> anon отказ/hyperlink/hardlink, docker-smoke SQL-sentinel). Код-долг окна закрыт; бэклог:
-> NO_DEADLINE-тест `flow_deficit`, DB-тест маркера с `--copy-to`, недельная сверка «Use balance».
+> anon отказ/hyperlink/hardlink, docker-smoke SQL-sentinel). **Бэклог окна закрыт**: NO_DEADLINE-тест
+> `flow_deficit` (937 unit), ротации DB-бэкапа перенесены после маркера (тест `--copy-to`; старые
+> локальный+внешний снимки целы при отказе маркера). Остаётся внешний: недельная сверка «Use balance».
 > **📦 ВОЛНА 3c wave5 (UUID правил) — сделана 06.10 (TDD, в дереве, ждёт коммита).** У правил
 > taxonomy.toml — устойчивый `id` (8 hex; назначается при первой записи, существующие не трогаются,
 > дубли/пустые перегенерируются); формы правил (`move` ↑/↓, `delete`) шлют `rule_id`; `delete_rule`/
