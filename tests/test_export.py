@@ -14,6 +14,7 @@ from spendtrack.export import (
     csv_bytes,
     export_filename,
     export_row,
+    export_values,
     plain_amount,
     write_xlsx,
 )
@@ -72,6 +73,20 @@ def test_export_row_handles_missing_fields():
     row = export_row({"date": "2026-01-01", "description": "X", "amount_kopecks": 100,
                       "category": "other"})
     assert row == ("2026-01-01", "X", "1.00", "RUB", "other", "", "", "", "", "", "")
+
+
+def test_export_legacy_empty_currency_stays_rub(monkeypatch):
+    """wave5 №1: пустая/NULL-валюта СОХРАНЁННОЙ строки — исторический RUB, а не текущая база.
+
+    Под BYN такая строка исключается из BYN-итогов как рублёвая — экспорт без конвертации
+    обязан вернуть «RUB» (иначе — неверный финансовый документ и ложная валюта при реимпорте).
+    """
+    monkeypatch.setenv("SPENDTRACK_BASE_CURRENCY", "BYN")
+    tx = {"date": "2026-09-01", "description": "ЛЕНТА", "amount_kopecks": -100, "currency": "",
+          "category": "groceries", "category_source": "rule", "confidence": 1.0}
+    assert export_values(tx)[3] == "RUB"
+    assert export_values({**tx, "currency": None})[3] == "RUB"
+    assert export_values({**tx, "currency": "BYN"})[3] == "BYN"  # явная валюта не переобозначается
 
 
 def test_formula_injection_is_neutralized():

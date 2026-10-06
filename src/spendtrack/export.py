@@ -12,8 +12,6 @@ from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
-from spendtrack.config import base_currency
-
 CSV_HEADERS = ("Дата", "Описание", "Сумма", "Валюта", "Категория", "Источник", "Уверенность",
                "Мерчант", "Счёт", "Статус", "Предложение LLM")
 
@@ -46,12 +44,16 @@ def _safe_text(value: str) -> str:
 
 
 def export_values(tx: dict) -> tuple:
-    """Строка с нативными типами (для XLSX): date, float, защищённые строки."""
+    """Строка с нативными типами (для XLSX): date, float, защищённые строки.
+
+    wave5 №1: пустая/NULL-валюта СОХРАНЁННОЙ строки — исторический RUB (как в предикатах отчётов),
+    а не текущая base_currency(): иначе под BYN рублёвая операция уезжала в документ как «BYN».
+    """
     return (
         date.fromisoformat(tx["date"]),
         _safe_text(tx["description"]),
         tx["amount_kopecks"] / 100,
-        _safe_text(tx.get("currency") or base_currency()),
+        _safe_text(tx.get("currency") or "RUB"),
         _safe_text(tx.get("category") or ""),
         _safe_text(tx.get("category_source") or ""),
         float(tx.get("confidence") or 0.0),
