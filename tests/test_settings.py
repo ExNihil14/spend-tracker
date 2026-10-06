@@ -552,6 +552,55 @@ def test_rule_unknown_id_refused(tax_env):
         repo.delete_rule(0, repo.file_hash(), rule_id="deadbeef")
 
 
+def test_rule_duplicate_ids_rejected(tax_env):
+    """Окно 06.10 (wave6_ui should): дубли id — явная ошибка до адресации/записи, файл не меняется."""
+    repo.add_rule("ПЕРВОЕ", "other", repo.file_hash())
+    repo.add_rule("ВТОРОЕ", "cafe", repo.file_hash())
+    rules = repo.load_raw()["rules"]
+    first_id, second_id = rules[0]["id"], rules[1]["id"]
+    raw = tax_env.read_text(encoding="utf-8")
+    tax_env.write_text(raw.replace(f'id = "{first_id}"', f'id = "{second_id}"', 1), encoding="utf-8")
+    before = tax_env.read_text(encoding="utf-8")
+    with pytest.raises(repo.TaxonomyError):
+        repo.delete_rule(1, repo.file_hash(), rule_id=second_id)  # id неоднозначен
+    with pytest.raises(repo.TaxonomyError):
+        repo.add_rule("ТРЕТЬЕ", "other", repo.file_hash())  # мутация с дублями отвергается
+    assert tax_env.read_text(encoding="utf-8") == before  # файл побайтово не тронут
+
+
+def test_rule_id_generation_reserves_existing(tax_env, monkeypatch):
+    """Окно 06.10 (optional): генератор не «крадёт» id у следующего правила и не усекает UUID."""
+    import uuid as _uuid
+
+    import spendtrack.taxonomy_repo as tr
+
+    repo.add_rule("С ID", "other", repo.file_hash())
+    keep_id = repo.load_raw()["rules"][-1]["id"]
+    colliding = _uuid.UUID(keep_id + "0" * (32 - len(keep_id)))
+    seq = iter([colliding, _uuid.UUID("f" * 32)])
+    monkeypatch.setattr(tr.uuid, "uuid4", lambda: next(seq))
+    rules = [dict(r) for r in repo.load_raw()["rules"]]
+    rules.append({"pattern": "БЕЗ ID", "category": "other"})  # отсутствующий id
+    tr._ensure_rule_ids(rules)
+    assert all(r["id"] for r in rules)
+    assert rules[-2]["id"] == keep_id  # существующий не переназначен
+    assert rules[-1]["id"] == "f" * 32  # коллизия с существующим обойдена
+    assert len({r["id"] for r in rules}) == len(rules)
+
+
+def test_discretionary_flags_survive_taxonomy_mutation(tax_env):
+    """Окно 06.10 (wave6_ui blind spot): флаги discretionary (None/False/True) не теряются при записи UI."""
+    from spendtrack.taxonomy import load_taxonomy
+
+    tax_env.write_text(
+        '[[categories]]\nname = "other"\ncolor = "#9ca3af"\n\n'
+        '[[categories]]\nname = "cafe"\ncolor = "#112233"\ndiscretionary = false\n\n'
+        '[[rules]]\npattern = "ЛЕНТА"\ncategory = "other"\n', encoding="utf-8")
+    repo.add_rule("НОВОЕ ПРАВИЛО", "other", repo.file_hash())  # мутация перезаписывает файл
+    tax = load_taxonomy(config_dir=tax_env.parent)
+    assert {c.name: c.discretionary for c in tax.categories} == {"other": None, "cafe": False}
+
+
 def test_settings_rule_forms_carry_stable_id(tax_env):
     """UI: формы правил несут hidden rule_id (устойчивая адресация при перестановках)."""
     repo.add_rule("ПРАВИЛО 2", "other", repo.file_hash())

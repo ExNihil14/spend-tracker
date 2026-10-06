@@ -118,6 +118,10 @@ def _dump(data: dict) -> str:
             lines.append(f'display_name = "{c["display_name"]}"')
         if c.get("icon"):
             lines.append(f'icon = "{c["icon"]}"')
+        if c.get("discretionary") is not None:
+            # 06.10 (wave6_ui blind spot): флаг «дискреционная» — часть словаря целей; None (флага нет)
+            # ОТЛИЧАЕТСЯ от явного false и обязан переживать UI-мутации (был тихий сброс флагов).
+            lines.append(f'discretionary = {"true" if c["discretionary"] else "false"}')
         lines += [f'color = "{c["color"]}"', ""]
     for r in data.get("rules", []):
         lines.append("[[rules]]")
@@ -128,31 +132,42 @@ def _dump(data: dict) -> str:
 
 
 def _ensure_rule_ids(rules: list[dict]) -> None:
-    """wave5: каждому правилу — стабильный id (генерируется один раз при первой записи).
+    """wave5/06.10: каждому правилу — стабильный id (назначается один раз при первой записи).
 
-    Дубли/пустые id (ручная правка файла) перегенерируются; существующие не трогаем.
+    Окно 06.10 (wave6_ui): ① дубли непустых id НЕ «ремонтируем» молча — мутация отвергается явной
+    ошибкой (иначе адресация по id неоднозначна и можно удалить не то правило); ② отсутствующим id
+    выдаём ПОЛНЫЙ uuid4().hex, резервируя ВСЕ существующие id (генерация не может «украсть» id
+    у следующего правила).
     """
     seen: set[str] = set()
     for r in rules:
         rid = r.get("id")
-        if not isinstance(rid, str) or not rid or rid in seen:
-            rid = uuid.uuid4().hex[:8]
+        if isinstance(rid, str) and rid:
+            if rid in seen:
+                raise TaxonomyError(
+                    f"дублирующийся id правила ({rid!r}) — исправьте taxonomy.toml вручную: "
+                    "адресация по id была бы неоднозначной")
+            seen.add(rid)
+    for r in rules:
+        if not isinstance(r.get("id"), str) or not r["id"]:
+            rid = uuid.uuid4().hex
             while rid in seen:
-                rid = uuid.uuid4().hex[:8]
+                rid = uuid.uuid4().hex
             r["id"] = rid
-        seen.add(rid)
+            seen.add(rid)
 
 
 def _rule_index(rules: list[dict], index: int, rule_id: str | None) -> int:
     """Индекс правила: приоритет — устойчивый id; иначе index (legacy-файлы без id).
 
-    Неизвестный id — явный конфликт (правило удалено/подменено), а не «применили к чужому».
+    Неизвестный id — явный конфликт; НЕОДНОЗНАЧНЫЙ id (дубли в файле) — тоже отказ до адресации.
     """
     if rule_id:
-        for i, r in enumerate(rules):
-            if r.get("id") == rule_id:
-                return i
-        raise TaxonomyError("правило не найдено по идентификатору — обновите страницу и повторите")
+        hits = [i for i, r in enumerate(rules) if r.get("id") == rule_id]
+        if len(hits) != 1:
+            raise TaxonomyError("правило не найдено по идентификатору (или id неоднозначен) — "
+                                "обновите страницу и повторите")
+        return hits[0]
     if not 0 <= index < len(rules):
         raise TaxonomyError("правило не найдено (список изменился — обновите страницу)")
     return index
