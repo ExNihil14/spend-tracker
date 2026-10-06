@@ -93,10 +93,22 @@
     <summary class="text-sm text-fg-muted cursor-pointer">Архив ({{ archived|length }})</summary>
     <ul class="mt-2 text-sm grid gap-2">
       {% for g in archived %}
-      <li class="flex justify-between gap-3 flex-wrap">
-        <span class="text-fg-muted">{{ g.title }}</span>
-        <span class="text-xs text-fg-muted">{{ fmt_money(g.allocated_kopecks, g.currency, signed=False) }} из
-          {{ fmt_money(g.target_kopecks, g.currency, signed=False) }}</span>
+      <li class="grid gap-1">
+        <div class="flex justify-between gap-3 flex-wrap">
+          <span class="text-fg-muted">{{ g.title }}</span>
+          <span class="text-xs text-fg-muted">{{ fmt_money(g.allocated_kopecks, g.currency, signed=False) }} из
+            {{ fmt_money(g.target_kopecks, g.currency, signed=False) }}</span>
+        </div>
+        {% if g.allocations %}
+        <details>
+          <summary class="text-xs text-fg-muted cursor-pointer">Журнал взносов ({{ g.allocations|length }})</summary>
+          <ul class="mt-1 text-xs text-fg-muted grid gap-1">
+            {% for a in g.allocations|reverse %}
+            <li>{{ fmt_date(a.date) }} — <span class="text-fg">{{ fmt_money(a.amount_kopecks, g.currency) }}</span></li>
+            {% endfor %}
+          </ul>
+        </details>
+        {% endif %}
       </li>
       {% endfor %}
     </ul>

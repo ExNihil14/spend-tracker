@@ -157,6 +157,22 @@ def test_archive_hides_active_forms(client):
     assert "/api/goals/1/allocate" not in page  # но формы взноса у неё больше нет
 
 
+def test_archived_goal_keeps_journal_in_ui(client):
+    """O1 (wave5): архивная карточка показывает read-only журнал взносов (даты/суммы/изъятия)."""
+    client.post("/api/goals", json={"title": "Старая", "target": "1000"})
+    client.post("/api/goals/1/allocate", data={"amount": "300", "date": "2026-09-10"},
+                headers={"hx-request": "true"})
+    client.post("/api/goals/1/allocate", data={"amount": "-100", "date": "2026-09-11"},
+                headers={"hx-request": "true"})
+    client.post("/api/goals/1/archive", headers={"hx-request": "true"})
+
+    page = client.get("/goals").text
+    assert "Архив (1)" in page
+    assert "Журнал взносов (2)" in page       # история доступна и после архивации
+    assert "10.09" in page and "11.09" in page
+    assert "300,00" in page and "−100,00" in page  # «−» — fmt_money подписанных сумм
+
+
 def test_advice_renders_on_page_and_fragment(tmp_path, monkeypatch):
     """Ревью wave5 (C1): цель с непустыми советами рендерится без 500 (`v.items` — коллизия Jinja).
 

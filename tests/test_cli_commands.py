@@ -67,6 +67,18 @@ def test_cli_goal_bad_amount_no_traceback(cli_db, capsys):
     assert "ошибка" in capsys.readouterr().err
 
 
+def test_cli_goal_all_json_keeps_journal(cli_db, capsys):
+    """O1 (wave5): `goal list --all --json` сохраняет журнал взносов — архив не теряет историю."""
+    assert cli.main(["goal", "add", "Отпуск", "--target", "100 000"]) == 0
+    assert cli.main(["goal", "allocate", "1", "25 000"]) == 0
+    assert cli.main(["goal", "allocate", "1", "-5000"]) == 0
+    assert cli.main(["goal", "archive", "1"]) == 0
+    capsys.readouterr()
+    assert cli.main(["goal", "list", "--all", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert [a["amount_kopecks"] for a in payload[0]["allocations"]] == [2_500_000, -500_000]
+
+
 def test_cli_digest_prints_goals_line(cli_db, capsys):
     """Ф2: дайджест показывает строку целей со статусом движка."""
     s = Store(db_path=cli_db)

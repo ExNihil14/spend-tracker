@@ -172,8 +172,8 @@ def cmd_goal(args) -> int:
         snap = goals_snapshot(store)
         rows = snap["goals"] + (snap["archived"] if args.all else [])
         if args.json:
-            print(json.dumps([{k: v for k, v in g.items() if k != "allocations"} for g in rows],
-                             ensure_ascii=False, indent=2))
+            # O1 (wave5): журнал взносов НЕ вырезаем — архив не должен терять историю (даты/изъятия)
+            print(json.dumps(rows, ensure_ascii=False, indent=2))
             return 0
         if not rows:
             print('Целей нет. Создать: spendtrack goal add "Отпуск" --target 150000')
