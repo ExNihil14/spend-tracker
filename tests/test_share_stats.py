@@ -83,6 +83,27 @@ def test_summary_broken_db_declared_unavailable(tmp_path, monkeypatch):
     assert usage["db"] == "unavailable" and "tx_total" not in usage
 
 
+def test_summary_does_not_substitute_default_db(tmp_path, monkeypatch):
+    """wave5 optional: путь БД не разрешился → DB-показатели «недоступно», а не чужой дефолтный файл."""
+    _isolate_llm(monkeypatch)
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    _secret_db(data_dir / "spend.db")  # «старая БД чужой установки» по дефолтному пути
+    monkeypatch.setenv("SPENDTRACK_DATA_DIR", str(data_dir))
+    monkeypatch.delenv("SPENDTRACK_DB_PATH", raising=False)
+
+    def _boom(*_a, **_k):
+        raise ValueError("битый settings")
+
+    monkeypatch.setattr("spendtrack.doctor.resolve_db_path", _boom)
+    usage = build_usage_summary()
+    assert usage["db"] == "unavailable"
+    assert "tx_total" not in usage  # чужой файл не подменяет диагностируемую БД
+
+    usage_explicit = build_usage_summary(data_dir / "spend.db")  # явный путь продолжает работать
+    assert usage_explicit["tx_total"] == 2
+
+
 def test_issue_url_prefilled():
     url = usage_issue_url({"version": "0.1.0", "tx_total": 3})
     assert url.startswith("https://github.com/ExNihil14/spend-tracker/issues/new?")

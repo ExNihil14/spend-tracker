@@ -24,7 +24,6 @@ from spendtrack.config import (
     base_currency,
     load_settings,
     repo_mode,
-    resolve_data_dir,
     resolve_db_path,
 )
 from spendtrack.store import SCHEMA_VERSION, Store
@@ -483,9 +482,9 @@ def build_usage_summary(db_path: Path | str | None = None) -> dict[str, Any]:
     else:
         try:
             path = resolve_db_path()
-        except Exception:  # noqa: BLE001 — диагноз не должен падать из-за конфига
-            path = resolve_data_dir() / "spend.db"
-    backup_dir = path.parent / "backup"
+        except Exception:  # noqa: BLE001 — wave5 optional: диагноз не должен падать из-за конфига
+            path = None  # честное «недоступно» вместо чтения произвольной дефолтной БД чужой установки
+    backup_dir = path.parent / "backup" if path is not None else None
     out: dict[str, Any] = {
         "version": __version__,
         "schema_version": SCHEMA_VERSION,
@@ -493,9 +492,13 @@ def build_usage_summary(db_path: Path | str | None = None) -> dict[str, Any]:
         "os": _os_name(),
         "mode": "repo" if repo_mode() else "installed",
         "llm_mode": "off",
-        "backup_local": any(backup_dir.glob("spend-*.db")),
-        "backup_offsite": (backup_dir / "last_offsite_copy.json").exists(),
+        "backup_local": any(backup_dir.glob("spend-*.db")) if backup_dir is not None else None,
+        "backup_offsite": ((backup_dir / "last_offsite_copy.json").exists()
+                           if backup_dir is not None else None),
     }
+    if path is None:
+        out["db"] = "unavailable"
+        return out
     from spendtrack.llm import llm_status
 
     out["llm_mode"] = "unknown"
