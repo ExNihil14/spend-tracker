@@ -51,10 +51,10 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > на volume). **Локальное доказательство:** `%TEMP%\opencode\docker_smoke.ps1` — build+run+recreate →
 > `SMOKE OK` (Docker Desktop 29.8.0; контейнер/образ после прогона удалены).
 > Остаток Волны 3: goals S3–S6 (дизайн-обсуждение — **проект решения:
-> `D:\dev\docs\machine\EXPERT_GOALS_S3_S6_DESIGN_2026-10-06.md`, ждёт выбора A/B**; единая временная
-> модель/чистый темп/what-if с потоком), UUID правил, ops_bak cadence testzip (отложено ревьюером),
-> PR #6 (setup-uv 5→10 — совместим с нашим `enable-cache: true`; красные чеки — устаревший прогон
-> 29.09, нужен `@dependabot rebase`), Habr-дайджест, `-Sfib`.
+> `D:\dev\docs\machine\EXPERT_GOALS_S3_S6_DESIGN_2026-10-06.md`; **вариант A реализован в Wave 3b**;
+> единая временная модель/чистый темп/what-if с потоком), UUID правил, ops_bak cadence testzip
+> (отложено ревьюером), PR #6 (setup-uv 5→10: **rebase выполнен, CI зелёный** — все 5 джобов,
+> включая усиленный docker-smoke; ждёт merge по команде), Habr-дайджест, `-Sfib`.
 > **Контур: 914 unit + 100 e2e** + ruff + contract ok (дрейфа нет) + ratchet + cc + build_css — зелёные;
 > live: прод 8766 и демо 8799 перезапущены.
 > **📦 ВОЛНА 2 wave5 — СДЕЛАНА и ЗАКОММИЧЕНА 06.10** (`c6c782d`, `610e384`, `70cab60`, `6de9428`,
