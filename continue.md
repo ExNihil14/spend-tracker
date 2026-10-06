@@ -27,6 +27,31 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **📦 ВОЛНА 1 wave5 (Astra ночь 06.10) — СДЕЛАНА 06.10 (TDD, в дереве, ждёт коммита).**
+> `anonymize`: C3 (guard «выход≠источник» и для авто-имени — симлинк-тест), C1 (оценка кандидатов
+> шапки + отказ при ничьей), C2 (непустой лист без шапки → отказ; одноколоночные с известной шапкой),
+> should-4/5 (комментарии/гиперссылки со всех ячеек; свойства книги — новый `DocumentProperties`),
+> 6-lite (формула → отказ). `settings` C1: бюджеты/ошибки НЕ публикуют `#tax-hash`; конфликт не
+> выдаёт новый токен; e2e бюджета переписан (токен меняет только taxonomy-мутация). `core`: №1
+> (export пустой/NULL-валюты сохранённой строки → «RUB»), №3 (лимит взносов `MAX_AMOUNT_KOPECKS` +
+> CHECK, **schema v8** + миграция пересборкой; строки сверх лимита → явный отказ), №4 (SQLITE_BUSY/
+> LOCKED → 503; прочие `OperationalError` → 500+трейсбек), №6 (`_DATE_RE` fullmatch + ASCII).
+> `core_ops` (1b): lazy-бэкап без своей ротации; re-check свежести под lock; `isfinite` +
+> отсев future-mtime; doctor-сводка «недоступно» вместо чужой БД. Bootstrap 1c (`ops_bak`):
+> раздельная ротация полных/неполных; устойчивый `serena_lost` (`serena_expected`, rc=2,
+> `.incomplete`, `--forget-serena`); ошибка маркера → rc≠0 и ротация после публикации; атомарный
+> DB-маркер (`.part`→`replace`). **Контур: 903 unit + 98 e2e** + ruff + contract ok (осознанный
+> snapshot: `SCHEMA_VERSION 8`; schema=76 / api=386 / routes=38) + ratchet + cc + build_css —
+> зелёные; bootstrap-тесты `backup_*` — ALL PASS. **Live:** прод NSSM 8766 и демо 8799
+> перезапущены (обе БД на v8, `/health/data` ok, demo.db подтверждён), CLI `anonymize` на temp.
+> **Ревью $0** (nemotron-3.5-lightning:free): NO-GO → **5×P0 отклонены фактами** — разбор в
+> `D:\dev\docs\machine\agentrouter_review\2026-09-27\ADJUDICATION_WAVE5_2026-10-04.md` §«Волна 1»
+> (артефакт `D:\dev\docs\machine\EXPERT_REVIEW_WAVE5_1_OR.md`). Коммит/push — по команде юзера.
+> **Остаток:** Волна 2 — goals S1–S9 (S3/S4/S5/S6 — дизайн-обсуждение), anon-7, core №5
+> (атомарный кэш валюты + снимок базы на операцию), ops_bak 5–8 (возраст артефакта в verify,
+> missing-ветка, MCP-политика, `Get-FileHash`), ui_srv optional (двухвкладочный e2e); Волна 3 —
+> core №7 (docker-smoke), goals O1 (журнал архива), UUID правил. Окно 11:00 UTC 06.10 (14:00 local):
+> pending 2 (`site_ui`, `ops_srv`), watcher'ы армлены.
 > **АКТУАЛЬНО (03.10, вечер — копилки Ф0 в дереве, ждёт коммита).** Schema **v7**: `goals` + append-only
 > `goal_allocations` (STRICT+CHECK, FK RESTRICT; миграция аддитивная, v6-БД апгрейдится при старте) +
 > Store CRUD (`add_goal`/`list_goals`/`archive_goal`/`add_allocation`/`list_allocations`/`goal_progress`) +
@@ -161,6 +186,24 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
 > (9 файлов spend + bootstrap `agentrouter_chat.py`/`start-detached.ps1`), push `b224358`/`f3871fc`,
 > site_ui решение (Astra: скип/в конец), канонизация `continue.md` (WARN аудита), выписка Приорбанка.
 > Следующее окно — **02:00 UTC 06.10** (05:00 local); стартер обновлён (`SESSION_START_PROMPT.md`, 05.10 вечер).
+> **Ночь 06.10 (окно 02:00 UTC) — итог + адъюдикация:** Astra отдала **6 из 8** частей (site_ui_srv,
+> site_core, site_core_ops, site_goals, site_anon, ops_bak; exit=0, 3.8–6.7 мин каждый). `site_ui` —
+> sensitive_words **4/4** (per-run skip); `ops_srv` — пул закрылся в 03:18 UTC → **v8.4.4-сон без запросов**
+> отработал; канарейка (403/405) и WAF-backoff тоже подтверждены живьём. Pending — **2** (`site_ui`, `ops_srv`).
+> **Адъюдикация: 6×NO-GO** (статическое кросс-семейное ревью; critical структурно подтверждены):
+> ① `site_ui_srv` — протокол `#tax-hash` (бюджетные/ошибочные ответы публикуют свежий хэш при устаревшем DOM →
+> удаление «не того» правила в двух вкладках); ② `site_anon` — 3 critical (шапка по титульной строке; непустой
+> лист без шапки сохраняется; **регрессия** — guard «выход≠источник» потерян для автоимени → симлинк
+> перезаписывает исходник); ③ `ops_bak` — 2 critical (ротация считает `.incomplete` и может снести полные
+> копии; `serena_lost` забывается после прогона); ④ `site_core` — export исторических строк в текущей базе;
+> нет лимита суммы у взносов (overflow → ложный 503); `OperationalError` целиком → 503; ⑤ `site_core_ops` —
+> lazy-бэкап (чужая ротация / TOCTOU / future-mtime / inf-nan); ⑥ `site_goals` — 9 should (движок времени,
+> портфель, what-if, формы). Полный разбор + план волн — `ADJUDICATION_WAVE5_2026-10-04.md` (§Astra ночь 06.10).
+> **Дальше — Волна 1 (TDD red→fix):** anon C1/C2/C3 + should 4/5/6-lite; ui_srv C1 (протокол + e2e);
+> core №1/№3/№4/№6; core_ops 1–3 + optional; ops_bak critical 1/2 + should 3/4. Watcher'ы переармлены на
+> 11:00 UTC (14:00 local; `watch_window.ps1` v2 — сам целится в следующее окно; `watch_window_events.ps1`).
+> Открыто: push (spend **ahead 5**, bootstrap **ahead 1**), site_ui-skip, Abacus A/B/C, канонизация continue.md.
+> Стартер обновлён (`SESSION_START_PROMPT.md`, 06.10 — волна 1).
 > **Анализ DeepSeek Harness (04.10):** `D:\dev\docs\machine\ANALYSIS_DEEPSEEK_HARNESS_2026-10-04.md` — вывод:
 > как замена opencode не нужен; точечно — проба на локальной Ollama (30 мин, нулевой бюджет, изолированный
 > workspace) для GUI/XLSX-кейсов; идеи (GitHub-review-сессии, reminders, плагины) — в бэклог. НЕ внедряем сейчас.
