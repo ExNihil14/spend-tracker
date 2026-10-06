@@ -446,3 +446,151 @@ def test_dst_equal_src_rejected(tmp_path, capsys):
     assert run_anonymize(src, src) == 1
     assert "совпадают" in capsys.readouterr().err
     assert src.read_text(encoding="utf-8") == CSV
+
+
+# ── wave5 (Astra ночь 06.10): C1/C2/C3, should 4/5, 6-lite ──────────────────────
+
+def test_run_anonymize_symlink_autoname_refused(tmp_path, capsys):
+    """C3 (регрессия): guard «выход≠источник» действует и для АВТО-имени — симлинк не перезаписывает исходник."""
+    import os
+
+    src = tmp_path / "v.csv"
+    src.write_text(CSV, encoding="utf-8")
+    link = tmp_path / "v.anon.csv"
+    try:
+        os.symlink(src, link)
+    except (OSError, NotImplementedError):
+        pytest.skip("симлинки недоступны в этой среде")
+    assert run_anonymize(src) == 1
+    assert "совпадают" in capsys.readouterr().err
+    assert src.read_text(encoding="utf-8") == CSV  # исходник побайтово цел
+
+
+def test_xlsx_header_field_value_row_not_mistaken_for_header():
+    """C1: титульная пара «Номер карты | значение» не выигрывает у настоящей шапки ниже (оценка кандидатов)."""
+    from openpyxl import Workbook, load_workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Номер карты", "411111111111"])
+    ws.append(["Номер документа", "Описание", "Сумма операции"])
+    ws.append(["777", "Иван Иванов", -100])
+    buf = BytesIO()
+    wb.save(buf)
+    out, report = anonymize_xlsx(buf.getvalue(), max_rows=0)
+    ws2 = load_workbook(BytesIO(out)).active
+    assert ws2.cell(2, 2).value == "Описание"           # выбрана настоящая шапка
+    assert ws2.cell(3, 2).value == "ОПЕРАЦИЯ_0001"      # описание обезличено
+    assert report["outside_rows"] == 1                  # титул — предупреждение, а не «шапка»
+
+
+def test_xlsx_ambiguous_header_refused(tmp_path, capsys):
+    """C1: два равноценных кандидата шапки → понятный отказ до записи, а не «первый выиграл»."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Описание"])
+    ws.append(["ЛЕНТА"])
+    ws.append([None])
+    ws.append(["Описание"])
+    ws.append(["МАГНИТ"])
+    buf = BytesIO()
+    wb.save(buf)
+    src = tmp_path / "v.xlsx"
+    src.write_bytes(buf.getvalue())
+    assert run_anonymize(src, max_rows=0) == 1
+    assert "однозначно" in capsys.readouterr().err
+    assert not (tmp_path / "v.anon.xlsx").exists()
+
+
+def test_xlsx_nonempty_sheet_without_header_refused(tmp_path, capsys):
+    """C2: непустой лист без найденной шапки — отказ до записи (раньше лист сохранялся целиком молча)."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws1 = wb.active
+    ws1.append(["Описание", "Сумма"])
+    ws1.append(["ЛЕНТА", -100])
+    ws2 = wb.create_sheet("Памятка")
+    ws2.append(["Иванов Иван"])
+    ws2.append(["Пётр Петров"])
+    buf = BytesIO()
+    wb.save(buf)
+    src = tmp_path / "v.xlsx"
+    src.write_bytes(buf.getvalue())
+    assert run_anonymize(src, max_rows=0) == 1
+    err = capsys.readouterr().err
+    assert "Памятка" in err and "шапк" in err
+    assert not (tmp_path / "v.anon.xlsx").exists()
+
+
+def test_xlsx_single_column_known_header_processed():
+    """C2: одноколоночная таблица с известным заголовком обезличивается (раньше пропускалась из-за ≥2 ячеек)."""
+    from openpyxl import load_workbook
+
+    raw = _xlsx_bytes([["Иванов Иван"], ["Петров Пётр"]], ["Описание"])
+    out, report = anonymize_xlsx(raw, max_rows=0)
+    ws = load_workbook(BytesIO(out)).active
+    assert ws.cell(2, 1).value == "ОПЕРАЦИЯ_0001"
+    assert ws.cell(3, 1).value == "ОПЕРАЦИЯ_0002"
+    assert report["rows_written"] == 2
+
+
+def test_xlsx_comments_and_hyperlinks_removed():
+    """should-4: комментарии/гиперссылки (в т.ч. у пустых ячеек) — PII-канал, снимаем со всех ячеек."""
+    from openpyxl import Workbook, load_workbook
+    from openpyxl.comments import Comment
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Описание", "Сумма"])
+    ws.append(["Иван Иванов", -1])
+    ws["A2"].hyperlink = "mailto:ivan@example.org"
+    ws["A2"].comment = Comment("паспорт 1234", "Иван")
+    ws["B3"].comment = Comment("заметка", "автор")
+    ws["B3"].hyperlink = "http://example.org/secret"
+    buf = BytesIO()
+    wb.save(buf)
+    out, _report = anonymize_xlsx(buf.getvalue(), max_rows=0)
+    ws2 = load_workbook(BytesIO(out)).active
+    assert ws2["A2"].hyperlink is None and ws2["A2"].comment is None
+    assert ws2["B3"].comment is None and ws2["B3"].hyperlink is None
+
+
+def test_xlsx_core_properties_allowlist():
+    """should-5: subject/identifier (и прочие core properties) не выживают — новый безопасный набор."""
+    from openpyxl import Workbook, load_workbook
+
+    wb = Workbook()
+    wb.properties.subject = "Выписка Иванова"
+    wb.properties.identifier = "40817810000000000001"
+    wb.properties.keywords = "личное"
+    ws = wb.active
+    ws.append(["Описание"])
+    ws.append(["ЛЕНТА"])
+    buf = BytesIO()
+    wb.save(buf)
+    out, _report = anonymize_xlsx(buf.getvalue(), max_rows=0)
+    props = load_workbook(BytesIO(out)).properties
+    assert not props.subject and not props.identifier and not props.keywords
+    assert not props.creator
+
+
+def test_xlsx_formula_refused(tmp_path, capsys):
+    """6-lite: формулы в сохраняемой таблице (PII внутри формулы/битые суммы) — понятный отказ."""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.append(["Описание", "Сумма"])
+    ws.append(["Иван Иванов", '=IF(A2="Иван Иванов",100,0)'])
+    buf = BytesIO()
+    wb.save(buf)
+    src = tmp_path / "v.xlsx"
+    src.write_bytes(buf.getvalue())
+    with pytest.raises(ValueError, match="формул"):
+        anonymize_xlsx(buf.getvalue(), max_rows=0)
+    assert run_anonymize(src, max_rows=0) == 1
+    assert "формул" in capsys.readouterr().err
+    assert not (tmp_path / "v.anon.xlsx").exists()

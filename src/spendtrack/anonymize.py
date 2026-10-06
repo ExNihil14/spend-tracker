@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import sys
 from io import BytesIO, StringIO
 from pathlib import Path
@@ -157,19 +158,55 @@ def anonymize_csv(  # noqa: C901 — см. cc_ratchet.py
     return buf.getvalue(), report
 
 
-def _find_header(ws, scan: int = 10) -> tuple[int | None, list]:
-    """Первая «шапкоподобная» строка (≥2 непустых ячеек); приоритет — строка с известными колонками."""
-    best: tuple[int, list] | None = None
+def _looks_like_data(value: object) -> bool:
+    """Ячейка похожа на ЗНАЧЕНИЕ (а не заголовок): длинные числа, даты, суммы.
+
+    Нужна, чтобы титульная пара «Номер карты | 4111…» не выигрывала у настоящей шапки ниже (C1).
+    """
+    s = _strip(value)
+    if not s:
+        return False
+    if re.fullmatch(r"[+-]?\d{6,}", s):
+        return True
+    if re.fullmatch(r"[+-]?\d+[.,]\d{2}", s):
+        return True
+    return bool(re.fullmatch(r"\d{2}[./-]\d{2}[./-]\d{4}([ T].*)?", s)
+                or re.fullmatch(r"\d{4}-\d{2}-\d{2}([ T].*)?", s))
+
+
+def _find_header(ws, extra: set[str], scan: int = 10) -> tuple[int | None, list | None]:
+    """Выбрать строку шапки: оценка всех кандидатов в первых `scan` строках + отказ при неоднозначности.
+
+    Кандидат — строка с хотя бы одной известной колонкой (включая одноколоночные таблицы); больше
+    распознанных колонок — сильнее, значения-«данные» среди прочих ячеек — слабее (титул банка).
+    Известных колонок нет вовсе — первая строка с ≥2 непустыми ячейками (прежнее поведение).
+    Ничья между кандидатами → ValueError: тихая догадка могла бы обезличить не ту таблицу (C1).
+    """
+    ranked: list[tuple[int, int, int, list]] = []
+    fallback: tuple[int, list] | None = None
     for r_idx in range(1, min(ws.max_row, scan) + 1):
         values = [ws.cell(r_idx, c).value for c in range(1, ws.max_column + 1)]
         nonempty = [v for v in values if _strip(v)]
-        if len(nonempty) < 2:
+        if not nonempty:
             continue
-        if any(_classify(_strip(v), set()) for v in values):
-            return r_idx, values
-        if best is None:
-            best = (r_idx, values)
-    return best if best else (None, None)
+        score = sum(1 for v in values if _strip(v) and _classify(_strip(v), extra))
+        suspicious = sum(1 for v in values
+                         if _strip(v) and not _classify(_strip(v), extra) and _looks_like_data(v))
+        if score:
+            ranked.append((score, -suspicious, r_idx, values))
+        elif fallback is None and len(nonempty) >= 2:
+            fallback = (r_idx, values)
+    if not ranked:
+        return fallback if fallback is not None else (None, None)
+    ranked.sort(key=lambda c: (c[0], c[1]), reverse=True)
+    best = ranked[0]
+    tied = [c[2] for c in ranked if (c[0], c[1]) == (best[0], best[1])]
+    if len(tied) > 1:
+        raise ValueError(
+            "не удалось однозначно выбрать строку-шапку (кандидаты: строки "
+            + ", ".join(str(r) for r in tied)
+            + ") — приведите лист к одной таблице или уберите лишние заголовочные строки")
+    return best[2], best[3]
 
 
 def _label_columns(header: list, kinds: list, anonymized: dict, untouched: list) -> None:
@@ -213,6 +250,31 @@ def _truncate_sheet(ws, drop_after: int, cut: int) -> int:
     return dropped
 
 
+def _count_outside(ws, header_row: int) -> int:
+    """Строки ВЫШЕ шапки (титул банка — часто с ФИО) не обезличиваются: считаем и предупреждаем (C3)."""
+    return sum(1 for r in range(1, header_row)
+               if any(_strip(ws.cell(r, c).value) for c in range(1, ws.max_column + 1)))
+
+
+def _strip_cell_metadata(ws) -> None:
+    """should-4 (wave5): комментарии/гиперссылки — PII-канал; снимаем со ВСЕХ существующих ячеек."""
+    for cell in ws._cells.values():
+        if cell.comment is not None:
+            cell.comment = None
+        if cell.hyperlink is not None:
+            cell.hyperlink = None
+
+
+def _check_formulas(ws) -> None:
+    """6-lite (wave5): формулы ломают гарантии образца (PII внутри формулы, cached values) — отказ."""
+    for (r, c) in sorted(ws._cells):
+        cell = ws._cells[(r, c)]
+        if cell.data_type == "f" or (isinstance(cell.value, str) and cell.value.startswith("=")):
+            raise ValueError(
+                f"лист «{ws.title}»: ячейка {cell.coordinate} содержит формулу — обезличивание образца "
+                "с формулами не поддерживается; экспортируйте значения (CSV/«только значения») и повторите")
+
+
 def _anonymize_sheet_rows(ws, header_row: int, kinds: list, keep: list, pseudonyms: _Pseudonyms) -> int:
     """Заменить PII в перечисленных строках листа; → сколько строк записано."""
     written = 0
@@ -253,13 +315,18 @@ def anonymize_xlsx(
     remaining = max_rows if max_rows and max_rows > 0 else None
 
     for ws in wb.worksheets:
-        header_row, header = _find_header(ws)
+        _strip_cell_metadata(ws)  # should-4: до усечения — в т.ч. пустые ячейки за лимитом
+        _check_formulas(ws)
+        if not any(_strip(cell.value) for cell in ws._cells.values()):
+            continue  # действительно пустой лист — пропускаем (C2)
+        header_row, header = _find_header(ws, extra)
         if header_row is None:
-            continue
-        # строки ВЫШЕ шапки (титул банка — часто с ФИО) не обезличиваются: считаем и предупреждаем (C3)
-        for r in range(1, header_row):
-            if any(_strip(ws.cell(r, c).value) for c in range(1, ws.max_column + 1)):
-                outside += 1
+            # C2 (wave5): раньше непустой лист без шапки молча сохранялся целиком
+            raise ValueError(
+                f"лист «{ws.title}»: не найдена строка-шапка (нет известных колонок и/или <2 непустых "
+                "ячеек) — обезличивание отменено, файл не записан; приведите лист к одной таблице или "
+                "укажите --anon-column")
+        outside += _count_outside(ws, header_row)
         kinds = [_classify(_strip(name), extra) for name in header]
         empty_headers.extend(i for i, name in enumerate(header) if not _strip(name))
         _label_columns(header, kinds, anonymized, untouched)
@@ -274,14 +341,13 @@ def anonymize_xlsx(
         if cut > 0:
             merged_dropped += _truncate_sheet(ws, header_row + len(keep), cut)
 
-    # метаданные книги — PII-канал (автор/последний редактор/заголовок): чистим ДО сохранения (ревью wave5, C3/S2)
-    props = wb.properties
+    # метаданные книги — PII-канал: заменяем ВЕСЬ набор на безопасный (allowlist, wave5 should-5;
+    # прежний список полей не закрывал subject/identifier и т.п.)
+    from openpyxl.packaging.core import DocumentProperties
+
+    props = DocumentProperties()
     props.creator = ""
-    props.lastModifiedBy = ""
-    props.title = ""
-    props.description = ""
-    props.keywords = ""
-    props.category = ""
+    wb.properties = props
     buf = BytesIO()
     wb.save(buf)
     report = {
@@ -402,6 +468,12 @@ def run_anonymize(
     if out is None:
         # авто-имя: расширение — по фактическому формату (XLSX под именем .csv → .anon.xlsx) — wave6 S5
         out = src.with_name(src.stem + ".anon" + (".xlsx" if report.get("xlsx") else src.suffix))
+    if out.resolve() == src.resolve():
+        # C3 (wave5, регрессия): guard действует и для авто-имени — симлинк v.anon.csv → v.csv
+        # иначе затирал бы исходную выписку
+        print("исходный и выходной файл совпадают — перезапись выписки запрещена; укажите другой путь",
+              file=sys.stderr, flush=True)
+        return 1
     if not _write_anonymized(data, out):
         return 1
     _print_report(report, out)
