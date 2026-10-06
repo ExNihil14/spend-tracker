@@ -174,8 +174,40 @@ jobs:
           if ! docker exec spendtrack-ci spendtrack paths; then
             echo "paths упал"; docker logs spendtrack-ci; exit 1
           fi
-          # том смонтирован и реально используется (БД/снимки легли на volume, а не в ФС контейнера)
-          test -n "$(ls -A "$RUNNER_TEMP/st-data")"
+          # wave5 №7: путь БД сверяем с КОНТРАКТОМ образа (SPENDTRACK_DATA_DIR=/data) и фактическим файлом
+          # (раньше «том непустой» проходил от одного каталога снимков при БД в ФС контейнера)
+          db_path="$(docker exec spendtrack-ci spendtrack paths --json \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["db_path"])')"
+          echo "db_path=$db_path"
+          if [ "$db_path" != "/data/spend.db" ]; then
+            echo "путь БД не по контракту образа (/data/spend.db): $db_path"; exit 1
+          fi
+          if ! docker exec spendtrack-ci test -f /data/spend.db; then
+            echo "нет файла БД на томе: /data/spend.db"; exit 1
+          fi
+          # контрольная запись через приложение → пересоздание контейнера с ТЕМ ЖЕ томом → запись обязана пережить
+          docker exec spendtrack-ci spendtrack add -12.34 "SMOKE persist" --category other
+          if ! docker exec spendtrack-ci spendtrack count | grep -q '"manual"'; then
+            echo "контрольная запись не видна в БД до пересоздания"; exit 1
+          fi
+          docker rm -f spendtrack-ci
+          docker run -d --name spendtrack-ci -p 127.0.0.1:8766:8766 \
+            -v "$RUNNER_TEMP/st-data:/data" spendtrack:ci
+          ok=0
+          for i in $(seq 1 40); do
+            if curl -sf http://127.0.0.1:8766/health >/dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          if [ "$ok" != "1" ]; then
+            echo "health не поднялся после пересоздания"; docker logs spendtrack-ci; exit 1
+          fi
+          if ! docker exec spendtrack-ci spendtrack count | grep -q '"manual"'; then
+            echo "контрольная запись НЕ пережила пересоздание контейнера (БД не на томе?)"; exit 1
+          fi
+          # и на хосте виден именно файл БД тома (а не только служебные каталоги)
+          if [ ! -f "$RUNNER_TEMP/st-data/spend.db" ]; then
+            echo "нет $RUNNER_TEMP/st-data/spend.db на томе"; exit 1
+          fi
 
       - name: Cleanup
         if: always()
