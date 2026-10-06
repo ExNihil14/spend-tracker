@@ -93,9 +93,32 @@ def _wants_json(request: Request) -> bool:
             or request.url.path.startswith("/api"))
 
 
+_TRANSIENT_SQLITE = {sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED}
+
+
+def _db_is_transient(exc: sqlite3.OperationalError) -> bool:
+    """SQLITE_BUSY/LOCKED (вкл. расширенные коды) — временная занятость; прочее — не «повторите».
+
+    wave5 №4: «no such table», битый SQL, integer overflow, disk full — постоянные сбои;
+    в 503 с «повторите через несколько секунд» они маскировались под самоустраняющиеся.
+    """
+    code = getattr(exc, "sqlite_errorcode", None)
+    if isinstance(code, int):
+        return (code & 0xFF) in _TRANSIENT_SQLITE
+    # исключения, собранные вручную (тестовые заглушки/обёртки), кода не несут — по тексту
+    msg = str(exc).lower()
+    return "locked" in msg or "busy" in msg
+
+
 @app.exception_handler(sqlite3.OperationalError)
 async def _db_operational_error(request: Request, exc: sqlite3.OperationalError):
-    """W1 ресёрча ошибок: занятая/недоступная БД — 503 с человеческим текстом, а не 500."""
+    """W1 ресёрча ошибок: занятая/недоступная БД — 503 с человеческим текстом, а не 500.
+
+    wave5 №4: всё, что не busy/locked, — программная ошибка → 500 + трейсбек (общий handler),
+    а не обещание быстрого восстановления.
+    """
+    if not _db_is_transient(exc):
+        return await _unhandled_error(request, exc)
     logger.warning("db operational error: %s %s: %s", request.method, request.url.path, exc)
     detail = errors.text("db_busy")
     if _wants_json(request):

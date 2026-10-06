@@ -78,6 +78,31 @@ def test_operational_error_stub_returns_503(client):
     assert r.status_code == 503 and r.json()["detail"] == errors.text("db_busy")
 
 
+class _BrokenSchemaStore:
+    """Store-заглушка: любой вызов падает РЕАЛЬНЫМ OperationalError схемы (sqlite_errorcode=1)."""
+
+    def __getattr__(self, name):
+        def _raise(*_a, **_k):
+            con = sqlite3.connect(":memory:")
+            try:
+                con.execute("SELECT * FROM missing_table")  # no such table — не «занятость»
+            finally:
+                con.close()
+        return _raise
+
+
+def test_non_busy_operational_error_is_500_with_traceback(client, caplog, monkeypatch):
+    """wave5 №4: «no such table»/битый SQL — 500 с трейсбеком, а не ложный 503 «повторите позже»."""
+    monkeypatch.setattr(logging.getLogger("spendtrack"), "propagate", True)
+    app.dependency_overrides[get_store] = lambda: _BrokenSchemaStore()
+    with caplog.at_level(logging.ERROR, logger="spendtrack"):
+        r = client.post("/api/transactions", json={
+            "date": "2026-09-01", "description": "X", "amount": "-1.00"})
+    assert r.status_code == 500 and r.json()["detail"] == errors.text("internal")
+    assert any(rec.exc_info for rec in caplog.records)  # трейсбек в прикладном логе
+    assert "OperationalError" in caplog.text
+
+
 def test_real_busy_db_returns_503(client, tmp_path):
     """Занятая БД (BEGIN IMMEDIATE вторым соединением + короткий busy_timeout) → 503."""
     db = tmp_path / "busy.db"
