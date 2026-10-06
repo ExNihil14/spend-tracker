@@ -157,3 +157,42 @@ def test_base_currency_cache_not_poisoned(tmp_path, monkeypatch):
         base_currency()
     with pytest.raises(ValidationError):  # кэш не «отравлен»: снова честная ошибка, не старое значение
         base_currency()
+
+
+def test_base_currency_cache_is_atomic_pair(tmp_path, monkeypatch):
+    """wave5 №5 (core): кэш публикуется одной неизменяемой парой (ключ, значение).
+
+    Прежний dict с раздельными записями «key», затем «value» допускал окно, в котором другой
+    поток видел новый ключ со старым значением. Гонку нельзя воспроизвести без хирургии над
+    контейнером — поэтому фиксируем саму форму публикации (иначе тест невозможен детерминированно).
+    """
+    import spendtrack.config as cfg
+
+    monkeypatch.setenv("SPENDTRACK_CONFIG_DIR", str(tmp_path))
+    monkeypatch.delenv("SPENDTRACK_BASE_CURRENCY", raising=False)
+    (tmp_path / "settings.toml").write_text('base_currency = "BYN"\n', encoding="utf-8")
+    assert cfg.base_currency() == "BYN"
+    assert isinstance(cfg._base_cache, tuple) and len(cfg._base_cache) == 2
+    assert cfg._base_cache[1] == "BYN"
+    key = cfg._base_cache[0]
+    assert key[0].endswith("settings.toml") and key[1] == ""
+
+
+def test_report_month_reads_base_once(monkeypatch, store):
+    """wave5 №5 (core): месячный отчёт фиксирует базу один раз — итоги и сноска по одному снимку."""
+    import spendtrack.reports as R
+
+    store.conn.execute(
+        "INSERT INTO transactions(date, description, amount_kopecks, currency, category,"
+        " category_source, created, updated)"
+        " VALUES('2026-09-05','РУБЛЕВАЯ',-100,'RUB','groceries','rule','t','t')")
+    store.conn.commit()
+    values = iter(["RUB", "BYN"] * 10)
+
+    def fake_base() -> str:
+        return next(values)
+
+    monkeypatch.setattr(R, "base_currency", fake_base)
+    rep = R.report_month(store, "2026-09")
+    assert rep["expense_k"] == -100
+    assert rep["foreign_count"] == 0  # та же база: RUB-строка не «иностранная»

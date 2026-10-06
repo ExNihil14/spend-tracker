@@ -27,18 +27,9 @@ def wilson_interval(successes: int, n: int, z: float = 1.96) -> tuple[float, flo
     return max(0.0, center - half), min(1.0, center + half)
 
 
-def foreign_transactions_count(store: Store, start: str, end: str,
-                               exclude_categories: tuple[str, ...] = ()) -> int:
-    """Операции не в базовой валюте за [start, end) — в агрегаты не входят (честная сноска, K6).
-
-    Предикат — зеркальный агрегатам (§J-2): NULL/пустая строка трактуются как RUB (историческая
-    эпоха; под другой базой такие строки честно попадают в сноску), 'rub'/'Rub' — тоже RUB;
-    иначе строка молча выпадала и из итогов, и из сноски.
-
-    `exclude_categories` — зеркальность потребителю: если итоги исключают категории (дайджест —
-    переводы), сноска не должна считать их «не учтёнными» (ревью Sonnet 5.5, 30.09).
-    """
-    base = base_currency()
+def _foreign_count_with_base(store: Store, start: str, end: str, base: str,
+                             exclude_categories: tuple[str, ...] = ()) -> int:
+    """Ядро сноски «не в базовой валюте» с ЯВНОЙ базой — один снимок на операцию (wave5 №5)."""
     sql = ("SELECT COUNT(*) c FROM transactions"
            " WHERE COALESCE(UPPER(NULLIF(currency, '')), 'RUB') <> ? AND date >= ? AND date < ?")
     params: list[str] = [base, start, end]
@@ -50,9 +41,23 @@ def foreign_transactions_count(store: Store, start: str, end: str,
     return int(row["c"])
 
 
+def foreign_transactions_count(store: Store, start: str, end: str,
+                               exclude_categories: tuple[str, ...] = ()) -> int:
+    """Операции не в базовой валюте за [start, end) — в агрегаты не входят (честная сноска, K6).
+
+    Предикат — зеркальный агрегатам (§J-2): NULL/пустая строка трактуются как RUB (историческая
+    эпоха; под другой базой такие строки честно попадают в сноску), 'rub'/'Rub' — тоже RUB;
+    иначе строка молча выпадала и из итогов, и из сноски.
+
+    `exclude_categories` — зеркальность потребителю: если итоги исключают категории (дайджест —
+    переводы), сноска не должна считать их «не учтёнными» (ревью Sonnet 5.5, 30.09).
+    """
+    return _foreign_count_with_base(store, start, end, base_currency(), exclude_categories)
+
+
 def report_month(store: Store, month: str) -> dict:
     start, end = month_bounds(month)
-    base = base_currency()
+    base = base_currency()  # wave5 №5: единственный снимок базы на весь отчёт (итоги и сноска — об одной)
     rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS total_k, COUNT(*) AS n"
         " FROM transactions WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
@@ -67,7 +72,7 @@ def report_month(store: Store, month: str) -> dict:
         "expense_k": expense,
         "balance_k": income + expense,
         # K6: сколько операций не в базовой валюте молча выпало из итогов (курсы не смешиваем) — для сноски в UI/CLI
-        "foreign_count": foreign_transactions_count(store, start, end),
+        "foreign_count": _foreign_count_with_base(store, start, end, base),
         "categories": [
             {"category": r["category"], "total_k": r["total_k"], "count": r["n"]}
             for r in rows

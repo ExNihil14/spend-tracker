@@ -196,7 +196,7 @@ def load_settings(config_dir: Path | None = None) -> Settings:
     return Settings(**_deep_merge(defaults, user_data))
 
 
-_base_cache: dict[str, object] = {"key": None, "value": "RUB"}
+_base_cache: tuple[tuple[str, str, int], str] | None = None
 
 
 def base_currency() -> str:
@@ -205,20 +205,24 @@ def base_currency() -> str:
     Кэш по (settings.toml, env SPENDTRACK_BASE_CURRENCY, mtime): горячие пути (fmt_money на каждую
     строку, импорт, fingerprint) не перечитывают TOML; правка настроек/env подхватывается без
     перезапуска — ключ кэша меняется.
+    wave5 №5 (core): пара (ключ, значение) публикуется ОДНИМ присваиванием, а чтение идёт из
+    локального снимка — окно «новый ключ + старое значение» между двумя записями закрыто.
     """
+    global _base_cache
     path = resolve_config_dir() / "settings.toml"
     try:
         mtime = path.stat().st_mtime_ns
     except OSError:
         mtime = 0
     key = (str(path), os.environ.get("SPENDTRACK_BASE_CURRENCY", ""), mtime)
-    if _base_cache["key"] != key:
+    snapshot = _base_cache  # локальный снимок: не перечитываем поле дважды
+    if snapshot is None or snapshot[0] != key:
         # Сначала вычисляем значение: при ошибке конфига кэш не «отравляется» стухшим значением
         # (ревью wave5, S1) — следующий вызов снова честно упадёт, а не вернёт старую базу.
         value = load_settings().base_currency
-        _base_cache["key"] = key
-        _base_cache["value"] = value
-    return str(_base_cache["value"])
+        _base_cache = (key, value)  # одна атомарная публикация пары
+        return value
+    return snapshot[1]
 
 
 def settings() -> Settings:

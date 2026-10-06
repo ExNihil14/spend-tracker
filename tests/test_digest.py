@@ -37,6 +37,27 @@ def test_empty_digest(store):
     assert d["upcoming"] == [] and d["anomalies"] == []
 
 
+def test_digest_uses_one_base_snapshot(monkeypatch, store):
+    """wave5 №5 (core): дайджест читает базу ОДИН раз — иначе строка попадала и в итог, и в сноску."""
+    import spendtrack.digest as D
+
+    _add(store, _day(0), -10_000)  # RUB-строка в окне
+    calls: list[str] = []
+    values = iter(["RUB", "BYN"] * 20)
+
+    def fake_base() -> str:
+        v = next(values)
+        calls.append(v)
+        return v
+
+    monkeypatch.setattr(D, "base_currency", fake_base)
+    d = build_digest(store, days=7, today=TODAY, subscriptions=[])
+    assert len(calls) == 1, f"база читается {len(calls)} раз за операцию"
+    assert d["expense_k"] == -10_000          # итог по снимку базы
+    assert d["foreign_count"] == 0            # та же база в сноске (раньше могла быть «BYN»)
+    assert [c["category"] for c in d["top_categories"]] == ["groceries"]
+
+
 def test_totals_windows_and_delta(store):
     _add(store, _day(0), -10000)            # текущее окно (граница)
     _add(store, _day(-6), -5000)            # текущее окно (первый день)

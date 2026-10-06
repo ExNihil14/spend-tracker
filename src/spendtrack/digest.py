@@ -23,7 +23,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from spendtrack.config import base_currency
 from spendtrack.recurring import detect_recurring
-from spendtrack.reports import foreign_transactions_count
+from spendtrack.reports import _foreign_count_with_base
 from spendtrack.store import Store, fmt_money
 
 DEFAULT_DAYS = 7
@@ -48,8 +48,7 @@ _EXCLUDED = ",".join("?" * len(EXCLUDED_CATEGORIES))
 _EXCLUDED_PARAMS: tuple[str, ...] = EXCLUDED_CATEGORIES
 
 
-def _totals(store: Store, start: str, end: str) -> dict:
-    base = base_currency()
+def _totals(store: Store, start: str, end: str, base: str) -> dict:
     row = store.conn.execute(
         "SELECT"
         " COALESCE(SUM(CASE WHEN amount_kopecks > 0 THEN amount_kopecks END), 0) AS income_k,"
@@ -68,8 +67,7 @@ def _totals(store: Store, start: str, end: str) -> dict:
 
 
 def _top_categories(store: Store, start: str, end: str,
-                    prev_start: str, prev_end: str) -> list[dict]:
-    base = base_currency()
+                    prev_start: str, prev_end: str, base: str) -> list[dict]:
     rows = store.conn.execute(
         "SELECT category, SUM(amount_kopecks) AS total_k, COUNT(*) AS n"
         " FROM transactions WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
@@ -98,8 +96,7 @@ def _top_categories(store: Store, start: str, end: str,
     ]
 
 
-def _top_day(store: Store, start: str, end: str) -> dict | None:
-    base = base_currency()
+def _top_day(store: Store, start: str, end: str, base: str) -> dict | None:
     row = store.conn.execute(
         "SELECT date, SUM(amount_kopecks) AS total_k FROM transactions"
         " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
@@ -110,8 +107,7 @@ def _top_day(store: Store, start: str, end: str) -> dict | None:
     return {"date": row["date"], "total_k": row["total_k"]} if row else None
 
 
-def _large_expenses(store: Store, start: str, end: str, median_start: str) -> list[dict]:
-    base = base_currency()
+def _large_expenses(store: Store, start: str, end: str, median_start: str, base: str) -> list[dict]:
     stats_rows = store.conn.execute(
         "SELECT category, amount_kopecks FROM transactions"
         " WHERE date >= ? AND date <= ? AND amount_kopecks < 0 AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
@@ -154,9 +150,9 @@ def _large_expenses(store: Store, start: str, end: str, median_start: str) -> li
     return out
 
 
-def _price_jumps(store: Store, subscriptions: list[dict], start: str, end: str) -> list[dict]:
+def _price_jumps(store: Store, subscriptions: list[dict], start: str, end: str,
+                 base: str) -> list[dict]:
     out: list[dict] = []
-    base = base_currency()
     for sub in subscriptions:
         if not sub["active"] or sub["price_k"] <= 0:
             continue
@@ -196,8 +192,7 @@ def _price_jumps(store: Store, subscriptions: list[dict], start: str, end: str) 
     return out
 
 
-def _near_duplicates(store: Store, start: str, end: str) -> list[dict]:
-    base = base_currency()
+def _near_duplicates(store: Store, start: str, end: str, base: str) -> list[dict]:
     rows = store.conn.execute(
         "SELECT date, merchant, amount_kopecks, COUNT(*) AS n"
         " FROM transactions"
@@ -272,16 +267,17 @@ def build_digest(store: Store, days: int = DEFAULT_DAYS, today: date | None = No
     median_start = ref - timedelta(days=MEDIAN_WINDOW_DAYS - 1)
     start_s, end_s = start.isoformat(), ref.isoformat()
     prev_start_s, prev_end_s = prev_start.isoformat(), prev_end.isoformat()
+    base = base_currency()  # wave5 №5: один снимок базы на весь дайджест (все секции — об одной)
 
-    totals = _totals(store, start_s, end_s)
-    prev = _totals(store, prev_start_s, prev_end_s)
+    totals = _totals(store, start_s, end_s, base)
+    prev = _totals(store, prev_start_s, prev_end_s, base)
     if subscriptions is None:
         subscriptions = detect_recurring(store, ref)
 
     anomalies = (
-        _large_expenses(store, start_s, end_s, median_start.isoformat())
-        + _price_jumps(store, subscriptions, start_s, end_s)
-        + _near_duplicates(store, start_s, end_s)
+        _large_expenses(store, start_s, end_s, median_start.isoformat(), base)
+        + _price_jumps(store, subscriptions, start_s, end_s, base)
+        + _near_duplicates(store, start_s, end_s, base)
     )
     anomalies.sort(key=lambda a: (-a["score"], a["date"], a["type"]))
     anomalies = anomalies[:MAX_ANOMALIES]
@@ -304,11 +300,11 @@ def build_digest(store: Store, days: int = DEFAULT_DAYS, today: date | None = No
         "transaction_count": totals["count"],
         # K6: операции не в базовой валюте в окне — не входят в итоги (честная сноска в UI/CLI);
         # переводы исключены и из итогов, и из сноски (ревью Sonnet 5.5, 30.09)
-        "foreign_count": foreign_transactions_count(
-            store, start_s, (ref + timedelta(days=1)).isoformat(),
+        "foreign_count": _foreign_count_with_base(
+            store, start_s, (ref + timedelta(days=1)).isoformat(), base,
             exclude_categories=EXCLUDED_CATEGORIES),
-        "top_categories": _top_categories(store, start_s, end_s, prev_start_s, prev_end_s),
-        "top_day": _top_day(store, start_s, end_s),
+        "top_categories": _top_categories(store, start_s, end_s, prev_start_s, prev_end_s, base),
+        "top_day": _top_day(store, start_s, end_s, base),
         "pending_count": store.pending_count(),
         "upcoming": _upcoming(subscriptions, ref),
         "anomalies": anomalies,
