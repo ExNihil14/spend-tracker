@@ -225,6 +225,89 @@ CREATE TABLE goal_allocations(
     s.close()
 
 
+def test_goals_v8_migration_keeps_reversals(tmp_path):
+    """Окно 06.10 (wave6_core, critical): v7-БД с ОТМЕНОЙ взноса (самоссылочный reverses_id)
+    должна апгрейдиться — самоссылочный FK старой таблицы блокировал DROP (RESTRICT)."""
+    db = tmp_path / "v7rev.db"
+    con = sqlite3.connect(db)
+    con.executescript(_TX_DDL)
+    con.executescript("""
+CREATE TABLE goals(
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120),
+  target_kopecks INTEGER NOT NULL CHECK(target_kopecks > 0),
+  currency TEXT NOT NULL DEFAULT 'RUB' CHECK(currency GLOB '[A-Z][A-Z][A-Z]'),
+  due_month TEXT, created_month TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0,
+  created TEXT NOT NULL, updated TEXT NOT NULL) STRICT;
+CREATE TABLE goal_allocations(
+  id INTEGER PRIMARY KEY,
+  goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT,
+  date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0),
+  reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT,
+  created_at TEXT NOT NULL) STRICT;
+CREATE INDEX idx_goal_alloc ON goal_allocations(goal_id, date);
+""")
+    con.execute("INSERT INTO goals(title, target_kopecks, currency, created_month, created, updated)"
+                " VALUES('Цель', 100000, 'RUB', '2026-09', 't', 't')")
+    con.execute("INSERT INTO goal_allocations(id, goal_id, date, amount_kopecks, created_at)"
+                " VALUES(1, 1, '2026-09-01', 500, 't')")
+    con.execute("INSERT INTO goal_allocations(id, goal_id, date, amount_kopecks, reverses_id, created_at)"
+                " VALUES(2, 1, '2026-09-02', -500, 1, 't')")
+    con.execute("PRAGMA user_version = 7")
+    con.commit()
+    con.close()
+
+    s = Store(db_path=db)  # было: IntegrityError FOREIGN KEY constraint failed на DROP
+    assert s._user_version() == SCHEMA_VERSION == 8
+    rows = s.conn.execute("SELECT id, reverses_id FROM goal_allocations ORDER BY id").fetchall()
+    assert [tuple(r) for r in rows] == [(1, None), (2, 1)]
+    assert s.conn.execute("PRAGMA foreign_key_check").fetchall() == []
+    assert not s.conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE name='goal_allocations_pre_v8'").fetchone()
+    s.close()
+
+
+def test_goals_v8_migration_rejects_int64_min_with_clear_error(tmp_path):
+    """Окно 06.10 (optional): INT64_MIN не должен давать OperationalError на SQL `abs` —
+    миграция обязана отказать понятным текстом (и не тронуть данные)."""
+    db = tmp_path / "v7min.db"
+    con = sqlite3.connect(db)
+    con.executescript(_TX_DDL)
+    con.executescript("""
+CREATE TABLE goals(
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL CHECK(length(trim(title)) BETWEEN 1 AND 120),
+  target_kopecks INTEGER NOT NULL CHECK(target_kopecks > 0),
+  currency TEXT NOT NULL DEFAULT 'RUB' CHECK(currency GLOB '[A-Z][A-Z][A-Z]'),
+  due_month TEXT, created_month TEXT NOT NULL, archived INTEGER NOT NULL DEFAULT 0,
+  created TEXT NOT NULL, updated TEXT NOT NULL) STRICT;
+CREATE TABLE goal_allocations(
+  id INTEGER PRIMARY KEY,
+  goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT,
+  date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0),
+  reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT,
+  created_at TEXT NOT NULL) STRICT;
+""")
+    con.execute("INSERT INTO goals(title, target_kopecks, currency, created_month, created, updated)"
+                " VALUES('Цель', 100000, 'RUB', '2026-09', 't', 't')")
+    con.execute("INSERT INTO goal_allocations(goal_id, date, amount_kopecks, created_at)"
+                " VALUES(1, '2026-09-01', -9223372036854775808, 't')")
+    con.execute("PRAGMA user_version = 7")
+    con.commit()
+    con.close()
+
+    with pytest.raises(RuntimeError, match="сверх лимита"):
+        Store(db_path=db)
+    con = sqlite3.connect(db)
+    try:  # данные не тронуты, схема осталась v7
+        assert con.execute("PRAGMA user_version").fetchone()[0] == 7
+        assert con.execute("SELECT COUNT(*) FROM goal_allocations").fetchone()[0] == 1
+    finally:
+        con.close()
+
+
 def test_goals_v7_on_fresh_and_legacy_db(tmp_path):
     fresh = Store(db_path=tmp_path / "fresh.db")
     assert fresh._user_version() == SCHEMA_VERSION >= 7

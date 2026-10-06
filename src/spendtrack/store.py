@@ -273,7 +273,8 @@ CREATE TABLE IF NOT EXISTS goal_allocations(
   id INTEGER PRIMARY KEY,
   goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT,
   date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
-  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0 AND abs(amount_kopecks) <= {MAX_AMOUNT_KOPECKS}),
+  amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0
+                                        AND amount_kopecks BETWEEN -{MAX_AMOUNT_KOPECKS} AND {MAX_AMOUNT_KOPECKS}),
   reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT,
   created_at TEXT NOT NULL
 ) STRICT;
@@ -486,15 +487,19 @@ class Store:
         self._mark_migration(7)
 
     def _migrate_v8(self) -> None:
-        """v8 (wave5 №3): CHECK предела суммы взноса для уже созданных v7-БД.
+        """v8 (wave5 №3; окно 06.10): CHECK предела суммы взноса для уже созданных v7-БД.
 
         SQLite не умеет добавить CHECK к существующей таблице — пересборка goal_allocations
-        с переносом данных 1:1. Нарушающие строки (могли появиться только мимо Store) блокируют
-        миграцию явной ошибкой; транзакция `_migrate` откатит всё, БД останется рабочей на v7.
+        с переносом данных 1:1. Нарушающие строки блокируют миграцию явной ошибкой (диапазонное
+        сравнение, без SQL `abs`: `abs(INT64_MIN)` переполняется), транзакция `_migrate` откатит
+        всё, БД останется рабочей на v7. Перед DROP старой таблицы рвём самоссылочный `reverses_id`
+        (иначе FK RESTRICT блокирует неявное удаление строк при DROP) — в новой таблице данные уже
+        скопированы 1:1.
         """
         bad = self.conn.execute(
-            "SELECT COUNT(1) FROM goal_allocations WHERE abs(amount_kopecks) > ?",
-            (MAX_AMOUNT_KOPECKS,)).fetchone()[0]
+            "SELECT COUNT(1) FROM goal_allocations"
+            " WHERE amount_kopecks < -? OR amount_kopecks > ?",
+            (MAX_AMOUNT_KOPECKS, MAX_AMOUNT_KOPECKS)).fetchone()[0]
         if bad:
             raise RuntimeError(
                 f"в goal_allocations {bad} строк(и) сверх лимита {MAX_AMOUNT_KOPECKS} копеек — "
@@ -508,6 +513,9 @@ class Store:
             "INSERT INTO goal_allocations(id, goal_id, date, amount_kopecks, reverses_id, created_at)"
             " SELECT id, goal_id, date, amount_kopecks, reverses_id, created_at"
             " FROM goal_allocations_pre_v8")
+        # self-FK: RENAME перепривязал ссылку старой таблицы на саму себя, и DROP неявно удалял бы
+        # «родителей» с детьми → RESTRICT; в новой таблице связь уже перенесена 1:1.
+        self.conn.execute("UPDATE goal_allocations_pre_v8 SET reverses_id = NULL")
         self.conn.execute("DROP TABLE goal_allocations_pre_v8")
         self._mark_migration(8)
 
