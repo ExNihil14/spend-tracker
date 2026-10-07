@@ -138,6 +138,41 @@ def test_sparkline_and_heat_strip_built(page: Page, live_server, db_path):
     assert box and box["height"] > 5, f"спарклайн не показывает динамику: {box}"
 
 
+def test_heat_strip_has_text_equivalent_per_day(page: Page, live_server, db_path):
+    """Карта дней: у графики должен быть текстовый эквивалент по дням (решение 07.10, вариант B).
+
+    Пока по дням нет текста, полоса — единственное представление, и её ячейки обязаны
+    сами проходить SC 1.4.11 (≥3:1 к карточке). Замерено вживую: в светлой теме три уровня
+    из четырёх ниже порога (1.43 / 1.85 / 2.62), соседние L1↔L2 различимы лишь 1.30.
+    С текстовым эквивалентом ячейки становятся supplementary — 1.4.11 к ним не применяется,
+    а градиент остаётся читаемым как интенсивность.
+    """
+    _seed(str(db_path), "2026-09-05", "ТЕКСТ-ПУТЬ A", -10000)   # 100 ₽
+    _seed(str(db_path), "2026-09-12", "ТЕКСТ-ПУТЬ B", -30000)   # 300 ₽
+    page.goto(f"{live_server}/dashboard?month=2026-09")
+    page.wait_for_selector("#heat-days table", timeout=5000)
+    txt = page.locator("#heat-days").inner_text()
+    for needle in ("05.09", "100,00", "12.09", "300,00"):
+        assert needle in txt, f"в текстовом эквиваленте нет {needle!r}: {txt[:400]}"
+
+    # Эквивалент обязан быть в a11y-дереве: скрыт визуально, но НЕ скрыт от скринридера.
+    flags = page.evaluate(
+        "() => { const el = document.querySelector('#heat-days'); const cs = getComputedStyle(el);"
+        " return {hidden: el.hasAttribute('hidden') || el.getAttribute('aria-hidden') === 'true',"
+        " display: cs.display, visibility: cs.visibility}; }")
+    assert not flags["hidden"], flags
+    assert flags["display"] != "none" and flags["visibility"] == "visible", flags
+
+    # И доступен по требованию всем (мышь/зрение), а не только скринридеру.
+    toggle = page.locator("#heat-days-toggle")
+    expect(toggle).to_have_count(1)
+    expect(toggle).to_have_attribute("aria-expanded", "false")
+    expect(toggle).to_have_attribute("aria-controls", "heat-days")
+    toggle.click()
+    expect(page.locator("#heat-days-toggle")).to_have_attribute("aria-expanded", "true")
+    assert "300,00" in page.locator("#heat-days").inner_text()
+
+
 def test_poster_focus_ring_is_light(page: Page, live_server):
     """Ревью Opus 5 (C1): на градиентном постере кольцо фокуса белое (аква-ринг сливался со стопом).
 

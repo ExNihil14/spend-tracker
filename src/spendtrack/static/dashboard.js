@@ -54,6 +54,7 @@
     CUR = data.currencySymbol || CUR;
     drawSparkline(data.daily);
     drawHeat(data.daily);
+    initHeatDaysToggle();
     var dailyEl = document.getElementById('dailyChart');
     if (!dailyEl || dailyEl.dataset.init === '1') return;
     ensureChart(data.chartSrc, function () {
@@ -83,8 +84,8 @@
   // Формат денег для canvas (в DOM — только fmt_money сервером): запятая, NBSP-разряды, U+2212.
   function fmtRub(v) {
     var parts = Math.abs(v).toFixed(2).split('.');
-    var int = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
-    return (v < 0 ? '\u2212' : '') + int + ',' + parts[1];
+    var int = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return (v < 0 ? '−' : '') + int + ',' + parts[1];
   }
 
   // Wave 1-preview: тултип в семантических токенах (фон — fg-strong, текст — surface;
@@ -182,6 +183,11 @@
     var days = new Date(+first.slice(0, 4), +first.slice(5, 7), 0).getDate();
     var total = 0;
     var frag = document.createDocumentFragment();
+    // Ревью 07.10 (карта дней, решение B): текстовый эквивалент по дням. Пока его нет, полоса —
+    // единственное представление, и её ячейки обязаны сами проходить SC 1.4.11 (в светлой теме три
+    // уровня из четырёх ниже 3:1 — замерено вживую). С эквивалентом ячейки supplementary.
+    var mm = first.slice(5, 7);
+    var rowsHtml = '';
     for (var day = 1; day <= days; day++) {
       var iso = first.slice(0, 8) + (day < 10 ? '0' + day : String(day));
       var v = byDate[iso] || 0;
@@ -193,11 +199,36 @@
       cell.title = iso.slice(5) + ': ' + fmtRub(v / 100) + ' ' + CUR;  // единый формат денег
       cell.setAttribute('aria-hidden', 'true');
       frag.appendChild(cell);
+      rowsHtml += '<tr><td class="py-0.5 pr-3">' + (day < 10 ? '0' + day : String(day)) + '.' + mm
+        + '</td><td class="py-0.5 text-right">' + fmtRub(v / 100) + ' ' + CUR + '</td></tr>';
     }
     box.textContent = '';
     box.appendChild(frag);
     box.setAttribute('aria-label', 'Карта расходов по дням: ' + days + ' дн, всего '
       + fmtRub(total / 100) + ' ' + CUR + ', максимум ' + fmtRub(max / 100) + ' ' + CUR);
+    var rows = document.getElementById('heat-days-rows');
+    if (rows) rows.innerHTML = rowsHtml;
+    var sum = document.getElementById('heat-days-sum');
+    if (sum) {
+      sum.textContent = 'Карта расходов по дням: ' + days + ' дн, всего ' + fmtRub(total / 100) + ' '
+        + CUR + ', максимум ' + fmtRub(max / 100) + ' ' + CUR;
+    }
+  }
+
+  // Раскрытие текстового эквивалента по дням. Общий data-toggle из app.js здесь НЕ годится: он
+  // прячет панель через hidden, а текст эквивалента обязан остаться в дереве доступности —
+  // поэтому снимаем/возвращаем только sr-only (визуальное скрытие).
+  function initHeatDaysToggle() {
+    var btn = document.getElementById('heat-days-toggle');
+    var box = document.getElementById('heat-days');
+    if (!btn || !box || btn.dataset.init === '1') return;
+    btn.dataset.init = '1';
+    btn.addEventListener('click', function () {
+      var open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      btn.textContent = open ? 'Скрыть по дням' : 'Показать по дням';
+      box.classList.toggle('sr-only', !open);
+    });
   }
 
   function draw(data) {

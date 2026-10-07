@@ -211,6 +211,26 @@
     <span class="heat-cell" data-level="4" aria-hidden="true"></span>
     <span>больше</span>
   </div>
+  {# Ревью 07.10 (карта дней, решение B): текстовый эквивалент по дням. Пока его нет, полоса —
+     единственное представление, и её ячейки обязаны сами проходить SC 1.4.11 (замерено вживую:
+     светлая L1 1.43 / L2 1.85 / L3 2.62 — ниже 3:1). С эквивалентом ячейки supplementary, и
+     рампу менять не нужно. sr-only прячет визуально, но НЕ убирает из дерева доступности —
+     поэтому элемент не hidden (в отличие от панелей data-toggle). #}
+  <button type="button" id="heat-days-toggle" aria-expanded="false" aria-controls="heat-days"
+          class="mt-3 text-xs text-fg-muted hover:text-fg underline underline-offset-2">Показать по дням</button>
+  <div id="heat-days" class="sr-only">
+    <p id="heat-days-sum" class="text-xs text-fg-muted"></p>
+    <table class="w-full text-sm mt-1">
+      <caption class="sr-only">Расходы по дням месяца</caption>
+      <thead>
+        <tr class="text-left text-xs uppercase tracking-wide text-fg-muted border-b border-line">
+          <th scope="col" class="py-1 font-medium">День</th>
+          <th scope="col" class="py-1 text-right font-medium">Расход</th>
+        </tr>
+      </thead>
+      <tbody id="heat-days-rows"></tbody>
+    </table>
+  </div>
 </div>
 
 {% if report.categories %}
