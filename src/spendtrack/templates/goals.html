@@ -6,25 +6,38 @@
     Виртуальный конверт: вы отмечаете, сколько отложено «на цель». Деньги на счёте не блокируются —
     это учёт намерения, приложение только считает прогресс.
   </p>
+  <noscript>
+    <div class="px-5 py-3 mb-4 text-sm text-warn bg-surface border border-line rounded-xl">
+      Страница работает через JavaScript (htmx): без него формы не создадут цель — браузер просто
+      перезагрузит страницу. Включите JavaScript или добавьте цель вручную через раздел «Настройки».
+    </div>
+  </noscript>
   {% include "partials/goals_portfolio.html" %}
   <p id="goals-error" class="text-danger text-sm mb-2" role="alert"></p>
 
+  {# wave7 (fb_b S1): трек 1fr по умолчанию minmax(auto,1fr) — его минимум это min-content поля
+     ввода (~200px). В сумме с фиксированными 11rem+10rem и кнопкой сетка шире вьюпорта в диапазоне
+     sm (640–768px) и страница уезжает вправо. min-w-0 на элементах разрешает треку сжиматься. #}
   <form hx-post="/api/goals" hx-target="#goals-list" hx-swap="outerHTML"
         hx-disabled-elt="find button" hx-sync="this:drop"
         class="bg-surface border border-line rounded-2xl p-4 mb-6 grid gap-3 sm:grid-cols-[1fr_11rem_10rem_auto] sm:items-end">
-    <label class="block">
+    <label class="block min-w-0">
       <span class="block text-xs text-fg-muted mb-1">Название</span>
       <input name="title" required maxlength="120" placeholder="отпуск, подушка…"
              class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm">
     </label>
-    <label class="block">
+    <label class="block min-w-0">
       <span class="block text-xs text-fg-muted mb-1">Сумма цели</span>
       <input name="target" required placeholder="150 000" inputmode="decimal"
              class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm">
     </label>
-    <label class="block">
+    {# wave7 (fb_b S2): Firefox (десктоп/Android) и Safari на macOS не поддерживают type=month —
+       поле вырождается в текст без подсказки. placeholder/pattern/title дают формат и браузерную
+       проверку на таких браузерах. #}
+    <label class="block min-w-0">
       <span class="block text-xs text-fg-muted mb-1">Срок (месяц, необязательно)</span>
-      <input name="due_month" type="month"
+      <input name="due_month" type="month" placeholder="2026-05" title="Формат: ГГГГ-ММ, например 2026-05"
+             pattern="\d{4}-(0[1-9]|1[0-2])"
              class="w-full rounded-lg border border-line-strong bg-surface px-3 py-2 text-sm">
     </label>
     <button class="rounded-lg bg-accent-bg text-on-accent px-4 py-2 text-sm font-medium">Создать</button>

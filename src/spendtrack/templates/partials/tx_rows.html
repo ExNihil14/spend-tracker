@@ -1,4 +1,7 @@
 {% set ns = namespace(prev_date=None) %}
+{# wave7 (fb_c S2): day_fx передают оба текущих пути рендера ленты, но любая будущая точка рендера
+   без него даёт UndefinedError (500 на всей странице). Фолбэк на пустую карту — одна строка. #}
+{% set day_fx_map = day_fx | default({}) %}
 {% for t in transactions %}
 {% if group_days and t.date != ns.prev_date %}
 {% set ns.prev_date = t.date %}
@@ -9,7 +12,7 @@
       <span class="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-fg-muted">{{ t.date[8:10] }}.{{ t.date[5:7] }}.{{ t.date[0:4] }}</span>
       <span class="h-px flex-1 bg-line" aria-hidden="true"></span>
       {% set day_total = day_totals.get(t.date) %}
-      {% set day_fx_count = day_fx.get(t.date) %}
+      {% set day_fx_count = day_fx_map.get(t.date) %}
       <span class="text-xs font-medium {{ 'text-income' if day_total is not none and day_total > 0 else 'text-fg-muted' }}"
             {% if day_fx_count %}title="Операции в валюте в итог не входят"{% endif %}>
         {% if day_total is not none %}итог {{ fmt_money(day_total) }}{% if day_fx_count %} + валюта{% endif %}
