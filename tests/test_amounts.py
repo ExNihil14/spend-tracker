@@ -93,6 +93,18 @@ def test_amount_precision_at_enforced_limit():
         assert parse_amount(shown) == kop, f"{kop}: показано {shown!r} и не разобралось обратно"
 
 
+def test_max_amount_kopecks_pins_contract_value():
+    """Абсолютное значение предела — часть контракта, а не деталь реализации.
+
+    Машинное доказательство (мутационная проба `scripts/mutation_smoke.py`, 08.10): мутант
+    `MAX_AMOUNT_KOPECKS = 10_000_000_000` (вдесятеро меньше) ПЕРЕЖИЛ всё подмножество тестов
+    денежного ядра — остальные тесты сравнивают с самой константой (`MAX_AMOUNT_KOPECKS + 1`),
+    то есть проверяют поведение «за пределом отвергаем», но не сам предел. Значение можно было
+    изменить, не уронив ни одного теста. Здесь оно закрепляется явно: 1 млрд ₽ = 10^11 копеек.
+    """
+    assert MAX_AMOUNT_KOPECKS == 100_000_000_000
+
+
 def test_parse_amount_rejects_garbage():
     with pytest.raises(InvalidOperation):
         parse_amount("abc")
