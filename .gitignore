@@ -48,3 +48,7 @@ playwright-report/
 .coverage
 .coverage.*
 htmlcov/
+
+# Логи запущенных служб: start-detached пишет их в корень (out.log/err.log/demo.log/demo.err.log).
+# Это мусор рантайма, а не артефакт репозитория — иначе его можно случайно закоммитить.
+*.log
