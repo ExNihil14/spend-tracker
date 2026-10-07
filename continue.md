@@ -27,6 +27,63 @@ progressive disclosure: `D:\dev\docs\machine\RULE_EXTRACTION_PLAN_received_2026-
   Wave 0 + Wave 1-preview + **Wave 1 лэйаут (`a89f42f`)** закоммичены; 3D-графики отклонены (искажают значения).
 
 ## Что активно / в работе
+> **📦 СЕССИЯ 07.10 (утро–день) — адъюдикация wave7/site_ui завершена, все подтверждённые находки закрыты TDD.**
+> **Окно 07.10 02:00 UTC отработало полностью:** Astra **4/4** (02:00–02:21 UTC), Opus-fallback **3/3**
+> (02:21–03:09), `all jobs done` 03:12, **pending = 0** (пул открылся — вчера был 402).
+> **Адъюдикация `site_ui` (2 «critical» ОТКЛОНЕНЫ фактами, не описанием):** предложенная замена
+> `hasOwnProperty` на `in` **сломала бы работающий код** (живая проба на htmx 2.0.4: `hasOwnProperty`=true,
+> `in`=false); `urlencode` в id/hx-select безвреден — `validate_name` допускает только ASCII-слаги.
+> Подтверждено и исправлено (TDD red→green): `min-w-0` на grid-элементах формы цели (трек `1fr` имел
+> авто-минимум ~200px → горизонтальный скролл на 640–700px); `placeholder`/`pattern`/`title` для `type=month`
+> (Firefox/Safari не показывают пикер); `<noscript>` (без JS форма уходила GET-ом и молчала);
+> `day_fx | default({})` в `tx_rows.html` (рендер партиала без `day_fx` ронял `UndefinedError`).
+> **Wave7 — исправлено по TDD:** ① `backup-knowledge.py` — разбор формы маркера стоял вне `try`, из-за чего
+> fail-closed не покрывал его (потеря ЕДИНСТВЕННОЙ полной копии при rc=0); ② `check-channels.ps1` —
+> 404/405 в `OkCodes` давали `[OK]`+rc=0 на несуществующем эндпоинте (префлайт врал); ③ тот же тест —
+> ассерт `"auth ok" in out` проходил и по НЕГАТИВНОЙ строке «это не 'auth ok'»; ④ `verify-opencode-service.ps1`
+> — регекс требовал имя И состояние, поэтому `dash`/`fetch: connecting` читались как «сервера нет» (fail-open,
+> ровно то, что шапка объявляла закрытым); ⑤ `agentrouter_guard.ps1` — запись счётчика без `-ErrorAction Stop`
+> (отказ был нетерминирующей ошибкой → старт СРАБАТЫВАЛ, резерв не записывался, cap 3 обходился бесконечно)
+> и схема счётчика без проверки формы (скаляр `7` = «стартов ещё не было»).
+> **Коммиты:** spend `5338dd3`; bootstrap `e3df327`, `ac7bf71`, `3e75f36`, `067c775` (gitleaks passed).
+> **Контур зелёный:** spend **943 unit + 100 e2e**, ruff 0, contract ok, ratchet 420 = базлайн, cc без роста,
+> `build_css` 34 078 Б; bootstrap **6 наборов ALL PASS** (guard 17, check-channels 10, verify_mcp 6, ×3 backup).
+> **Живая проверка:** прод 8766 и демо 8799 перезапущены на новом коде, 200/200; HTML `/goals` отдаёт
+> `min-w-0`, `placeholder="2026-05"`, `pattern=`, `title=`, `<noscript>`; гард вне окна — no-op, счётчик не тронут.
+> **Поправка к Facts:** push `ff08c36` состоялся **06.10 в 21:00:13 (юзером)** — запись «push отложен» ниже неверна.
+> **Снят блокер сессии:** `edit`-тул снова работает (safety-гейт больше не дрейфит) — правки больше не требуют
+> переписывания файлов целиком.
+> **Открыто:** причина сбоя `edit` (06.10–07.10) не разобрана — если вернётся, симптом: «не распознан путь
+> правки (дрейф API?)»; обход через `serena`/shell сознательно не использовался.
+> **Полный разбор:** `D:\dev\docs\machine\agentrouter_review\2026-09-27\ADJUDICATION_2026-10-07_wave7_site_ui.md`.
+> **Дальше:** очередь wave7 пуста → наполнить новой волной (или свёрнуть AgentRouter); backlog — канонизация
+> `continue.md` (WARN аудита), `ops_bak` cadence-тест zip, дайджест, PR #6 (только по команде юзера).
+> **📦 СЕССИЯ 06.10 (ночь, 21:00 local) — ⏸ Deliverable A отложен до окна; правок кода нет.**
+> Preflight `check-channels.ps1` rc=0, канал `opencode` (401=ok, auth NOT_CHECKED); main-модель —
+> `opencode/space-bunny-free` (Zen free, ZDR; Go STOP до 13.10). Состояние **сошлось с §2 стартера по
+> фактам**: `origin/main = f1ff57b` = HEAD, дерево чистое, контур не трогали; bootstrap ahead 1
+> (`ff08c36`); pending **1**, `--fb-dry` 3/0; `contract_delta check` **ok**; прод 8766 / демо 8799 —
+> 200/200 (`/health/data` ok, schema v8).
+> **Deliverable A (`site_ui`) НЕ начат — объективная причина:** fb-выходов `out_wave5_site_ui_astra_fb_*`
+> ещё нет (на диске только промпты-сплиты `prompt_wave5_fb_ui_a/b/c.md`, 33/33/39 КБ); поллер отдаст их
+> в окно **07.10 02:00 UTC (04:57 local)** — на момент сессии это +8.5 ч. Scope (по очереди): spend,
+> base `ccd5520` — UI/шаблоны/JS: `goals_portfolio.html` (`#goals-portfolio` OOB), `goals_list.html`,
+> hidden `rule_id`, OOB `#tax-hash`, `hx-disabled-elt`/`hx-sync`.
+> **Deliverable B — все три пункта закрыты решениями юзера, действий не выполнялось:** push `ff08c36` —
+> **позже выполнен юзером 06.10 в 21:00:13** (на момент этой записи решение было «отказ»; фактическое
+> состояние репозитория — см. блок сессии 07.10 выше); merge **PR #6** — **отказ** (оставить
+> открытым; проверено: OPEN/MERGEABLE/`CLEAN`, все 5 джобов CI SUCCESS, run 37443918240 от 06.10 09:34Z);
+> Abacus (190 кр ≈ $0.19) — **вариант C, 0 кр** (A/B отложены; полноразмерное ревью 300–500 кр не влезает).
+> **Изменено в тулах, не в коде:** `watch_window_events.ps1` — добавлен параметр `-DeadlineUtc`
+> (жёсткие `14:30 UTC` дня выходили мгновенно при вечернем запуске; поведение по умолчанию сохранено,
+> плюс явный `EVENT: DEADLINE (no event)` и печать дедлайна). Синтаксис обоих watcher'ов проверен.
+> **Watcher'ы вооружены** (в §2 было «watcher'ов нет») через `start-detached.ps1`: `watch_window.ps1`
+> (pid 16328) сам вычислил окно 07.10 02:00 UTC и пишет снапшоты в
+> `%TEMP%\opencode\astra_window_snapshots`; `watch_window_events.ps1` (pid 11424, дедлайн 07.10 05:20 UTC)
+> выходит по событию `fb: ok` / `pool closed` / `all jobs done` / `poller died` и печатает fb-файлы.
+> **Дальше (утро 07.10):** отчёт watcher'ов → адъюдикация `site_ui` по формату `ADJUDICATION_WAVE5`
+> (вердикт за пункт, факт-чек по коду, красный тест → фикс → зелёный) → контур (pytest + `tests/e2e -m e2e`
+> + ruff + contract_delta + ratchet + cc_ratchet + build_css) + live-прогон демо 8799.
 > **📦 ОКНО 06.10 11:00 UTC — итог + фиксы (в дереве, ждут коммита).** Astra отдала **4/4**:
 > `ops_srv`, `wave6_core`, `wave6_ui`, `ops_delta` (exit=0; WAF отпустил к 11:46 UTC, astra
 > degraded 96.4%); `site_ui` — 5/5 `sensitive_words` → статический skip (v8.4.5) + Opus-fallback,
