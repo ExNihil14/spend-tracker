@@ -1,7 +1,11 @@
 {% set ns = namespace(prev_date=None) %}
 {# wave7 (fb_c S2): day_fx передают оба текущих пути рендера ленты, но любая будущая точка рендера
-   без него даёт UndefinedError (500 на всей странице). Фолбэк на пустую карту — одна строка. #}
-{% set day_fx_map = day_fx | default({}) %}
+   без него даёт UndefinedError (500 на всей странице). Фолбэк на пустую карту — одна строка.
+   wave8 (адъюдикация `ui` #1): `default({})` сливал «карту не передали» и «валютных операций нет» —
+   в первом случае итог дня показывался полным, хотя валютные операции в него не входят и их наличие
+   неизвестно. Теперь «неизвестно» — третье состояние со своей пометкой, а не тишина. #}
+{% set day_fx_known = day_fx is defined %}
+{% set day_fx_map = day_fx if day_fx_known else {} %}
 {% for t in transactions %}
 {% if group_days and t.date != ns.prev_date %}
 {% set ns.prev_date = t.date %}
@@ -14,8 +18,9 @@
       {% set day_total = day_totals.get(t.date) %}
       {% set day_fx_count = day_fx_map.get(t.date) %}
       <span class="text-xs font-medium {{ 'text-income' if day_total is not none and day_total > 0 else 'text-fg-muted' }}"
-            {% if day_fx_count %}title="Операции в валюте в итог не входят"{% endif %}>
-        {% if day_total is not none %}итог {{ fmt_money(day_total) }}{% if day_fx_count %} + валюта{% endif %}
+            {% if day_fx_count %}title="Операции в валюте в итог не входят"
+            {% elif not day_fx_known %}title="Данные по валютным операциям не переданы — итог может быть неполным"{% endif %}>
+        {% if day_total is not none %}итог {{ fmt_money(day_total) }}{% if day_fx_count %} + валюта{% elif not day_fx_known %} · без учёта валюты{% endif %}
         {% elif day_fx_count %}только в валюте
         {% else %}итог {{ fmt_money(0) }}{% endif %}
       </span>
