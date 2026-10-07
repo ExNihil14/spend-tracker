@@ -9,6 +9,12 @@
 - `update` понижает свободно; новые функции > порога и рост существующих — только с `--force`
   (осознанное принятие долга; согласуется с `ratchet.py snapshot --force`).
 
+F3 (адъюдикация wave8, `gates`): fail-closed относится не только к формату сообщений C901, но и
+к самому замеру. Раньше `run_ruff()` подставлял `[]` при пустом stdout, из-за чего сбой анализа
+(rc=1 без вывода) читался как «сложных функций нет», а диагностики не-C901 (например
+`invalid-syntax` — битый синтаксис ruff сообщает независимо от `--select`) молча отбрасывались,
+и гейт сравнивал устаревшие числа как будто замер прошёл.
+
 Использование:
     uv run python scripts/cc_ratchet.py check     # CI
     uv run python scripts/cc_ratchet.py update    # переснять baseline (понижение — свободно)
@@ -51,7 +57,18 @@ def parse_c901(payload: list[dict]) -> dict[str, int]:
 
 
 def parse_or_fail(payload: list[dict]) -> dict[str, int]:
-    """Fail-closed: если ruff сообщил C901, а мы не разобрали — это дрейф формата, а не «всё хорошо»."""
+    """Fail-closed: и формат C901, и полнота самого анализа — иначе замер недействителен.
+
+    Кроме формата сообщений C901 проверяем, что других диагностик нет: мы просим только C901,
+    поэтому `invalid-syntax` (битый синтаксис ruff сообщает независимо от `--select`) означает,
+    что анализ неполон. Раньше такая запись отбрасывалась как «не C901» и гейт оставался зелёным.
+    """
+    foreign = sorted({str(entry.get("code")) for entry in payload if entry.get("code") != "C901"})
+    if foreign:
+        raise SystemExit(
+            f"cc ratchet: FAIL — ruff сообщил не-C901 диагностики {foreign} "
+            "(синтаксическая ошибка или ошибка конфигурации?) — замер невозможен"
+        )
     parsed = parse_c901(payload)
     reported = sum(1 for entry in payload if entry.get("code") == "C901")
     if reported != len(parsed):
@@ -96,10 +113,19 @@ def run_ruff() -> list[dict]:
                             encoding="utf-8", errors="replace", check=False)
     if result.returncode not in (0, 1):  # ruff: 1 = есть находки (это ожидаемо)
         raise SystemExit(f"ruff не отработал (rc={result.returncode}): {result.stderr[:300]}")
+    # F3: пустой stdout — это не «сложных функций нет», а неразобранный/сорванный анализ.
+    # Настоящий «чисто» ruff тоже печатает, но печатает `[]`.
+    raw = (result.stdout or "").strip()
+    if not raw:
+        raise SystemExit(f"ruff не выдал JSON (rc={result.returncode}): {result.stderr[:300]} "
+                         "— замер сложности невозможен")
     try:
-        return json.loads(result.stdout or "[]")
+        payload = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise SystemExit(f"не разобрал JSON ruff: {exc}") from exc
+    if not isinstance(payload, list):
+        raise SystemExit(f"ruff вернул {type(payload).__name__}, а не список диагностик — замер невозможен")
+    return payload
 
 
 def load_baseline() -> dict[str, int]:

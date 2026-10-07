@@ -6,9 +6,13 @@
 
 Ложные гарантии закрыты (§J-2): нет метрики/не число в базлайне или замере, битый базлайн,
 неизвестная версия и упавший `measure()` — FAIL; «слишком хорошо» (0 или < 0.5×базлайна) — FAIL.
-`guard` (CI, PR) ловит рост базлайна против базовой ветки — обход `snapshot --force` невозможен
-без метки `ratchet-raise` в PR. В снимок пишутся версии окружения (python/sqlite), при расхождении
-с базлайном `check` печатает WARN (метрика может сдвинуться от смены версий, а не кода).
+F2 (адъюдикация wave8, `gates`): битым считается и базлайн, который прочитался, но оказался НЕ
+объектом (`null`): раньше проверка типа шла только при `baseline is not None`, поэтому `null`
+проходил как «базлайна нет» — `check --json` давал rc=0 с пустым `failures`, а текстовый режим
+падал на `.get()`. `guard` (CI, PR) ловит рост базлайна против базовой ветки — обход
+`snapshot --force` невозможен без метки `ratchet-raise` в PR. В снимок пишутся версии окружения
+(python/sqlite), при расхождении с базлайном `check` печатает WARN (метрика может сдвинуться от
+смены версий, а не кода).
 
 Метрики:
   report_month_queries — SQL-запросов на месячный отчёт (стоимость страницы /).
@@ -193,7 +197,7 @@ def env_info() -> dict[str, str]:
 
 
 def load_baseline_from_ref(ref: str) -> dict:
-    """Базлайн из git-ссылки (CI: origin/main): `git show <ref>:spec/ratchet_baseline.json`."""
+    """Ссылка на базлайн в git (CI: origin/main): `git show <ref>:spec/ratchet_baseline.json`."""
     result = subprocess.run(["git", "show", f"{ref}:{BASELINE_REL}"], cwd=ROOT,
                             capture_output=True, text=True, encoding="utf-8", check=False)
     if result.returncode != 0:
@@ -301,12 +305,18 @@ def _baseline_structure_failures(baseline: dict) -> list[str]:
 def _cmd_check(as_json: bool) -> int:
     failures: list[str] = []
     baseline: dict | None = None
+    loaded = False
     try:
         baseline = load_baseline(BASELINE_PATH)
+        loaded = True
     except (OSError, ValueError) as e:
         failures.append(f"базлайн недоступен или битый ({BASELINE_PATH.name}): {e} — гейт не может сработать")
-    if baseline is not None and not isinstance(baseline, dict):
-        failures.append("базлайн: не объект JSON — гейт не может сработать")
+    # F2 (адъюдикация wave8, `gates`): тип проверяем ВСЕГДА, включая None. JSON `null` проходит
+    # `json.loads` как None, а условие `baseline is not None` отсекало и проверку типа, и
+    # `_baseline_structure_failures`, и `compare()` — гейт молча переставал мерить. Теперь это FAIL.
+    if loaded and not isinstance(baseline, dict):
+        failures.append(f"базлайн: не объект JSON ({BASELINE_PATH.name}: {type(baseline).__name__})"
+                        " — гейт не может сработать")
         baseline = None
     if baseline is not None:
         failures += _baseline_structure_failures(baseline)
@@ -325,7 +335,9 @@ def _cmd_check(as_json: bool) -> int:
                          ensure_ascii=False, indent=2))
     else:
         print("Ratchet-метрики (только вниз; время — инфо):")
-        metrics = baseline.get("metrics") or {}
+        # `baseline or {}`: базлайн может быть непригоден (см. F2) — отчёт должен печатать FAIL,
+        # а не падать AttributeError на `None.get(...)`.
+        metrics = (baseline or {}).get("metrics") or {}
         for metric, limit in GATES.items():
             print(f"  {metric:<22} текущее {_fmt_num(current.get(metric))}  "
                   f"базлайн {_fmt_num(metrics.get(metric))}  гейт ×{limit}")
