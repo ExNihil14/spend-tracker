@@ -126,5 +126,7 @@ def test_binary_rejects_cached_file_with_wrong_digest(monkeypatch, tmp_path):
     name = f"{bc.VERSION}-{bc._asset()}"
     (tmp_path / name).write_bytes(b"not a real tailwind binary")
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exc:
         bc._binary()
+    # B-16 (wave9 P3, C3): без проверки кода любой SystemExit (в т.ч. «успешный») проходил тест
+    assert exc.value.code not in (None, 0), "SystemExit без кода/с 0 не доказывает отказ"
