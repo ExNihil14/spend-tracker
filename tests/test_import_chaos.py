@@ -77,6 +77,24 @@ def test_broken_bytes_fall_back_and_survive(tmp_path):
         store.close()
 
 
+def test_priorbank_broken_amount_no_crash(tmp_path):
+    """Приорбанк (PDF-мост): битая сумма → amount_unparsed (не 500); cp1251 читается;
+    служебные строки без даты — не операции."""
+    from synth_bank import gen_priorbank
+
+    raw = gen_priorbank(n=3, seed=5).replace("ЕВРООПТ;BYN, Минск;1,577.92;",
+                                             "ЕВРООПТ;BYN, Минск;abc;", 1)
+    store = _fresh(tmp_path)
+    try:
+        result = import_csv(raw.encode("cp1251"), store, taxonomy=TAX, classify=_stub)
+        assert result["status"] == "ok" and result["bank"] == "priorbank"
+        assert result["reasons"].get("amount_unparsed") == 1
+        assert result["reasons"].get("status") == 3  # Входящий/Итого/Исходящий
+        assert _count(store) == 5  # 6 операций − 1 битая
+    finally:
+        store.close()
+
+
 def test_huge_description_does_not_crash(tmp_path):
     raw = SBER + "\n1;01.09.2026;1234;Выполнено;-100,00;RUB;X;" + "О" * 20_000 + "\n"
     store = _fresh(tmp_path)

@@ -107,3 +107,58 @@ def gen_tinkoff_real(n: int = 10, seed: int = 3, encoding: str | None = None) ->
                      f"0;Прочее;5411;{m};0")
     raw = "\r\n".join(lines) + "\r\n"
     return raw.encode("cp1251") if encoding == "cp1251" else raw
+
+
+PRIORBANK_HEADER = ("Дата операции;№ док;Вид операции;Детализация операции;Место проведения операции;"
+                    "Обороты Списание;Поступление;Остаток;Корреспондент Банк;Счет;Код платежа в бюджет")
+
+BY_MERCHANTS = ["ЕВРООПТ", "САНТА", "АПТЕКА МИЛА", "БЕЛОРУСНЕФТЬ", "A1", "МТС", "KUFAR"]
+
+
+def fmt_by(kopecks: int) -> str:
+    """157792 → '1,577.92' (формат Приорбанка: запятая-тысячи, точка-дробь, без знака)."""
+    return f"{abs(kopecks) / 100:,.2f}"
+
+
+def gen_priorbank(n: int = 10, seed: int = 5, encoding: str | None = None) -> str | bytes:
+    """Приорбанк (PDF→CSV-мост, Ф1): 11 колонок, `;`, суммы «1,577.92» (запятая-тысячи).
+
+    Форма — из обезличенного образца (14.10.2026): служебные строки без даты
+    («Входящий/Исходящий остаток», «Итого оборотов»); расход/приход — в «Обороты Списание»/
+    «Поступление»; проценты — с ПУСТОЙ «Детализацией» (фолбэк на «Вид операции»); легитимный
+    дубль покупки в один день; две карты (расходы/зачисление). Детерминированный seed.
+    """
+    rng = random.Random(seed)
+    d0 = date(2026, 6, 1)
+    card1, card2 = "9112 00** **** 0001", "9112 00** **** 0002"
+    balance = 157_792
+    spis_total = post_total = 0
+    lines = [PRIORBANK_HEADER, f";;Входящий остаток;;;0.00;{fmt_by(balance)};;;;"]
+
+    def debit(d: date, merchant: str, kop: int, doc: str) -> None:
+        nonlocal balance, spis_total
+        balance -= kop
+        spis_total += kop
+        lines.append(f"{d.strftime('%d.%m.%Y')};{doc};Списание по реестру карт-центра (-);{merchant};"
+                     f"BYN, Минск;{fmt_by(kop)};0.00;{fmt_by(balance)};Приорбанк;{card1};")
+
+    debit(d0, "ЕВРООПТ", 157_792, "101")          # фикс: тысячная сумма «1,577.92»
+    debit(d0, "ЕВРООПТ", 157_792, "101")          # легитимный дубль в один день
+    for i in range(1, n):
+        debit(d0 + timedelta(days=i // 2), rng.choice(BY_MERCHANTS),
+              max(100, min(50_000, int(rng.lognormvariate(6.2, 0.9)))), f"{101 + i // 2}")
+
+    balance += 470_711                            # зачисление по ведомости (вторая карта)
+    post_total += 470_711
+    lines.append(f"{(d0 + timedelta(days=3)).strftime('%d.%m.%Y')};;Зачисление по ведомости (+);"
+                 f"ООО РОМАШКА;BYN, Минск;0.00;{fmt_by(470_711)};{fmt_by(balance)};Приорбанк;{card2};")
+
+    balance += 246                                # проценты: пустая «Детализация»
+    post_total += 246
+    lines.append(f"{(d0 + timedelta(days=4)).strftime('%d.%m.%Y')};;Уплата процентов (+);;;0.00;"
+                 f"{fmt_by(246)};{fmt_by(balance)};Приорбанк;{card2};")
+
+    lines.append(f";;Итого оборотов;;;{fmt_by(spis_total)};{fmt_by(post_total)};;;;")
+    lines.append(f";;Исходящий остаток;;;0.00;{fmt_by(balance)};;;;")
+    raw = "\n".join(lines) + "\n"
+    return raw.encode("cp1251") if encoding == "cp1251" else raw

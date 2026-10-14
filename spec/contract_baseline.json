@@ -401,7 +401,7 @@
    "returns": "None"
   },
   "spendtrack.csv_import:BANKS": {
-   "args": "{'sber': SberAdaptor(), 'tinkoff': TinkoffAdaptor(), 'yandex': YandexMoneyAdaptor(), 'auto': None}",
+   "args": "{'sber': SberAdaptor(), 'tinkoff': TinkoffAdaptor(), 'yandex': YandexMoneyAdaptor(), 'priorbank': PriorbankAdaptor(), 'auto': None}",
    "returns": ""
   },
   "spendtrack.csv_import:FORMAT_HINT": {
@@ -412,12 +412,16 @@
    "args": "10 * 1024 * 1024",
    "returns": ""
   },
+  "spendtrack.csv_import:PriorbankAdaptor.parse": {
+   "args": "self, rows: Iterator[dict]",
+   "returns": "Iterator[dict]"
+  },
   "spendtrack.csv_import:REASON_LABELS": {
    "args": "{'duplicate': 'дубли', 'status': 'не проведены банком', 'missing_fields': 'пустые обязательные поля', 'amount_unparsed': 'не разобрана сумма', 'amount_limit': 'сумма сверх лимита', 'date_unrecognized': 'нераспознанная дата', 'currency_unknown': 'незнакомая валюта'}",
    "returns": ""
   },
   "spendtrack.csv_import:REQUIRED_COLUMNS": {
-   "args": "{'sber': (('Дата совершения операции', 'Дата операции', 'Дата'), ('Описание', 'Категория'), ('Сумма в валюте счета', 'Сумма в валюте операции', 'Сумма операции', 'Сумма')), 'tinkoff': (('Дата операции', 'Дата', 'Date'), ('Описание', 'Description'), ('Сумма операции', 'Сумма', 'Amount')), 'yandex': (('datetime', 'date', 'Дата'), ('description', 'title', 'Описание'), ('amount', 'Сумма'))}",
+   "args": "{'sber': (('Дата совершения операции', 'Дата операции', 'Дата'), ('Описание', 'Категория'), ('Сумма в валюте счета', 'Сумма в валюте операции', 'Сумма операции', 'Сумма')), 'tinkoff': (('Дата операции', 'Дата', 'Date'), ('Описание', 'Description'), ('Сумма операции', 'Сумма', 'Amount')), 'yandex': (('datetime', 'date', 'Дата'), ('description', 'title', 'Описание'), ('amount', 'Сумма')), 'priorbank': (('Дата операции',), ('Детализация операции',), ('Обороты Списание', 'Поступление'))}",
    "returns": ""
   },
   "spendtrack.csv_import:SKIP_REASONS": {

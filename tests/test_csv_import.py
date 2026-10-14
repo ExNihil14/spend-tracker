@@ -82,6 +82,58 @@ def test_real_tinkoff_imports_and_skips_non_ok(store):
     assert res["reasons"].get("status") == 1
 
 
+LATIN_O = chr(0x6F)  # «о» латиницей — PDF-мост Приорбанка может отдать именно её (гомоглиф)
+
+
+def test_sniff_priorbank_not_sber():
+    """Приорбанк: «Дата операции» есть и у Сбера — уникальный маркер («Детализация операции»)
+    обязан выигрывать у sber-эвристики (урок «Т-Банк раньше Сбера»)."""
+    from synth_bank import PRIORBANK_HEADER
+
+    header = {key: "" for key in PRIORBANK_HEADER.split(";")}
+    assert sniff_bank([header]) == "priorbank"
+
+
+def test_sniff_priorbank_homoglyph_header():
+    """Гомоглифы в шапке (латинские o в «oперации») не ломают снеффинг и обязательные колонки."""
+    from synth_bank import PRIORBANK_HEADER
+
+    hg = PRIORBANK_HEADER.replace("операции", LATIN_O + "перации")
+    header = {key: "" for key in hg.split(";")}
+    assert sniff_bank([header]) == "priorbank"
+    assert missing_columns("priorbank", list(header)) == []
+
+
+def test_real_priorbank_imports(store):
+    """Приорбанк (образец 14.10): суммы «1,577.92» (запятая-тысячи), знак — из пары
+    Списание/Поступление, служебные строки без даты пропущены, проценты — фолбэк описания."""
+    from synth_bank import gen_priorbank
+
+    res = import_csv(gen_priorbank(n=10, seed=5), store, classify=_stub_classify())
+    assert res["status"] == "ok" and res["bank"] == "priorbank"
+    assert res["added"] == 13  # 10 покупок + легитимный дубль + зачисление + проценты
+    assert res["reasons"].get("status") == 3  # Входящий/Итого оборотов/Исходящий
+    txs = store.list_transactions(limit=1000)
+    assert len(txs) == 13
+    assert all(t["currency"] == "BYN" for t in txs)
+    amounts = [t["amount_kopecks"] for t in txs]
+    assert amounts.count(-157_792) == 2  # «1,577.92» → копейки; дубль в один день сохранён
+    assert 470_711 in amounts and 246 in amounts  # приходы положительные
+    assert any(t["description"] == "Уплата процентов" for t in txs)  # фолбэк «Вид операции»
+    assert all(t["account_anon"] for t in txs)  # счёт псевдонимизирован
+    assert all(t["date"].startswith("2026-06") for t in txs)
+
+
+def test_priorbank_rerun_is_noop(store):
+    """Повторный импорт той же выписки — no-op (fingerprint + export_rowid)."""
+    from synth_bank import gen_priorbank
+
+    c = _stub_classify()
+    assert import_csv(gen_priorbank(n=6, seed=5), store, classify=c)["added"] == 9
+    res = import_csv(gen_priorbank(n=6, seed=5), store, classify=c)
+    assert res["added"] == 0 and res["dupes"] == 9
+
+
 def test_import_sber(store):
     res = import_csv(SBER_CSV, store, classify=_stub_classify())
     assert res["status"] == "ok"

@@ -77,7 +77,7 @@ def test_parse_amount_roundtrip_forms(kopecks):
 def test_sniff_bank_total_and_known(rows):
     """sniff_bank на произвольных шапках: None или известный банк, без исключений."""
     bank = sniff_bank(rows)
-    assert bank in (None, "sber", "tinkoff", "yandex")
+    assert bank in (None, "sber", "tinkoff", "yandex", "priorbank")
 
 
 @given(lines=st.lists(st.text(max_size=60), max_size=6))

@@ -48,7 +48,7 @@ def test_license_canon():
 def test_banks_canon():
     from spendtrack.csv_import import BANKS
 
-    names = {"sber": "Сбер", "tinkoff": "Т-Банк", "yandex": "ЮMoney"}
+    names = {"sber": "Сбер", "tinkoff": "Т-Банк", "yandex": "ЮMoney", "priorbank": "Приорбанк"}
     actual = set(BANKS) - {"auto"}
     extra, missing = actual - set(names), set(names) - actual
     assert not extra and not missing, f"BANKS vs канон названий: лишние {extra}, без названия {missing}"

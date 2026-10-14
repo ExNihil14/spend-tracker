@@ -14,6 +14,7 @@ from spendtrack.store import (
     MAX_AMOUNT_KOPECKS,
     Store,
     fingerprint,
+    fmt_amount,
     normalize_currency,
     parse_amount,
 )
@@ -22,6 +23,16 @@ from spendtrack.taxonomy import Taxonomy
 _DATE_ISO = re.compile(r"^(\d{4}-\d{2}-\d{2})")
 _DATE_DDMMYYYY = re.compile(r"^(\d{2})\.(\d{2})\.(\d{4})")
 _DATE_ISO_ALT = re.compile(r"^(\d{4})[/.](\d{1,2})[/.](\d{1,2})(?:\s|$)")  # 2026/09/05, 2026.9.5
+
+# Гомоглифы: PDF-мост Приорбанка отдаёт шапку «как есть» — латинские a/e/o/c/p/x/y внутри
+# кириллических слов («oперации») не должны ломать сопоставление. Нормализуем ОБЕ стороны
+# (ключи заголовков и литералы-синонимы); для чистых шапок это no-op.
+_HOMOGLYPHS = str.maketrans({"a": "а", "e": "е", "o": "о", "c": "с", "p": "р", "x": "х", "y": "у"})
+
+
+def _norm_key(key: str) -> str:
+    return key.strip().lower().translate(_HOMOGLYPHS)
+
 
 MAX_CSV_BYTES = 10 * 1024 * 1024          # 10 МБ: даже многолетняя выписка меньше; защита от OOM
 
@@ -43,6 +54,9 @@ REQUIRED_COLUMNS: dict[str, tuple[tuple[str, ...], ...]] = {
     "tinkoff": (("Дата операции", "Дата", "Date"), ("Описание", "Description"),
                 ("Сумма операции", "Сумма", "Amount")),
     "yandex": (("datetime", "date", "Дата"), ("description", "title", "Описание"), ("amount", "Сумма")),
+    # Приорбанк (PDF→CSV-мост, Ф1, образец 14.10): суммы — пара «Обороты Списание»/«Поступление».
+    "priorbank": (("Дата операции",), ("Детализация операции",),
+                  ("Обороты Списание", "Поступление")),
 }
 
 # Отчёт импорта (#2): пропущено (с причинами) и подозрительно (импортировано, но с признаками).
@@ -68,14 +82,15 @@ class ImportLimitError(ValueError):
 def _cell(row: dict, *keys: str) -> str:
     """Значение по синонимам колонок (приоритет — порядок аргументов).
 
-    Пробелы/регистр в заголовках не ломают поиск: банк может добавить « » или сменить регистр.
+    Пробелы/регистр/гомоглифы в заголовках не ломают поиск: банк может добавить « », сменить
+    регистр, а PDF-мост Приорбанка отдаёт шапку как есть — с латинскими o/e/c внутри слов.
     """
     by_norm: dict[str, object] = {}
     for key, value in row.items():
         if key:
-            by_norm.setdefault(key.strip().lower(), value)
+            by_norm.setdefault(_norm_key(key), value)
     for k in keys:
-        value = by_norm.get(k.strip().lower())
+        value = by_norm.get(_norm_key(k))
         if value not in (None, ""):
             return str(value).strip()
     return ""
@@ -126,9 +141,9 @@ def missing_columns(bank: str, fieldnames: list[str]) -> list[str]:
     Возвращает группу синонимов через « / » (у банка бывает несколько форматов: email-CSV Сбера
     и старый экспорт) — пользователю видно, какие названия колонок мы искали.
     """
-    names = {f.strip().lower() for f in fieldnames if f}
+    names = {_norm_key(f) for f in fieldnames if f}
     return [" / ".join(group) for group in REQUIRED_COLUMNS.get(bank, ())
-            if not any(alias.lower() in names for alias in group)]
+            if not any(_norm_key(alias) in names for alias in group)]
 
 
 def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "") -> dict:
@@ -224,10 +239,58 @@ class YandexMoneyAdaptor:
                           _cell(r, "currency", "Валюта"))
 
 
+def _prio_kopecks(value: str) -> int | None:
+    """«1,577.92» → 157792 копеек: у Приорбанка запятая — ТЫСЯЧИ, точка — дробь (parse_amount
+    ждёт наоборот — «1,577.92» он прочитал бы как «1.577.92» и упал). Пусто/мусор → None."""
+    v = value.strip().replace("\u2212", "-")
+    if not v:
+        return None
+    try:
+        return parse_amount(v.replace(",", ""))
+    except (InvalidOperation, ValueError, OverflowError):
+        return None
+
+
+def _kind_text(kind: str) -> str:
+    """«Уплата процентов (+)» → «Уплата процентов»: маркер направления — не часть описания."""
+    return re.sub(r"\s*\(\s*[+\u2212-]\s*\)\s*$", "", kind).strip()
+
+
+class PriorbankAdaptor:
+    """Приорбанк (выписка по счёту, PDF→CSV-мост, Ф1): 11 колонок, `;`, суммы «1,577.92».
+
+    Расход — «Обороты Списание», приход — «Поступление»; знак операции = нетто (приход − расход).
+    Служебные строки без даты («Входящий/Исходящий остаток», «Итого оборотов») → `_skip: status`.
+    Пустая «Детализация» (проценты и т.п.) → фолбэк на «Вид операции» без маркера (+)/(−).
+    Валюта — BYN (выписка в валюте счёта; конвертаций в файле нет).
+    """
+
+    def parse(self, rows: Iterator[dict]) -> Iterator[dict]:
+        for r in rows:
+            if not _iso_date(_cell(r, "Дата операции")):
+                yield {"_skip": "status"}  # строки-остатки/итоги: не операции
+                continue
+            spis_raw = _cell(r, "Обороты Списание")
+            post_raw = _cell(r, "Поступление")
+            spis = _prio_kopecks(spis_raw)
+            post = _prio_kopecks(post_raw)
+            if spis is None and post is None:
+                yield {"_skip": "amount_unparsed"}
+                continue
+            # непустое, но непарсящееся значение в ЛЮБОЙ из колонок — строка битая, не молчаливый ноль
+            if (spis is None and spis_raw) or (post is None and post_raw):
+                yield {"_skip": "amount_unparsed"}
+                continue
+            desc = _cell(r, "Детализация операции") or _kind_text(_cell(r, "Вид операции"))
+            kop = (post or 0) - (spis or 0)
+            yield _row_tx(_cell(r, "Дата операции"), desc, fmt_amount(kop), _cell(r, "Счет"), "BYN")
+
+
 BANKS = {
     "sber": SberAdaptor(),
     "tinkoff": TinkoffAdaptor(),
     "yandex": YandexMoneyAdaptor(),
+    "priorbank": PriorbankAdaptor(),
     "auto": None,  # снеффинг по колонкам
 }
 
@@ -235,17 +298,25 @@ BANKS = {
 def sniff_bank(rows: list[dict]) -> str | None:
     if not rows:
         return None
-    keys = {k.strip().lower() for k in rows[0] if k}
+    keys = {_norm_key(k) for k in rows[0] if k}
+    # Приорбанк (PDF-мост, Ф1): «Дата операции» есть и у Сбера — проверяем РАНЬШЕ (урок Т-Банка);
+    # уникальные маркеры — «Детализация операции» / «Обороты Списание» / «Код платежа в бюджет».
+    if _norm_key("детализация операции") in keys or _norm_key("обороты списание") in keys \
+            or _norm_key("код платежа в бюджет") in keys:
+        return "priorbank"
     # Реальный Т-Банк (13 колонок) тоже содержит «Дата операции» — его выдают MCC/кэшбэк/бонусы;
     # проверяем их раньше Сбера, иначе реальная выписка Т-Банка опознавалась как Сбер.
-    if "mcc" in keys or "кэшбэк" in keys or "бонусы (включая кэшбэк)" in keys:
+    if _norm_key("mcc") in keys or _norm_key("кэшбэк") in keys \
+            or _norm_key("бонусы (включая кэшбэк)") in keys:
         return "tinkoff"
     # Сбер: «Дата совершения операции» (email-CSV), «Дата операции»/«Дата платежа» — устойчивые маркеры.
-    if "дата совершения операции" in keys or "дата операции" in keys or "дата платежа" in keys:
+    if _norm_key("дата совершения операции") in keys or _norm_key("дата операции") in keys \
+            or _norm_key("дата платежа") in keys:
         return "sber"
-    if "счёт" in keys or ("сумма операции" in keys and "описание" in keys):
+    if _norm_key("счёт") in keys or (_norm_key("сумма операции") in keys
+                                     and _norm_key("описание") in keys):
         return "tinkoff"
-    if "datetime" in keys:
+    if _norm_key("datetime") in keys:
         return "yandex"
     return None
 
@@ -314,7 +385,7 @@ def import_csv(  # noqa: C901 — legacy-функция, за ней следи�
         sniffed = sniff_bank(reader_all)
         if sniffed is None or missing_columns(sniffed, fieldnames):
             # колонки могли частично переименовать — пробуем остальные банки по обязательным полям
-            candidates = [name for name in ("sber", "tinkoff", "yandex")
+            candidates = [name for name in ("sber", "tinkoff", "yandex", "priorbank")
                           if not missing_columns(name, fieldnames)]
             if candidates and (len(candidates) == 1 or sniffed is None):
                 # несколько банков подходят под обязательные колонки (например, без уникальных
@@ -327,7 +398,8 @@ def import_csv(  # noqa: C901 — legacy-функция, за ней следи�
     adaptor = BANKS.get(bank_name)
     if adaptor is None:
         return _format_error(bank_name, fieldnames, len(reader_all),
-                             message=f"Неизвестный банк: {bank_name!r} (доступны: sber, tinkoff, yandex).")
+                             message=f"Неизвестный банк: {bank_name!r} "
+                                     "(доступны: sber, tinkoff, yandex, priorbank).")
     missing = missing_columns(bank_name, fieldnames)
     if missing:
         return _format_error(bank_name, fieldnames, len(reader_all), missing=missing,
