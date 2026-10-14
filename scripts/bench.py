@@ -77,6 +77,14 @@ SUBSCRIPTIONS: tuple[tuple[str, str, int], ...] = (
 
 PENDING_ROWS = 200
 CURRENCIES = ("RUB", "RUB", "RUB", "USDT", "USD", "EUR")
+# B-17 spend_tail #1: маркеры страниц для проверки, что 200 — это НАША страница, а не заглушка
+HTTP_MARKERS = {"/": 'id="tx-table"', "/dashboard": 'id="kpi-balance"'}
+
+
+def _month_start(base: date, shift: int) -> date:
+    """Первый день месяца base+shift (КАЛЕНДАРНО; B-17 spend_tail #4 — «+30 дней» давал дубли/пропуски)."""
+    m = base.month - 1 + shift
+    return date(base.year + m // 12, m % 12 + 1, 1)
 
 
 def seed(db_path: Path, n: int, months: int = MONTHS) -> dict:  # noqa: C901 — см. cc_ratchet.py
@@ -105,7 +113,7 @@ def seed(db_path: Path, n: int, months: int = MONTHS) -> dict:  # noqa: C901 —
 
     # подписки: ежемесячные списания с фиксированным днём (для recurring-детектора)
     for month_shift in range(months):
-        first = (start + timedelta(days=30 * month_shift)).replace(day=1)
+        first = _month_start(start, month_shift)
         for idx, (merchant, category, amount) in enumerate(SUBSCRIPTIONS):
             day = first + timedelta(days=4 + idx)
             if start <= day <= today:
@@ -114,7 +122,7 @@ def seed(db_path: Path, n: int, months: int = MONTHS) -> dict:  # noqa: C901 —
 
     # зарплата 10-го и 25-го
     for month_shift in range(months):
-        first = (start + timedelta(days=30 * month_shift)).replace(day=1)
+        first = _month_start(start, month_shift)
         for dom in (10, 25):
             day = first + timedelta(days=dom - 1)
             if start <= day <= today:
@@ -164,9 +172,13 @@ def seed(db_path: Path, n: int, months: int = MONTHS) -> dict:  # noqa: C901 —
         "n_requested": n,
         "n_transactions": len(rows),
         "months": months,
-        "pending": PENDING_ROWS,
+        # B-17 spend_tail #8: pending — из ДАННЫХ (раньше константа 200 при любом размере)
+        "pending": sum(1 for r in rows if r[14] == "pending"),
         "db_bytes": db_path.stat().st_size,
     }
+    if len(rows) > n:
+        facts["warning"] = (f"n_requested={n} меньше обязательного набора (подписки+зарплаты): "
+                            f"фактически строк {len(rows)} — метрики относятся к фактическому набору")
     store.close()
     return facts
 
@@ -215,43 +227,94 @@ def _import_case(rows: int, repeats: int) -> dict:
 
     csv_text = _gen_sber_csv(rows)
     times: list[float] = []
-    result: dict = {}
+    added_runs: list[int | None] = []
+    db_rows_runs: list[int] = []
+    valid = True
     for _ in range(repeats):
         with tempfile.TemporaryDirectory(prefix="bench-import-") as tmp:
             db_path = Path(tmp) / "bench.db"
             store = Store(db_path=db_path)
+            before = store.conn.execute("SELECT COUNT(1) FROM transactions").fetchone()[0]
             t0 = time.perf_counter()
             result = import_csv(csv_text, store, bank="sber", classify=_stub_classify)
             times.append((time.perf_counter() - t0) * 1000)
+            after = store.conn.execute("SELECT COUNT(1) FROM transactions").fetchone()[0]
+            added = result.get("added")
+            added_runs.append(added)
+            db_rows_runs.append(after - before)
+            # B-17 spend_tail #2: метрика действительна только если импорт реально добавил rows
+            if added != rows or (after - before) != rows:
+                valid = False
             store.close()
     median = statistics.median(times)
     return {
         "rows": rows,
         "median_ms": median,
         "runs_ms": times,
-        "rows_per_second": round(rows / (median / 1000)) if median else None,
-        "added": result.get("added"),
+        "rows_per_second": round(rows / (median / 1000)) if (median and valid) else None,
+        "added": added_runs[-1],
+        "added_runs": added_runs,
+        "db_rows_runs": db_rows_runs,
+        "valid": valid,
     }
 
 
-def _http_cases(db_path: Path, repeats: int) -> dict:
+def _http_cases(db_path: Path, repeats: int, client=None) -> dict:
     """median-время рендера страниц через TestClient (in-process).
 
+    B-17 spend_tail #1: 200 обязан подтверждаться МАРКЕРОМ страницы; редиректы не следуем
+    (`follow_redirects=False`); ошибка — запись {"error": …} на путь, а не «median».
     Роутеры создают Store() без аргумента, поэтому путь задаётся env-переменной (локально,
-    в temp-БД скрипта; прод не задет).
+    в temp-БД скрипта; прод не задет). **Env восстанавливается** (слепая зона адъюдикации:
+    раньше SPENDTRACK_DB_PATH оставался указывать на удалённую temp-БД в том же процессе).
     """
+    prev = os.environ.get("SPENDTRACK_DB_PATH")
     os.environ["SPENDTRACK_DB_PATH"] = str(db_path)
-    from fastapi.testclient import TestClient
+    try:
+        if client is None:
+            from fastapi.testclient import TestClient
 
-    from spendtrack.main import app
+            from spendtrack.main import app
 
-    client = TestClient(app)
-    out: dict = {}
-    for path in ("/", "/dashboard"):
-        client.get(path)  # warmup: импорт шаблонов, кэши sqlite
-        median, times = _median_ms(lambda p=path: client.get(p), repeats)
-        out[path] = {"median_ms": median, "runs_ms": times}
-    return out
+            client = TestClient(app)
+
+        out: dict = {}
+        for path in ("/", "/dashboard"):
+            marker = HTTP_MARKERS[path]
+            warm = client.get(path, follow_redirects=False)
+            if warm.status_code != 200 or marker not in (warm.text or ""):
+                out[path] = {"error": f"HTTP {warm.status_code}; маркер {marker!r} не найден"}
+                continue
+            median, times = _median_ms(lambda p=path: client.get(p, follow_redirects=False), repeats)
+            probe = client.get(path, follow_redirects=False)
+            if probe.status_code != 200 or marker not in (probe.text or ""):
+                out[path] = {"error": f"HTTP {probe.status_code}; маркер {marker!r} пропал на измерении"}
+                continue
+            out[path] = {"median_ms": median, "runs_ms": times}
+        return out
+    finally:
+        if prev is None:
+            os.environ.pop("SPENDTRACK_DB_PATH", None)
+        else:
+            os.environ["SPENDTRACK_DB_PATH"] = prev
+
+
+def _incomplete_reasons(report: dict) -> list[str]:
+    """Сводка неполноты прогона (B-17 spend_tail #1/#2): http-ошибки и невалидный импорт."""
+    reasons: list[str] = []
+    skip_http = bool(report.get("skip_http"))
+    for size, data in (report.get("sizes") or {}).items():
+        http = data.get("http") or {}
+        for path, entry in http.items():
+            if "error" in entry:
+                reasons.append(f"HTTP {path} (n={size}): {entry['error']}")
+        if not http and not skip_http:
+            reasons.append(f"HTTP не измерялся (n={size}) — прогон неполный")
+    imp = report.get("import")
+    if imp is not None and not imp.get("valid", False):
+        reasons.append(f"import: added={imp.get('added')} ≠ rows={imp.get('rows')} "
+                       "(метрика недействительна)")
+    return reasons
 
 
 def run(args: argparse.Namespace) -> dict:
@@ -273,6 +336,7 @@ def run(args: argparse.Namespace) -> dict:
         "repeats": args.repeats,
         "generated": datetime.now().astimezone().isoformat(timespec="seconds"),
         "python": sys.version.split()[0],
+        "skip_http": bool(args.skip_http),
         "sizes": {},
         "import": None,
     }
@@ -319,10 +383,33 @@ def run(args: argparse.Namespace) -> dict:
     if args.import_rows:
         report["import"] = _import_case(args.import_rows, args.repeats)
 
+    # B-17 spend_tail #1/#2: неполный прогон — это ФАКТ (и rc≠0 в main), а не молчание
+    report["incomplete"] = _incomplete_reasons(report)
+
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     return report
+
+
+def _print_report_notes(report: dict) -> None:
+    """Предупреждения/ошибки/неполнота (B-17 spend_tail #1/#2/#8) — отдельно от таблицы."""
+    for size, data in report["sizes"].items():
+        warning = (data.get("facts") or {}).get("warning")
+        if warning:
+            print(f"[n={size}] ВНИМАНИЕ: {warning}")
+        for path, entry in (data.get("http") or {}).items():
+            if "error" in entry:
+                print(f"[n={size}] HTTP {path}: ОШИБКА — {entry['error']}")
+    if report.get("import"):
+        imp = report["import"]
+        status = "" if imp.get("valid") else "  ! МЕТРИКА НЕДЕЙСТВИТЕЛЬНА (added ≠ rows)"
+        print(f"import_csv sber: {imp['rows']} строк → {imp['median_ms']:.0f} мс"
+              f" ({imp['rows_per_second']} строк/с), added={imp['added']}{status}")
+    if report.get("incomplete"):
+        print("\nНЕПОЛНЫЙ ПРОГОН (часть метрик недостоверна):")
+        for reason in report["incomplete"]:
+            print("  !", reason)
 
 
 def _print_report(report: dict) -> None:
@@ -353,10 +440,7 @@ def _print_report(report: dict) -> None:
             cells.append(f"{median:>12.1f}" if median is not None else f"{'-':>12}")
         print(name.ljust(width) + "".join(cells))
     print("(median, мс)")
-    if report.get("import"):
-        imp = report["import"]
-        print(f"import_csv sber: {imp['rows']} строк → {imp['median_ms']:.0f} мс"
-              f" ({imp['rows_per_second']} строк/с), added={imp['added']}")
+    _print_report_notes(report)
 
 
 def main() -> int:
@@ -376,6 +460,8 @@ def main() -> int:
         report = run(args)
         _print_report(report)
         print(f"\nJSON: {args.out}")
+        # B-17 spend_tail #1: неполный прогон (http-ошибки/невалидный импорт) — ненулевой rc
+        return 1 if report.get("incomplete") else 0
     return 0
 
 

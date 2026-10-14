@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import importlib.util
+import os
 import subprocess
 from pathlib import Path
 
@@ -16,16 +18,37 @@ def _mod():
     return mod
 
 
+def _git_env() -> dict:
+    """B-17 spend_tail #9: изоляция от пользовательского git-конфига (gpgSign, hooks, шаблоны).
+
+    Раньше фикстура наследовала ~/.gitconfig: при `commit.gpgSign=true` и битом `gpg.program`
+    коммит падал rc=128 («gpg failed to sign the data») до самих проверок ревью.
+    """
+    env = dict(os.environ)
+    env.update({
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_SYSTEM": os.devnull,
+        "GIT_AUTHOR_NAME": "tester", "GIT_AUTHOR_EMAIL": "t@example.com",
+        "GIT_COMMITTER_NAME": "tester", "GIT_COMMITTER_EMAIL": "t@example.com",
+    })
+    return env
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo, check=True, env=_git_env())
+
+
 def _git_repo(tmp_path: Path) -> Path:
     """Мини-репо с одним коммитом (app.py) — для проверок collect_artifacts/main."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=repo, check=True)
-    subprocess.run(["git", "config", "user.name", "tester"], cwd=repo, check=True)
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "tester")
     (repo / "app.py").write_text("x = 1\n", encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-qm", "init"], cwd=repo, check=True)
+    _git(repo, "add", "-A")
+    _git(repo, "-c", "commit.gpgSign=false", "-c", "core.hooksPath=", "commit", "-qm", "init")
     return repo
 
 
@@ -86,8 +109,15 @@ def test_card_like_pii_is_blocked():
     sample = " ".join(map(str, (4276, 3800, 1234, 5678)))
     hits = m.secret_hits(f"карта {sample} до востребования")
     assert hits, "номер карты должен ловиться"
-    short = " ".join(map(str, (4276, 3800, 123, 456)))  # 13 цифр — тоже карта
+    # B-17 spend_tail #7: фикстура обязана быть ровно 13-значной (было 4+4+3+3 = 14 при assert «13»)
+    short = " ".join(map(str, (4276, 380, 123, 456)))
+    assert len("".join(short.split())) == 13, f"фикстура не 13-значная: {short}"
     assert m.secret_hits(f"карта {short} до востребования"), "13-значный номер должен ловиться"
+    # длины 13..19: слитная запись и группы — граница покрыта параметризацией длин
+    for digits in range(13, 20):
+        solid = "4276380012345678901"[:digits]
+        assert len(solid) == digits
+        assert m.secret_hits(f"карта {solid} до востребования"), f"слитные {digits} цифр не пойманы"
 
 
 def test_card_with_trailing_digits_is_blocked():
@@ -159,8 +189,8 @@ def test_sensitive_tracked_paths_are_blocked(tmp_path):
     (repo / "data").mkdir()
     secret = repo / "data" / "probe.csv"
     secret.write_text("a,b\n1,2\n", encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-qm", "csv"], cwd=repo, check=True)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "csv")
 
     secret.write_text("a,b\n3,4\n", encoding="utf-8")  # tracked-изменение чувствительного файла
     _, _, _, _, blocked = m.collect_artifacts(repo)
@@ -174,8 +204,8 @@ def test_sensitive_tracked_paths_stop_rc3(tmp_path, capsys):
     (repo / "data").mkdir()
     secret = repo / "data" / "probe.csv"
     secret.write_text("a,b\n1,2\n", encoding="utf-8")
-    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
-    subprocess.run(["git", "commit", "-qm", "csv"], cwd=repo, check=True)
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "csv")
     secret.write_text("a,b\n3,4\n", encoding="utf-8")
 
     rc = m.main(["--repo", str(repo), "--dry-run", "--title", "t"])
@@ -203,3 +233,88 @@ def test_dry_run_reports_prompt_sha(tmp_path, capsys):
     rc = m.main(["--repo", str(repo), "--dry-run", "--title", "t"])
     assert rc == 0
     assert "prompt_sha256=" in capsys.readouterr().out
+
+
+# ---- B-17 spend_tail #5/#6/#9: штатная ветка отправки (не только dry-run), prompt_sha, git-изоляция ----
+
+def _capture_transport(m, box: list[str], content: str = "REVIEW-CONTENT"):
+    def fake(prompt, model, mt):
+        box.append(prompt)
+        return content, {}
+    m.call_openrouter = fake
+
+
+def test_send_path_blocks_sensitive_tracked(tmp_path):
+    """#5: ШТАТНАЯ отправка (без --dry-run): чувствительный tracked-файл → rc=3, транспорт НЕ вызван.
+
+    Красная сторона (мутант «STOP только при --dry_run»): старый набор гонял только dry-run,
+    мутация выживала, а в проде чувствительный файл ушёл бы наружу (orig rc=3/transport=0
+    против mut rc=0/transport=1 — проба адъюдикации).
+    """
+    m = _mod()
+    repo = _git_repo(tmp_path)
+    (repo / "data").mkdir()
+    secret = repo / "data" / "probe.csv"
+    secret.write_text("a,b\n1,2\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "csv")
+    secret.write_text("a,b\n3,4\n", encoding="utf-8")
+
+    calls: list[str] = []
+    _capture_transport(m, calls)
+    out = tmp_path / "rev.md"
+    rc = m.main(["--repo", str(repo), "--title", "t", "--out", str(out)])
+    assert rc == 3, f"чувствительный tracked-файл обязан остановить отправку (rc={rc})"
+    assert calls == [], "транспорт не должен вызываться"
+    assert not out.exists(), "файл ревью не создаётся при STOP"
+
+
+def test_send_path_blocks_secret_literal(tmp_path):
+    """#5: секрет-литерал в изменении → rc=3 на штатной ветке, транспорт не вызван."""
+    m = _mod()
+    repo = _git_repo(tmp_path)
+    (repo / "app.py").write_text('KEY = "sk-' + "a" * 24 + '"\n', encoding="utf-8")
+
+    calls: list[str] = []
+    _capture_transport(m, calls)
+    rc = m.main(["--repo", str(repo), "--title", "t", "--out", str(tmp_path / "r.md")])
+    assert rc == 3 and calls == []
+
+
+def test_send_path_single_call_and_prompt_sha(tmp_path):
+    """#5/#6: чистый контроль — ровно ОДИН вызов; prompt_sha256 = sha256 ровно отправленного текста.
+
+    Красная сторона (мутант #6, prompt_sha = константа): старый тест проверял подстроку
+    `prompt_sha256=` и зеленил константу — здесь значение сверяется с отправленным промптом,
+    а untracked-содержимое обязано присутствовать в отправке (не только имя файла).
+    """
+    m = _mod()
+    repo = _git_repo(tmp_path)
+    (repo / "app.py").write_text("x = 2\n", encoding="utf-8")
+    (repo / "новый.py").write_text("UNTRACKED_CONTENT = 42\n", encoding="utf-8")
+
+    captured: list[str] = []
+    _capture_transport(m, captured, content="OK")
+    out = tmp_path / "rev.md"
+    rc = m.main(["--repo", str(repo), "--title", "t", "--out", str(out)])
+    assert rc == 0, f"чистый дифф обязан отправиться (rc={rc})"
+    assert len(captured) == 1, f"ровно один вызов транспорта (вызовов: {len(captured)})"
+    assert "UNTRACKED_CONTENT = 42" in captured[0], "untracked-СОДЕРЖИМОЕ обязано уйти в промпт"
+    header = out.read_text(encoding="utf-8").splitlines()[1]
+    sha_in_header = header.split("prompt_sha256: ")[1].split(";")[0].strip()
+    expected = hashlib.sha256(captured[0].encode("utf-8", "replace")).hexdigest()[:12]
+    assert sha_in_header == expected, f"prompt_sha256 ({sha_in_header}) ≠ sha отправленного ({expected})"
+
+
+def test_git_fixture_isolated_from_user_config(tmp_path, monkeypatch):
+    """#9: враждебный пользовательский git-конфиг (gpgSign + битый gpg.program) не ломает фикстуру.
+
+    Красная сторона (до фикса): фикстура наследовала GIT_CONFIG_GLOBAL → `commit` падал
+    rc=128 «gpg failed to sign the data» ещё до проверок ревью.
+    """
+    hostile = tmp_path / "hostile.gitconfig"
+    hostile.write_text("[commit]\n\tgpgSign = true\n[gpg]\n\tprogram = /nonexistent/gpg\n",
+                       encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(hostile))
+    repo = _git_repo(tmp_path)
+    assert (repo / "app.py").is_file()
