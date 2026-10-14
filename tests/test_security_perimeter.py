@@ -124,3 +124,27 @@ def test_codespaces_trusted_host_middleware_accepts_forwarded_host(monkeypatch) 
     with StarletteTestClient(inner) as client:
         assert client.get("/", headers={"Host": "foo-8766.app.github.dev"}).status_code == 200
         assert client.get("/", headers={"Host": "evil.example"}).status_code == 400
+
+
+def test_codespaces_origin_narrowed_to_own_codespace(monkeypatch) -> None:
+    """B-19 (spend_misc C1): при известном request_host Codespaces-доверие ограничено СВОИМ
+    пространством `<codespace>`; чужой codespace — отказ.
+
+    Раньше: любой `*.app.github.dev` Origin проходил (чужая Codespace-сессия могла мутировать
+    состояние через простой cross-origin POST без префлайта).
+    """
+    monkeypatch.setenv("CODESPACES", "true")
+    monkeypatch.setenv("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN", "app.github.dev")
+    from spendtrack.security import origin_allowed
+
+    request_host = "mine-8766.app.github.dev"
+    # своё пространство (в т.ч. другой порт собственного codespace) — можно
+    assert origin_allowed("https://mine-8766.app.github.dev", None, request_host) is True
+    assert origin_allowed("https://mine-443.app.github.dev", None, request_host) is True
+    # чужой codespace — нельзя (ядро C1)
+    assert origin_allowed("https://evil-8080.app.github.dev", None, request_host) is False
+    # похожий префикс не обманывает: пространство целиком сравнивается
+    assert origin_allowed("https://evil-mine-8080.app.github.dev", None, request_host) is False
+    # чужой сайт вне домена форвардинга — отказ как раньше
+    assert origin_allowed("https://evil.github.dev", None, request_host) is False
+    assert origin_allowed("https://evil.example", None, request_host) is False

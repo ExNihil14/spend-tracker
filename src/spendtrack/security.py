@@ -41,6 +41,22 @@ def _in_codespaces_domain(host: str) -> bool:
     return host == domain or host.endswith("." + domain)
 
 
+def _codespace_namespace(host: str) -> str | None:
+    """Пространство (кодовое имя) Codespace для `host = <name>-<port>.<домен>`.
+
+    None — хост вне домена форвардинга или без ожидаемой формы `<name>-<port>`.
+    B-19 (spend_misc C1): доверие Codespaces сужено до СВОЕГО пространства — чужой codespace
+    с тем же доменом `app.github.dev` больше не проходит.
+    """
+    domain = codespaces_domain()
+    suffix = "." + domain
+    if not host.endswith(suffix):
+        return None
+    label = host[: -len(suffix)]
+    name, sep, _port = label.rpartition("-")
+    return name if sep and name else None
+
+
 def trusted_hosts() -> list[str]:
     """Host-имена для TrustedHostMiddleware: loopback + testserver (+ домен Codespaces).
 
@@ -86,14 +102,23 @@ def origin_allowed(origin: str | None, sec_fetch_site: str | None,
         if parts.scheme.lower() not in ALLOWED_SCHEMES:
             return False  # "null"/javascript:/data: и прочий мусор
         if request_host:
-            if (parts.netloc or "").lower() == request_host.strip().lower():
+            rq = request_host.strip().lower()
+            if (parts.netloc or "").lower() == rq:
                 return True
             host = (parts.hostname or "").lower()
-            return codespaces_enabled() and _in_codespaces_domain(host)
+            if not codespaces_enabled():
+                return False
+            # B-19 (spend_misc C1): Codespaces-доверие — только СВОЁ пространство
+            # (`<codespace>-<port>`): Origin и request_host обязаны быть одним codespace.
+            rq_host = rq.rsplit(":", 1)[0]
+            ns_origin = _codespace_namespace(host)
+            ns_request = _codespace_namespace(rq_host)
+            return ns_origin is not None and ns_origin == ns_request
         host = (parts.hostname or "").lower()
         if host in ALLOWED_HOSTNAMES:
             return True
-        # Codespaces: прокси обычно переписывает Origin на localhost, но не полагаемся на это.
+        # Codespaces без request_host (legacy-путь: TestClient/прямые вызовы) — домен как раньше;
+        # middleware main.py всегда передаёт request_host, там действует сужение B-19 выше.
         return codespaces_enabled() and _in_codespaces_domain(host)
     if sec_fetch_site:
         return sec_fetch_site.strip().lower() in SAFE_FETCH_SITES
