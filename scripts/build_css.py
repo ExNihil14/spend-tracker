@@ -96,9 +96,25 @@ def input_files() -> list[Path]:
     return [p for p in files if p.is_file()]
 
 
+def _digest_part(path: Path) -> str:
+    """Одна строка digest: относительный путь + sha256 содержимого с нормализацией EOL.
+
+    Путь — ОТНОСИТЕЛЬНО корня репо: абсолютный делал digest машино-зависимым (CI-чек-аут в
+    /home/runner/... никогда не сходился с локальным манифестом — CI `lint-and-test` был красным
+    с 07.10). EOL: CI (Linux) — LF, локально (Windows, autocrlf) — CRLF; переносы — не семантика
+    (тот же урок, что у mirror_check 07.10).
+    """
+    data = path.read_bytes().replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    try:
+        rel = path.relative_to(ROOT).as_posix()
+    except ValueError:  # вход вне корня (тесты) — оставляем как есть
+        rel = path.as_posix()
+    return f"{rel}:{hashlib.sha256(data).hexdigest()}"
+
+
 def inputs_digest() -> str:
-    """sha256 по содержимому входов (не по именам: переименование файла ≠ другая сборка)."""
-    parts = [f"{p.as_posix()}:{hashlib.sha256(p.read_bytes()).hexdigest()}" for p in input_files()]
+    """sha256 по содержимому входов: имена относительные, EOL нормализованы (Windows/Linux-детерминизм)."""
+    parts = [_digest_part(p) for p in input_files()]
     return hashlib.sha256("\n".join(parts).encode("utf-8")).hexdigest()
 
 
