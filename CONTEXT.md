@@ -16,7 +16,8 @@
   непустое — строка пропускается (в API/CLI незнакомое — ошибка).
 - **Базовая валюта** — настройка `base_currency` (settings.toml / `SPENDTRACK_BASE_CURRENCY`, ISO 4217,
   default `RUB`): в ней считаются отчёты, бюджеты, дайджест, рекурринги и дневные итоги. Не-базовые валюты
-  не участвуют в агрегатах и не склеиваются дедупом (fingerprint включает код только для НЕ-базовой);
+  не участвуют в агрегатах и не склеиваются дедупом (fingerprint включает суффикс `|CUR` для валюты
+  ≠ RUB — base-независимо);
   в UI — символ из `currency_symbol()` (`₽`/`Br`, иначе код), в экспорте — колонка «Валюта»; агрегаты не
   молчат о выпавших операциях — сноска «не учтено N операций в валюте» (K6) в итогах/дайджесте/CLI
   (`foreign_transactions_count`). Смена базы — «новая эпоха»: данные прежней валюты выпадают из итогов
@@ -30,7 +31,7 @@
 - **Источник категории** (`category_source`) — как получена: `rule` (keyword-правило), `llm` (принято от LLM, conf≥0.9), `llm_pending_review` (низкая уверенность → в очередь), `import` (из CSV банка), `manual` (создано вручную), `correction` (правка юзера).
 - **Подтверждение (review queue)** — транзакции с `review_status='pending'` (ставится при `category_source='llm_pending_review'` — LLM дал conf<0.9 или категорию вне таксономии). `category_llm` — предложение LLM (не перезаписывается → рендер-diff). `approve` → `category`=выбранная + `category_source='rule'`; `skip` → вне очереди, категория не меняется; `approve-all` → `category=COALESCE(category_llm, category, 'other')`, с `min_confidence` (0..1) — только записи не ниже порога (UI: ≥60% — безопасный bulk, M-4).
 - **Мерчант** — нормализованное имя (UPPER). `merchant_cache` → связанная категория (выигрывает над правилами/LLM).
-- **Fingerprint** = sha1(date|kopecks|norm(desc)|account_anon|export_rowid). Дедуп импорта: повторный импорт = no-op. norm = UPPER + collapse пробелов.
+- **Fingerprint** = sha1(date|kopecks|norm(desc)|account_anon|export_rowid) — для валюты ≠ RUB в отпечаток добавляется суффикс `|CUR` (base-независимо). Дедуп импорта: повторный импорт = no-op. norm = UPPER + collapse пробелов.
 - **Партия импорта (import_batch)** — один загруженный CSV, id `b_hex`, sha256 содержимого, статус.
 - **Дрейф формата / отчёт импорта** — перед разбором проверяются обязательные колонки банка (`REQUIRED_COLUMNS`,
   синонимы с допуском пробелов/регистра; включают реальные шапки: Сбер email-CSV «Дата совершения операции»/

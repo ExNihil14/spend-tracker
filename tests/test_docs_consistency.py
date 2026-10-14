@@ -81,3 +81,40 @@ def test_install_urls_match_between_docs():
     assert readme_install, "README: нет URL установки"
     assert landing_install, "лендинг: нет URL установки"
     assert readme_install == landing_install, f"URL установки разошлись: {readme_install ^ landing_install}"
+
+
+def test_fingerprint_canon_matches_code():
+    """C1 wave11/agentdocs: канон fingerprint во всех доках совпадает с кодом.
+
+    Код (`store.py::fingerprint`): валютный суффикс `|CUR` добавляется для валюты ≠ RUB
+    (base-независимо, wave5 C1). Канон обязан называть это рядом с формулой, а не
+    «только для НЕ-базовой».
+    """
+    import hashlib
+
+    from spendtrack.store import fingerprint
+
+    rub = fingerprint("2026-01-01", -12345, "abc", "acc", "1")
+    assert rub == hashlib.sha1(b"2026-01-01|-12345|ABC|acc|1").hexdigest(), (
+        "код: RUB-отпечаток обязан быть без валютного суффикса"
+    )
+    assert fingerprint("2026-01-01", -12345, "abc", "acc", "1", currency="BYN") != rub, (
+        "код: валюта ≠ RUB обязана входить в отпечаток"
+    )
+
+    formula_start = "sha1(date|"
+    formula_end = "|account_anon|export_rowid"
+    docs = (ROOT / "AGENTS.md", ROOT / "spec" / "stack.md", ROOT / "CONTEXT.md",
+            ROOT / ".opencode" / "skills" / "bank-adapter" / "SKILL.md")
+    for doc in docs:
+        text = _flat(doc)
+        assert formula_start in text and formula_end in text, f"{doc}: нет канонической формулы fingerprint"
+        i = text.find(formula_start)
+        window = text[max(0, i - 160): i + 260]
+        assert "|CUR" in window, f"{doc}: формула без валютного суффикса `|CUR` рядом с местом канона"
+        assert "≠ RUB" in window or "не-RUB" in window, (
+            f"{doc}: не сказано, что суффикс — для валюты ≠ RUB"
+        )
+        assert "только для НЕ-базовой" not in text, (
+            f"{doc}: устаревшая формулировка «только для НЕ-базовой» (правильно: ≠ RUB, base-независимо)"
+        )

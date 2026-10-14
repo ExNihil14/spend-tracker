@@ -23,7 +23,7 @@
 ## Данные
 - SQLite (WAL) — единственная БД. Правило SQLite-first: PostgreSQL/Redis не добавлять
   без измеренной необходимости (конкурентные юзеры >10, JSONB/CTE-потребности).
-- fingerprint-дедуп sha1(date|amount|desc|account_anon|export_rowid) — повторный импорт no-op.
+- fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — для валюты ≠ RUB в отпечаток добавляется суффикс `|CUR` (base-независимо); повторный импорт no-op.
 
 ## LLM-маршрут (резолв — `resolve_providers()` в llm.py)
 1. BYO (`SPENDTRACK_LLM_BASE_URL/MODEL/API_KEY`) — свой OpenAI-совместимый сервер; единственный провайдер без фолбэков.

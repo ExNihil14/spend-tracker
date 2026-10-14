@@ -33,12 +33,12 @@
 - Суммы = `amount_kopecks INTEGER` (копейки), НЕ REAL
 - Валюта: `transactions.currency` ISO 4217 (миграция v5); fingerprint включает код ТОЛЬКО для не-RUB
   (рублёвые отпечатки неизменны); не-RUB исключён из ₽-агрегаций (отчёты/бюджеты/дайджест/рекурринги)
-- Fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — повторный импорт = no-op
+- Fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — для валюты ≠ RUB в отпечаток добавляется суффикс `|CUR` (base-независимо); повторный импорт = no-op
 - account псевдонимизируется (`account_pseudonyms`), сырые номера карт не хранятся
 - Авто-приём категории от LLM при confidence ≥ 0.9, иначе → очередь «на подтверждение» (`review_status='pending'`, `category_llm` = предложение LLM)
 - Правила детерминированные и тестируются на РЕАЛЬНЫХ описаниях (урок: «ЗАРПЛАТА» не ловит «ЗАРАБОТНАЯ»)
 - Правка юзера → merchant_cache (выигрывает над LLM) + пример в few-shot
-- LLM-маршрут (канон — `spec/ARCHITECTURE.md` §LLM-маршрут): BYO/Ollama (явный выбор, без фолбэков) → free-цепочка (OpenRouter :free → FreeLLMAPI → abacus-web shim; шимы — `ALLOW_LOCAL_LLM=1`) → офлайн-правила (работают и без LLM вообще); статус — `spendtrack llm-status`
+- LLM-маршрут (канон — `spec/ARCHITECTURE.md` §LLM-маршрут): BYO/Ollama (явный выбор, без фолбэков) → free-цепочка (OpenRouter :free → FreeLLMAPI → abacus-web shim; шимы — `SPENDTRACK_ALLOW_LOCAL_LLM=1`) → офлайн-правила (работают и без LLM вообще); статус — `spendtrack llm-status`
 
 ## Не делать
 - Не читать и не печатать значения из `.env*`/секретов без явного разрешения (наружу/в отчёты — только имена
