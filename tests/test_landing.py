@@ -119,7 +119,10 @@ def test_no_misleading_supporter_claims() -> None:
     assert "boosty.to" not in lowered  # нет живой ссылки-заглушки (REPLACE_ME)
     assert "доступ к заметкам" not in lowered  # донат без перков
     assert "по умолчанию данные не покидают" in lowered  # без безусловного «данные не покидают»
-    assert "псевдоним счёта" in lowered  # карточка «Что уходит к LLM» не занижает состав данных
+    # wave12 (адъюдикация egress-дрейфа): карточка «Что уходит к LLM» = фактический состав по коду —
+    # не занижает (merchant реально уходит, S5) и не завышает (дата/счёт не отправляются вовсе).
+    assert "включая название магазина" in lowered
+    assert "дата и счёт не отправляются" in lowered
 
     readme = (ROOT / "README.md").read_text(encoding="utf-8").lower()
     assert "managed-llm" not in readme
