@@ -41,8 +41,9 @@ def test_parse_or_fail_composes_with_run_ruff_on_non_c901(monkeypatch):
     mod = _load("cc_ratchet")
     bad = json.dumps([{"code": "invalid-syntax", "message": "x", "filename": "x.py"}])
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: _FakeProc(1, bad))
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exc:
         mod.parse_or_fail(mod.run_ruff())
+    assert exc.value.code not in (None, 0), f"отказ обязан быть ненулевым (S1): {exc.value.code!r}"
 
 
 def test_main_check_rejects_non_c901_from_ruff(monkeypatch, tmp_path):
@@ -53,8 +54,9 @@ def test_main_check_rejects_non_c901_from_ruff(monkeypatch, tmp_path):
     monkeypatch.setattr(mod, "BASELINE", baseline)
     bad = json.dumps([{"code": "invalid-syntax", "message": "x", "filename": "x.py"}])
     monkeypatch.setattr(mod.subprocess, "run", lambda *a, **k: _FakeProc(1, bad))
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exc:
         mod.main(["check"])
+    assert exc.value.code not in (None, 0), f"отказ обязан быть ненулевым (S1): {exc.value.code!r}"
 
 
 def test_run_ruff_returns_findings_on_rc1(monkeypatch):
@@ -137,6 +139,14 @@ def test_unusable_baseline_fails_closed_text(tmp_path, monkeypatch, capsys, text
     rc = mod._cmd_check(False)
     out = capsys.readouterr().out
     assert rc == 1 and "FAIL" in out, f"{text!r}: rc={rc}"
+
+
+def test_unusable_baseline_fails_closed_through_main(tmp_path, monkeypatch):
+    """S5 (wave12): fail-closed обязан держаться на ПУБЛИЧНОЙ точке входа `main(['check'])`, а не
+    только ниже неё (`_cmd_check`) — мутация «check → 0» ловится именно здесь (демо E1)."""
+    mod = _ratchet_with(tmp_path, monkeypatch, "null")
+    rc = mod.main(["check"])
+    assert rc == 1, f"main(['check']) на неиспользуемом базлайне обязан вернуть 1: {rc}"
 
 
 # ── S4b (opus): текст трейлера внутри диффа НЕ авторизует ──

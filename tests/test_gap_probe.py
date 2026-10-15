@@ -50,8 +50,9 @@ def test_build_fails_on_oversized_artifact(monkeypatch, tmp_path):
     monkeypatch.setattr(bc.subprocess, "run", _fake_run_factory(oversized=True))
     monkeypatch.setattr(bc.sys, "argv", ["build_css.py"])
 
-    with pytest.raises(SystemExit):
+    with pytest.raises(SystemExit) as exc:
         bc.main()
+    assert exc.value.code not in (None, 0), f"отказ обязан быть ненулевым (S1): {exc.value.code!r}"
     assert not manifest.exists(), "манифест свежести записан для невалидного артефакта"
 
 

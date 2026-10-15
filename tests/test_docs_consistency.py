@@ -58,6 +58,14 @@ def test_banks_canon():
             assert bank in text, f"{document.name}: нет банка {bank}"
 
 
+def test_privacy_prompt_injection_wording():
+    """wave12 (адъюдикация policy, S4): PRIVACY не переобещает «prompt-injection защищён» —
+    валидация ограничивает, но не исключает вред (существующая-неверная категория может пройти)."""
+    text = _flat(ROOT / "PRIVACY.md")
+    assert "не исключает" in text
+    assert "Prompt-injection защищён" not in text
+
+
 def test_supporter_perks_canon():
     perk = "имя в README и CHANGELOG"
     assert perk in _flat(README), "README: нет канона перка"
