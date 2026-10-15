@@ -57,6 +57,19 @@ def test_foreign_loopback_port_blocked(tmp_path, monkeypatch) -> None:
         assert r.status_code == 403
 
 
+def test_patch_with_foreign_origin_blocked(tmp_path, monkeypatch) -> None:
+    """wave12 (адъюдикация newtests): PATCH — state-changing (правка категории
+    `/api/transactions/{id}`); мутация «SAFE_METHODS + PATCH» обязана ловиться этим пином."""
+    with _client(tmp_path, monkeypatch) as client:
+        r = client.patch("/api/transactions/1", json={"category": "groceries"},
+                         headers={"Origin": "https://evil.example"})
+        assert r.status_code == 403, f"чужой Origin на PATCH обязан блокироваться: {r.status_code}"
+        # контроль: свой origin периметр проходит (дальше — дело роута: 404 на несуществующей записи)
+        r2 = client.patch("/api/transactions/1", json={"category": "groceries"},
+                          headers={"Origin": "http://testserver"})
+        assert r2.status_code != 403, f"свой origin не должен блокироваться периметром: {r2.status_code}"
+
+
 def test_get_with_foreign_origin_not_blocked(tmp_path, monkeypatch) -> None:
     """Гейт — только для state-changing методов; безопасные методы не ломаем."""
     with _client(tmp_path, monkeypatch) as client:

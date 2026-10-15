@@ -135,6 +135,16 @@ def test_no_misleading_supporter_claims() -> None:
     assert "лицензи" not in supporter
 
 
+def test_landing_a11y_links_lang_and_copy_strip() -> None:
+    """wave12 S3/S4/S5 (адъюдикация): ссылки различимы не только цветом (WCAG 1.4.1 — подчёркивание),
+    англ. блок помечен lang="en", кнопка .copy не перекрывает первую строку (верхняя полоса)."""
+    html, _ = _parse_index()
+    assert 'class="en" lang="en"' in html  # S5: англ. фрагмент помечен языком
+    css = (LANDING / "style.css").read_text(encoding="utf-8")
+    assert "text-decoration: underline" in css  # S4: не только цвет
+    assert "padding: 40px 14px 12px" in css  # S3: полоса под .copy (первая строка не перекрыта)
+
+
 def test_tokens_copy_in_sync() -> None:
     """Общий tokens.css (дизайн-ревью M-1): копия для лендинга обязана совпадать с пакетной."""
     def norm(path: Path) -> str:

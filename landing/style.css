@@ -15,8 +15,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+a:hover { text-decoration: underline; text-decoration-thickness: 2px; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 
 .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
@@ -31,7 +31,7 @@ a:hover { text-decoration: underline; }
 .nav-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px; flex-wrap: wrap; }
 .brand { font-weight: 700; font-size: 18px; letter-spacing: -0.01em; color: var(--fg-strong); }
 .nav nav { display: flex; gap: 18px; flex-wrap: wrap; font-size: 14px; font-weight: 600; }
-.nav nav a { color: var(--fg-muted); }
+.nav nav a { color: var(--fg-muted); text-decoration: none; }
 .nav nav a:hover { color: var(--fg); text-decoration: none; }
 
 .hero { padding: 72px 20px 48px; display: grid; grid-template-columns: 1.05fr 1fr; gap: 44px; align-items: center; }
@@ -39,7 +39,7 @@ a:hover { text-decoration: underline; }
 .hero h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.12; letter-spacing: -0.02em; margin: 0 0 16px; color: var(--fg-strong); }
 .hero .lead { font-size: 18px; color: var(--fg-muted); margin: 0 0 26px; }
 .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 15px; padding: 12px 20px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 15px; padding: 12px 20px; border-radius: 10px; border: 1px solid transparent; cursor: pointer; text-decoration: none; }
 .btn:hover { text-decoration: none; }
 .btn-primary { background: var(--accent-bg); color: var(--on-accent); }
 .btn-primary:hover { background: var(--accent-bg-hover); }
@@ -71,7 +71,7 @@ h2 { font-size: clamp(23px, 3vw, 31px); letter-spacing: -0.02em; margin: 0 0 10p
 .step .cmd { margin-top: auto; }
 
 .cmd { position: relative; min-width: 0; }
-.cmd pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; overflow-x: auto; }
+.cmd pre { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px; padding: 40px 14px 12px; overflow-x: auto; }
 .cmd code { font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--fg); white-space: pre; }
 .copy { position: absolute; top: 7px; right: 7px; font-size: 12px; font-weight: 600; color: var(--fg-muted); background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; padding: 4px 10px; cursor: pointer; }
 .copy:hover { color: var(--fg); border-color: var(--fg-subtle); }
