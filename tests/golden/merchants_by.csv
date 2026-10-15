@@ -1,0 +1,41 @@
+description,expected_category,bank
+"ЕВРООПТ №12 МИНСК",groceries,priorbank
+"EUROOPT 88",groceries,priorbank
+"ЕВРОТОРГ КАССА 5",groceries,priorbank
+"САНТА РИТЕЙЛ 44",groceries,priorbank
+"АЛМИ 102",groceries,priorbank
+"SPAR МИНСК",groceries,priorbank
+"СОСЕДИ 7",groceries,priorbank
+"КОПЕЕЧКА 12",groceries,priorbank
+"ДОБРОНОМ 3",groceries,priorbank
+"БЕЛОРУСНЕФТЬ АЗС 3",fuel,priorbank
+"БЕЛНЕФТЕХИМ АЗС 9",fuel,priorbank
+"ТАТБЕЛНЕФТЬ АЗС 2",fuel,priorbank
+"МИНСКТРАНС ТАЛОН",transport,priorbank
+"МЕТРОПОЛИТЕН МИНСК",transport,priorbank
+"A1 ОПЛАТА УСЛУГ",internet-phone,priorbank
+"МТС СВЯЗЬ",internet-phone,priorbank
+"LIFE:) ОПЛАТА",internet-phone,priorbank
+"БЕЛТЕЛЕКОМ ZALA",internet-phone,priorbank
+"BYFLY ИНТЕРНЕТ",internet-phone,priorbank
+"ЕРИП ПЛАТЕЖ",utilities,priorbank
+"ЕРСЦ ЖКУ",utilities,priorbank
+"ЖКУ МИНСК",utilities,priorbank
+"ВОДОКАНАЛ 12",utilities,priorbank
+"АПТЕКА МИЛА",health,priorbank
+"21VEK.BY ЗАКАЗ 123",household,priorbank
+"KUFAR ПОКУПКА",household,priorbank
+"DEAL.BY ЗАКАЗ",household,priorbank
+"ONLINER БАРАХОЛКА",household,priorbank
+"MARK FORMELLE 12",clothing,priorbank
+"МИЛАВИЦА ТЦ",clothing,priorbank
+"СВИТАНОК 3",clothing,priorbank
+"ЗАЧИСЛЕНИЕ ПО ВЕДОМОСТИ",income,priorbank
+"ПЛАТЕЖ В БЮДЖЕТ",taxes,priorbank
+"НАЛОГ НА ЗЕМЛЮ",taxes,priorbank
+"ЗАЧИСЛЕНИЕ ЗАРПЛАТЫ",income,priorbank
+"ПЕРЕВОД СОБСТВЕННЫЕ СРЕДСТВА",transfers,priorbank
+"УПЛАТА ПРОЦЕНТОВ",,priorbank
+"ВЫПЛАТА КЭШБЭКА",,priorbank
+"КОМИССИЯ ЗА ОБСЛУЖИВАНИЕ КАРТЫ",,priorbank
+"СНЯТИЕ НАЛИЧНЫХ БАНКОМАТ",,priorbank

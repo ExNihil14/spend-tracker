@@ -352,6 +352,10 @@
    "args": "cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings",
    "returns": ""
   },
+  "spendtrack.config:Settings.taxonomy_overlay": {
+   "args": "str = ''",
+   "returns": ""
+  },
   "spendtrack.config:base_currency": {
    "args": "",
    "returns": "str"

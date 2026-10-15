@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     port: int = 8766
     # Ф0 «Беларусь/BYN»: валюта, в которой считаются итоги/бюджеты/дайджест (ISO 4217, default RUB).
     base_currency: str = "RUB"
+    # Opt-in пакет правил категорий по локации (Ф1): "by" подключает taxonomy.by.toml (BY-мерчанты).
+    taxonomy_overlay: str = ""
     llm: LLMSettings
     acceptance: AcceptanceSettings = AcceptanceSettings()
     db_path: Path | None = None
@@ -155,7 +157,7 @@ def ensure_config_dir() -> Path:
     if target == _repo_config() and repo_mode():
         return target
     target.mkdir(parents=True, exist_ok=True)
-    for name in ("settings.toml", "taxonomy.toml"):
+    for name in ("settings.toml", "taxonomy.toml", "taxonomy.by.toml"):
         dest = target / name
         if not dest.exists():
             _atomic_copy(DEFAULTS_DIR / name, dest)

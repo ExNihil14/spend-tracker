@@ -220,6 +220,7 @@ uv run python scripts/demo_data.py clean    # убрать демо
 
 - `config/settings.toml` — порт, **базовая валюта** (итоги/бюджеты), порог авто-приёма категорий, адреса LLM-серверов.
 - `config/taxonomy.toml` — категории и правила (удобнее править через «Настройки» в интерфейсе).
+- `config/taxonomy.by.toml` — opt-in BY-пакет правил (Евроопт, Белоруснефть, A1, ЕРИП…): `taxonomy_overlay = "by"` в settings.toml.
 - `SPENDTRACK_DB_PATH` — путь к базе. По умолчанию: из исходников — `data/spend.db`; при установке
   одной командой — папка данных (`%LOCALAPPDATA%\spendtrack` на Windows, `~/.local/share/spendtrack`
   на macOS/Linux). Точный путь всегда покажет `spendtrack paths`.

@@ -1,6 +1,9 @@
 port = 8766
 # Базовая валюта итогов/бюджетов/дайджеста (ISO 4217): RUB по умолчанию; для Беларуси — BYN.
 base_currency = "RUB"
+# Набор правил по локации (opt-in): "by" подключает BY-мерчанты из taxonomy.by.toml
+# (Евроопт, Санта, Белоруснефть, A1, ЕРИП…). Пусто/нет строки — только базовые правила.
+# taxonomy_overlay = "by"
 
 [llm]
 # Режимы LLM (резолв — resolve_providers() в llm.py; статус — `spendtrack llm-status`):

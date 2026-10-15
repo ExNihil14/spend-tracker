@@ -11,6 +11,7 @@ from spendtrack.taxonomy import load_taxonomy
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "golden_report.py"
 GOLDEN = ROOT / "tests" / "golden" / "merchants.csv"
+GOLDEN_BY = ROOT / "tests" / "golden" / "merchants_by.csv"
 
 
 def _mod():
@@ -64,6 +65,37 @@ def test_golden_set_well_formed_and_rules_consistent(tmp_path):
     assert report["surprise"] == 0, report["details"]["surprise"]
     assert report["rule_hit_share"] >= 0.9, report["details"]["missed"]
     assert report["unresolved"] >= 5  # есть строки для LLM/очереди — набор не «самоподтверждающийся»
+
+
+def test_by_golden_with_overlay(tmp_path, monkeypatch):
+    """BY-набор (Ф1): с opt-in overlay-пакетом — без ошибок и сюрпризов, ≥90% rule-хитов.
+
+    Синтетика: реальные описания Приорбанка обезличены (анонимайзер), поэтому набор собран
+    из подтверждённых сетей/операторов BY (RESEARCH_BELARUS_BYN_2026-10-03.md §4).
+    """
+    monkeypatch.setenv("SPENDTRACK_TAXONOMY_OVERLAY", "by")
+    mod = _mod()
+    rows = mod.load_rows(GOLDEN_BY)
+    assert len(rows) >= 30
+
+    taxonomy = load_taxonomy(ROOT / "config")
+    valid = {c.name for c in taxonomy.categories}
+    assert all(r["expected"] in valid for r in rows if r["expected"])
+
+    store = Store(db_path=tmp_path / "golden_by.db")
+    try:
+        def classify(row: dict) -> str | None:
+            return categorize_rules_only(
+                {"description": row["description"], "merchant": row["description"]}, taxonomy, store)
+
+        report = mod.compute(rows, classify)
+    finally:
+        store.close()
+
+    assert report["misclassified"] == 0, report["details"]["missed"]
+    assert report["surprise"] == 0, report["details"]["surprise"]
+    assert report["rule_hit_share"] >= 0.9, report["details"]["missed"]
+    assert report["unresolved"] >= 3  # есть строки для LLM/очереди — набор не «самоподтверждающийся»
 
 
 def test_main_hardening_bom_columns_empty_and_taxonomy(tmp_path, capsys):

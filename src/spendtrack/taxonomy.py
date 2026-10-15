@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import re
 import tomllib
 from pathlib import Path
 
-from spendtrack.config import DEFAULTS_DIR, resolve_config_dir
+from spendtrack.config import DEFAULTS_DIR, load_settings, resolve_config_dir
 
 
 class Category:
@@ -53,4 +54,39 @@ def load_taxonomy(config_dir: Path | None = None) -> Taxonomy:
                            c.get("icon"), c.get("discretionary", None))
                   for c in data.get("categories", [])]
     rules = [Rule(r["pattern"], r["category"]) for r in data.get("rules", [])]
+    _apply_overlay(base, categories, rules)
     return Taxonomy(categories, rules)
+
+
+def _apply_overlay(base: Path, categories: list[Category], rules: list[Rule]) -> None:
+    """Opt-in пакет правил по локации (Ф1, адъюдикация 03.10): настройка `taxonomy_overlay`
+    подключает файл `taxonomy.<имя>.toml` (каталог конфига → пакетный дефолт).
+
+    Правила добавляются ПОСЛЕ базовых (базовые сохраняют приоритет); категории — аддитивно
+    по имени. Пустое/небезопасное имя и отсутствие файла — тихо без overlay; битый TOML
+    overlay — явная ошибка (как у taxonomy.toml). Битые настройки не роняют таксономию.
+    """
+    try:
+        name = load_settings(base).taxonomy_overlay.strip()
+    except (OSError, ValueError):
+        return  # настройки не читаются — работаем без overlay (их покажет doctor)
+    if not name or not re.fullmatch(r"[a-z0-9][a-z0-9._-]*", name):
+        return  # пустое/небезопасное имя: путь не строится (защита от «../»)
+    for candidate in (base / f"taxonomy.{name}.toml", DEFAULTS_DIR / f"taxonomy.{name}.toml"):
+        if candidate.is_file():
+            overlay_path = candidate
+            break
+    else:
+        return  # набора нет — просто без overlay
+    try:
+        with open(overlay_path, "rb") as f:
+            odata = tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        raise ValueError(f"taxonomy.{name}.toml: {e}") from e
+    known = {c.name for c in categories}
+    categories.extend(
+        c for c in (Category(oc["name"], oc.get("color", "#9ca3af"), oc.get("display_name"),
+                             oc.get("icon"), oc.get("discretionary", None))
+                    for oc in odata.get("categories", []))
+        if c.name not in known)
+    rules.extend(Rule(r["pattern"], r["category"]) for r in odata.get("rules", []))

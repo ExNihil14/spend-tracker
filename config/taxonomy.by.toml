@@ -1,0 +1,162 @@
+# BY-пакет правил категорий (Ф1, opt-in — НЕ дефолт).
+#
+# Подключение: `taxonomy_overlay = "by"` в config/settings.toml (или SPENDTRACK_TAXONOMY_OVERLAY=by).
+# Правила добавляются ПОСЛЕ базовых (taxonomy.toml) — базовые сохраняют приоритет; паттерны
+# BY-специфичны, конфликтов с RU-набором нет. Источник мерчантов: RESEARCH_BELARUS_BYN_2026-10-03.md
+# §4 (сети, операторы, ЖКУ/ЕРИП, маркетплейсы). Реальные описания Приорбанка обезличены (анонимайзер),
+# поэтому набор проверяется на синтетике: tests/golden/merchants_by.csv
+# (`uv run python scripts/golden_report.py --golden tests/golden/merchants_by.csv`).
+
+# --- Продукты ---
+[[rules]]
+pattern = "ЕВРООПТ"
+category = "groceries"
+
+[[rules]]
+pattern = "EUROOPT"
+category = "groceries"
+
+[[rules]]
+pattern = "ЕВРОТОРГ"
+category = "groceries"
+
+[[rules]]
+pattern = "САНТА"
+category = "groceries"
+
+[[rules]]
+pattern = "АЛМИ"
+category = "groceries"
+
+[[rules]]
+pattern = "SPAR"
+category = "groceries"
+
+[[rules]]
+pattern = "СОСЕДИ"
+category = "groceries"
+
+[[rules]]
+pattern = "КОПЕЕЧКА"
+category = "groceries"
+
+[[rules]]
+pattern = "ДОБРОНОМ"
+category = "groceries"
+
+# --- Топливо ---
+[[rules]]
+pattern = "БЕЛОРУСНЕФТЬ"
+category = "fuel"
+
+[[rules]]
+pattern = "БЕЛНЕФТЕХИМ"
+category = "fuel"
+
+[[rules]]
+pattern = "ТАТБЕЛНЕФТЬ"
+category = "fuel"
+
+# --- Транспорт ---
+[[rules]]
+pattern = "МИНСКТРАНС"
+category = "transport"
+
+[[rules]]
+pattern = "МЕТРОПОЛИТЕН"
+category = "transport"
+
+# --- Связь и интернет ---
+[[rules]]
+pattern = "A1"
+category = "internet-phone"
+
+[[rules]]
+pattern = "МТС"
+category = "internet-phone"
+
+[[rules]]
+pattern = "LIFE:)"
+category = "internet-phone"
+
+[[rules]]
+pattern = "БЕЛТЕЛЕКОМ"
+category = "internet-phone"
+
+[[rules]]
+pattern = "BYFLY"
+category = "internet-phone"
+
+[[rules]]
+pattern = "ZALA"
+category = "internet-phone"
+
+# --- ЖКУ ---
+[[rules]]
+pattern = "ЕРИП"
+category = "utilities"
+
+[[rules]]
+pattern = "ЕРСЦ"
+category = "utilities"
+
+[[rules]]
+pattern = "ЖКУ"
+category = "utilities"
+
+[[rules]]
+pattern = "ВОДОКАНАЛ"
+category = "utilities"
+
+# --- Здоровье ---
+[[rules]]
+pattern = "АПТЕКА"
+category = "health"
+
+# --- Маркетплейсы и техника ---
+[[rules]]
+pattern = "21VEK"
+category = "household"
+
+[[rules]]
+pattern = "KUFAR"
+category = "household"
+
+[[rules]]
+pattern = "DEAL.BY"
+category = "household"
+
+[[rules]]
+pattern = "ONLINER"
+category = "household"
+
+# --- Одежда ---
+[[rules]]
+pattern = "MARK FORMELLE"
+category = "clothing"
+
+[[rules]]
+pattern = "МИЛАВИЦА"
+category = "clothing"
+
+[[rules]]
+pattern = "СВИТАНОК"
+category = "clothing"
+
+# --- Доходы и налоги ---
+[[rules]]
+pattern = "ПО ВЕДОМОСТИ"
+category = "income"
+
+# Стем: базовое правило ловит только именительный «ЗАРПЛАТА», в выписках — «зачисление зарплаты».
+[[rules]]
+pattern = "ЗАРПЛАТ"
+category = "income"
+
+[[rules]]
+pattern = "В БЮДЖЕТ"
+category = "taxes"
+
+[[rules]]
+pattern = "НАЛОГ"
+category = "taxes"

@@ -24,7 +24,7 @@
 - `routers/api.py` — JSON API; `routers/frontend.py` — htmx-страницы.
 - `cli.py` — CLI add/report/import/count.
 - `config/settings.toml` — порт, LLM-эндпоинты (primary/fallback/offline), авто-приём conf.
-- `config/taxonomy.toml` — 18 категорий + keyword-правила (без кода).
+- `config/taxonomy.toml` — 18 категорий + keyword-правила (без кода); `config/taxonomy.by.toml` — opt-in BY-пакет (настройка `taxonomy_overlay`, Ф1).
 
 ## LLM-маршрут (llm.py; резолв — resolve_providers(), статус — `spendtrack llm-status`)
 LLM выключен по умолчанию (без конфига сеть не трогается). Приоритет явного выбора:
