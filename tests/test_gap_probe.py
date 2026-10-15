@@ -73,6 +73,9 @@ def test_build_ok_writes_manifest_good_artifact(monkeypatch, tmp_path):
 
 # ── C2: inputs_digest обязан быть чувствителен к каждому классу входов ──
 def test_inputs_digest_sensitive_to_templates(monkeypatch, tmp_path):
+    """wave12 (S2): сравнения независимы (референс пересчитывается перед каждым изменением),
+    покрыты все классы входов (шаблоны: изменение/добавление/удаление; tailwind.css; tokens.css),
+    проверена повторяемость digest при неизменных входах."""
     tdir = tmp_path / "templates"
     tdir.mkdir()
     inp = tmp_path / "tailwind.css"
@@ -86,12 +89,24 @@ def test_inputs_digest_sensitive_to_templates(monkeypatch, tmp_path):
     f = tdir / "x.html"
     f.write_text("<div class='flex'>", encoding="utf-8")
     d0 = bc.inputs_digest()
+    assert bc.inputs_digest() == d0, "digest не повторяем при неизменных входах"
     f.write_text("<div class='flex gap-2'>", encoding="utf-8")
-    assert bc.inputs_digest() != d0, "изменение шаблона не меняет digest входов"
-    (tdir / "new.html").write_text("<p class='grid'>", encoding="utf-8")
-    assert bc.inputs_digest() != d0, "новый шаблон не попадает в digest"
+    d1 = bc.inputs_digest()
+    assert d1 != d0, "изменение шаблона не меняет digest входов"
+    new = tdir / "new.html"
+    new.write_text("<p class='grid'>", encoding="utf-8")
+    d2 = bc.inputs_digest()
+    assert d2 != d1, "новый шаблон не попадает в digest"
+    new.unlink()
+    d3 = bc.inputs_digest()
+    assert d3 != d2, "удаление шаблона не меняет digest"
+    assert d3 == d1, "digest зависит от истории изменений, а не от состояния входов"
     inp.write_text("@import 'tailwindcss/theme';", encoding="utf-8")
-    assert bc.inputs_digest() != d0, "tailwind.css не влияет на digest"
+    d4 = bc.inputs_digest()
+    assert d4 != d3, "tailwind.css не влияет на digest"
+    tok.write_text(":root { --x: 2px; }", encoding="utf-8")
+    d5 = bc.inputs_digest()
+    assert d5 != d4, "tokens.css не влияет на digest"
 
 
 # ── C3: положительный контроль закреплённого кэша (digest сверен, загрузки нет) ──

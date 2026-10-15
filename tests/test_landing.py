@@ -145,6 +145,20 @@ def test_landing_a11y_links_lang_and_copy_strip() -> None:
     assert "padding: 40px 14px 12px" in css  # S3: полоса под .copy (первая строка не перекрыта)
 
 
+def test_landing_codespaces_boundary_note() -> None:
+    """wave12 (адъюдикация landing S1): у облачного демо явная граница с обещаниями «без облака» —
+    «не на вашем компьютере», запрет реальных данных и локальная установка для них; граница есть
+    и рядом с первым CTA (hero), и в #demo."""
+    html, _ = _parse_index()
+    lowered = html.lower()
+    assert "не на вашем компьютере" in lowered
+    assert "реальн" in lowered  # до фикса grep «реальн» по лендингу был пуст (адъюдикация, S1)
+    assert "установите приложение локально" in lowered
+    demo = html.index('id="demo"')
+    assert "не на вашем компьютере" in html[:demo].lower(), "нет границы рядом с первым CTA (hero)"
+    assert "не на вашем компьютере" in html[demo:].lower(), "нет границы в #demo"
+
+
 def test_tokens_copy_in_sync() -> None:
     """Общий tokens.css (дизайн-ревью M-1): копия для лендинга обязана совпадать с пакетной."""
     def norm(path: Path) -> str:
