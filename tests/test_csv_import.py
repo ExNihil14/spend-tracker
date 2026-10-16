@@ -155,6 +155,50 @@ def test_priorbank_rerun_is_noop(store):
     assert res["added"] == 0 and res["dupes"] == 9
 
 
+@pytest.mark.parametrize("form", ["12,34", "1577,92", "1.577,92", "1 577,92"])
+def test_priorbank_amount_drift_is_visible_skip(store, form):
+    """C1 (адъюдикация wave13): чужая форма суммы — не тихая сумма, а amount_unparsed.
+
+    Раньше «12,34» → 123400 копеек, «1577,92» → ×100, «1.577,92» → ×1000 вниз — сквозь весь
+    конвейер импорта без диагностики. Форма Ф1: «1,577.92» (запятая-тысячи) или «1577.92»;
+    всё прочее — видимый пропуск строки.
+    """
+    from synth_bank import gen_priorbank
+
+    raw = gen_priorbank(n=3, seed=5).replace("ЕВРООПТ;BYN, Минск;1,577.92;",
+                                             f"ЕВРООПТ;BYN, Минск;{form};", 1)
+    res = import_csv(raw, store, classify=_stub_classify())
+    assert res["status"] == "ok"
+    assert res["reasons"].get("amount_unparsed") == 1, "дрейф суммы должен быть видимой причиной"
+    assert res["added"] == 5  # 6 операций − 1 строка с чужой формой суммы
+
+
+def test_priorbank_plain_amount_form_accepted(store):
+    """C1: форма без группировки («1577.92») — легитимна: та же сумма в копейках."""
+    from synth_bank import gen_priorbank
+
+    raw = gen_priorbank(n=3, seed=5).replace("1,577.92", "1577.92")
+    res = import_csv(raw, store, classify=_stub_classify())
+    assert res["status"] == "ok" and res["added"] == 6
+    amounts = [t["amount_kopecks"] for t in store.list_transactions(limit=1000)]
+    assert amounts.count(-157_792) == 2  # легитимный дубль сохранён в новой форме
+
+
+@pytest.mark.parametrize("renamed", ["Обороты Списание", "Поступление"])
+def test_priorbank_two_mandatory_amount_columns(store, renamed):
+    """C2 (адъюдикация wave13): «Обороты Списание» и «Поступление» — две РАЗНЫЕ обязательные
+    колонки. Раньше «или»-группа пропускала переименование одной: списания молча становились
+    нулевыми, а без «Поступление» терялись доходы. Теперь дрейф шапки — format_error до адаптера."""
+    from synth_bank import gen_priorbank
+
+    raw = gen_priorbank(n=3, seed=5).replace(renamed, "Переименовано", 1)
+    assert renamed not in raw.splitlines()[0]
+    res = import_csv(raw, store, classify=_stub_classify())
+    assert res["status"] == "format_error"
+    assert any(renamed in group for group in res["missing_columns"])
+    assert store.list_transactions(limit=10) == []
+
+
 def test_import_sber(store):
     res = import_csv(SBER_CSV, store, classify=_stub_classify())
     assert res["status"] == "ok"

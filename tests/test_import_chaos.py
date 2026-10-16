@@ -105,6 +105,37 @@ def test_priorbank_broken_amount_no_crash(tmp_path):
         store.close()
 
 
+def test_priorbank_extra_cell_is_format_error(tmp_path):
+    """C3 (адъюдикация wave13): лишняя ячейка в строке (незакавыченный разделитель) — не тихий
+    сдвиг полей с подменой знака/суммы, а format_error на весь файл; в БД — ничего."""
+    from synth_bank import gen_priorbank
+
+    base = gen_priorbank(n=3, seed=5)
+    raw = base.replace(";1,577.92;0.00;0.00;Приорбанк;",
+                       ";1,577.92;0.00;0.00;Приорбанк;ЛИШНЕЕ;", 1)
+    assert raw != base, "мутация не применилась — тест не о том"
+    store = _fresh(tmp_path)
+    try:
+        result = import_csv(raw, store, taxonomy=TAX, classify=_stub)
+        assert result["status"] == "format_error", "сдвиг полей должен быть видимой ошибкой формата"
+        assert _count(store) == 0
+    finally:
+        store.close()
+
+
+def test_quoted_delimiter_field_still_imports(tmp_path):
+    """C3-контроль: корректно закавыченное поле с `;` внутри — не «лишняя ячейка»: импорт не ломается."""
+    raw = (SBER + '\n1;01.09.2026;1234;Выполнено;-100,00;RUB;X;"МАГАЗИН;ОПТ"\n')
+    store = _fresh(tmp_path)
+    try:
+        result = import_csv(raw, store, taxonomy=TAX, classify=_stub)
+        assert result["status"] == "ok" and result["added"] == 1
+        row = store.conn.execute("SELECT description FROM transactions").fetchone()
+        assert row["description"] == "МАГАЗИН;ОПТ"
+    finally:
+        store.close()
+
+
 def test_huge_description_does_not_crash(tmp_path):
     raw = SBER + "\n1;01.09.2026;1234;Выполнено;-100,00;RUB;X;" + "О" * 20_000 + "\n"
     store = _fresh(tmp_path)

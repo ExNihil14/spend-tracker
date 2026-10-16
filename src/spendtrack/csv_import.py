@@ -57,9 +57,11 @@ REQUIRED_COLUMNS: dict[str, tuple[tuple[str, ...], ...]] = {
     "tinkoff": (("Дата операции", "Дата", "Date"), ("Описание", "Description"),
                 ("Сумма операции", "Сумма", "Amount")),
     "yandex": (("datetime", "date", "Дата"), ("description", "title", "Описание"), ("amount", "Сумма")),
-    # Приорбанк (PDF→CSV-мост, Ф1, образец 14.10): суммы — пара «Обороты Списание»/«Поступление».
+    # Приорбанк (PDF→CSV-мост, Ф1, образец 14.10): суммы — ПАРА колонок «Обороты Списание»/«Поступление»;
+    # обе обязательны по отдельности (C2 адъюдикации wave13): переименование одной — format_error,
+    # а не молчаливые нули/потеря доходов.
     "priorbank": (("Дата операции",), ("Детализация операции",),
-                  ("Обороты Списание", "Поступление")),
+                  ("Обороты Списание",), ("Поступление",)),
 }
 
 # Отчёт импорта (#2): пропущено (с причинами) и подозрительно (импортировано, но с признаками).
@@ -147,6 +149,35 @@ def missing_columns(bank: str, fieldnames: list[str]) -> list[str]:
     names = {_norm_key(f) for f in fieldnames if f}
     return [" / ".join(group) for group in REQUIRED_COLUMNS.get(bank, ())
             if not any(_norm_key(alias) in names for alias in group)]
+
+
+# Строгая проверка ширины строк (C3 адъюдикации wave13): лишние ячейки — признак незакавыченного
+# разделителя (поля сдвигаются, знак/сумма подменяются). Включается только по банкам с подтверждённой
+# формой: у Сбера известна легитимная хвостовая пустая ячейка (trailing `;`) — туда не включается.
+_STRICT_WIDTH_BANKS: frozenset[str] = frozenset({"priorbank"})
+
+
+def _schema_problem(bank: str, fieldnames: list[str], rows: list[dict]) -> dict | None:
+    """Проблема формата ДО адаптера: нет обязательных колонок (C2) или нарушена ширина строк (C3).
+
+    C3 (адъюдикация wave13): лишние ячейки строки (`DictReader` складывает их под ключом None)
+    раньше молча отбрасывались — незакавыченный разделитель сдвигал поля и подменял знак/сумму
+    операции. Для Ф1 (Приорбанк) режим — format_error на весь файл; корректно закавыченные поля
+    не задеваются. Банки без подтверждённой формы не проверяются (см. _STRICT_WIDTH_BANKS).
+    """
+    missing = missing_columns(bank, fieldnames)
+    if missing:
+        return {"missing": missing,
+                "message": (f"В файле нет ожидаемых колонок ({bank}): "
+                            + ", ".join(missing) + ". " + FORMAT_HINT)}
+    if bank not in _STRICT_WIDTH_BANKS:
+        return None
+    ragged = sum(1 for r in rows if None in r)
+    if not ragged:
+        return None
+    return {"missing": [],
+            "message": (f"Нарушена ширина строк: {ragged} стр. с лишними ячейками "
+                        "(незакавыченный разделитель или повреждённый файл). " + FORMAT_HINT)}
 
 
 def _row_tx(date: str, desc: str, amount: str, account: str, currency: str = "") -> dict:
@@ -242,14 +273,30 @@ class YandexMoneyAdaptor:
                           _cell(r, "currency", "Валюта"))
 
 
+# Формы суммы Ф1 (C1 адъюдикации wave13): «1,577.92» (запятая — только тысячи) или «1577.92».
+# Строгая грамматика вместо угадывания: всё остальное — None (amount_unparsed), см. _prio_kopecks.
+_PRIO_GROUPED = re.compile(r"[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}")
+_PRIO_PLAIN = re.compile(r"[0-9]+\.[0-9]{2}")
+
+
 def _prio_kopecks(value: str) -> int | None:
     """«1,577.92» → 157792 копеек: у Приорбанка запятая — ТЫСЯЧИ, точка — дробь (parse_amount
-    ждёт наоборот — «1,577.92» он прочитал бы как «1.577.92» и упал). Пусто/мусор → None."""
-    v = value.strip().replace("\u2212", "-")
+    ждёт наоборот — «1,577.92» он прочитал бы как «1.577.92» и упал). Пусто/мусор → None.
+
+    C1 (адъюдикация wave13): принимаются только строгие формы Ф1 — «1,577.92» (группировка)
+    и «1577.92» (без неё); десятичную запятую/европейскую/пробельную запись НЕ угадываем:
+    «12,34», «1577,92», «1.577,92», «1 577,92» → None (строка уходит в amount_unparsed,
+    а не в тихо искажённую сумму ×100/×1000).
+    """
+    v = value.strip().replace("\u2212", "-")  # знак — отдельный шаг от грамматики суммы
     if not v:
         return None
+    sign = -1 if v.startswith("-") else 1
+    body = v[1:] if sign < 0 else v
+    if not (_PRIO_GROUPED.fullmatch(body) or _PRIO_PLAIN.fullmatch(body)):
+        return None
     try:
-        return parse_amount(v.replace(",", ""))
+        return sign * parse_amount(body.replace(",", ""))
     except (InvalidOperation, ValueError, OverflowError):
         return None
 
@@ -403,11 +450,10 @@ def import_csv(  # noqa: C901 — legacy-функция, за ней следи�
         return _format_error(bank_name, fieldnames, len(reader_all),
                              message=f"Неизвестный банк: {bank_name!r} "
                                      "(доступны: sber, tinkoff, yandex, priorbank).")
-    missing = missing_columns(bank_name, fieldnames)
-    if missing:
-        return _format_error(bank_name, fieldnames, len(reader_all), missing=missing,
-                             message=(f"В файле нет ожидаемых колонок ({bank_name}): "
-                                      + ", ".join(missing) + ". " + FORMAT_HINT))
+    problem = _schema_problem(bank_name, fieldnames, reader_all)
+    if problem:
+        return _format_error(bank_name, fieldnames, len(reader_all), missing=problem["missing"],
+                             message=problem["message"])
 
     sha = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     batch_id = store.add_batch(filename, sha, len(reader_all), commit=False)
