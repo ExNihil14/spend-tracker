@@ -10,7 +10,7 @@
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
 - Код: HEAD `677ec61` (wave13 S4/S9: «Счёт/Счет» + инвариант дат; контур 1038 passed) — **ahead origin/main
-  на 1**. Сервисы: прод NSSM `spendtrack` 8766; демо-стенд 8799.
+  на 3** (`3453872`+`23b90f5`+`677ec61`). Сервисы: прод NSSM `spendtrack` 8766; демо-стенд 8799.
 - Контур: pytest + ruff + `contract_delta` + `ratchet` + `cc_ratchet` + `build_css`; канон — `spec/PIPELINE.md`,
   `spec/TESTING.md`, `spec/ARCHITECTURE.md`; словарь терминов — `CONTEXT.md`.
 - Дизайн: ребрендинг v2 «Стикербук» — направление принято (`DESIGN_DIRECTION_V2_2026-09-29.md`); Wave 0/1
@@ -22,8 +22,11 @@
   односторонние формы / режим ширины), матчер (границы слова), ЕРИП-контракт, политика egress, форма
   пиннинга установщика. После решений — волны правок TDD (порядок — §3 сводок). Окно 02:00 UTC 17.10
   доберёт `bootgate`/`bootgen13`/`bootfixes` (fb-полоса, стриминг SSE).
-- **Bootstrap-контур:** `bootscripts_tail_test.py` — красный (K1-фолбэк на боевой verify; 16.10);
-  popups C1 + «тихий» N1; boottail-тесты (SEEN-фикс, E/F-подмена, K1) — правки в очереди волн.
+- **Bootstrap-контур:** волны ⑤⑥ закрыты 16.10 вечером — `bootscripts_tail_test.py` 12/12
+  (K1-герметичность: копия cmd без абсолютного фолбэка; SEEN; N4) и `agentrouter_probe_test.py` 6/6
+  (E/F наблюдают журнал фейка, fail-closed); popups v3 (C1/N1/S1/S5/S2) + тест 27/27; habr-C2-матчер 26/26.
+  bootstrap закоммичен и запушен (`a8bfd4c`, `f63e9ce`). Остаток ⑦ (дизайн): изоляция зелёной ветки
+  генераторов (Н1), S-пункты `test_make_wave578_parts.py`, O1 `popups.cmd`.
 - **Прочие открытые:** B-19 (spend_misc C1 — Origin `*.app.github.dev`), B-14 (session_v2 миграция),
   B-22/B-27 (bootstrap-скрипты), fb_c-остаток; PR #6 (setup-uv) — open, решение владельца;
   push: незапушенные коммиты есть (spend/bootstrap) — по команде.
@@ -31,6 +34,11 @@
   continue.md — выполнена 16.10 (этот файл).
 
 ## Последние сессии (сжато)
+- **16.10 (вечер, bootstrap-волны):** B-⑤⑥ + habr-C2: tail-тесты возвращены в зелёное (`bootscripts_tail_test`
+  12/12 — K1-герметичность; `agentrouter_probe_test` 6/6 — E/F-журнал, fail-closed rc=99), popups (27/27),
+  habr (26/26); стаб-пробы «красные до / зелёные после» + мутационная чувствительность —
+  `%TEMP%\opencode\w13_boottail\`; детали — `HANDOFF_2026-10-16.md` §8. bootstrap: `a8bfd4c`+`f63e9ce`
+  (запушены). Остаток ⑦ — дизайн-вопросы.
 - **16.10 (контур ревью):** окно 11:00 UTC — доставлены `spend_docs` 4/4, `bootpopups` 2/2, `boottail` 2/2;
   SSE-стриминг в `agentrouter_chat.py` починил 504-класс (не-стрим умирал на ~187 с); адъюдикация fb-частей
   закрыта (7 отчётов); канонизация этого файла (история → архив). Детали — `HANDOFF_2026-10-16.md`.
