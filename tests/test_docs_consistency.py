@@ -27,7 +27,7 @@ def _flat_html(path: Path) -> str:
 
     wave12 S6: первый «≥» в документе мог стоять в комментарии или другой разметке, а не в каноне.
     """
-    html = re.sub(r"<!--.*?-->", " ", path.read_text(encoding="utf-8"), flags=re.S)
+    html = re.sub(r"<!--.*?-->", " ", path.read_text(encoding="utf-8"), flags=re.DOTALL)
     return " ".join(re.sub(r"<[^>]+>", " ", html).split())
 
 
@@ -38,7 +38,7 @@ def test_price_canon():
     assert re.search(r"1900\s*₽", readme), "README: нет полной цены 1900 ₽"
     assert re.search(r"\$25(?!\d)", readme), "README: нет полной цены $25"
     price = re.search(r'<div class="price">(.*?)</div>',
-                      LANDING.read_text(encoding="utf-8"), re.S)
+                      LANDING.read_text(encoding="utf-8"), re.DOTALL)
     assert price, "лендинг: нет элемента .price с ценой"
     assert re.search(r"1900\s*₽", price.group(1)), (
         f"лендинг .price: нет полной цены 1900 ₽: {price.group(1)!r}"
