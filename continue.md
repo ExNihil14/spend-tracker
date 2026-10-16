@@ -9,8 +9,9 @@
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Код: HEAD `677ec61` (wave13 S4/S9: «Счёт/Счет» + инвариант дат; контур 1038 passed) — **ahead origin/main
-  на 3** (`3453872`+`23b90f5`+`677ec61`). Сервисы: прод NSSM `spendtrack` 8766; демо-стенд 8799.
+- Код: HEAD `a2ca962` (wave13 C1/C2/C3 + фикс флейка журналов + дрейфы контура) — **ahead origin/main на 6**
+  (`38eebd2`, `a7e9cad`, `9de8186`, `27bb02f`, `a2ca962` + этот docs-коммит; push — по команде). Сервисы:
+  прод NSSM `spendtrack` 8766 (рестарт 16.10 ночь, pid 15252); демо-стенд 8799.
 - Контур: pytest + ruff + `contract_delta` + `ratchet` + `cc_ratchet` + `build_css`; канон — `spec/PIPELINE.md`,
   `spec/TESTING.md`, `spec/ARCHITECTURE.md`; словарь терминов — `CONTEXT.md`.
 - Дизайн: ребрендинг v2 «Стикербук» — направление принято (`DESIGN_DIRECTION_V2_2026-09-29.md`); Wave 0/1
@@ -18,22 +19,34 @@
 
 ## Что активно / в работе (срез)
 - **Wave13 (AgentRouter-ревью): адъюдикация закрыта 15–16.10** (сводки `ADJUDICATION_WAVE13_SUMMARY_2026-10-16.md`,
-  `ADJUDICATION_WAVE13_SUMMARY_FB_2026-10-16.md`). **Ждут решений владельца:** C1/C2/C3 csv_import (суммы /
-  односторонние формы / режим ширины), матчер (границы слова), ЕРИП-контракт, политика egress, форма
-  пиннинга установщика. После решений — волны правок TDD (порядок — §3 сводок). Окно 02:00 UTC 17.10
-  доберёт `bootgate`/`bootgen13`/`bootfixes` (fb-полоса, стриминг SSE).
+  `ADJUDICATION_WAVE13_SUMMARY_FB_2026-10-16.md`). **C1/C2/C3 csv_import — решения приняты и реализованы 16.10**
+  (TDD, `a7e9cad`; см. «Последние сессии»). **Ждут решений владельца:** матчер (границы слова),
+  ЕРИП-контракт, политика egress, форма пиннинга установщика. Окно 02:00 UTC 17.10 доберёт
+  `bootgate`/`bootgen13`/`bootfixes` (fb-полоса, стриминг SSE).
 - **Bootstrap-контур:** волны ⑤⑥ закрыты 16.10 вечером — `bootscripts_tail_test.py` 12/12
   (K1-герметичность: копия cmd без абсолютного фолбэка; SEEN; N4) и `agentrouter_probe_test.py` 6/6
   (E/F наблюдают журнал фейка, fail-closed); popups v3 (C1/N1/S1/S5/S2) + тест 27/27; habr-C2-матчер 26/26.
   bootstrap закоммичен и запушен (`a8bfd4c`, `f63e9ce`). Остаток ⑦ (дизайн): изоляция зелёной ветки
   генераторов (Н1), S-пункты `test_make_wave578_parts.py`, O1 `popups.cmd`.
-- **Прочие открытые:** B-19 (spend_misc C1 — Origin `*.app.github.dev`), B-14 (session_v2 миграция),
-  B-22/B-27 (bootstrap-скрипты), fb_c-остаток; PR #6 (setup-uv) — open, решение владельца;
-  push: незапушенные коммиты есть (spend/bootstrap) — по команде.
+- **Прочие открытые:** B-14 (session_v2 миграция), B-22/B-27 (bootstrap-скрипты), fb_c-остаток;
+  PR #6 (setup-uv) — open, решение владельца; push: spend — ahead 6 (по команде), bootstrap — чисто.
+  B-19 (spend_misc C1) — **закрыт 14.10** (`5975660`, сужение Codespaces-Origin до своего пространства).
 - **Очередь применения (процессное):** `RECOMMENDATIONS_APPLY_QUEUE_2026-09-24.md` §F; канонизация
   continue.md — выполнена 16.10 (этот файл).
 
 ## Последние сессии (сжато)
+- **16.10 (ночь, wave13 C1/C2/C3 csv_import):** принятые решения владельца реализованы TDD (+9 тестов,
+  80/80 целевых; подробности — сводки wave13). C1 — строгая форма суммы Приорбанка («1,577.92»/«1577.92»,
+  иное → видимый `amount_unparsed`, не тихая сумма); C2 — «Обороты Списание» и «Поступление» — две раздельные
+  обязательные колонки (переименование любой → `format_error`); C3 — лишняя ячейка строки priorbank →
+  `format_error` (строгий режим только priorbank — Sber-форма с хвостовым `;` не задета, контроль-тест).
+  **Закоммичено:** `a7e9cad` (C1/C2/C3 + контракт-snapshot C2). **Флейк rollover** (`test_cli_busy_db_friendly_error`;
+  логи тестов писали в боевой `data/logs` при живом NSSM-сервисе) закрыт `9de8186` — журналы приложения
+  в тестах в session-tmp + регресс-тест. **Дрейфы контура закрыты:** `27bb02f` (cc_ratchet baseline
+  `bench.py::seed` 13→14 — принятый рост B-17 ч.2, Contract-Change), `a2ca962` (css-манифест после `9cbaee1`).
+  Full-suite: **2×1048 passed**. Прод 8766 — рестарт на новый код (pid 15252, `/health` ok). Live-факт:
+  `%TEMP%\opencode\w13_csvc\` (`live_report.txt` CLI + `http_report.txt` — multipart-импорт на temp-стенде 8767).
+  Push — по команде владельца.
 - **16.10 (вечер, bootstrap-волны):** B-⑤⑥ + habr-C2: tail-тесты возвращены в зелёное (`bootscripts_tail_test`
   12/12 — K1-герметичность; `agentrouter_probe_test` 6/6 — E/F-журнал, fail-closed rc=99), popups (27/27),
   habr (26/26); стаб-пробы «красные до / зелёные после» + мутационная чувствительность —
@@ -45,7 +58,8 @@
 - **13→14.10 (агентская ночь, спенд-сторона):** код spend НЕ менялся (репо чист, `1aa5466`); контур прогонялся:
   979 unit + 101 e2e + ruff + contract_delta + ratchet + cc_ratchet + build_css — зелёные. Долг: **B-19 —
   spend_misc C1**: Origin-проверка доверяет всему `*.app.github.dev` (адъюдикация wave9 P4; эксплуатация
-  условна — порт по умолчанию приватный); фикс — сузить до своего host/неймспейса + красный pytest. Смежное:
+  условна — порт по умолчанию приватный); фикс — сузить до своего host/неймспейса + красный pytest. **[закрыт
+  14.10: `5975660`, `FIX_SPEND_MISC_C1_2026-10-14.md` — `_codespace_namespace` + 12 passed]**. Смежное:
   `cleanup-opencode-global.py` (v1-эпохи против v2-БД — fail-closed), миграция `session_v2` + C1/C2 — B-14.
 - Более ранние сессии (24.09–07.10, волны wave1–wave7) — в `SESSION_HISTORY.md`, разделы `[архив]` (перенос 16.10).
 
