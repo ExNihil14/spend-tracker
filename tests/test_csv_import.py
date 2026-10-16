@@ -124,6 +124,27 @@ def test_real_priorbank_imports(store):
     assert all(t["date"].startswith("2026-06") for t in txs)
 
 
+def test_priorbank_yo_header_keeps_account_and_dedup(store):
+    """Адъюдикация wave13 S4: шапка «Счёт» (с ё) — тот же счёт: (а) account_anon не теряется,
+    (б) реимпорт выписки с альтернативным написанием видит те же операции (дедуп по счёту)."""
+    from synth_bank import gen_priorbank
+
+    base = gen_priorbank(n=4, seed=5)
+    yo = base.replace("Счет", "Счёт", 1)
+    assert "Счёт" in yo.splitlines()[0], "шапка не переименована — тест не о том"
+
+    first = import_csv(base, store, classify=_stub_classify())
+    assert first["added"] > 0
+    txs = store.list_transactions(limit=1000)
+    assert all(t["account_anon"] for t in txs), "счёт потерян при написании «Счет»"
+
+    second = import_csv(yo, store, classify=_stub_classify())
+    assert second["added"] == 0, "«Счёт» дал другой отпечаток — счёт потерян в адаптере"
+    assert second["dupes"] == first["added"]
+    txs2 = store.list_transactions(limit=1000)
+    assert all(t["account_anon"] for t in txs2), "счёт потерян при написании «Счёт»"
+
+
 def test_priorbank_rerun_is_noop(store):
     """Повторный импорт той же выписки — no-op (fingerprint + export_rowid)."""
     from synth_bank import gen_priorbank

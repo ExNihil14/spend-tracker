@@ -4,8 +4,10 @@
 """
 from __future__ import annotations
 
+import re
 import threading
 import time
+from datetime import date
 
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
@@ -31,6 +33,14 @@ def _fresh(tmp_path):
 
 def _count(store: Store) -> int:
     return store.conn.execute("SELECT COUNT(*) c FROM transactions").fetchone()["c"]
+
+
+def _is_canonical_iso(value: str) -> bool:
+    """Каноническая ISO-дата (S9): date.fromisoformat(value).isoformat() == value."""
+    try:
+        return date.fromisoformat(value).isoformat() == value
+    except (TypeError, ValueError):
+        return False
 
 
 def test_cr_inside_field_no_crash(tmp_path):
@@ -129,17 +139,45 @@ def test_empty_and_header_only_are_empty_not_error(tmp_path):
 @settings(max_examples=60, deadline=None,
           suppress_health_check=[HealthCheck.function_scoped_fixture, HealthCheck.too_slow])
 def test_random_bytes_never_raise(tmp_path, blob):
-    """Произвольные байты: известный статус, никакого мусора в датах."""
+    """Произвольные байты: известный статус, никакого мусора в датах.
+
+    S9 (адъюдикация wave13): прежняя проверка `date NOT GLOB '____-__-__'` была НЕВЕРНА — в SQLite
+    `_` в GLOB не подстановка, шаблон не матчил каноническую ISO-дату (тест был зелёным только
+    вакуумно, на пустой таблице). Канон: `date.fromisoformat(value).isoformat() == value`.
+    """
     assume(len(blob) < MAX_CSV_BYTES)  # лимит входа проверяется отдельным тестом выше
     store = _fresh(tmp_path)
     try:
         result = import_csv(blob, store, taxonomy=TAX, classify=_stub)
         assert result["status"] in ("ok", "empty", "format_error")
-        bad = store.conn.execute(
-            "SELECT COUNT(*) c FROM transactions WHERE date NOT GLOB '____-__-__'").fetchone()["c"]
-        assert bad == 0
+        dates = [r["date"] for r in store.conn.execute("SELECT date FROM transactions")]
+        assert all(_is_canonical_iso(d) for d in dates), dates[:5]
     finally:
         store.close()
+
+
+def test_priorbank_structural_mutations_keep_invariants(tmp_path):
+    """S9 (адъюдикация wave13): структурные мутации допустимой выписки Приорбанка — инварианты
+    держатся: импорт не бросает, статус известный, все даты в БД канонические ISO."""
+    from synth_bank import gen_priorbank
+
+    base = gen_priorbank(n=5, seed=5)
+    mutations = {
+        "bad_amount_comma": base.replace("1,577.92", "12,34", 1),
+        "bad_calendar_date": re.sub(r"\b\d{2}\.\d{2}\.\d{4}\b", "31.02.2026", base, count=1),
+        "renamed_spis": base.replace("Обороты Списание", "Списание", 1),
+        "renamed_account_yo": base.replace("Счет", "Счёт", 1),
+        "crlf": base.replace("\n", "\r\n"),
+    }
+    for name, raw in mutations.items():
+        store = _fresh(tmp_path)
+        try:
+            result = import_csv(raw.encode("utf-8"), store, taxonomy=TAX, classify=_stub)
+            assert result["status"] in ("ok", "empty", "format_error"), f"{name}: {result['status']}"
+            dates = [r["date"] for r in store.conn.execute("SELECT date FROM transactions")]
+            assert all(_is_canonical_iso(d) for d in dates), f"{name}: неканоническая дата {dates[:3]}"
+        finally:
+            store.close()
 
 
 def test_parallel_write_during_import(tmp_path):
