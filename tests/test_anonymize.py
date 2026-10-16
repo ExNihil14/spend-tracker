@@ -56,6 +56,29 @@ def test_extra_column_flag():
     assert "ОПЕРАЦИЯ_" in out
 
 
+# ── wave13 (fb_a S7): шапки вне alias-списка — матч по корням слов ─────────────
+
+def test_stem_header_columns_anonymized():
+    """S7 (wave13): «Назначение платежа», «ФИО получателя», «Маска карты» — вне точных алиасов,
+    но обязаны обезличиваться (иначе PII уезжает в публичный issue; спас только варнинг)."""
+    csv_text = ("Назначение платежа;ФИО получателя;Маска карты;Сумма операции\n"
+                "Оплата интернета;Иванов Иван Иванович;2202 20** **** 1234;-500,00\n")
+    out, report = anonymize_csv(csv_text)
+    assert "Оплата интернета" not in out and "Иванов" not in out and "2202" not in out
+    assert report["anonymized"]["Назначение платежа"] == "desc"
+    assert report["anonymized"]["ФИО получателя"] == "desc"
+    assert report["anonymized"]["Маска карты"] == "account"
+    assert "Сумма операции" in report["untouched"]
+
+
+def test_stem_headers_leave_innocuous_columns():
+    """S7 (wave13): «Дата операции»/«Сумма операции»/«Статус» — не PII; матч по корням их
+    не задевает (иначе ломается формат образца — даты/суммы должны остаться)."""
+    out, report = anonymize_csv("Дата операции;Сумма операции;Статус\n01.09.2026;-100,00;Выполнено\n")
+    assert report["anonymized"] == {}
+    assert "01.09.2026" in out and "-100,00" in out and "Выполнено" in out
+
+
 def test_cp1251_input_decoded():
     out, _report = anonymize_csv(CSV.encode("cp1251"))
     assert "ЛЕНТА" not in out

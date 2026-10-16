@@ -32,6 +32,14 @@ DESC_ALIASES = {"описание", "назначение", "комментар�
 ACCOUNT_ALIASES = {"номер карты", "номер счёта", "номер счета", "карта", "счёт", "счет", "account"}
 DOC_ALIASES = {"номер документа", "номер операции", "номер", "document", "doc", "id"}
 
+# wave13 (fb_a S7): колонки вне точных алиасов («Назначение платежа», «ФИО получателя»,
+# «Маска карты») матчатся по КОРНЯМ слов — иначе PII таких колонок уезжала в публичный issue.
+# Корни подобраны минимально: «Дата операции»/«Сумма операции»/«Статус» не задеваются.
+_DESC_STEMS = ("описан", "назначени", "комментар", "примечани", "фио", "merchant",
+               "получател", "плательщик", "контрагент", "description")
+_ACCOUNT_STEMS = ("карт", "счет", "счёт", "account")
+_DOC_STEMS = ("документ", "document")
+
 DESC_PREFIX = "ОПЕРАЦИЯ"
 ACCOUNT_PREFIX = "КАРТА"
 KIND_DESC, KIND_ACCOUNT, KIND_DOC = "desc", "account", "doc"
@@ -78,6 +86,13 @@ def _classify(header: str, extra: set[str]) -> str | None:
         return KIND_ACCOUNT
     if name in DOC_ALIASES:
         return KIND_DOC
+    for token in re.split(r"[^0-9a-zа-яё]+", name):
+        if token.startswith(_DESC_STEMS):
+            return KIND_DESC
+        if token.startswith(_ACCOUNT_STEMS):
+            return KIND_ACCOUNT
+        if token.startswith(_DOC_STEMS):
+            return KIND_DOC
     return None
 
 

@@ -207,6 +207,11 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
     )
     if request.headers.get("hx-request", "").lower() == "true":
         desc = escape(tx.description)  # аудит 24.09: описание — пользовательский ввод, экранируем
+        if tx_id is None:
+            # HELP1 #2 (wave13): дедуп-коллизия отпечатка — честный отказ (паритет с CLI `dup`),
+            # а не «Добавлено» при отсутствующей записи.
+            return HTMLResponse(f'<p class="text-accent">Не добавлено: {desc} — '
+                                "такая операция уже есть.</p>" + _oob_badge(store))
         label = escape(category["category"])
         if category["source"] == "llm_pending_review":
             msg = (f"Добавлено: {desc} → <b>{label}</b> "

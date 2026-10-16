@@ -125,6 +125,26 @@ def test_cli_confirm_updates_category_and_reports_not_found(cli_db, capsys):
     assert "not found" in capsys.readouterr().out
 
 
+def test_cli_confirm_rejects_category_not_in_taxonomy(cli_db, capsys):
+    """HELP1 #1 (wave13): confirm с категорией вне таксономии — отказ ДО записи (stderr, rc 2),
+    как в API (422). Раньше опечатка писала category вне таксономии → doctor CRITICAL
+    и мусорную запись в merchant_cache."""
+    s = Store(db_path=cli_db)
+    tx_id = s.conn.execute("SELECT id FROM transactions WHERE description='ЛЕНТА'").fetchone()["id"]
+    s.close()
+
+    assert cli.main(["confirm", str(tx_id), "hacker_cat"]) == 2
+    err = capsys.readouterr().err
+    assert "вне таксономии" in err and "hacker_cat" in err
+
+    s = Store(db_path=cli_db)
+    try:
+        assert s.get_transaction(tx_id)["category"] == "groceries"  # запись не изменена
+        assert s.merchant_cache_get("ЛЕНТА") is None  # кэш не засеян мусором
+    finally:
+        s.close()
+
+
 def test_cli_add_duplicate_returns_4(tmp_path, monkeypatch, capsys):
     """W2 ресёрча ошибок: дубль — отдельный код 4 (штатный no-op), скрипты отличают его от ошибок."""
     monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "dup.db"))

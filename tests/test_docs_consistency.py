@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import inspect
 import re
 import tomllib
 from pathlib import Path
@@ -175,3 +176,72 @@ def test_fingerprint_canon_matches_code():
         assert "только для НЕ-базовой" not in text, (
             f"{doc}: устаревшая формулировка «только для НЕ-базовой» (правильно: ≠ RUB, base-независимо)"
         )
+
+
+def _privacy_sections() -> dict[str, str]:
+    """PRIVACY.md по секциям `## …` (заголовок → текст без переносов)."""
+    text = (ROOT / "PRIVACY.md").read_text(encoding="utf-8")
+    parts = re.split(r"^## ", text, flags=re.MULTILINE)
+    return {p.split("\n", 1)[0].strip(): " ".join(p.split()) for p in parts[1:]}
+
+
+def test_privacy_off_switch_lists_every_llm_var():
+    """C1 (wave13 fb_d): «Как выключить» — явный список ВСЕХ 7 включающих переменных, а не маска
+    `SPENDTRACK_LLM_*` (буквальное выполнение маски оставляло free-режим включённым — OPENROUTER
+    и ALLOW_LOCAL_LLM под неё не попадают). Каждая переменная egress-раздела обязана иметь путь
+    выключения в разделе «Как выключить».
+    """
+    from spendtrack.llm import LLM_ENV_VARS
+
+    sections = _privacy_sections()
+    egress = sections["Что и когда уходит наружу (только если вы включили LLM)"]
+    off = sections["Как выключить / проверить"]
+    egress_vars = set(re.findall(r"SPENDTRACK_[A-Z_]+", egress))
+    off_vars = set(re.findall(r"SPENDTRACK_[A-Z_]+", off))
+    assert set(LLM_ENV_VARS) <= off_vars, (
+        f"PRIVACY «выключить»: не перечислены переменные: {sorted(set(LLM_ENV_VARS) - off_vars)}"
+    )
+    assert egress_vars <= off_vars, (
+        f"PRIVACY: egress-переменные без пути выключения: {sorted(egress_vars - off_vars)}"
+    )
+    assert "SPENDTRACK_LLM_*" not in off, (
+        "PRIVACY «выключить»: вернулась маска SPENDTRACK_LLM_* — она не выключает free-каналы"
+    )
+
+
+def test_egress_numbers_match_code_and_docs():
+    """Н-2 (wave13): числа egress (300/80/8) не дублируются в тесте, а берутся из кода:
+    расхождение PRIVACY / лендинга / help ↔ prompts/list_examples — красный тест."""
+    from spendtrack import prompts
+    from spendtrack.store import Store
+
+    privacy = _flat(ROOT / "PRIVACY.md")
+    assert f"до {prompts._DESCRIPTION_LIMIT} символов" in privacy, "PRIVACY: нет предела описания"
+    assert f"до {prompts._MERCHANT_LIMIT} символов" in privacy, "PRIVACY: нет предела merchant"
+    assert f"до {prompts._EXAMPLES_LIMIT} few-shot" in privacy, "PRIVACY: нет предела few-shot"
+
+    landing = _flat_html(LANDING)
+    assert f"≤{prompts._DESCRIPTION_LIMIT}" in landing, "лендинг: нет предела описания"
+    assert f"до {prompts._EXAMPLES_LIMIT} примеров" in landing, "лендинг: нет предела few-shot"
+
+    help_text = _flat(ROOT / "src" / "spendtrack" / "templates" / "help.html")
+    assert f"до {prompts._DESCRIPTION_LIMIT} символов" in help_text, "help: нет предела описания"
+
+    default = inspect.signature(Store.list_examples).parameters["limit"].default
+    assert default == prompts._EXAMPLES_LIMIT, (
+        f"list_examples(limit={default}) ≠ prompts._EXAMPLES_LIMIT={prompts._EXAMPLES_LIMIT}"
+    )
+
+
+def test_free_channel_wording_parity_readme_privacy():
+    """Н-7 (wave13): матрица free-каналов синхронна в README и PRIVACY: OPENROUTER-ключ сам
+    включает чужой канал; FREEL-ключ сам по себе не включает ничего (локальный шлюз — только
+    при SPENDTRACK_ALLOW_LOCAL_LLM=1). Формулировка «и/или» — источник неверного чтения."""
+    readme = _flat(README)
+    privacy = _flat(ROOT / "PRIVACY.md")
+    for name, text in (("README", readme), ("PRIVACY", privacy)):
+        assert "SPENDTRACK_ALLOW_LOCAL_LLM" in text, f"{name}: нет гейта ALLOW_LOCAL_LLM"
+        assert "сам по себе" in text, (
+            f"{name}: не сказано, что FREEL-ключ сам по себе канал не включает"
+        )
+        assert "и/или" not in text, f"{name}: вернулась формулировка «и/или» (матрица ключ→канал)"

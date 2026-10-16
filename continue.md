@@ -9,9 +9,8 @@
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Код: HEAD `a2ca962` (wave13 C1/C2/C3 + фикс флейка журналов + дрейфы контура) — **ahead origin/main на 6**
-  (`38eebd2`, `a7e9cad`, `9de8186`, `27bb02f`, `a2ca962` + этот docs-коммит; push — по команде). Сервисы:
-  прод NSSM `spendtrack` 8766 (рестарт 16.10 ночь, pid 15252); демо-стенд 8799.
+- Код: HEAD `9403d45` (волна A — решения-независимый пакет, ночь-2) поверх `1962428` — **ahead origin/main на 1**
+  (origin/main = `1962428`, предыдущие 6 запушены). Сервисы: прод NSSM `spendtrack` 8766 (рестарт 16.10 ночь, pid 15252); демо-стенд 8799. **PUSH `9403d45` — по команде владельца.**
 - Контур: pytest + ruff + `contract_delta` + `ratchet` + `cc_ratchet` + `build_css`; канон — `spec/PIPELINE.md`,
   `spec/TESTING.md`, `spec/ARCHITECTURE.md`; словарь терминов — `CONTEXT.md`.
 - Дизайн: ребрендинг v2 «Стикербук» — направление принято (`DESIGN_DIRECTION_V2_2026-09-29.md`); Wave 0/1
@@ -19,22 +18,31 @@
 
 ## Что активно / в работе (срез)
 - **Wave13 (AgentRouter-ревью): адъюдикация закрыта 15–16.10** (сводки `ADJUDICATION_WAVE13_SUMMARY_2026-10-16.md`,
-  `ADJUDICATION_WAVE13_SUMMARY_FB_2026-10-16.md`). **C1/C2/C3 csv_import — решения приняты и реализованы 16.10**
-  (TDD, `a7e9cad`; см. «Последние сессии»). **Ждут решений владельца:** матчер (границы слова),
-  ЕРИП-контракт, политика egress, форма пиннинга установщика. Окно 02:00 UTC 17.10 доберёт
-  `bootgate`/`bootgen13`/`bootfixes` (fb-полоса, стриминг SSE).
+  `ADJUDICATION_WAVE13_SUMMARY_FB_2026-10-16.md`). **C1/C2/C3 csv_import — реализованы 16.10** (TDD, `a7e9cad`).
+  **Решения-независимый срез волны A (②+④) — реализован 16.10 ночь-2** (TDD, закоммичен `9403d45`; см. «Последние сессии»).
+  **Ждут решений владельца:** матчер (границы слова), ЕРИП-контракт, egress-redaction (или снятие), форма пиннинга
+  установщика, approve-бейдж, минимизация doctor print. Окно 02:00 UTC 17.10 доберёт `bootgate`/`bootgen13`/
+  `bootfixes` (fb-полоса, стриминг SSE).
 - **Bootstrap-контур:** волны ⑤⑥ закрыты 16.10 вечером — `bootscripts_tail_test.py` 12/12
   (K1-герметичность: копия cmd без абсолютного фолбэка; SEEN; N4) и `agentrouter_probe_test.py` 6/6
   (E/F наблюдают журнал фейка, fail-closed); popups v3 (C1/N1/S1/S5/S2) + тест 27/27; habr-C2-матчер 26/26.
   bootstrap закоммичен и запушен (`a8bfd4c`, `f63e9ce`). Остаток ⑦ (дизайн): изоляция зелёной ветки
   генераторов (Н1), S-пункты `test_make_wave578_parts.py`, O1 `popups.cmd`.
 - **Прочие открытые:** B-14 (session_v2 миграция), B-22/B-27 (bootstrap-скрипты), fb_c-остаток;
-  PR #6 (setup-uv) — open, решение владельца; push: spend — ahead 6 (по команде), bootstrap — чисто.
+  PR #6 (setup-uv) — open, решение владельца; push: spend — ahead 1 (`9403d45`, по команде), bootstrap — чисто.
   B-19 (spend_misc C1) — **закрыт 14.10** (`5975660`, сужение Codespaces-Origin до своего пространства).
 - **Очередь применения (процессное):** `RECOMMENDATIONS_APPLY_QUEUE_2026-09-24.md` §F; канонизация
   continue.md — выполнена 16.10 (этот файл).
 
 ## Последние сессии (сжато)
+- **16.10 (ночь-2, волна A — решения-независимый пакет):** TDD red→green по адъюдикациям wave13 (C1/C2/Н-2/Н-6/Н-7,
+  HELP1 #1/#2/#4, S7): `LLM_ENV_VARS`=7 (единый источник; тесты/доки опираются на него), PRIVACY «Как выключить»
+  + free-матрица (README синхрон), `_EXAMPLES_LIMIT=8`, numbers-sync 300/80/8; anonymize-стемы русских шапок
+  (описание/карта/документ/ФИО); `confirm` — rc=2 вне таксономии (до Store); htmx-дубликат — «Не добавлено»+OOB;
+  seed кэша по `merchant or description`; doctor live-set с описаниями merchantless. Гейты: pytest **1061**,
+  ruff/contract (snapshot `+LLM_ENV_VARS`)/ratchet/cc/build_css — ok; мутации 8/8 (+доктор-перепроверка). Живые факты —
+  `%TEMP%\opencode\wave_a_live\report.txt` (confirm rc2/rc0; seed 3 путей; doctor ok; анонимайзер без PII;
+  temp-стенд 8767: dup+бейдж, погашен). Закоммичено `9403d45` (по команде; трейлер `Contract-Change:`); push — по команде.
 - **16.10 (ночь, wave13 C1/C2/C3 csv_import):** принятые решения владельца реализованы TDD (+9 тестов,
   80/80 целевых; подробности — сводки wave13). C1 — строгая форма суммы Приорбанка («1,577.92»/«1577.92»,
   иное → видимый `amount_unparsed`, не тихая сумма); C2 — «Обороты Списание» и «Поступление» — две раздельные

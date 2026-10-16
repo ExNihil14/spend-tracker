@@ -502,6 +502,13 @@ def cmd_anonymize(args) -> int:
 
 
 def cmd_confirm(args) -> int:
+    taxonomy = load_taxonomy()
+    if not taxonomy.is_valid(args.category):
+        # HELP1 #1 (wave13): API валидирует категорию (422), CLI — нет: опечатка писала category
+        # вне таксономии (doctor CRITICAL + мусор в merchant_cache). Отказ до открытия Store.
+        print(f"категория {args.category!r} вне таксономии (см. config/taxonomy.toml)",
+              file=sys.stderr)
+        return 2
     store = make_store()
     ok = store.update_category(args.id, args.category, source="correction")
     store.seed_merchant_cache(args.id)

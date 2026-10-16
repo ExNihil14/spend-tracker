@@ -4,9 +4,11 @@
 """
 from __future__ import annotations
 
+import os
 import socket
 
 from spendtrack.csv_import import import_csv
+from spendtrack.llm import LLM_ENV_VARS
 from spendtrack.store import Store
 
 UNKNOWN_MERCHANT_CSV = (
@@ -47,10 +49,19 @@ def _block_network(monkeypatch, block_dns: bool = True) -> list[str]:
             return orig_gai(host, *args, **kwargs)
 
         monkeypatch.setattr(socket, "getaddrinfo", gai_guard)
-    for var in ("SPENDTRACK_FREEL_LLM_API_KEY", "SPENDTRACK_OPENROUTER_API_KEY",
-                "SPENDTRACK_ALLOW_LOCAL_LLM"):
+    for var in LLM_ENV_VARS:  # Н-6 (wave13): все включающие LLM-переменные, а не 3 из 7
         monkeypatch.delenv(var, raising=False)
     return attempts
+
+
+def test_block_network_clears_every_llm_env_var(monkeypatch):
+    """Н-6 (wave13 fb_d): гард «нулевой сети» чистит ВСЕ включающие переменные, даже если они
+    пришли из dev-окружения (раньше удалялись 3 из 7 — BYO-окружение текло в offline-тесты)."""
+    for var in LLM_ENV_VARS:
+        monkeypatch.setenv(var, "dev-значение")
+    _block_network(monkeypatch)
+    remaining = [var for var in LLM_ENV_VARS if os.environ.get(var)]
+    assert remaining == [], f"не очищены LLM-переменные: {remaining}"
 
 
 def test_import_without_llm_goes_to_queue_not_network(monkeypatch, tmp_path):

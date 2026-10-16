@@ -110,6 +110,20 @@ def test_create_transaction_hx_request_html(client):
     assert "groceries" in r.text
 
 
+def test_create_transaction_hx_duplicate_reports_honestly(client):
+    """HELP1 #2 (wave13): htmx-коллизия отпечатка (id=None) — «Не добавлено…уже есть»,
+    а не тихое «Добавлено» (паритет с CLI `dup`)."""
+    head = {"hx-request": "true"}
+    form = {"date": "2026-09-12", "description": "ДУБЛЬ КОФЕ", "amount": "-123.45"}
+    first = client.post("/api/transactions", data=form, headers=head)
+    assert first.status_code == 200 and "Добавлено:" in first.text
+
+    second = client.post("/api/transactions", data=form, headers=head)
+    assert second.status_code == 200
+    assert "Не добавлено" in second.text and "уже есть" in second.text
+    assert "Добавлено:" not in second.text
+
+
 def test_patch_category(client):
     tx = client.post("/api/transactions", json={
         "date": "2026-09-12", "description": "ЛЕНТА", "amount": "-50.00",

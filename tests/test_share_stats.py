@@ -6,17 +6,12 @@ from datetime import UTC, datetime, timedelta
 
 from spendtrack import cli
 from spendtrack.doctor import build_usage_summary, usage_issue_url
+from spendtrack.llm import LLM_ENV_VARS
 from spendtrack.store import Store
-
-_LLM_ENV = (
-    "SPENDTRACK_LLM_BASE_URL", "SPENDTRACK_LLM_MODEL", "SPENDTRACK_LLM_API_KEY",
-    "SPENDTRACK_LLM_PROVIDER", "SPENDTRACK_FREEL_LLM_API_KEY",
-    "SPENDTRACK_OPENROUTER_API_KEY", "SPENDTRACK_ALLOW_LOCAL_LLM",
-)
 
 
 def _isolate_llm(monkeypatch) -> None:
-    for var in _LLM_ENV:
+    for var in LLM_ENV_VARS:  # единый список переменных (llm.py) — без дублей в тестах
         monkeypatch.delenv(var, raising=False)
 
 

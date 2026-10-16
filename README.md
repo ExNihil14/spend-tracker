@@ -233,8 +233,10 @@ uv run python scripts/demo_data.py clean    # убрать демо
 2. **Свой сервер или локальная модель (рекомендуется).** Любой OpenAI-совместимый сервер:
    `SPENDTRACK_LLM_BASE_URL` + `SPENDTRACK_LLM_MODEL` + `SPENDTRACK_LLM_API_KEY`; локальный Ollama —
    `SPENDTRACK_LLM_PROVIDER=ollama`. Данные уходят только на указанный вами сервер.
-3. **Бесплатные каналы** — осознанный выбор: ключи OpenRouter/FreeLLM (`SPENDTRACK_OPENROUTER_API_KEY`
-   и/или `SPENDTRACK_FREEL_LLM_API_KEY`). Это чужие серверы — см. [PRIVACY.md](PRIVACY.md).
+3. **Бесплатные каналы** — осознанный выбор: `SPENDTRACK_OPENROUTER_API_KEY` сам включает канал
+   OpenRouter (чужой сервер); `SPENDTRACK_FREEL_LLM_API_KEY` сам по себе не включает ничего — он нужен
+   лишь вашему локальному прокси при `SPENDTRACK_ALLOW_LOCAL_LLM=1`. Матрица «ключ → канал» —
+   в [PRIVACY.md](PRIVACY.md).
 
 ![Настройки](assets/screenshot-settings.png)
 

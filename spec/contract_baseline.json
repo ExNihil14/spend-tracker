@@ -768,6 +768,10 @@
    "args": "str = ",
    "returns": ""
   },
+  "spendtrack.llm:LLM_ENV_VARS": {
+   "args": "('SPENDTRACK_LLM_PROVIDER', 'SPENDTRACK_LLM_BASE_URL', 'SPENDTRACK_LLM_MODEL', 'SPENDTRACK_LLM_API_KEY', 'SPENDTRACK_OPENROUTER_API_KEY', 'SPENDTRACK_FREEL_LLM_API_KEY', 'SPENDTRACK_ALLOW_LOCAL_LLM')",
+   "returns": ""
+  },
   "spendtrack.llm:REQUEST_TIMEOUT_S": {
    "args": "httpx.Timeout(30.0, connect=3.0)",
    "returns": ""

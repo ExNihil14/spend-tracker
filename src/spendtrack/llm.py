@@ -20,6 +20,21 @@ log = logging.getLogger("spendtrack")
 
 REQUEST_TIMEOUT_S = httpx.Timeout(30.0, connect=3.0)  # read=30 (батч), connect=3 (мёртвый порт)
 
+# Включающие LLM переменные — ЕДИНЫЙ источник списка: им же чистит окружение гард «нулевой сети»
+# (tests/test_offline.py) и сверяется раздел «Как выключить» в PRIVACY.md (test_docs_consistency).
+# SPENDTRACK_ALLOW_LOCAL_LLM читается напрямую из os.environ (_allow_local_llm), остальные — поля
+# Settings (env_prefix SPENDTRACK_). Маска `SPENDTRACK_LLM_*` не покрывает OPENROUTER/FREEL/ALLOW —
+# буквальное «удалите SPENDTRACK_LLM_*» оставляет free-режим включённым (wave13 fb_d, C1).
+LLM_ENV_VARS = (
+    "SPENDTRACK_LLM_PROVIDER",
+    "SPENDTRACK_LLM_BASE_URL",
+    "SPENDTRACK_LLM_MODEL",
+    "SPENDTRACK_LLM_API_KEY",
+    "SPENDTRACK_OPENROUTER_API_KEY",
+    "SPENDTRACK_FREEL_LLM_API_KEY",
+    "SPENDTRACK_ALLOW_LOCAL_LLM",
+)
+
 _breakers: dict[str, CircuitBreaker] = {}
 _br_lock = threading.Lock()
 # W2 ресёрча ошибок: последний сбой по провайдеру (тип + время) — для llm-status; без тел/промптов.

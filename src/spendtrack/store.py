@@ -907,14 +907,21 @@ class Store:
             self.conn.commit()
 
     def _seed_merchant_cache_no_commit(self, tx_id: int) -> bool:
-        """few-shot-кэш для строки без собственного commit (для составных транзакций, P1-7)."""
+        """few-shot-кэш для строки без собственного commit (для составных транзакций, P1-7).
+
+        HELP1 #4 (wave13): ключ — как в лукапе `categorize_rules_only` (`merchant or description`,
+        categorize.py:36): строки без банковского merchant тоже учат кэш (по описанию), иначе
+        «запомнит выбор для этого магазина» для импорта без merchant не срабатывало вовсе.
+        """
         row = self.conn.execute(
-            "SELECT merchant, category FROM transactions WHERE id=? AND merchant IS NOT NULL", (tx_id,)
+            "SELECT merchant, description, category FROM transactions WHERE id=?", (tx_id,)
         ).fetchone()
-        if row and row["merchant"]:
-            self.merchant_cache_set(row["merchant"], row["category"], commit=False)
-            return True
-        return False
+        name = ((row["merchant"] or row["description"]) if row else "") or ""
+        name = name.strip()
+        if not name:
+            return False
+        self.merchant_cache_set(name, row["category"], commit=False)
+        return True
 
     def seed_merchant_cache(self, tx_id: int) -> None:
         """Запоминает категорию по мерчанту после правки юзера (few-shot loop)."""

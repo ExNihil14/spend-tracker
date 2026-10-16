@@ -7,6 +7,9 @@ from spendtrack.taxonomy import Taxonomy
 
 _DESCRIPTION_LIMIT = 300
 _MERCHANT_LIMIT = 80
+# «до 8 примеров» из PRIVACY.md — часть контракта payload-билдера (wave13 C2): даже если вызывающий
+# передал больше, в промпт уходят первые _EXAMPLES_LIMIT (консистентно с дефолтом list_examples).
+_EXAMPLES_LIMIT = 8
 
 # Дефолтные few-shot при пустой истории. Показываем только категории, которые есть в текущей
 # таксономии (S8, Astra 01.10): иначе примеры ссылались на несуществующие groceries/transport/income.
@@ -37,7 +40,7 @@ def _examples_block(examples: list[dict], taxonomy: Taxonomy) -> str:
         return "\n".join(_example_line(d, a, c, m, r)
                          for d, a, c, m, r in _DEFAULT_EXAMPLES if c in valid)
     lines = []
-    for ex in examples:
+    for ex in examples[:_EXAMPLES_LIMIT]:
         if ex["category"] not in valid:
             continue  # S8: пример вне текущей таксономии не показываем
         lines.append(_example_line(

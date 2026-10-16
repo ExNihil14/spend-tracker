@@ -93,6 +93,21 @@ def test_approve_review_sets_rule_and_seeds_cache(pending_store):
         assert pending_store.merchant_cache_get(row["merchant"]) in (None, row["category"])
 
 
+def test_approve_review_seeds_cache_for_merchantless_row(tmp_path):
+    """HELP1 #4 (wave13): строка без банковского merchant тоже учит кэш — ключ как в лукапе
+    категоризатора (`merchant or description`, categorize.py:36); иначе «запомнит выбор для
+    этого магазина» для импорта без merchant не срабатывало вовсе."""
+    s = Store(db_path=tmp_path / "seedless.db")
+    try:
+        tx_id = s.add_transaction(date="2026-09-01", description="ПЕРЕВОД ДРУГУ", amount_kopecks=-100,
+                                  category="other", category_source="llm_pending_review",
+                                  confidence=0.5, category_llm="other", review_status="pending")
+        assert s.approve_review(tx_id, "household") is True
+        assert s.merchant_cache_get("ПЕРЕВОД ДРУГУ") == "household"
+    finally:
+        s.close()
+
+
 def test_approve_review_overrides_category_keeps_llm_diff(pending_store):
     tid = pending_store.queued_for_review()[-1]["id"]
     assert pending_store.approve_review(tid, "household") is True

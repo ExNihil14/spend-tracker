@@ -309,6 +309,20 @@ def test_merchant_cache_dead_empty_merchant_is_dead(db_path):
     assert check["severity"] == "info" and check["count"] == 1
 
 
+def test_merchant_cache_dead_aligns_with_description_lookup(db_path):
+    """HELP1 #4 (wave13): кэш, посеянный по ОПИСАНИЮ merchantless-строки, — живой (лукап
+    категоризатора: `merchant or description`); исчезнувшее имя — по-прежнему мёртвое."""
+    store = Store(db_path)
+    store.add_transaction(date="2026-09-10", description="ПЕРЕВОД ДРУГУ", amount_kopecks=-100,
+                          category="other", category_source="manual")
+    store.merchant_cache_set("ПЕРЕВОД ДРУГУ", "other")  # живой: описание есть в операциях
+    store.merchant_cache_set("ИСЧЕЗ", "other")          # мёртвый: ни мерчанта, ни описания
+    store.close()
+    check = _check(run_checks(db_path), "merchant_cache_dead")
+    assert check["severity"] == "info" and check["count"] == 1
+    assert "ИСЧЕЗ" in check["detail"] and "ПЕРЕВОД" not in check["detail"]
+
+
 # ---- ⑤ pending с чужим источником ----
 def test_pending_source_warn(db_path):
     store = Store(db_path)

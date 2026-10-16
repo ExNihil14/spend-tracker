@@ -131,3 +131,46 @@ def test_user_prompt_includes_merchant_without_account_date():
     })
     assert "merchant:" in prompt and "ЛЕНТА" in prompt
     assert "account:" not in prompt and "date:" not in prompt
+
+
+def test_user_prompt_field_allowlist_is_exact():
+    """C2/Н-1 (wave13 fb_d): состав payload — ЗАКРЫТЫЙ перечень ключей строк.
+
+    Прежний строковый страж («date: not in») обходился датой без префикса (мутация M-date проходила
+    44/44). Лишние ключи в tx (id, export_rowid, date, account_anon) не должны попасть в промпт —
+    появление новой строки = красный тест (осознанное решение о расширении egress).
+    """
+    prompt = build_user_prompt({
+        "description": "Покупка товаров", "merchant": "ЛЕНТА",
+        "amount_kopecks": parse_amount("-10.00"),
+        "account_anon": "acc_1", "date": "2026-09-12", "id": 7, "export_rowid": "3",
+    })
+    keys = {line.split(":", 1)[0] for line in prompt.splitlines() if line.strip()}
+    assert keys == {"description", "merchant", "amount"}, f"новый ключ в payload: {keys}"
+
+
+def test_user_prompt_truncates_long_merchant():
+    """C2 (wave13): предел merchant (80) — часть payload-контракта (мутация 80→5000 выживала)."""
+    from spendtrack import prompts
+
+    prompt = build_user_prompt({"description": "X", "merchant": "М" * 400,
+                                "amount_kopecks": parse_amount("-1")})
+    assert "М" * prompts._MERCHANT_LIMIT in prompt
+    assert "М" * (prompts._MERCHANT_LIMIT + 1) not in prompt
+
+
+def test_system_prompt_caps_examples(taxonomy):
+    """C2/Н-2 (wave13): «до 8 примеров» — контракт билдера промпта, а не только дефолт list_examples.
+
+    Даже если вызывающий передал больше, в payload уходит не более _EXAMPLES_LIMIT строк
+    (первые — как отдаёт list_examples: свежие сверху).
+    """
+    from spendtrack import prompts
+
+    examples = [{"description": f"МАГАЗИН {i}", "amount_kopecks": -100 - i, "category": "other"}
+                for i in range(40)]
+    prompt = build_system_prompt(examples, taxonomy)
+    lines = [line for line in prompt.splitlines() if line.startswith('- "')]
+    assert len(lines) == prompts._EXAMPLES_LIMIT
+    assert "МАГАЗИН 0" in prompt
+    assert f"МАГАЗИН {prompts._EXAMPLES_LIMIT}" not in prompt
