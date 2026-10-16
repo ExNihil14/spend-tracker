@@ -72,6 +72,23 @@ def _force_base_rub(monkeypatch):
     monkeypatch.setenv("SPENDTRACK_BASE_CURRENCY", "RUB")
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _hermetic_app_logs(tmp_path_factory):
+    """Журналы приложения в тестах — session-tmp, не боевой `data/logs` репозитория.
+
+    Флейк (16.10): lifespan (`main._setup_logging`) навешивает RotatingFileHandler на
+    `data/logs/spendtrack.log`; файл > 5 MiB + живой NSSM-сервис держит его открытым →
+    rollover падает (WinError 32) и логирует «--- Logging error ---» + Traceback в stderr,
+    ломая `test_cli_busy_db_friendly_error` («Traceback» not in err) в общем прогоне.
+    Тестам нечего делать в боевом каталоге данных; путь журнала — единственная точка (LOG_DIR).
+    """
+    from spendtrack import main
+
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(main, "LOG_DIR", tmp_path_factory.mktemp("app-logs"))
+        yield
+
+
 @pytest.fixture()
 def sample_txs() -> list[dict]:
     return [

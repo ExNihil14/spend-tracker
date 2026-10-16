@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import sys
+from pathlib import Path
 
 from spendtrack import config
 from spendtrack.store import Store
@@ -89,3 +91,23 @@ def test_store_default_path_uses_data_dir(tmp_path, monkeypatch):
         assert store.path.is_file()
     finally:
         store.close()
+
+
+def test_app_logs_are_hermetic_under_pytest():
+    """Регресс-флейка 16.10: журналы приложения в тестах — session-tmp, не `data/logs` репо.
+
+    Иначе RotatingFileHandler из lifespan пишет в боевой `data/logs/spendtrack.log`:
+    5 MiB + живой NSSM-сервис держит файл → rollover WinError 32 → «Logging error» +
+    Traceback в stderr CLI-теста (`test_cli_busy_db_friendly_error`). Фикстура
+    `_hermetic_app_logs` (conftest) уводит LOG_DIR приложения в tmp на весь прогон.
+    """
+    from spendtrack import main
+
+    main._setup_logging()  # идемпотентно; первый вызов в прогоне — уже с tmp-каталогом
+    hermetic = Path(main.LOG_DIR).resolve()
+    assert config.ROOT not in hermetic.parents, "журналы тестов не должны писаться в репозиторий"
+    files = [h for h in logging.getLogger("spendtrack").handlers
+             if isinstance(h, logging.FileHandler)]
+    assert files, "ожидается файловый обработчик журнала (настраивает lifespan)"
+    for handler in files:
+        assert Path(handler.baseFilename).resolve() == hermetic / "spendtrack.log"
