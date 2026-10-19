@@ -51,8 +51,10 @@ LLM включается осознанно — одним из двух спо�
 - Выключить: удалите из окружения/`.env` все LLM-переменные — `SPENDTRACK_LLM_PROVIDER`,
   `SPENDTRACK_LLM_BASE_URL`, `SPENDTRACK_LLM_MODEL`, `SPENDTRACK_LLM_API_KEY`,
   `SPENDTRACK_OPENROUTER_API_KEY`, `SPENDTRACK_FREEL_LLM_API_KEY`, `SPENDTRACK_ALLOW_LOCAL_LLM` —
-  LLM-вызовы прекратятся, правила и офлайн-кэш продолжат работать. Остальные `SPENDTRACK_*`
-  (пути к базе/данным) трогать не нужно.
+  LLM-вызовы прекратятся, правила и офлайн-кэш продолжат работать. Нюанс:
+  `SPENDTRACK_ALLOW_LOCAL_LLM` читается напрямую из окружения процесса (не из `.env`) — значение,
+  лежащее только в `.env`, локальные шимы не включает (fail-closed); выключать её нужно в окружении.
+  Остальные `SPENDTRACK_*` (пути к базе/данным) трогать не нужно.
 - Проверить отсутствие утечек: `uv run pytest tests/test_offline.py` (в CI — всегда).
 - Бэкапы (`spendtrack backup`, VACUUM INTO) локальные; копию желательно хранить вне ноутбука —
   `--copy-to <USB/другая папка>` (внешний диск или папка вашего облака; приложение само никуда не отправляет).

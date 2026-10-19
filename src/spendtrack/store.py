@@ -192,6 +192,11 @@ def _norm_desc(desc: str) -> str:
     return " ".join(desc.upper().split())
 
 
+def _cache_key(name: str) -> str:
+    """Ключ merchant_cache: strip-first + upper — единая точка записи и чтения (B2/N1, 0005)."""
+    return hashlib.sha1((name or "").strip().upper().encode()).hexdigest()
+
+
 _MONTH_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 # wave5 №6: ASCII-цифры + fullmatch — `\d` матчил не-ASCII цифры, а `$`+match — «2026-09-01\n»;
 # строки проходили Python-валидацию и падали на SQL CHECK (IntegrityError вместо ValueError).
@@ -750,12 +755,12 @@ class Store:
                 [*known_params, now, *extra],
             )
             for r in rows:
-                if r["merchant"]:
-                    key = hashlib.sha1(r["merchant"].upper().encode()).hexdigest()
+                name = (r["merchant"] or "").strip()
+                if name:
                     self.conn.execute(
                         "INSERT OR IGNORE INTO merchant_cache(key, merchant, category, updated)"
                         " VALUES(?,?,?,?)",
-                        (key, r["merchant"], r["cat"], now),
+                        (_cache_key(name), name, r["cat"], now),
                     )
             self.conn.commit()
         except BaseException:
@@ -889,19 +894,26 @@ class Store:
 
     # ---- category cache by merchant ----
     def merchant_cache_get(self, merchant: str) -> str | None:
-        if not merchant:
+        name = (merchant or "").strip()
+        if not name:
             return None
-        key = hashlib.sha1(merchant.upper().encode()).hexdigest()
+        key = _cache_key(name)
         row = self.conn.execute("SELECT category FROM merchant_cache WHERE key=?", (key,)).fetchone()
         return row["category"] if row else None
 
     def merchant_cache_set(self, merchant: str, category: str, commit: bool = True) -> None:
-        """Кэш мерчанта. `commit=False` — внутри батча импорта (коммит делает партия)."""
-        key = hashlib.sha1(merchant.upper().encode()).hexdigest()
+        """Кэш мерчанта. `commit=False` — внутри батча импорта (коммит делает партия).
+
+        B2/N1 (письмо 0005): имя нормализуется strip-first общим `_cache_key` — запись и чтение
+        сходятся при краевых пробелах; whitespace-only имя садится ключом пустой строки (doctor
+        считает такие записи мёртвыми — `test_merchant_cache_dead_empty_merchant_is_dead`).
+        """
+        name = (merchant or "").strip()
+        key = _cache_key(name)
         self.conn.execute(
             "INSERT INTO merchant_cache(key, merchant, category, updated) VALUES(?,?,?,?)"
             " ON CONFLICT(key) DO UPDATE SET category=excluded.category, updated=excluded.updated",
-            (key, merchant, category, _now_iso()),
+            (key, name, category, _now_iso()),
         )
         if commit:
             self.conn.commit()
@@ -912,12 +924,14 @@ class Store:
         HELP1 #4 (wave13): ключ — как в лукапе `categorize_rules_only` (`merchant or description`,
         categorize.py:36): строки без банковского merchant тоже учат кэш (по описанию), иначе
         «запомнит выбор для этого магазина» для импорта без merchant не срабатывало вовсе.
+        B2/N1 (письмо 0005): выбор имени — strip-first: whitespace-мерчант уступает описанию.
         """
         row = self.conn.execute(
             "SELECT merchant, description, category FROM transactions WHERE id=?", (tx_id,)
         ).fetchone()
-        name = ((row["merchant"] or row["description"]) if row else "") or ""
-        name = name.strip()
+        if not row:
+            return False
+        name = (row["merchant"] or "").strip() or (row["description"] or "").strip()
         if not name:
             return False
         self.merchant_cache_set(name, row["category"], commit=False)

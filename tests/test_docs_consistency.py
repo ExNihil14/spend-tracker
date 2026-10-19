@@ -178,11 +178,26 @@ def test_fingerprint_canon_matches_code():
         )
 
 
-def _privacy_sections() -> dict[str, str]:
-    """PRIVACY.md по секциям `## …` (заголовок → текст без переносов)."""
-    text = (ROOT / "PRIVACY.md").read_text(encoding="utf-8")
+def _sections_md(text: str) -> dict[str, str]:
+    """Секции markdown `## …` (заголовок → текст без переносов); фенс-блоки вырезаны.
+
+    fb_b №2 (тест-пакет 0005): `## ` внутри ```-фенса — не заголовок; без вырезания такой текст
+    рождал «фантомные» секции и off-switch-проверки читали бы не тот раздел.
+    """
+    text = re.sub(r"```.*?```", " ", text, flags=re.DOTALL)
     parts = re.split(r"^## ", text, flags=re.MULTILINE)
     return {p.split("\n", 1)[0].strip(): " ".join(p.split()) for p in parts[1:]}
+
+
+def _privacy_sections() -> dict[str, str]:
+    """PRIVACY.md по секциям `## …` (заголовок → текст без переносов)."""
+    return _sections_md((ROOT / "PRIVACY.md").read_text(encoding="utf-8"))
+
+
+def test_sections_md_ignores_fenced_headings():
+    """fb_b №2 (тест-пакет 0005): `## …` внутри ```-фенса не открывает секцию."""
+    sections = _sections_md("# t\n## A\nx\n```\n## не-секция\n```\n## B\ny\n")
+    assert set(sections) == {"A", "B"}, sorted(sections)
 
 
 def test_privacy_off_switch_lists_every_llm_var():
@@ -209,6 +224,20 @@ def test_privacy_off_switch_lists_every_llm_var():
     )
 
 
+def test_privacy_off_switch_vars_have_instruction_nearby():
+    """fb_b №3 (тест-пакет 0005): мало токена в секции — рядом с КАЖДОЙ переменной обязана быть
+    инструкция выключения («удалите/уберите/выключите»); голое упоминание — фиктивный путь."""
+    from spendtrack.llm import LLM_ENV_VARS
+
+    off = _privacy_sections()["Как выключить / проверить"]
+    verbs = re.compile(r"удал|уб(?:ер|ир)|выключ|отключ", re.IGNORECASE)
+    for var in LLM_ENV_VARS:
+        idx = off.find(var)
+        assert idx >= 0, f"PRIVACY: {var} не упомянута в «Как выключить»"
+        window = off[max(0, idx - 300): idx + 300]
+        assert verbs.search(window), f"PRIVACY: у {var} нет инструкции выключения рядом: {window!r}"
+
+
 def test_egress_numbers_match_code_and_docs():
     """Н-2 (wave13): числа egress (300/80/8) не дублируются в тесте, а берутся из кода:
     расхождение PRIVACY / лендинга / help ↔ prompts/list_examples — красный тест."""
@@ -222,10 +251,12 @@ def test_egress_numbers_match_code_and_docs():
 
     landing = _flat_html(LANDING)
     assert f"≤{prompts._DESCRIPTION_LIMIT}" in landing, "лендинг: нет предела описания"
+    assert f"≤{prompts._MERCHANT_LIMIT}" in landing, "лендинг: нет предела merchant"
     assert f"до {prompts._EXAMPLES_LIMIT} примеров" in landing, "лендинг: нет предела few-shot"
 
     help_text = _flat(ROOT / "src" / "spendtrack" / "templates" / "help.html")
     assert f"до {prompts._DESCRIPTION_LIMIT} символов" in help_text, "help: нет предела описания"
+    assert f"до {prompts._MERCHANT_LIMIT} символов" in help_text, "help: нет предела merchant"
 
     default = inspect.signature(Store.list_examples).parameters["limit"].default
     assert default == prompts._EXAMPLES_LIMIT, (
@@ -236,12 +267,17 @@ def test_egress_numbers_match_code_and_docs():
 def test_free_channel_wording_parity_readme_privacy():
     """Н-7 (wave13): матрица free-каналов синхронна в README и PRIVACY: OPENROUTER-ключ сам
     включает чужой канал; FREEL-ключ сам по себе не включает ничего (локальный шлюз — только
-    при SPENDTRACK_ALLOW_LOCAL_LLM=1). Формулировка «и/или» — источник неверного чтения."""
+    при SPENDTRACK_ALLOW_LOCAL_LLM=1).
+
+    fb_b №4 (тест-пакет 0005): запрет «и/или» сужен до пассажа матрицы (окно вокруг «сам по себе»),
+    а не всего документа — глобальный запрет ложно краснел от невинного «и/или» в другой секции.
+    """
     readme = _flat(README)
     privacy = _flat(ROOT / "PRIVACY.md")
     for name, text in (("README", readme), ("PRIVACY", privacy)):
         assert "SPENDTRACK_ALLOW_LOCAL_LLM" in text, f"{name}: нет гейта ALLOW_LOCAL_LLM"
-        assert "сам по себе" in text, (
-            f"{name}: не сказано, что FREEL-ключ сам по себе канал не включает"
-        )
-        assert "и/или" not in text, f"{name}: вернулась формулировка «и/или» (матрица ключ→канал)"
+        windows = [text[max(0, m.start() - 400): m.start() + 400]
+                   for m in re.finditer("сам по себе", text)]
+        assert windows, f"{name}: не сказано, что FREEL-ключ сам по себе канал не включает"
+        assert all("и/или" not in w for w in windows), (
+            f"{name}: в пассаже free-каналов «и/или» (матрица ключ→канал)")

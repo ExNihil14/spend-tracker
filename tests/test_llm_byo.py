@@ -306,6 +306,53 @@ def test_free_chain_key_matches_endpoint(monkeypatch):
     assert providers[0].api_key == "sk-fl"
 
 
+def test_freel_only_gate_end_to_end(monkeypatch):
+    """fb_b №8 (тест-пакет 0005): «FREEL-ключ сам по себе канал не включает» — end-to-end через
+    call_llm, а не только резолвером: без ALLOW_LOCAL_LLM ни один клиент не строится
+    (source=offline); с флагом — строится, и запрос уходит в первый шим цепочки."""
+    monkeypatch.delenv("SPENDTRACK_ALLOW_LOCAL_LLM", raising=False)
+    cfg = _settings(freel_llm_api_key="sk-fl")
+    monkeypatch.setattr(llm_mod, "load_settings", lambda: cfg)
+    built: list[dict] = []
+
+    class _BoomClient:
+        def __init__(self, **kwargs):
+            built.append(kwargs)
+            raise AssertionError("клиент не должен строиться без ALLOW_LOCAL_LLM")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(llm_mod, "OpenAI", _BoomClient)
+    res = call_llm("sys", "usr", max_tokens=10)
+    assert res["source"] == "offline" and built == []
+
+    monkeypatch.setenv("SPENDTRACK_ALLOW_LOCAL_LLM", "1")
+    seen: dict = {}
+
+    class _ChatCompletions:
+        def create(self, **kwargs):
+            seen.update(kwargs)
+            resp = MagicMock()
+            resp.choices[0].message.content = OK_JSON
+            return resp
+
+    class _OkClient:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+            self.chat = MagicMock()
+            self.chat.completions = _ChatCompletions()
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(llm_mod, "OpenAI", _OkClient)
+    res2 = call_llm("sys", "usr", max_tokens=10)
+    assert res2["source"] == "fallback"
+    assert seen["base_url"] == "http://localhost:3001/v1"  # первый (и единственный) шим цепочки free
+    assert seen["api_key"] == "sk-fl"
+
+
 def test_llm_status_free_hides_key(monkeypatch):
     """free-режим перечисляет каналы, но никогда не показывает ключи."""
     monkeypatch.delenv("SPENDTRACK_ALLOW_LOCAL_LLM", raising=False)

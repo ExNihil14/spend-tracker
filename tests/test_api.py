@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
+import os
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -122,6 +124,23 @@ def test_create_transaction_hx_duplicate_reports_honestly(client):
     assert second.status_code == 200
     assert "Не добавлено" in second.text and "уже есть" in second.text
     assert "Добавлено:" not in second.text
+
+
+def test_create_transaction_hx_duplicate_db_count_is_one(client):
+    """fb_b №5 (тест-пакет 0005): «уже есть» — не только текст ответа: в БД ровно одна строка
+    (count(*)=1), повторный htmx-пост не создаёт скрытый дубль."""
+    head = {"hx-request": "true"}
+    form = {"date": "2026-09-12", "description": "ДУБЛЬ СЧЁТ", "amount": "-123.45"}
+    assert "Добавлено:" in client.post("/api/transactions", data=form, headers=head).text
+    assert "Не добавлено" in client.post("/api/transactions", data=form, headers=head).text
+
+    store = Store(Path(os.environ["SPENDTRACK_DB_PATH"]))  # путь задан фикстурой client
+    try:
+        count = store.conn.execute(
+            "SELECT COUNT(*) c FROM transactions WHERE description='ДУБЛЬ СЧЁТ'").fetchone()["c"]
+    finally:
+        store.close()
+    assert count == 1, f"дубль htmx-поста создал {count} строк"
 
 
 def test_patch_category(client):

@@ -157,19 +157,17 @@ def check_examples_dupes(conn: sqlite3.Connection) -> dict:
 def check_merchant_cache_dead(conn: sqlite3.Connection) -> dict:
     """Записи кэша, чей ключ больше не встречается в транзакциях (переименование/удаление).
 
-    Ключ сверяется как в лукапе категоризатора (`merchant or description`, categorize.py:36):
+    Ключ сверяется как в лукапе категоризатора (`merchant or description`, categorize.py:36;
+    strip-first — whitespace-мерчант трактуется как отсутствующий, B2/N1 письма 0005):
     для строк без банковского merchant живыми считаются их ОПИСАНИЯ — иначе кэш, посеянный
     подтверждением такой строки, ложно репортился бы мёртвым (HELP1 #4, wave13). Сверка — по
     `str.upper()` в Python, как в `merchant_cache_get` (SQLite `UPPER()` не трогает кириллицу).
     """
-    live = {str(r[0]).strip().upper() for r in conn.execute(
-        "SELECT DISTINCT merchant FROM transactions"
-        " WHERE merchant IS NOT NULL AND merchant != ''")}
-    live |= {str(r[0]).strip().upper() for r in conn.execute(
-        "SELECT DISTINCT description FROM transactions"
-        " WHERE (merchant IS NULL OR merchant = '') AND description IS NOT NULL"
-        " AND description != ''")}
-    live.discard("")
+    live: set[str] = set()
+    for r in conn.execute("SELECT merchant, description FROM transactions"):
+        name = (r["merchant"] or "").strip() or (r["description"] or "").strip()
+        if name:
+            live.add(name.upper())
     rows = conn.execute("SELECT merchant FROM merchant_cache ORDER BY merchant").fetchall()
     dead = [str(r["merchant"]) for r in rows if str(r["merchant"]).strip().upper() not in live]
     if not dead:

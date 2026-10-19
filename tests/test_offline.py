@@ -6,10 +6,13 @@ from __future__ import annotations
 
 import os
 import socket
+from pathlib import Path
 
 from spendtrack.csv_import import import_csv
 from spendtrack.llm import LLM_ENV_VARS
 from spendtrack.store import Store
+
+ROOT = Path(__file__).resolve().parents[1]
 
 UNKNOWN_MERCHANT_CSV = (
     "Номер документа;Дата операции;Номер карты;Статус;Сумма операции;Валюта операции;Категория;Описание\n"
@@ -62,6 +65,49 @@ def test_block_network_clears_every_llm_env_var(monkeypatch):
     _block_network(monkeypatch)
     remaining = [var for var in LLM_ENV_VARS if os.environ.get(var)]
     assert remaining == [], f"не очищены LLM-переменные: {remaining}"
+
+
+def test_llm_env_vars_are_exhaustive_by_code_ast():
+    """fb_b №6 (тест-пакет 0005): список LLM_ENV_VARS сверяется с КОДОМ, не с рукописью.
+
+    AST-проход: (а) прямые os.environ-чтения в `llm.py`; (б) поля `Settings` (config.py),
+    включающие LLM-egress (`llm_*`, `*_api_key`) → env-имена с префиксом SPENDTRACK_. Новый
+    «включающий» тумблер без записи в список (и, значит, в PRIVACY) валит тест.
+    """
+    import ast
+
+    src = ROOT / "src" / "spendtrack"
+
+    def env_reads(tree: ast.AST) -> set[str]:
+        found: set[str] = set()
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "get" and isinstance(node.func.value, ast.Attribute)
+                    and node.func.value.attr == "environ"
+                    and node.args and isinstance(node.args[0], ast.Constant)):
+                found.add(str(node.args[0].value))
+            if (isinstance(node, ast.Subscript) and isinstance(node.value, ast.Attribute)
+                    and node.value.attr == "environ" and isinstance(node.slice, ast.Constant)):
+                found.add(str(node.slice.value))
+        return found
+
+    llm_reads = {v for v in env_reads(ast.parse((src / "llm.py").read_text(encoding="utf-8")))
+                 if v.startswith("SPENDTRACK_")}
+    assert llm_reads <= set(LLM_ENV_VARS), (
+        f"llm.py читает SPENDTRACK_-переменные вне LLM_ENV_VARS: {sorted(llm_reads - set(LLM_ENV_VARS))}"
+    )
+
+    fields: set[str] = set()
+    for node in ast.walk(ast.parse((src / "config.py").read_text(encoding="utf-8"))):
+        if isinstance(node, ast.ClassDef) and node.name == "Settings":
+            for stmt in node.body:
+                if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                    fields.add(stmt.target.id)
+    llm_fields = {f for f in fields if f.startswith("llm_") or f.endswith("_api_key")}
+    env_names = {"SPENDTRACK_" + f.upper() for f in llm_fields}
+    assert env_names <= set(LLM_ENV_VARS), (
+        f"поля Settings с LLM-влиянием вне LLM_ENV_VARS: {sorted(env_names - set(LLM_ENV_VARS))}"
+    )
 
 
 def test_import_without_llm_goes_to_queue_not_network(monkeypatch, tmp_path):

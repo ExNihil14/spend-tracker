@@ -33,7 +33,8 @@ def _clamp_confidence(value: object) -> float:
 
 def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | None:
     """Step 1: merchant cache → keyword rules. Возвращает category или None."""
-    merchant = (tx.get("merchant") or tx["description"]).upper().strip()
+    # B2/N1 (письмо 0005): strip-first — whitespace-мерчант не перекрывает описание
+    merchant = ((tx.get("merchant") or "").strip() or (tx.get("description") or "")).upper().strip()
     amount = tx.get("amount_kopecks") or 0
     cached = store.merchant_cache_get(merchant)
     # C2 (Astra 01.10): кэш не должен обходить проверку знака — «income» не берём для расходной
