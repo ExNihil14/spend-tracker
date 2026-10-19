@@ -9,8 +9,7 @@
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Код: HEAD `9403d45` (волна A — решения-независимый пакет, ночь-2) поверх `1962428` — **ahead origin/main на 1**
-  (origin/main = `1962428`, предыдущие 6 запушены). Сервисы: прод NSSM `spendtrack` 8766 (рестарт 16.10 ночь, pid 15252); демо-стенд 8799. **PUSH `9403d45` — по команде владельца.**
+- Код: HEAD `dc6bcf3` (пакет `spend_wavea` — B2/N1 + тест-хардненинг fb_b; 11 файлов, +268/−33) — **ahead origin/main на 1** (push — по команде владельца). Прогон **1071 passed**, ruff/contract ok. Сервисы перезапущены на `dc6bcf3` (19.10): прод NSSM `spendtrack` 8766 (pid 11844, 8 tx), демо-стенд 8799 (pid 504, demo.db 350 tx); `/health` + `/health/data` ok (новая проверка `merchant_cache_dead` отработала).
 - Контур: pytest + ruff + `contract_delta` + `ratchet` + `cc_ratchet` + `build_css`; канон — `spec/PIPELINE.md`,
   `spec/TESTING.md`, `spec/ARCHITECTURE.md`; словарь терминов — `CONTEXT.md`.
 - Дизайн: ребрендинг v2 «Стикербук» — направление принято (`DESIGN_DIRECTION_V2_2026-09-29.md`); Wave 0/1
@@ -20,6 +19,7 @@
 - **Wave13 (AgentRouter-ревью): адъюдикация закрыта 15–16.10** (сводки `ADJUDICATION_WAVE13_SUMMARY_2026-10-16.md`,
   `ADJUDICATION_WAVE13_SUMMARY_FB_2026-10-16.md`). **C1/C2/C3 csv_import — реализованы 16.10** (TDD, `a7e9cad`).
   **Решения-независимый срез волны A (②+④) — реализован 16.10 ночь-2** (TDD, закоммичен `9403d45`; см. «Последние сессии»).
+  **19.10: пакет `spend_wavea` закоммичен (`dc6bcf3`), сервисы перезапущены (см. «Последние сессии»).**
   **Ждут решений владельца:** матчер (границы слова), ЕРИП-контракт, egress-redaction (или снятие), форма пиннинга
   установщика, approve-бейдж, минимизация doctor print. Окно 02:00 UTC 17.10 доберёт `bootgate`/`bootgen13`/
   `bootfixes` (fb-полоса, стриминг SSE).
@@ -69,6 +69,7 @@
   условна — порт по умолчанию приватный); фикс — сузить до своего host/неймспейса + красный pytest. **[закрыт
   14.10: `5975660`, `FIX_SPEND_MISC_C1_2026-10-14.md` — `_codespace_namespace` + 12 passed]**. Смежное:
   `cleanup-opencode-global.py` (v1-эпохи против v2-БД — fail-closed), миграция `session_v2` + C1/C2 — B-14.
+- **19.10 (пакет `spend_wavea` — письмо телефона 0005, одобрение владельца msg 119):** TDD red→green: B2/whitespace закрыт единым модульным `_cache_key` (strip-first + sha1; пустой мерчант остаётся «dead» для doctor — тест сохранён); лукап/seed/bulk/doctor приведены к strip-first. PRIVACY: `ALLOW_LOCAL_LLM` читается из окружения процесса (dotenv не включает — fail-closed). Тест-хардненинг fb_b (7): фенс-парсер секций, off-switch «переменная+инструкция», окно «и/или», merchant-лимиты (landing/help + тест), FREEL-only e2e (`test_llm_byo`), AST-исчерпываемость (`test_offline`), count==1 (`test_api`). Прогон **1071 passed** (+5), ruff/contract ok. **Закоммичен `dc6bcf3`** (11 файлов, +268/−33; pre-commit secrets PASS), **сервисы перезапущены** (8766/8799) — push по команде.
 - Более ранние сессии (24.09–07.10, волны wave1–wave7) — в `SESSION_HISTORY.md`, разделы `[архив]` (перенос 16.10).
 
 ## Архитектурные решения (frozen)
