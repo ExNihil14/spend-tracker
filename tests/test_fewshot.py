@@ -50,3 +50,42 @@ def test_low_conf_calls_llm_once_and_stays_uncached(store, taxonomy):
     assert result["source"] == "llm_pending_review"
     assert result["review_status"] == "pending"
     assert store.merchant_cache_get("UNCERTAIN") is None
+
+
+def test_seed_merchant_cache_whitespace_merchant_falls_back_to_description(store):
+    """B2 (ревью wave13): merchant=' ' не должен блокировать few-shot по описанию.
+
+    Сеяние и лукап категоризатора используют `merchant or description`; whitespace-only
+    merchant после strip пуст, поэтому ключом обязано стать описание (иначе кэш молча теряется).
+    """
+    store.add_transaction(
+        date="2026-09-01", description="ПЯТЁРОЧКА", amount_kopecks=parse_amount("-100"),
+        category="groceries", category_source="correction", merchant=" ",
+        account_anon=None,
+    )
+    store.seed_merchant_cache(1)
+    assert store.merchant_cache_get("ПЯТЁРОЧКА") == "groceries"
+
+
+def test_whitespace_merchant_cache_lookup_falls_back_to_description(store, taxonomy):
+    """B2 (ревью wave13), вторая половина: лукап тоже обязан игнорировать whitespace-merchant.
+
+    Иначе seed кладёт ключ по описанию, а `categorize_rules_only` ищет ключ '' и идёт в LLM.
+    """
+    store.add_transaction(
+        date="2026-09-01", description="ТЕСТОВЫЙ МАГАЗИН", amount_kopecks=parse_amount("-100"),
+        category="groceries", category_source="correction", merchant=" ",
+        account_anon=None,
+    )
+    store.seed_merchant_cache(1)
+
+    def forbidden(*_a, **_k):
+        raise AssertionError("LLM не должен вызываться: whitespace-merchant → описание в кэше")
+
+    result = classify_with_injectable(
+        {"date": "2026-09-06", "description": "ТЕСТОВЫЙ МАГАЗИН", "merchant": " ",
+         "amount_kopecks": parse_amount("-100")},
+        taxonomy, store, forbidden, 0.9,
+    )
+    assert result["category"] == "groceries"
+    assert result["source"] == "rule"

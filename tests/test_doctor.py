@@ -283,11 +283,13 @@ def test_merchant_cache_dead_info(db_path):
     _backup_dir(db_path).mkdir(parents=True, exist_ok=True)
     Store(_backup_dir(db_path) / "spend-20260916-000000.db").close()
 
-    report = run_checks(db_path)
+    report = run_checks(db_path, merchant_keys=True)
     check = _check(report, "merchant_cache_dead")
     assert report["status"] == "ok"
     assert check["severity"] == "info" and check["count"] == 1
-    assert "СТАРЫЙ" in check["detail"]
+    # A1 (ревью wave13): CLI --details не печатает сырой ключ кэша — PII.
+    assert "СТАРЫЙ" not in check["detail"]
+    assert "key:" in check["detail"]
 
 
 def test_merchant_cache_dead_case_insensitive(db_path):
@@ -318,9 +320,38 @@ def test_merchant_cache_dead_aligns_with_description_lookup(db_path):
     store.merchant_cache_set("ПЕРЕВОД ДРУГУ", "other")  # живой: описание есть в операциях
     store.merchant_cache_set("ИСЧЕЗ", "other")          # мёртвый: ни мерчанта, ни описания
     store.close()
-    check = _check(run_checks(db_path), "merchant_cache_dead")
+    check = _check(run_checks(db_path, merchant_keys=True), "merchant_cache_dead")
     assert check["severity"] == "info" and check["count"] == 1
-    assert "ИСЧЕЗ" in check["detail"] and "ПЕРЕВОД" not in check["detail"]
+    assert "ИСЧЕЗ" not in check["detail"] and "ПЕРЕВОД" not in check["detail"]
+    assert "key:" in check["detail"]
+
+
+def test_merchant_cache_dead_detail_hides_description_pii(db_path):
+    """A1 (ревью wave13): description без merchant — PII; doctor не печатает его в detail."""
+    store = Store(db_path)
+    store.merchant_cache_set("Перевод Ивану Петрову, Сбербанк", "other")
+    store.close()
+    _backup_dir(db_path).mkdir(parents=True, exist_ok=True)
+    Store(_backup_dir(db_path) / "spend-20260916-000000.db").close()
+
+    check = _check(run_checks(db_path, merchant_keys=True), "merchant_cache_dead")
+    assert check["severity"] == "info" and check["count"] == 1
+    assert "Иван" not in check["detail"] and "Сбербанк" not in check["detail"]
+    assert "key:" in check["detail"]
+
+
+def test_merchant_cache_dead_whitespace_merchant_uses_description(db_path):
+    """B2 (ревью wave13): whitespace-merchant в транзакции не делает description-кэш мёртвым."""
+    store = Store(db_path)
+    store.add_transaction(date="2026-09-10", description="ПЯТЁРОЧКА", amount_kopecks=-100,
+                          category="groceries", category_source="manual", merchant=" ")
+    store.merchant_cache_set("ПЯТЁРОЧКА", "groceries")
+    store.close()
+    _backup_dir(db_path).mkdir(parents=True, exist_ok=True)
+    Store(_backup_dir(db_path) / "spend-20260916-000000.db").close()
+
+    check = _check(run_checks(db_path), "merchant_cache_dead")
+    assert check["severity"] == "ok" and check["count"] == 0
 
 
 # ---- ⑤ pending с чужим источником ----
@@ -569,9 +600,9 @@ def test_health_data_fresh_throttled(client, monkeypatch):
     calls = {"n": 0}
     real = doctor.run_checks
 
-    def counting(*args, **kwargs):
+    def counting(**kwargs):
         calls["n"] += 1
-        return real()
+        return real(**kwargs)
 
     monkeypatch.setattr(doctor, "run_checks", counting)
     client.get("/health/data?fresh=1")
@@ -584,9 +615,9 @@ def test_health_data_cache_keyed_by_db(client, tmp_path, monkeypatch):
     calls = {"n": 0}
     real = doctor.run_checks
 
-    def counting(*args, **kwargs):
+    def counting(**kwargs):
         calls["n"] += 1
-        return real()
+        return real(**kwargs)
 
     monkeypatch.setattr(doctor, "run_checks", counting)
     client.get("/health/data")  # БД из client-фикстуры (tmp_path/api.db)

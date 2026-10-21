@@ -28,16 +28,19 @@ from pathlib import Path
 
 from spendtrack.console import utf8_stdout
 
-DESC_ALIASES = {"описание", "назначение", "комментарий", "description", "title", "merchant"}
+DESC_ALIASES = {"описание", "назначение", "комментарий", "description", "title", "merchant",
+                "фио", "ф.и.о.", "ф.и.о", "ф и о"}
 ACCOUNT_ALIASES = {"номер карты", "номер счёта", "номер счета", "карта", "счёт", "счет", "account"}
 DOC_ALIASES = {"номер документа", "номер операции", "номер", "document", "doc", "id"}
 
 # wave13 (fb_a S7): колонки вне точных алиасов («Назначение платежа», «ФИО получателя»,
 # «Маска карты») матчатся по КОРНЯМ слов — иначе PII таких колонок уезжала в публичный issue.
 # Корни подобраны минимально: «Дата операции»/«Сумма операции»/«Статус» не задеваются.
+# A4/A5 (ревью wave13): английские card/name/holder/phone/email/address и «Ф.И.О.».
 _DESC_STEMS = ("описан", "назначени", "комментар", "примечани", "фио", "merchant",
-               "получател", "плательщик", "контрагент", "description")
-_ACCOUNT_STEMS = ("карт", "счет", "счёт", "account")
+               "получател", "плательщик", "контрагент", "description",
+               "name", "holder", "phone", "email", "mail", "address", "адрес", "телефон")
+_ACCOUNT_STEMS = ("карт", "счет", "счёт", "account", "card", "pan", "iban")
 _DOC_STEMS = ("документ", "document")
 
 DESC_PREFIX = "ОПЕРАЦИЯ"

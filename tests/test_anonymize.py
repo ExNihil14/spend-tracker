@@ -71,6 +71,27 @@ def test_stem_header_columns_anonymized():
     assert "Сумма операции" in report["untouched"]
 
 
+@pytest.mark.parametrize(("header", "kind"), [
+    ("Card Number", "account"),
+    ("PAN", "account"),
+    ("IBAN", "account"),
+    ("Name", "desc"),
+    ("Holder", "desc"),
+    ("Phone", "desc"),
+    ("E-mail", "desc"),
+    ("Address", "desc"),
+    ("Телефон", "desc"),
+    ("Адрес", "desc"),
+    ("Ф.И.О.", "desc"),
+])
+def test_review_alias_headers_anonymized(header, kind):
+    """A4/A5 (ревью wave13): английские card/name/holder/phone/email и «Ф.И.О.» тоже PII."""
+    csv_text = f"{header};Сумма операции\nИван Иванов;-100,00\n"
+    out, report = anonymize_csv(csv_text)
+    assert report["anonymized"][header] == kind
+    assert "Иван" not in out
+
+
 def test_stem_headers_leave_innocuous_columns():
     """S7 (wave13): «Дата операции»/«Сумма операции»/«Статус» — не PII; матч по корням их
     не задевает (иначе ломается формат образца — даты/суммы должны остаться)."""

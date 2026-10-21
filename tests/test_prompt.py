@@ -159,6 +159,25 @@ def test_user_prompt_truncates_long_merchant():
     assert "М" * (prompts._MERCHANT_LIMIT + 1) not in prompt
 
 
+def test_examples_cap_applies_after_taxonomy_filter():
+    """A3 (ревью wave13): лимит 8 применяется ПОСЛЕ фильтра категорий.
+
+    Иначе первые 8 примеров с чужими категориями съедают бюджет, и валидные примеры
+    дальше не попадают в промпт — деградация few-shot ровно в сценарии S8.
+    """
+    from spendtrack.taxonomy import Category, Taxonomy
+
+    tax = Taxonomy([Category("alpha", "#111111"), Category("beta", "#222222")], [])
+    examples = ([{"description": f"ЧУЖОЕ {i}", "amount_kopecks": -100 - i,
+                  "category": "outside"} for i in range(12)]
+                + [{"description": "ВАЛИД_A", "amount_kopecks": -1, "category": "alpha"},
+                   {"description": "ВАЛИД_B", "amount_kopecks": -2, "category": "beta"}])
+    prompt = build_system_prompt(examples, tax)
+    lines = [line for line in prompt.splitlines() if line.startswith('- "')]
+    assert len(lines) == 2
+    assert "ВАЛИД_A" in prompt and "ВАЛИД_B" in prompt
+
+
 def test_system_prompt_caps_examples(taxonomy):
     """C2/Н-2 (wave13): «до 8 примеров» — контракт билдера промпта, а не только дефолт list_examples.
 

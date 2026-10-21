@@ -43,13 +43,14 @@ def _examples_block(examples: list[dict], taxonomy: Taxonomy) -> str:
     if not examples:
         return "\n".join(_example_line(d, a, c, m, r)
                          for d, a, c, m, r in _DEFAULT_EXAMPLES if c in valid)
+    # A3 (ревью wave13): сначала фильтр таксономии, потом лимит. Иначе первые 8 «чужих»
+    # примеров съедают бюджет, и валидные примеры дальше не попадают в промпт.
+    valid_examples = [ex for ex in examples if ex["category"] in valid][:_EXAMPLES_LIMIT]
     lines = []
-    for ex in examples[:_EXAMPLES_LIMIT]:
-        if ex["category"] not in valid:
-            continue  # S8: пример вне текущей таксономии не показываем
+    for ex in valid_examples:
         lines.append(_example_line(
             ex["description"], fmt_amount(ex["amount_kopecks"]), ex["category"],
-            redact_if_enabled(ex["description"].upper())[:20] or "UNKNOWN", "пример"))
+            _truncate(redact_if_enabled(ex["description"].upper()), 20) or "UNKNOWN", "пример"))
     return "\n".join(lines)
 
 

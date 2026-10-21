@@ -13,7 +13,7 @@
    "returns": ""
   },
   "spendtrack.anonymize:DESC_ALIASES": {
-   "args": "{'описание', 'назначение', 'комментарий', 'description', 'title', 'merchant'}",
+   "args": "{'описание', 'назначение', 'комментарий', 'description', 'title', 'merchant', 'фио', 'ф.и.о.', 'ф.и.о', 'ф и о'}",
    "returns": ""
   },
   "spendtrack.anonymize:DESC_PREFIX": {
