@@ -9,12 +9,14 @@
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
-- Код: HEAD `eb8adad` (docs; на `dc6bcf3` — пакет `spend_wavea`: B2/N1 + тест-хардненинг fb_b, 11 файлов,
-  +268/−33), origin/main = HEAD. **21.10 — незакоммиченный follow-up wave13 поверх:** A1 doctor detail — только
-  `key:<sha1[:8]>` (сырые merchant/description не печатаются); A3 few-shot cap после фильтра; A4/A5 английские
-  PII-шапки. B2/N1 уже в `dc6bcf3` — дубль снят при ребейзе. Baseline контракта обновлён. Commit/push — только
-  по команде владельца. Сервисы (ноутбук): прод NSSM `spendtrack` 8766 (pid 11844, 8 tx), демо-стенд 8799
-  (pid 504, demo.db 350 tx).
+- Код: HEAD — docs-коммит поверх `ff19371` (матчер правил: границы слова + `*`-шаблоны) и `8c2b5e1`
+  (wave13 A1/A3/A4/A5), origin/main = `eb8adad` → **ahead 5, push не делался** (только по команде владельца).
+  21.10 закоммичено:
+  privacy pack (egress-redaction + doctor count-only, `--details` → `key:<sha1[:8]>`), батч телефона
+  (A1 `merchant_keys`, A3 few-shot cap после фильтра, A4/A5 PII-стебли в anonymize) и матчер правил
+  (слово целиком, `*`-шаблоны, ё→е; +34 теста). Baseline контракта — 76/400/38.
+  Сервисы (ноутбук): прод NSSM `spendtrack` 8766 (pid 4752), демо 8799 (pid 3752, demo.db 350 tx) — на `ff19371`
+  (перезапущены 21.10 после матчера; live-прогон `/settings/test` и preview — без регрессий).
   **Пересечение 21.10:** ноутбук закоммитил privacy pack (`doctor` по умолчанию без сырых
   описаний/мерчантов, полный текст — `doctor --details`; `redact.py` перед LLM, opt-out
   `SPENDTRACK_LLM_REDACT=0`). Коммиты `e5ec937` + `0b1d9ba`, push не делал. Наш A1 адаптирован к `merchant_keys`; phone batch ребейзнут поверх.
@@ -24,8 +26,9 @@
   `redact.py`, `test_doctor_privacy.py`, `test_llm_redaction.py` на месте. Финальный ребейз: **1104 passed**
   (101 e2e deselected, 284.12 с); docs/contract 23, ruff/ratchet/cc ok, contract snapshot 76/396/38;
   commit/push — только по слову владельца.
-- Контур: pytest **1104 passed** (final rebase phone batch + privacy pack; 101 e2e deselected) + ruff +
-  `contract_delta` + `ratchet` + `cc_ratchet` — зелёные 21.10; `build_css --check` — **зелёный в rebase-ветке** после chore `0b1d9ba`; в главном клоне до применения chore — red. Канон — `spec/PIPELINE.md`, `spec/TESTING.md`, `spec/ARCHITECTURE.md`;
+- Контур: pytest **1138 passed** (101 e2e deselected; 1104 + 34 матчера) + ruff +
+  `contract_delta` (snapshot 76/400/38) + `ratchet` + `cc_ratchet` + `build_css --check` — зелёные 21.10.
+  Канон — `spec/PIPELINE.md`, `spec/TESTING.md`, `spec/ARCHITECTURE.md`;
   словарь терминов — `CONTEXT.md`.
 - Дизайн: ребрендинг v2 «Стикербук» — направление принято (`DESIGN_DIRECTION_V2_2026-09-29.md`); Wave 0/1
   закоммичены; 3D-графики отклонены (искажают значения).
@@ -35,11 +38,11 @@
   `ADJUDICATION_WAVE13_SUMMARY_FB_2026-10-16.md`). **C1/C2/C3 csv_import — реализованы 16.10** (TDD, `a7e9cad`).
   **Решения-независимый срез волны A (②+④) — реализован 16.10 ночь-2** (TDD, закоммичен `95dc2b8`; см. «Последние сессии»).
   **19.10: пакет `spend_wavea` закоммичен (`dc6bcf3`), сервисы перезапущены; 21.10 docs — `eb8adad`.**
-  **21.10 — follow-up wave13 (незакоммичено):** A1 минимизация doctor print (`key:<sha1[:8]>`), A3 cap примеров
+  **21.10 — follow-up wave13 (закоммичено `8c2b5e1`):** A1 минимизация doctor print (`key:<sha1[:8]>`), A3 cap примеров
   после фильтра таксономии, A4/A5 английские PII-шапки (Card/Name/PAN/IBAN/Holder/Phone/E-mail/Address) + «Ф.И.О.»;
-  B2/N1 — уже в `dc6bcf3`, дубль снят. +16 тестов, baseline контракта обновлён. **Ждут решений владельца:** матчер
-  (границы слова), ЕРИП-контракт, egress-redaction (privacy pack `redact.py` — scope/политика), форма пиннинга
-  установщика, approve-бейдж, политика doctor print (count-only vs key-hash).
+  B2/N1 — уже в `dc6bcf3`, дубль снят. +16 тестов, baseline контракта обновлён. **Матчер правил (границы слова) —
+  решён и закоммичен `ff19371`** (слово целиком + явные `*`-шаблоны, ё→е; +34 теста).
+  **Ждут решений владельца:** ЕРИП-контракт, форма пиннинга установщика, approve-бейдж.
   Окно 02:00 UTC 17.10 доберёт `bootgate`/`bootgen13`/`bootfixes` (fb-полоса, стриминг SSE).
 - **Bootstrap-контур:** волны ⑤⑥ закрыты 16.10 вечером — `bootscripts_tail_test.py` 12/12
   (K1-герметичность: копия cmd без абсолютного фолбэка; SEEN; N4) и `agentrouter_probe_test.py` 6/6
@@ -47,20 +50,29 @@
   bootstrap закоммичен и запушен (`a8bfd4c`, `f63e9ce`). Остаток ⑦ (дизайн): изоляция зелёной ветки
   генераторов (Н1), S-пункты `test_make_wave578_parts.py`, O1 `popups.cmd`.
 - **Прочие открытые:** B-14 (session_v2 миграция), B-22/B-27 (bootstrap-скрипты), fb_c-остаток;
-  PR #6 (setup-uv) — open, решение владельца; push: spend — чисто (HEAD `eb8adad`), follow-up 21.10 — по команде;
+  PR #6 (setup-uv) — open, решение владельца; push: spend — **ahead 5** (feature `ff19371` + docs), по команде;
   bootstrap — чисто. B-19 (spend_misc C1) — **закрыт 14.10** (`5975660`, сужение Codespaces-Origin до своего пространства).
 - **Очередь применения (процессное):** `RECOMMENDATIONS_APPLY_QUEUE_2026-09-24.md` §F; канонизация
   continue.md — выполнена 16.10 (этот файл).
 
 ## Последние сессии (сжато)
-- **21.10 (review follow-up wave13, незакоммичено; ребейз на `eb8adad`):** TDD red→green по A1/A3/A4/A5:
+- **21.10 (матчер правил — выбор владельца «Матчер без push», `ff19371`):** TDD red→green: подстрочный
+  поиск ловил бренды внутри чужих слов («ГИПЕРМЕТРО»→transport, «ПЕРЕВОДЧИК»→transfers, «ВБЛИЗИ»→household,
+  «МАГНИТНЫЙ ДЕРЖАТЕЛЬ»→groceries). Семантика: слово целиком (Unicode-границы), частичное — только явным `*`
+  (`ЗАРАБОТН*` — префикс, `*ТЕСТ` — суффикс, `*ТЕСТ*` — подстрока), ё→е с обеих сторон. Диагностика UI
+  (`analyze_rules`/preview/тестер) и `suggest-rules` используют ту же семантику (без ложных «мёртвых»).
+  Гейты: pytest **1138**, ruff/contract (аддитивно 396→400)/ratchet/cc/build_css — ok; baseline snapshot 76/400/38.
+  Live (прод 8766 / демо 8799 на `ff19371`): `/settings/test` — 4 негатива без совпадений (→ LLM/офлайн),
+  «МЕТРО ТУРНИКЕТ»/«ЗАРАБОТНАЯ ПЛАТА»/«ВБ МАРКЕТ»/«ПЯТЕРОЧКА-12» — те же категории; preview: «МЕТРО ТУРНИКЕТ»
+  помечен «будет мёртвым» (перекрыт #12), «ГИПЕРМЕТРО 12» — без конфликтов; `/health` 8/350 tx, `/health/data` ok.
+- **21.10 (review follow-up wave13, закоммичено `8c2b5e1`; ребейз на `eb8adad`):** TDD red→green по A1/A3/A4/A5:
   doctor detail — только `key:<sha1[:8]>` (сырые description/merchant не печатаются); few-shot лимит 8 —
   после фильтра таксономии; anonymize — английские Card/Name/PAN/IBAN/Holder/Phone/Email/Address и «Ф.И.О.».
   B2/whitespace уже закрыт в `dc6bcf3` (`_cache_key`), наш дубль снят при ребейзе. Сверху наложен
   privacy pack ноутбука (egress `redact.py`, минимизация doctor/`/health/data`, тесты) — combined-контур:
   pytest **1104 passed** (1088 pack + 16 phone; 101 e2e deselected), ruff/contract(snapshot 76/396/38)/
-  ratchet/cc — ok; `build_css --check` зелёный в rebase-ветке после chore `0b1d9ba` (в главном клоне до применения chore — red).
-  Diff в рабочем дереве, commit/push — только по команде владельца; ноутбук закоммитил `e5ec937` + `0b1d9ba`, push не делал.
+  ratchet/cc — ok; `build_css --check` зелёный после chore `0b1d9ba`.
+  Закоммичено `8c2b5e1` (push — только по команде владельца); матчер правил — `ff19371` (см. выше).
   Мост (вне spend): form relay v1.4.7 — `OC-FORM`/`/api/form`, live-тест 5/5; детали — STATE 84.
 - **16.10 (ночь-2, волна A — решения-независимый пакет):** TDD red→green по адъюдикациям wave13 (C1/C2/Н-2/Н-6/Н-7,
   HELP1 #1/#2/#4, S7): `LLM_ENV_VARS`=7 (единый источник; тесты/доки опираются на него), PRIVACY «Как выключить»
