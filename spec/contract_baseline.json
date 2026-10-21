@@ -1464,6 +1464,10 @@
    "args": "store: Store, min_confirmations: int=MIN_CONFIRMATIONS, min_purity: float=MIN_PURITY",
    "returns": "dict"
   },
+  "spendtrack.taxonomy:Rule.matches": {
+   "args": "self, text: str",
+   "returns": "bool"
+  },
   "spendtrack.taxonomy:Taxonomy.display": {
    "args": "self, name: str",
    "returns": "str"
@@ -1472,9 +1476,21 @@
    "args": "self, name: str",
    "returns": "bool"
   },
+  "spendtrack.taxonomy:covers_pattern": {
+   "args": "earlier: Rule, later_pattern: str",
+   "returns": "bool"
+  },
+  "spendtrack.taxonomy:literal_pattern": {
+   "args": "pattern: str",
+   "returns": "str"
+  },
   "spendtrack.taxonomy:load_taxonomy": {
    "args": "config_dir: Path | None=None",
    "returns": "Taxonomy"
+  },
+  "spendtrack.taxonomy:normalize_match_text": {
+   "args": "text: str",
+   "returns": "str"
   },
   "spendtrack.taxonomy_repo:COLOR_RE": {
    "args": "re.compile('^#[0-9a-fA-F]{6}$')",

@@ -20,6 +20,7 @@ from itertools import pairwise
 
 from spendtrack import taxonomy_repo
 from spendtrack.store import Store
+from spendtrack.taxonomy import Rule, covers_pattern, literal_pattern
 
 MIN_CONFIRMATIONS = 3
 MIN_PURITY = 0.8
@@ -108,17 +109,19 @@ def _merchant_candidates(store: Store, min_confirmations: int, min_purity: float
 
 
 def _rule_status(pattern: str, analysis: list[dict]) -> tuple[str, str]:
+    """Статус кандидата относительно taxonomy.toml (границы слова, без ложных «мёртвых»)."""
     p = pattern.upper()
     for a in analysis:
         if not a["invalid_category"] and a["pattern"].upper() == p:  # битые не срабатывают в рантайме
             return "дубль", f"уже есть #{a['index']} «{a['pattern']}» → {a['category']}"
+    candidate = Rule(p, "")
     for a in analysis:
-        if not a["invalid_category"] and a["pattern"].upper() in p:
+        if not a["invalid_category"] and covers_pattern(Rule(a["pattern"], a["category"]), p):
             return "будет мёртвым", f"перехватит #{a['index']} «{a['pattern']}»"
     for a in analysis:
         ap = a["pattern"].upper()
-        if not a["invalid_category"] and ap != p and p in ap:
-            # существующее правило длиннее → оно уже/конкретнее, кандидат шире по охвату
+        if not a["invalid_category"] and ap != p and candidate.matches(literal_pattern(ap)):
+            # кандидат — слово внутри существующего правила: существующее уже/конкретнее
             return "пересечение", f"пересекается с #{a['index']} «{a['pattern']}» (существующее правило уже)"
     return "новое", ""
 

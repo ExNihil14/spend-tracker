@@ -176,7 +176,7 @@ category = "transport"
 
 # income-правила выше transfers: «ПЕРЕВОД ЗАРАБОТНОЙ ПЛАТЫ» — доход, а не перевод (ревью 28.09, S6)
 [[rules]]
-pattern = "ЗАРАБОТН"
+pattern = "ЗАРАБОТН*"
 category = "income"
 
 [[rules]]

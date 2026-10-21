@@ -22,6 +22,7 @@ from pathlib import Path
 from spendtrack.config import ensure_config_dir
 from spendtrack.reports import BUDGET_EXCLUDED
 from spendtrack.store import Store, parse_amount
+from spendtrack.taxonomy import Rule, covers_pattern
 
 logger = logging.getLogger(__name__)
 
@@ -435,14 +436,15 @@ def analyze_rules(data: dict | None = None) -> list[dict]:
     """Диагностика порядка правил: дубли, «мёртвые» (перекрытые ранее) и битые категории.
 
     Правило мёртвое, если его не может выиграть ни одно описание: категории нет в
-    таксономии, паттерн уже встречался раньше или любой матч перехватывает более
-    раннее правило с подстрокой этого паттерна (first-match).
+    таксономии, паттерн уже встречался раньше или любое совпадение перехватывает более
+    раннее правило (first-match, границы слова — см. `taxonomy.covers_pattern`).
     """
     data = data if data is not None else load_raw()
     rules = data.get("rules", [])
     cats = {c["name"] for c in data.get("categories", [])}
     pats = [r["pattern"].upper() for r in rules]
     valid = [r["category"] in cats for r in rules]  # рантайм пропускает битые категории
+    matchers = [Rule(r["pattern"], r["category"]) for r in rules]
     out: list[dict] = []
     for i, r in enumerate(rules):
         duplicate_of = None
@@ -452,7 +454,7 @@ def analyze_rules(data: dict | None = None) -> list[dict]:
                 continue
             if duplicate_of is None and pats[j] == pats[i]:
                 duplicate_of = j
-            if shadowed_by is None and pats[j] in pats[i]:
+            if shadowed_by is None and covers_pattern(matchers[j], pats[i]):
                 shadowed_by = j
         out.append({
             "index": i,
@@ -465,7 +467,7 @@ def analyze_rules(data: dict | None = None) -> list[dict]:
             and rules[duplicate_of]["category"] != r["category"],
             "shadowed_by": shadowed_by,
             "shadows": [j for j in range(i + 1, len(rules))
-                        if valid[i] and valid[j] and pats[i] in pats[j]],
+                        if valid[i] and valid[j] and covers_pattern(matchers[i], pats[j])],
             "dead": not valid[i] or duplicate_of is not None or shadowed_by is not None,
         })
     return out
@@ -487,7 +489,7 @@ def preview_rule(pattern: str, category: str) -> dict:
         p = a["pattern"].upper()
         if a["invalid_category"]:
             continue  # битое правило не перехватывает — предупреждать не о чем
-        if p != pattern and p in pattern:
+        if p != pattern and covers_pattern(Rule(a["pattern"], a["category"]), pattern):
             warnings.append(
                 f"будет мёртвым: совпадение сначала ловит #{a['index']} «{a['pattern']}»"
                 f" → {a['category']} (подтвердите и поднимите выше)")
@@ -505,7 +507,7 @@ def test_description(description: str, store: Store) -> dict:
         {"index": i, "pattern": r["pattern"], "category": r["category"],
          "valid": r["category"] in cats}
         for i, r in enumerate(data.get("rules", []))
-        if r["pattern"] in desc
+        if Rule(r["pattern"], r["category"]).matches(desc)
     ]
     cached = store.merchant_cache_get(desc)
     winner = cached or next((m["category"] for m in matched if m["valid"]), None)

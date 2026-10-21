@@ -22,9 +22,59 @@ class Category:
 
 
 class Rule:
+    """Правило-ключ: слово целиком; `*` — явный шаблон (префикс/суффикс/подстрока).
+
+    До v0.13 поиск был подстрочным: «ГИПЕРМЕТРО» попадало в МЕТРО (transport),
+    «ПЕРЕВОДЧИК» — в ПЕРЕВОД (transfers), «ВБЛИЗИ» — в ВБ (household). Теперь
+    совпадение требует границ слова; частичное совпадение задаётся звёздочкой:
+    `ЗАРАБОТН*` (стем), `*ТЕСТ` (суффикс), `*ТЕСТ*` (подстрока).
+    ё→е нормализуется с обеих сторон: банки пишут «ПЯТЁРОЧКА» и «ПЯТЕРОЧКА».
+    """
+
     def __init__(self, pattern: str, category: str):
         self.pattern = pattern.upper()
         self.category = category
+        self._rx = self._compile(pattern)
+
+    @staticmethod
+    def _compile(pattern: str):
+        p = normalize_match_text(pattern).strip()
+        left = p.startswith("*")
+        right = p.endswith("*")
+        p = p.strip("*")
+        if not p:
+            return None
+        pre = "" if left else r"(?<!\w)"
+        post = "" if right else r"(?!\w)"
+        return re.compile(pre + re.escape(p) + post)
+
+    def matches(self, text: str) -> bool:
+        """Совпадение с учётом границ слова и `*`-шаблонов."""
+        return bool(self._rx and self._rx.search(normalize_match_text(text)))
+
+
+def normalize_match_text(text: str) -> str:
+    """Верхний регистр + ё→е: единая норма для правил и описаний."""
+    return str(text).upper().replace("Ё", "Е")
+
+
+def literal_pattern(pattern: str) -> str:
+    """Литеральное ядро шаблона: `*`-обрамление снято (эвристики UI/диагностики)."""
+    return normalize_match_text(pattern).strip("*")
+
+
+def covers_pattern(earlier: Rule, later_pattern: str) -> bool:
+    """Перехватит ли более раннее правило ВСЕ описания, которые ловит `later_pattern`.
+
+    Доказуемо только для шаблона без `*` (слово/фраза целиком): если он сам попадает
+    под `earlier`, то любое описание с этим словом first-match отдаст `earlier`.
+    Для стем-шаблонов (`ЗАРАБОТН*`) ответ неизвестен — возвращаем False (без ложных
+    «мёртвых» предупреждений).
+    """
+    p = normalize_match_text(later_pattern)
+    if p.startswith("*") or p.endswith("*"):
+        return False
+    return earlier.matches(p)
 
 
 class Taxonomy:
