@@ -8,6 +8,7 @@ warn — данные вне очереди/таксономии, старый �
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import sqlite3
@@ -137,8 +138,11 @@ def check_refs_invalid(conn: sqlite3.Connection, names: list[str], ph: str) -> d
 
 
 # ---- 5. дубли примеров few-shot (P1 #6) ----
-def check_examples_dupes(conn: sqlite3.Connection) -> dict:
-    """Повторяющиеся (description, amount, category) в examples: шум в few-shot, не ошибка."""
+def check_examples_dupes(conn: sqlite3.Connection, details: bool = True) -> dict:
+    """Повторяющиеся (description, amount, category) в examples: шум в few-shot, не ошибка.
+
+    `details=False` — без сырых описаний (приватность вывода CLI: см. test_doctor_privacy).
+    """
     rows = conn.execute(
         "SELECT description, amount_kopecks, category, COUNT(*) n FROM examples"
         " GROUP BY description, amount_kopecks, category HAVING COUNT(*) > 1"
@@ -146,6 +150,9 @@ def check_examples_dupes(conn: sqlite3.Connection) -> dict:
     if not rows:
         return _check("examples_dupes", OK, 0, "дублей примеров нет")
     total = sum(r["n"] - 1 for r in rows)
+    if not details:
+        return _check("examples_dupes", INFO, total,
+                      f"дубли примеров: групп {len(rows)} (тексты скрыты; --details)")
     items = [f"{rows[i]['description'][:30]}×{rows[i]['n']}"
              for i in range(min(len(rows), _DETAIL_ITEMS))]
     if len(rows) > _DETAIL_ITEMS:
@@ -154,7 +161,8 @@ def check_examples_dupes(conn: sqlite3.Connection) -> dict:
 
 
 # ---- 6. мёртвый merchant_cache (P1 #6) ----
-def check_merchant_cache_dead(conn: sqlite3.Connection) -> dict:
+def check_merchant_cache_dead(conn: sqlite3.Connection, details: bool = True,
+                              merchant_keys: bool = False) -> dict:
     """Записи кэша, чей ключ больше не встречается в транзакциях (переименование/удаление).
 
     Ключ сверяется как в лукапе категоризатора (`merchant or description`, categorize.py:36;
@@ -172,7 +180,16 @@ def check_merchant_cache_dead(conn: sqlite3.Connection) -> dict:
     dead = [str(r["merchant"]) for r in rows if str(r["merchant"]).strip().upper() not in live]
     if not dead:
         return _check("merchant_cache_dead", OK, 0, "все записи кэша соответствуют операциям")
-    items = [m[:30] for m in dead[:min(len(dead), _DETAIL_ITEMS)]]
+    if not details:
+        return _check("merchant_cache_dead", INFO, len(dead),
+                      f"мерчантов без операций: {len(dead)} (имена скрыты; --details)")
+    if merchant_keys:
+        # CLI --details: ключ кэша часто = полное описание операции (может содержать ФИО/номер),
+        # поэтому даже в подробном режиме показываем стабильный хэш, а не сырой текст.
+        items = [f"key:{hashlib.sha1(m.encode('utf-8')).hexdigest()[:8]}"
+                 for m in dead[:min(len(dead), _DETAIL_ITEMS)]]
+    else:
+        items = [m[:30] for m in dead[:min(len(dead), _DETAIL_ITEMS)]]
     if len(dead) > _DETAIL_ITEMS:
         items.append("…")
     return _check("merchant_cache_dead", INFO, len(dead),
@@ -386,8 +403,15 @@ def overall_status(checks: list[dict]) -> str:
     return OK
 
 
-def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = None) -> dict[str, Any]:
-    """Полный прогон; возвращает {status, checks:[{id, severity, count, detail}]}."""
+def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = None,
+               details: bool = True, merchant_keys: bool = False) -> dict[str, Any]:
+    """Полный прогон; возвращает {status, checks:[{id, severity, count, detail}]}.
+
+    `details=False` — тексты операций/мерчантов не попадают в `detail` (CLI и API по умолчанию
+    так и делают: приватность вывода; полный текст — `doctor --details`). Библиотечный default
+    `True` сохраняет прежний контракт тестов. `merchant_keys=True` — в подробном режиме
+    `merchant_cache_dead` показывает `key:<sha1[:8]>` вместо сырого ключа (он может содержать PII).
+    """
     try:
         path = Path(db_path).expanduser().resolve() if db_path else resolve_db_path()
     except Exception as e:  # noqa: BLE001 — битый settings.toml без --db: диагностируем, не падаем
@@ -429,8 +453,8 @@ def run_checks(db_path: Path | str | None = None, taxonomy: Taxonomy | None = No
             _guarded("categories_invalid", lambda: check_categories_invalid(conn, names, ph)),
             _guarded("category_llm_invalid", lambda: check_category_llm_invalid(conn, names, ph)),
             _guarded("refs_invalid", lambda: check_refs_invalid(conn, names, ph)),
-            _guarded("examples_dupes", lambda: check_examples_dupes(conn)),
-            _guarded("merchant_cache_dead", lambda: check_merchant_cache_dead(conn)),
+            _guarded("examples_dupes", lambda: check_examples_dupes(conn, details)),
+            _guarded("merchant_cache_dead", lambda: check_merchant_cache_dead(conn, details, merchant_keys)),
             _guarded("pending_source", lambda: check_pending_source(conn)),
             _guarded("empty_batches", lambda: check_empty_batches(conn)),
             _guarded("disk_space", lambda: check_disk_space(path)),

@@ -573,7 +573,7 @@
    "returns": "dict"
   },
   "spendtrack.doctor:check_examples_dupes": {
-   "args": "conn: sqlite3.Connection",
+   "args": "conn: sqlite3.Connection, details: bool=True",
    "returns": "dict"
   },
   "spendtrack.doctor:check_fingerprint_dupes": {
@@ -581,7 +581,7 @@
    "returns": "dict"
   },
   "spendtrack.doctor:check_merchant_cache_dead": {
-   "args": "conn: sqlite3.Connection",
+   "args": "conn: sqlite3.Connection, details: bool=True, merchant_keys: bool=False",
    "returns": "dict"
   },
   "spendtrack.doctor:check_offsite_backup": {
@@ -617,7 +617,7 @@
    "returns": "str"
   },
   "spendtrack.doctor:run_checks": {
-   "args": "db_path: Path | str | None=None, taxonomy: Taxonomy | None=None",
+   "args": "db_path: Path | str | None=None, taxonomy: Taxonomy | None=None, details: bool=True, merchant_keys: bool=False",
    "returns": "dict[str, Any]"
   },
   "spendtrack.doctor:usage_issue_url": {
@@ -843,6 +843,34 @@
   "spendtrack.recurring:recurring_summary": {
    "args": "store: Store, today: date | None=None, subscriptions: list[dict] | None=None",
    "returns": "dict"
+  },
+  "spendtrack.redact:CARD": {
+   "args": "'[CARD]'",
+   "returns": ""
+  },
+  "spendtrack.redact:EMAIL": {
+   "args": "'[EMAIL]'",
+   "returns": ""
+  },
+  "spendtrack.redact:IBAN": {
+   "args": "'[IBAN]'",
+   "returns": ""
+  },
+  "spendtrack.redact:PHONE": {
+   "args": "'[PHONE]'",
+   "returns": ""
+  },
+  "spendtrack.redact:redact": {
+   "args": "text: str",
+   "returns": "str"
+  },
+  "spendtrack.redact:redact_if_enabled": {
+   "args": "text: str",
+   "returns": "str"
+  },
+  "spendtrack.redact:redaction_enabled": {
+   "args": "",
+   "returns": "bool"
   },
   "spendtrack.reports:BUDGET_EXCLUDED": {
    "args": "{'income', 'transfers'}",

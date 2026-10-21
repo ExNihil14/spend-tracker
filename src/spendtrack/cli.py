@@ -388,7 +388,8 @@ def _usage_lines(usage: dict) -> list[str]:
 
 def cmd_doctor(args) -> int:
     from spendtrack.doctor import build_usage_summary, run_checks, usage_issue_url
-    report = run_checks()
+    details = bool(getattr(args, "details", False))
+    report = run_checks(details=details, merchant_keys=details)
     usage = build_usage_summary() if args.share else None
     if usage is not None:
         report["usage"] = usage
@@ -400,6 +401,11 @@ def cmd_doctor(args) -> int:
         for c in report["checks"]:
             count = str(c["count"]) if c["count"] else "-"
             print(f"  {c['severity'].upper():<8} {c['id']:<20} {count:>5}  {c['detail']}")
+        if not details:
+            hidden = any(c["count"] and c["id"] in ("examples_dupes", "merchant_cache_dead")
+                         for c in report["checks"])
+            if hidden:
+                print("  (тексты операций/мерчантов скрыты; подробности: spendtrack doctor --details)")
         if usage is not None:
             print()
             print("Анонимная статистика (opt-in: приложение ничего не отправляет само):")
@@ -588,6 +594,8 @@ def main(argv: list[str] | None = None) -> int:
     a_doc.add_argument("--json", action="store_true", help="машинный вывод (JSON)")
     a_doc.add_argument("--share", action="store_true",
                        help="добавить анонимную сводку и ссылку на issue (метрики без телеметрии)")
+    a_doc.add_argument("--details", action="store_true",
+                       help="показывать тексты операций/мерчантов в detail (по умолчанию скрыты)")
     a_doc.set_defaults(fn=cmd_doctor)
 
     a_rec = sub.add_parser("recurring", help="детекция рекуррингов/подписок")

@@ -569,7 +569,7 @@ def test_health_data_fresh_throttled(client, monkeypatch):
     calls = {"n": 0}
     real = doctor.run_checks
 
-    def counting():
+    def counting(*args, **kwargs):
         calls["n"] += 1
         return real()
 
@@ -584,7 +584,7 @@ def test_health_data_cache_keyed_by_db(client, tmp_path, monkeypatch):
     calls = {"n": 0}
     real = doctor.run_checks
 
-    def counting():
+    def counting(*args, **kwargs):
         calls["n"] += 1
         return real()
 

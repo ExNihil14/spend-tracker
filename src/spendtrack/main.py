@@ -218,7 +218,9 @@ def health_data(fresh: int = 0):
         if fresh and hit and now - _doctor_cache["ts"] < _FRESH_MIN_S:
             fresh = 0  # повторный fresh — из кэша
         if fresh or not hit or now - _doctor_cache["ts"] > _DOCTOR_TTL_S:
-            _doctor_cache["report"] = run_checks()
+            # Приватность вывода (privacy pack 21.10): API, как и CLI без --details,
+            # не отдаёт тексты операций/мерчантов — только коды и счётчики.
+            _doctor_cache["report"] = run_checks(details=False)
             _doctor_cache["ts"] = now
             _doctor_cache["key"] = key
     report = _doctor_cache["report"]

@@ -23,6 +23,21 @@
   **Ждут решений владельца:** матчер (границы слова), ЕРИП-контракт, egress-redaction (или снятие), форма пиннинга
   установщика, approve-бейдж, минимизация doctor print. Окно 02:00 UTC 17.10 доберёт `bootgate`/`bootgen13`/
   `bootfixes` (fb-полоса, стриминг SSE).
+- **21.10 (privacy pack — по решению владельца):** (1) `doctor` по умолчанию **не печатает** тексты
+  операций/мерчантов в `detail` — только коды и счётчики, полный текст по `doctor --details`
+  (`run_checks(details=...)`, CLI `--details`; библиотечный default остался `True` → старые тесты целы);
+  (2) **egress-redaction** перед LLM: новый `redact.py` маскирует карты/счета, телефоны, e-mail в
+  `description`/`merchant` и в few-shot; суммы и текст мерчанта не трогаются; opt-out
+  `SPENDTRACK_LLM_REDACT=0`; вызов из единственного шлюза `prompts.py`. Тесты: +17
+  (`test_doctor_privacy.py`, `test_llm_redaction.py`), full-suite **1088 passed**, ruff чисто,
+  ratchet/cc — ok. **Не закоммичено** (по команде владельца); `contract_delta` — **snapshot сделан**
+  (21.10, `/careful`), `check` = ok; `app.css.inputs.json` пересобран (`build_css`) — дрейф с origin снят.
+  Ревью телефона (21.10 09:29) учтено: API `/health/data` тоже `details=False` (+тест), `--json`
+  минимизирован (+тест), hint только при скрытых данных, `merchant_cache_dead` в `--details` —
+  `key:<sha1[:8]>` (не сырой текст), обрезка merchant в few-shot возвращена к ровным 20 символам,
+  тесты redact: IBAN, +375, ложные срабатывания, идемпотентность.
+- **Открытые решения владельца (после privacy pack):** матчер (границы слова), ЕРИП-контракт,
+  форма пиннинга установщика, approve-бейдж. Goals Ф3 (LLM-советы) — после egress-redaction (теперь есть).
 - **Bootstrap-контур:** волны ⑤⑥ закрыты 16.10 вечером — `bootscripts_tail_test.py` 12/12
   (K1-герметичность: копия cmd без абсолютного фолбэка; SEEN; N4) и `agentrouter_probe_test.py` 6/6
   (E/F наблюдают журнал фейка, fail-closed); popups v3 (C1/N1/S1/S5/S2) + тест 27/27; habr-C2-матчер 26/26.
