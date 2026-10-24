@@ -26,7 +26,7 @@
   `redact.py`, `test_doctor_privacy.py`, `test_llm_redaction.py` на месте. Финальный ребейз: **1104 passed**
   (101 e2e deselected, 284.12 с); docs/contract 23, ruff/ratchet/cc ok, contract snapshot 76/396/38;
   commit/push — только по слову владельца.
-- **23.10 (Abacus privacy P0/P1, commit `fix/privacy-p0-p1`; push pending):** `redact.py` — 20-значные счета РФ (`[CARD]`),
+- **23.10 (Abacus privacy P0/P1, commit `5e54635` в `fix/privacy-p0-p1`; push pending):** `redact.py` — 20-значные счета РФ (`[CARD]`),
   телефоны `7916…`/`916…` без `+`/`8`, Unicode-пробелы (NBSP/narrow/thin) в картах/счетах/IBAN;
   `llm.py` — forced redaction для удалённых провайдеров (`SPENDTRACK_LLM_REDACT=0` только локально);
   `categorize.py` — алиасы категорий (`Groceries`→`groceries`) и redaction DEBUG-описания. Тесты red→green:
