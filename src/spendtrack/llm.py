@@ -14,6 +14,7 @@ import httpx
 from openai import OpenAI
 
 from spendtrack.config import Settings, load_settings
+from spendtrack.redact import redact
 from spendtrack.resilience import CircuitBreaker
 
 log = logging.getLogger("spendtrack")
@@ -256,14 +257,18 @@ def call_llm(
         try:
             # S1 (ревью 28.09): SDK-ретраи выключены — повторы делает цепочка провайдеров + брейкер,
             # иначе один провайдер = до 3 запросов × timeout и «тройной» износ лимитов free-канала.
+            # Опт-аут redaction (`SPENDTRACK_LLM_REDACT=0`) допустим только для локального контура:
+            # удалённый канал всегда получает очищенный payload, даже если builder его пропустил.
+            outbound_system = system_prompt if provider.local else redact(system_prompt)
+            outbound_user = user_prompt if provider.local else redact(user_prompt)
             client = OpenAI(base_url=provider.base_url, api_key=provider.api_key,
                             timeout=REQUEST_TIMEOUT_S, max_retries=0)
             try:
                 resp = client.chat.completions.create(
                     model=provider.model,
                     messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
+                        {"role": "system", "content": outbound_system},
+                        {"role": "user", "content": outbound_user},
                     ],
                     max_tokens=max_tokens,
                     temperature=temperature,

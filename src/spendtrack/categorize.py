@@ -7,6 +7,7 @@ import math
 from spendtrack.config import load_settings
 from spendtrack.llm import call_llm, parse_llm_json
 from spendtrack.prompts import build_system_prompt, build_user_prompt
+from spendtrack.redact import redact
 from spendtrack.store import Store
 from spendtrack.taxonomy import Taxonomy
 
@@ -64,8 +65,11 @@ def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
 
     # C1 (Astra 01.10): поля ответа LLM проверяем по типам — иначе список/dict в category роняет
     # классификацию (TypeError в is_valid), а гигантская confidence — OverflowError в float().
-    category = parsed.get("category") if isinstance(parsed, dict) else None
-    if not isinstance(category, str) or not taxonomy.is_valid(category):
+    category_raw = parsed.get("category") if isinstance(parsed, dict) else None
+    # Astra/Abacus 23.10: «Groceries»/«GROCERIES» — тот же класс; нормализуем регистр и пробелы,
+    # но не принимаем произвольные значения (валидация ниже остаётся).
+    category = category_raw.strip().lower() if isinstance(category_raw, str) else None
+    if not category or not taxonomy.is_valid(category):
         return {"category": "other", "confidence": 0.0, "merchant": tx.get("merchant"),
                 "reason": "llm_parse_failed", "source": "llm"}
 
@@ -109,7 +113,7 @@ def classify_with_injectable(
     # W2 ресёрча ошибок: DEBUG-логи — только локально, в issue/ревью их не прикладываем (REVIEW_CHECKLIST)
     logger.info("llm_decision: conf=%.3f bucket=%s accepted=%s desc_hash=%s",
                 conf, bucket, conf >= acceptance, hashlib.sha1(desc.encode()).hexdigest()[:8])
-    logger.debug("llm_decision desc=%s", desc[:40])
+    logger.debug("llm_decision desc=%s", redact(desc)[:40])
     if not taxonomy.is_valid(cat):
         # S4 (Astra 01.10): в очередь отдаём ИСХОДНЫЙ банковский merchant, а не нормализацию модели —
         # недоверенная догадка не должна подменять данные в pending-строке.

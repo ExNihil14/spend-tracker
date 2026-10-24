@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from spendtrack import categorize
 from spendtrack.categorize import _clamp_confidence, categorize_rules_only, classify_with_injectable
 from spendtrack.store import parse_amount
 
@@ -15,6 +16,31 @@ def test_llm_valid_high_conf(store, taxonomy, sample_txs):
     result = classify_with_injectable(_tx(), taxonomy, store, stub, 0.9)
     assert result["source"] == "llm"
     assert result["category"] == "groceries"
+
+
+def test_debug_log_redacts_description_even_with_opt_out(monkeypatch, caplog, store, taxonomy):
+    """DEBUG-лог не должен печатать сырой номер карты, даже если LLM-egress opt-out."""
+    import logging
+
+    monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
+    stub = lambda t, s, tax: {
+        "category": "groceries", "confidence": 0.95, "merchant": "X", "reason": "r", "source": "llm"
+    }
+    caplog.set_level(logging.DEBUG, logger="spendtrack.categorize")
+    classify_with_injectable(_tx("КАРТА 4276 1234 5678 9010"), taxonomy, store, stub, 0.9)
+    assert "4276" not in caplog.text
+    assert "[CARD]" in caplog.text
+
+
+def test_llm_category_alias_normalized(monkeypatch, store, taxonomy):
+    """`Groceries`/`GROCERIES` — тот же валидный класс, а не очередь (Abacus 23.10, P2)."""
+    monkeypatch.setattr(categorize, "call_llm", lambda *a, **k: {
+        "content": '{"category":"Groceries","confidence":0.95,"merchant":"X","reason":"r"}',
+        "model": "test", "source": "test",
+    })
+    result = categorize.categorize_llm(_tx(), store, taxonomy)
+    assert result["category"] == "groceries"
+    assert result["source"] == "llm"
 
 
 def test_llm_invalid_category_goes_queue(store, taxonomy):

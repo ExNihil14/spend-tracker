@@ -5,7 +5,7 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
-## Статус (обновлено 21.10.2026)
+## Статус (обновлено 23.10.2026)
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
   https://github.com/ExNihil14/spend-tracker). Стек: uv/Python 3.13, pytest (+Playwright e2e), ruff.
@@ -26,6 +26,14 @@
   `redact.py`, `test_doctor_privacy.py`, `test_llm_redaction.py` на месте. Финальный ребейз: **1104 passed**
   (101 e2e deselected, 284.12 с); docs/contract 23, ruff/ratchet/cc ok, contract snapshot 76/396/38;
   commit/push — только по слову владельца.
+- **23.10 (Abacus privacy P0/P1, commit `fix/privacy-p0-p1`; push pending):** `redact.py` — 20-значные счета РФ (`[CARD]`),
+  телефоны `7916…`/`916…` без `+`/`8`, Unicode-пробелы (NBSP/narrow/thin) в картах/счетах/IBAN;
+  `llm.py` — forced redaction для удалённых провайдеров (`SPENDTRACK_LLM_REDACT=0` только локально);
+  `categorize.py` — алиасы категорий (`Groceries`→`groceries`) и redaction DEBUG-описания. Тесты red→green:
+  **1145 passed**, ruff/contract/cc ok; commit — в этой ветке, push не делался. Источник — `abacus_review/2026-10-23/ADJUDICATION.md`.
+  Relay P0-1 (per-chat inbox cursor) — applied + live в bootstrap (`approval-relay.py`), PID 10960
+  с 24.10 01:57, state `inbox_cursors`; тесты 37/37; restart не требуется. Остальные relay P0/P1 — отдельный тикет; owner-only
+  config (tool_output/compaction/arch-reviewer) — за владельцем.
 - Контур: pytest **1138 passed** (101 e2e deselected; 1104 + 34 матчера) + ruff +
   `contract_delta` (snapshot 76/400/38) + `ratchet` + `cc_ratchet` + `build_css --check` — зелёные 21.10.
   Канон — `spec/PIPELINE.md`, `spec/TESTING.md`, `spec/ARCHITECTURE.md`;
@@ -49,6 +57,10 @@
   (E/F наблюдают журнал фейка, fail-closed); popups v3 (C1/N1/S1/S5/S2) + тест 27/27; habr-C2-матчер 26/26.
   bootstrap закоммичен и запушен (`a8bfd4c`, `f63e9ce`). Остаток ⑦ (дизайн): изоляция зелёной ветки
   генераторов (Н1), S-пункты `test_make_wave578_parts.py`, O1 `popups.cmd`.
+- **23.10 (Abacus Opus 5.5, privacy review):** P0 **латентные** дыры redaction — 20-значные счета РФ и
+  телефоны `7916…`/`916…` без `+`/`8` не маскируются; P1 — NBSP/IBAN, global opt-out для cloud.
+  LLM сейчас **off** (`llm-status`), утечки нет; фикс — отдельным TDD-пакетом по команде (тесты:
+  `test_llm_redaction` + `build_user_prompt`/few-shot). Разбор — `abacus_review/2026-10-23/SUMMARY.md`.
 - **Прочие открытые:** B-14 (session_v2 миграция), B-22/B-27 (bootstrap-скрипты), fb_c-остаток;
   PR #6 (setup-uv) — open, решение владельца; push: spend — **ahead 5** (feature `ff19371` + docs), по команде;
   bootstrap — чисто. B-19 (spend_misc C1) — **закрыт 14.10** (`5975660`, сужение Codespaces-Origin до своего пространства).

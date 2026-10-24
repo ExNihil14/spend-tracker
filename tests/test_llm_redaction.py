@@ -3,7 +3,8 @@
 Контракт:
 * маскируются карточные/счётные номера, телефоны, e-mail в `description`/`merchant` и в few-shot;
 * обычный текст и короткие числа (суммы, «LENTA 5») не трогаются — иначе категоризация деградирует;
-* выключение — `SPENDTRACK_LLM_REDACT=0` (осознанный opt-out, напр. полностью локальный Ollama);
+* выключение — `SPENDTRACK_LLM_REDACT=0` (осознанный opt-out, напр. полностью локальный Ollama;
+  для удалённых провайдеров `call_llm` всё равно чистит payload);
 * redaction не меняет сигнатуры `build_user_prompt/build_system_prompt` и форму JSON-ответа.
 """
 from __future__ import annotations
@@ -48,11 +49,55 @@ def test_user_prompt_masks_pii(monkeypatch):
     assert "amount: -1500.00" in text  # сумма остаётся: без неё классификация невозможна
 
 
+def test_user_prompt_masks_account_and_phone_without_prefix(monkeypatch):
+    monkeypatch.delenv("SPENDTRACK_LLM_REDACT", raising=False)
+    tx = {"description": "ПЕРЕВОД 40817810099910004312, тел. 79161234567",
+          "merchant": "", "amount_kopecks": -100}
+    text = prompts.build_user_prompt(tx)
+    assert "[CARD]" in text and "[PHONE]" in text
+    assert "40817" not in text and "916" not in text
+
+
 def test_user_prompt_opt_out(monkeypatch):
     monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
     tx = {"description": "КАРТА 4276 1234 5678 9010", "merchant": "",
           "amount_kopecks": -100}
     assert "4276" in prompts.build_user_prompt(tx)
+
+
+def test_remote_llm_forces_redaction_even_with_opt_out(monkeypatch):
+    """Opt-out разрешён только для локального провайдера: удалённый канал всегда чистит payload."""
+    from unittest.mock import MagicMock, patch
+
+    from spendtrack import llm as llm_mod
+    from spendtrack.llm import LLMProvider
+
+    monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
+    captured: dict = {}
+    resp = MagicMock()
+    resp.choices[0].message.content = '{"category":"other","confidence":0.0}'
+
+    def fake_openai(base_url, api_key="", timeout=20.0, max_retries=None):
+        mock = MagicMock()
+
+        def create(**kwargs):
+            captured.update(kwargs)
+            return resp
+
+        mock.chat.completions.create = create
+        return mock
+
+    monkeypatch.setattr(
+        llm_mod, "resolve_providers",
+        lambda cfg=None: (LLMProvider("https://remote.example/v1", "m", "k", "test", False),),
+    )
+    with patch.object(llm_mod, "OpenAI", fake_openai):
+        llm_mod.call_llm("system 4276 1234 5678 9010", "user +7 916 123-45-67", max_tokens=10)
+
+    messages = captured["messages"]
+    payload = "\n".join(m["content"] for m in messages)
+    assert "4276" not in payload and "[CARD]" in payload
+    assert "916" not in payload and "[PHONE]" in payload
 
 
 def test_redact_iban_and_account():
@@ -66,6 +111,45 @@ def test_redact_belarus_phone():
     out = redact("+375 29 123-45-67")
     assert "[PHONE]" in out
     assert "123-45-67" not in out
+
+
+def test_redact_russian_account_20_digits():
+    """РФ-счёт = 20 цифр; бывает слитно, с пробелами и NBSP (Abacus 23.10, P0)."""
+    for raw in (
+        "40817810099910004312",
+        "40817 810 0 9991 0004312",
+        "4081-7810-0999-1000-4312",
+        "40817\u00a0810\u00a00\u00a09991\u00a00004312",
+    ):
+        out = redact(raw)
+        assert "[CARD]" in out
+        assert "40817" not in out and "04312" not in out
+
+
+def test_redact_phone_without_plus_or_eight():
+    """7916…/916… без +/8 — реальный формат выписок; не должен проходить (P0)."""
+    for raw in (
+        "79161234567",
+        "9161234567",
+        "7 916 123-45-67",
+        "9 161 234-56-78",
+        "8\u00a0916\u00a0123\u00a045\u00a067",
+        "+7 (916) 123-45-67",
+    ):
+        out = redact(raw)
+        assert "[PHONE]" in out
+        assert "916" not in out
+
+
+def test_redact_unicode_separators():
+    """NBSP/узкий NBSP в картах и IBAN — тот же egress, что и обычный пробел."""
+    card = redact("4276\u00a01234\u20075678\u202f9010")
+    assert card == "[CARD]"
+    for raw in (
+        "BY12\u00a0ALFA\u00a03012\u00a03456\u00a07890\u00a01234",
+        "by12 alfa 3012 3456 7890 1234",
+    ):
+        assert redact(raw) == "[IBAN]"
 
 
 def test_redact_false_positives():
