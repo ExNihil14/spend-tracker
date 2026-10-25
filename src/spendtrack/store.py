@@ -587,7 +587,7 @@ class Store:
             # (ревью Dash 4.6) — снимок оставался под сырым именем, а target не создавался.
             snap.replace(snap.with_name(f"pre-migration-v{self._user_version()}-{snap.name}"))
         except (OSError, sqlite3.Error) as e:
-            logger.warning("pre-migration snapshot failed: %s", e)
+            logger.warning("pre-migration snapshot failed: %s", type(e).__name__)
 
     def close(self) -> None:
         # PRAGMA optimize перед закрытием короткоживущего соединения — рекомендованная схема SQLite

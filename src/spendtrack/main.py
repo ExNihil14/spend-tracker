@@ -14,6 +14,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from spendtrack import errors
 from spendtrack.config import PKG_DIR, ensure_config_dir, load_settings, resolve_data_dir
+from spendtrack.redact import redact
 from spendtrack.routers.api import router as api_router
 from spendtrack.routers.frontend import router as frontend_router
 from spendtrack.routers.settings import router as settings_router
@@ -24,6 +25,27 @@ LOG_DIR = resolve_data_dir() / "logs"
 
 
 _LOGGING_DONE = False  # идемпотентность: при импорте + main() не плодить handler'ы
+
+
+class _RedactingLogFilter(logging.Filter):
+    """Последний рубеж для логов: маскирует PII в сообщении, args и traceback.
+
+    Применяется к файловому handler'у; код приложения всё равно обязан не логировать
+    сырые description/merchant (только hash/allowlisted metadata).
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            record.msg = redact(record.msg)
+        if record.args:
+            if isinstance(record.args, tuple):
+                record.args = tuple(redact(a) if isinstance(a, str) else a for a in record.args)
+            elif isinstance(record.args, dict):
+                record.args = {k: redact(v) if isinstance(v, str) else v
+                               for k, v in record.args.items()}
+        if record.exc_info and not record.exc_text:
+            record.exc_text = redact(logging.Formatter().formatException(record.exc_info))
+        return True
 
 
 def _setup_logging() -> None:
@@ -42,6 +64,7 @@ def _setup_logging() -> None:
         encoding="utf-8",
     )
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    handler.addFilter(_RedactingLogFilter())
     for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "spendtrack"):
         logger = logging.getLogger(name)
         logger.handlers.clear()
@@ -73,6 +96,16 @@ app.include_router(api_router, prefix="/api")
 app.mount("/static", StaticFiles(directory=PKG_DIR / "static"), name="static")
 
 logger = logging.getLogger("spendtrack")
+
+
+def _safe_exc_info(exc: Exception) -> tuple[type[BaseException], BaseException, object]:
+    """Traceback для лога без сырого текста исключения (PII в args/сообщении)."""
+    message = redact(str(exc))
+    try:
+        safe: BaseException = type(exc)(message)
+    except (TypeError, ValueError):  # некоторые исключения требуют нестандартных аргументов
+        safe = RuntimeError(message)
+    return (type(safe), safe, exc.__traceback__)
 
 
 def _error_page(message: str, status: int) -> HTMLResponse:
@@ -119,7 +152,8 @@ async def _db_operational_error(request: Request, exc: sqlite3.OperationalError)
     """
     if not _db_is_transient(exc):
         return await _unhandled_error(request, exc)
-    logger.warning("db operational error: %s %s: %s", request.method, request.url.path, exc)
+    logger.warning("db operational error: %s %s: %s", request.method, request.url.path,
+                   type(exc).__name__)
     detail = errors.text("db_busy")
     if _wants_json(request):
         return JSONResponse({"detail": detail}, status_code=503)
@@ -130,7 +164,7 @@ async def _db_operational_error(request: Request, exc: sqlite3.OperationalError)
 async def _unhandled_error(request: Request, exc: Exception):
     """W1 ресёрча ошибок: 500 с понятным телом; в лог — метод/путь/тип (без query и тела)."""
     logger.error("unhandled error: %s %s: %s", request.method, request.url.path,
-                 type(exc).__name__, exc_info=exc)
+                 type(exc).__name__, exc_info=_safe_exc_info(exc))
     detail = errors.text("internal")
     if _wants_json(request):
         return JSONResponse({"detail": detail}, status_code=500)

@@ -277,3 +277,36 @@ def test_few_shot_examples_are_redacted(monkeypatch):
     system = prompts.build_system_prompt(examples, taxonomy)
     assert "4276" not in system
     assert "[CARD]" in system
+
+
+def test_merchant_pii_redacted_before_truncate():
+    """P2 25.10: PII на границе merchant-лимита не разрезается."""
+    tx = {"description": "X", "merchant": "M" * 75 + "4276123456789010",
+          "amount_kopecks": -100}
+    text = prompts._build_user_prompt(tx, allow_raw=False)
+    assert "4276" not in text
+    assert "9010" not in text
+
+
+def test_unknown_dynamic_fields_not_sent(monkeypatch):
+    """P2 25.10: только allowlist полей tx, даже при opt-out; лишние поля не уходят."""
+    monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
+    tx = {
+        "description": "LENTA", "merchant": "LENTA", "amount_kopecks": -100,
+        "note": "4276 1234 5678 9010", "raw_payload": "secret",
+    }
+    text = prompts.build_user_prompt(tx)
+    assert "4276" not in text and "raw_payload" not in text and "secret" not in text
+
+
+def test_few_shot_merchant_pii_redacted_before_truncate():
+    """P2 25.10: few-shot description/merchant режутся только после redact."""
+    examples = [{
+        "description": "A" * 295 + "4276123456789010",
+        "merchant": "M" * 75 + "4276123456789010",
+        "amount_kopecks": -100,
+        "category": "groceries",
+    }]
+    system = prompts._build_system_prompt(examples, load_taxonomy(), allow_raw=False)
+    assert "4276" not in system
+    assert "9010" not in system

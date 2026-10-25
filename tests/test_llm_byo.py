@@ -277,7 +277,8 @@ def test_provider_failure_is_logged(monkeypatch, caplog):
 
     def fake_openai(base_url, api_key="", timeout=..., max_retries=None):
         mock = MagicMock()
-        mock.chat.completions.create.side_effect = RuntimeError("boom")
+        mock.chat.completions.create.side_effect = RuntimeError(
+            "boom 4276 1234 5678 9010 +7 916 123-45-67")
         return mock
 
     with (
@@ -288,6 +289,7 @@ def test_provider_failure_is_logged(monkeypatch, caplog):
 
     assert res["source"] == "failed"
     assert any("RuntimeError" in r.getMessage() for r in caplog.records)
+    assert "4276" not in caplog.text and "916" not in caplog.text
 
 
 def test_free_chain_key_matches_endpoint(monkeypatch):

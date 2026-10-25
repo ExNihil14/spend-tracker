@@ -132,3 +132,61 @@ def test_cli_busy_db_friendly_error(tmp_path, monkeypatch, capsys):
     assert cli.main(["add", "-1", "тест"]) == 1
     err = capsys.readouterr().err
     assert "занята" in err and "Traceback" not in err
+
+
+class _PiiBoomStore:
+    """Store-заглушка с PII в тексте исключения."""
+
+    def __getattr__(self, name):
+        def _raise(*_a, **_k):
+            message = "boom 4276 1234 5678 9010 +7 916 123-45-67"
+            raise RuntimeError(message)
+        return _raise
+
+
+class _PiiBusyStore:
+    """Занятая БД, в сообщении которой случайно оказались PII."""
+
+    def __getattr__(self, name):
+        def _raise(*_a, **_k):
+            raise sqlite3.OperationalError("database is locked 4276 1234 5678 9010")
+        return _raise
+
+
+def test_unhandled_error_log_does_not_leak_exception_pii(client, caplog, monkeypatch):
+    monkeypatch.setattr(logging.getLogger("spendtrack"), "propagate", True)
+    app.dependency_overrides[get_store] = lambda: _PiiBoomStore()
+    with caplog.at_level(logging.ERROR, logger="spendtrack"):
+        r = client.post("/api/transactions", json={
+            "date": "2026-09-01", "description": "X", "amount": "-1.00"})
+    assert r.status_code == 500
+    assert "4276" not in caplog.text and "916" not in caplog.text
+
+
+def test_db_operational_error_log_does_not_leak_exception_pii(client, caplog, monkeypatch):
+    monkeypatch.setattr(logging.getLogger("spendtrack"), "propagate", True)
+    app.dependency_overrides[get_store] = lambda: _PiiBusyStore()
+    with caplog.at_level(logging.WARNING, logger="spendtrack"):
+        r = client.post("/api/transactions", json={
+            "date": "2026-09-01", "description": "X", "amount": "-1.00"})
+    assert r.status_code == 503
+    assert "4276" not in caplog.text
+
+
+def test_redacting_log_filter_masks_message_args_and_traceback():
+    import sys
+
+    from spendtrack.main import _RedactingLogFilter
+
+    try:
+        raise RuntimeError("boom 4276 1234 5678 9010")
+    except RuntimeError:
+        exc_info = sys.exc_info()
+    record = logging.LogRecord(
+        "spendtrack", logging.ERROR, __file__, 1,
+        "tx %s", ("+7 916 123-45-67",), exc_info,
+    )
+    assert _RedactingLogFilter().filter(record)
+    text = logging.Formatter("%(message)s").format(record)
+    assert "4276" not in text and "916" not in text
+    assert "[CARD]" in text and "[PHONE]" in text

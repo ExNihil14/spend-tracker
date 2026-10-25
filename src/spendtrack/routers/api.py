@@ -445,7 +445,7 @@ async def do_import(request: Request, store: Annotated[Store, Depends(get_store)
         raise  # валидационные 400/413 тела (JSON/form) — не «сбой импорта», без лога
     except Exception as e:
         # F5: без лога это глушитель — сбой превращается в зелёный 200 без следа
-        logging.getLogger("spendtrack").exception("import failed: %s", filename)
+        logging.getLogger("spendtrack").exception("import failed")
         if is_hx:
             return HTMLResponse(f'<p class="text-danger" role="alert">Ошибка импорта: {escape(str(e))}</p>')
         raise

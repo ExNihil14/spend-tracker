@@ -70,14 +70,22 @@ def _allow_raw_prompt() -> bool:
     return bool(providers) and all(p.local and p.source == "ollama" for p in providers)
 
 
-def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
-    """Step 2: LLM-классификация. Возвращает {'category', 'confidence', 'merchant', 'reason', 'source'}."""
-    examples = store.list_examples()
+def _call_llm_guarded(tx: dict, examples: list[dict], taxonomy: Taxonomy) -> dict:
+    """Единственный production-путь к LLM: builder → egress guard → call_llm.
+
+    Динамические поля tx попадают в payload только через allowlist `_build_user_prompt`;
+    примеры — через `_build_system_prompt`. Политика raw/redact определяется здесь.
+    """
     allow_raw = _allow_raw_prompt()
     system_prompt = _build_system_prompt(examples, taxonomy, allow_raw)
     user_prompt = _build_user_prompt(tx, allow_raw)
+    return call_llm(system_prompt, user_prompt, max_tokens=400)
 
-    llm_result = call_llm(system_prompt, user_prompt, max_tokens=400)
+
+def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
+    """Step 2: LLM-классификация. Возвращает {'category', 'confidence', 'merchant', 'reason', 'source'}."""
+    examples = store.list_examples()
+    llm_result = _call_llm_guarded(tx, examples, taxonomy)
     parsed = parse_llm_json(llm_result["content"])
 
     # C1 (Astra 01.10): поля ответа LLM проверяем по типам — иначе список/dict в category роняет
