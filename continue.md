@@ -5,6 +5,24 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
+## Срез 25.10.2026 (privacy finish)
+- HEAD `ba8111c`; origin/main `01d0af2`; **ahead 3** (`9a5630b` deps, `af6e9fb` privacy P1,
+  `ba8111c` privacy P2) — push только по команде владельца. Bootstrap `1dce48a` уже на origin.
+- Privacy P1/P2 done: force-redact loopback shims/remote, opt-out только direct Ollama,
+  guarded LLM path, PII до truncate, sanitized logs; **1159 passed**, ruff/contract ok; LLM off.
+- Bridge: relay v1.1 live PID 2284 cursor 1799; multi v1.1 live PASS both/unfrozen;
+  phone watch 13824 / daemon 13537 / serve 24786 / hb v3. Real once/reject drill — next real approval.
+- Open: menu 1866 (`Reaction fix live` / `Push deps` / `AGENTS docs commit` / `Пауза`);
+  `AGENTS.md` inline-menu rule committed `a7e0511` (no push); Dependabot rescan after push; Termux:Boot WARN,
+  ZCode blocked, Kimi heavy 524. Handoff: `C:\Users\HP\AppData\Local\Temp\opencode\HANDOFF_2026-10-25_spendtrack.md`.
+- 25.10 16:15 (laptop preflight): меню 1866 закрыто телефоном (`Reaction fix live` → watch 18875,
+  snapshot 153556); laptop-ветки `Push deps`/`AGENTS docs` не выбраны → пауза. Laptop live не тронут
+  (relay 2284 / daemon 13080 / responder 13128), approvals pending 0, LLM off; Go usage WARN.
+- 25.10 16:26 (owner `#both` sync): `bridge-ui-choice` закрыт — binding `message_id` + кейс 891
+  в `test_choice_relay.py`, bridge offline 5/5; push deps — меню 1875 (телефон), AGENTS commit — по tap.
+- 25.10 16:36 (owner tap 1875): docs commit без push — `a7e0511` AGENTS (inline-menu), этот срез
+  continue; tree clean; pytest 1159 passed (96.9 s), ruff/contract/audit ok. Push deps — отдельно.
+
 ## Статус (обновлено 23.10.2026)
 - Проект: трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx + Tailwind (offline-first ядро,
   LLM-шов только для остатка). Репозиторий: `D:\dev\personal\spend-tracker` (public,
