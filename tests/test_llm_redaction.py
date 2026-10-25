@@ -152,9 +152,59 @@ def test_redact_unicode_separators():
         assert redact(raw) == "[IBAN]"
 
 
+def test_redact_card_separators_and_grouping():
+    """v1.1: U+2011/точки и 6-6-4 не должны ломаться phone-правилом."""
+    for raw in (
+        "4111\u20111111\u20111111\u20111111",
+        "4111.1111.1111.1111",
+        "411111 916123 4568",
+    ):
+        out = redact(raw)
+        assert out == "[CARD]", (raw, out)
+        assert "[PHONE]" not in out
+
+
+def test_redact_dotted_account():
+    raw = "р/с 40817.810.0.1234.5678901"
+    out = redact(raw)
+    assert "[CARD]" in out and "40817" not in out, out
+
+
+def test_redact_iban_country_lengths_and_merchant_suffix():
+    for raw in (
+        "GB82 WEST 1234 5698 7654 32",
+        "NL91  ABNA 0417 1643 00",
+        "BE68 5390 0754 7034 UBER EATS",
+        "FR14 2004 1010 0505 0001 3M02 606",
+    ):
+        out = redact(raw)
+        assert "[IBAN]" in out, (raw, out)
+    out = redact("BE68 5390 0754 7034 UBER EATS")
+    assert out == "[IBAN] UBER EATS", out
+
+
+def test_redact_contact_formats_v11():
+    for raw in (
+        "+44 20 7946 0958",
+        "495 123-45-67",
+        "8 (916) 123.45.67",
+    ):
+        out = redact(raw)
+        assert "[PHONE]" in out, (raw, out)
+    out = redact("pay@пример.рф")
+    assert "[EMAIL]" in out, out
+
+
 def test_redact_false_positives():
-    for raw in ("12.09.2026", "ОПЛАТА 1 234,56", "ЗАКАЗ 12345", "LENTA 5"):
-        assert redact(raw) == raw
+    for raw in (
+        "12.09.2026",
+        "ОПЛАТА 1 234,56",
+        "ЗАКАЗ 12345",
+        "LENTA 5",
+        "LENTA 2026-09-12 12 345,67",
+        "SHOP 2026-09-12 123456789012",
+    ):
+        assert redact(raw) == raw, (raw, redact(raw))
 
 
 def test_redact_idempotent():
