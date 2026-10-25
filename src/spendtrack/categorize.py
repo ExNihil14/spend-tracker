@@ -5,9 +5,9 @@ import logging
 import math
 
 from spendtrack.config import load_settings
-from spendtrack.llm import call_llm, parse_llm_json
-from spendtrack.prompts import build_system_prompt, build_user_prompt
-from spendtrack.redact import redact
+from spendtrack.llm import call_llm, parse_llm_json, resolve_providers
+from spendtrack.prompts import _build_system_prompt, _build_user_prompt
+from spendtrack.redact import redact, redaction_enabled
 from spendtrack.store import Store
 from spendtrack.taxonomy import Taxonomy
 
@@ -54,11 +54,28 @@ def categorize_rules_only(tx: dict, taxonomy: Taxonomy, store: Store) -> str | N
     return None
 
 
+def _allow_raw_prompt() -> bool:
+    """Raw prompt только при opt-out И полностью локальной цепочке Ollama (no egress).
+
+    Loopback-шимы и удалённые провайдеры могут форвардить payload; для них builder
+    маскирует PII до truncate, чтобы фрагменты не утекали на границе 300/80 символов.
+    """
+    if redaction_enabled():
+        return False
+    try:
+        providers = resolve_providers()
+    except Exception:  # fail-closed: любая ошибка конфигурации = redact
+        logger.debug("allow_raw_prompt: resolve_providers failed", exc_info=True)
+        return False
+    return bool(providers) and all(p.local and p.source == "ollama" for p in providers)
+
+
 def categorize_llm(tx: dict, store: Store, taxonomy: Taxonomy) -> dict:
     """Step 2: LLM-классификация. Возвращает {'category', 'confidence', 'merchant', 'reason', 'source'}."""
     examples = store.list_examples()
-    system_prompt = build_system_prompt(examples, taxonomy)
-    user_prompt = build_user_prompt(tx)
+    allow_raw = _allow_raw_prompt()
+    system_prompt = _build_system_prompt(examples, taxonomy, allow_raw)
+    user_prompt = _build_user_prompt(tx, allow_raw)
 
     llm_result = call_llm(system_prompt, user_prompt, max_tokens=400)
     parsed = parse_llm_json(llm_result["content"])

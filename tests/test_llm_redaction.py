@@ -100,6 +100,63 @@ def test_remote_llm_forces_redaction_even_with_opt_out(monkeypatch):
     assert "916" not in payload and "[PHONE]" in payload
 
 
+def test_loopback_shim_forces_redaction_with_opt_out(monkeypatch):
+    """P1 25.10: loopback shim может egress; opt-out не должен снимать redaction."""
+    from unittest.mock import MagicMock, patch
+
+    from spendtrack import llm as llm_mod
+    from spendtrack.llm import LLMProvider
+
+    monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
+    captured = {}
+    resp = MagicMock()
+    resp.choices[0].message.content = '{"category":"other","confidence":0.0}'
+
+    def fake_openai(base_url, api_key="", timeout=20.0, max_retries=None):
+        mock = MagicMock()
+        mock.chat.completions.create = lambda **kw: captured.update(kw) or resp
+        return mock
+
+    monkeypatch.setattr(
+        llm_mod, "resolve_providers",
+        lambda cfg=None: (LLMProvider("http://127.0.0.1:3201/v1", "m", "no-key",
+                                      "primary", True),),
+    )
+    with patch.object(llm_mod, "OpenAI", fake_openai):
+        llm_mod.call_llm("system 4276 1234 5678 9010", "user +7 916 123-45-67", max_tokens=10)
+    payload = "\n".join(m["content"] for m in captured["messages"])
+    assert "4276" not in payload and "[CARD]" in payload
+    assert "916" not in payload and "[PHONE]" in payload
+
+
+def test_direct_ollama_opt_out_keeps_raw(monkeypatch):
+    """Opt-out сохраняется только для прямого Ollama (no egress)."""
+    from unittest.mock import MagicMock, patch
+
+    from spendtrack import llm as llm_mod
+    from spendtrack.llm import LLMProvider
+
+    monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
+    captured = {}
+    resp = MagicMock()
+    resp.choices[0].message.content = '{"category":"other","confidence":0.0}'
+
+    def fake_openai(base_url, api_key="", timeout=20.0, max_retries=None):
+        mock = MagicMock()
+        mock.chat.completions.create = lambda **kw: captured.update(kw) or resp
+        return mock
+
+    monkeypatch.setattr(
+        llm_mod, "resolve_providers",
+        lambda cfg=None: (LLMProvider("http://127.0.0.1:11434/v1", "m", "no-key",
+                                      "ollama", True),),
+    )
+    with patch.object(llm_mod, "OpenAI", fake_openai):
+        llm_mod.call_llm("system 4276 1234 5678 9010", "user +7 916 123-45-67", max_tokens=10)
+    payload = "\n".join(m["content"] for m in captured["messages"])
+    assert "4276" in payload and "916" in payload
+
+
 def test_redact_iban_and_account():
     for raw in ("BY12 ALFA 3012 3456 7890 1234", "BY12ALFA3012345678901234"):
         out = redact(raw)

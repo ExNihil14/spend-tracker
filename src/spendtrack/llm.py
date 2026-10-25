@@ -257,10 +257,12 @@ def call_llm(
         try:
             # S1 (ревью 28.09): SDK-ретраи выключены — повторы делает цепочка провайдеров + брейкер,
             # иначе один провайдер = до 3 запросов × timeout и «тройной» износ лимитов free-канала.
-            # Опт-аут redaction (`SPENDTRACK_LLM_REDACT=0`) допустим только для локального контура:
-            # удалённый канал всегда получает очищенный payload, даже если builder его пропустил.
-            outbound_system = system_prompt if provider.local else redact(system_prompt)
-            outbound_user = user_prompt if provider.local else redact(user_prompt)
+            # Опт-аут redaction (`SPENDTRACK_LLM_REDACT=0`) допустим только для доверенного
+            # прямого local-инференса (ollama). Loopback-шимы могут форвардить payload
+            # наружу, поэтому им opt-out не доверяем; удалённые провайдеры — всегда redact.
+            raw_local = provider.local and provider.source == "ollama"
+            outbound_system = system_prompt if raw_local else redact(system_prompt)
+            outbound_user = user_prompt if raw_local else redact(user_prompt)
             client = OpenAI(base_url=provider.base_url, api_key=provider.api_key,
                             timeout=REQUEST_TIMEOUT_S, max_retries=0)
             try:

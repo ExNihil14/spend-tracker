@@ -260,3 +260,48 @@ def test_pending_keeps_original_merchant(store, taxonomy):
     result = classify_with_injectable(_tx(desc="БАНК МЕРЧАНТ"), taxonomy, store, llm, 0.9)
     assert result["review_status"] == "pending"
     assert result["merchant"] == "БАНК МЕРЧАНТ"
+
+
+def test_allow_raw_prompt_only_for_all_ollama(monkeypatch):
+    """P1 25.10: opt-out на raw prompt допустим только для полностью локальной Ollama-цепочки."""
+    from spendtrack.llm import LLMProvider
+
+    monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
+    monkeypatch.setattr(categorize, "resolve_providers", lambda: (
+        LLMProvider("http://127.0.0.1:11434/v1", "m", "no-key", "ollama", True),
+    ))
+    assert categorize._allow_raw_prompt() is True
+
+    monkeypatch.setattr(categorize, "resolve_providers", lambda: (
+        LLMProvider("http://127.0.0.1:3201/v1", "m", "no-key", "primary", True),
+    ))
+    assert categorize._allow_raw_prompt() is False
+
+    monkeypatch.setattr(categorize, "resolve_providers", lambda: (
+        LLMProvider("http://127.0.0.1:11434/v1", "m", "no-key", "ollama", True),
+        LLMProvider("https://remote.example/v1", "m", "k", "fallback", False),
+    ))
+    assert categorize._allow_raw_prompt() is False
+
+
+def test_remote_opt_out_redacts_before_truncate(monkeypatch, store, taxonomy):
+    """P1 25.10: для remote/шима PII маскируется до truncate, фрагмент карты не утекает."""
+    from spendtrack.llm import LLMProvider
+
+    monkeypatch.setenv("SPENDTRACK_LLM_REDACT", "0")
+    monkeypatch.setattr(categorize, "resolve_providers", lambda: (
+        LLMProvider("https://remote.example/v1", "m", "k", "primary", False),
+    ))
+    captured = {}
+
+    def fake_call(system, user, max_tokens=400):
+        captured["user"] = user
+        return {"content": '{"category":"other","confidence":0.0}',
+                "model": "test", "source": "test"}
+
+    monkeypatch.setattr(categorize, "call_llm", fake_call)
+    secret = "A" * 295 + "4276123456789010"
+    categorize.categorize_llm(_tx(desc=secret), store, taxonomy)
+    assert "4276" not in captured["user"]
+    assert "9010" not in captured["user"]
+    assert "[CAR" in captured["user"]
