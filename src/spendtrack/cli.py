@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 import sys
 import time
+from dataclasses import replace
 from datetime import date
 from decimal import InvalidOperation
 from pathlib import Path
@@ -88,6 +90,42 @@ def cmd_import(args) -> int:
     else:
         print(f"Импорт: {summarize(result)}")
     return 1 if result["status"] == "format_error" else 0
+
+
+def cmd_ask(args) -> int:
+    """Deterministic advisor: template-first; no LLM calls in C5."""
+    from spendtrack.advisor.facts import build_facts, parse_period
+    from spendtrack.advisor.llm import ask as advisor_ask
+    from spendtrack.advisor.slots import parse_slots
+
+    today = date.today()  # noqa: DTZ011 - локальная календарная дата для периода
+    question = " ".join(args.question).strip()
+    if not question:
+        print("ask: пустой вопрос", file=sys.stderr)
+        return 2
+    period = None
+    if args.month:
+        if not re.fullmatch(r"\d{4}-\d{2}", args.month or ""):
+            print("ask: --month ожидается YYYY-MM", file=sys.stderr)
+            return 2
+        period = parse_period(args.month, today)
+        if period is None:
+            print("ask: некорректный --month", file=sys.stderr)
+            return 2
+    store = make_store()
+    tx = load_taxonomy()
+    slots = parse_slots(question, today, tx)
+    if period is not None:
+        slots = replace(slots, period=period)
+    facts = build_facts(store, slots.period, tx, today)
+    result = advisor_ask(question, facts, slots, llm=None, taxonomy=tx, today=today)
+    if args.json:
+        print(json.dumps({"intent": result.intent, "period": facts["period"],
+                          "answer": result.text, "facts": facts},
+                         ensure_ascii=False))
+    else:
+        print(result.text)
+    return 3 if result.intent == "ask_back" else 0
 
 
 def cmd_report(args) -> int:
@@ -551,6 +589,15 @@ def main(argv: list[str] | None = None) -> int:
     a_an.add_argument("--anon-column", action="append", default=[],
                       help="доп. колонка для обезличивания (можно повторять)")
     a_an.set_defaults(fn=cmd_anonymize)
+
+    a_ask = sub.add_parser("ask", help="вопрос по расходам (агрегаты, offline)")
+    a_ask.add_argument("question", nargs="+")
+    a_ask.add_argument("--month", default=None,
+                       help="YYYY-MM (переопределяет период вопроса)")
+    a_ask.add_argument("--json", action="store_true", help="машинный JSON")
+    a_ask.add_argument("--no-llm", action="store_true",
+                       help="только шаблоны (LLM не вызывается)")
+    a_ask.set_defaults(fn=cmd_ask)
 
     a_rp = sub.add_parser("report")
     a_rp.add_argument("--month", default=None)

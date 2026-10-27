@@ -1,5 +1,129 @@
 {
  "api": {
+  "spendtrack.advisor.answer:Answer.__decorators__": {
+   "args": "@dataclass(frozen=True)",
+   "returns": ""
+  },
+  "spendtrack.advisor.answer:Answer.facts_used": {
+   "args": "tuple[str, ...] = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.answer:Answer.intent": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.answer:Answer.text": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.answer:answer": {
+   "args": "facts: dict, slots: Slots, taxonomy: Taxonomy | None=None, today: date | None=None",
+   "returns": "Answer"
+  },
+  "spendtrack.advisor.answer:plural_ru": {
+   "args": "n: int, one: str, few: str, many: str",
+   "returns": "str"
+  },
+  "spendtrack.advisor.facts:Period.__decorators__": {
+   "args": "@dataclass(frozen=True)",
+   "returns": ""
+  },
+  "spendtrack.advisor.facts:Period.end": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.facts:Period.label": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.facts:Period.month": {
+   "args": "str | None = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.facts:Period.start": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.facts:build_facts": {
+   "args": "store: Store, period: Period, taxonomy: Taxonomy | None=None, today: date | None=None",
+   "returns": "dict"
+  },
+  "spendtrack.advisor.facts:parse_period": {
+   "args": "text: str, today: date",
+   "returns": "Period | None"
+  },
+  "spendtrack.advisor.facts:validate_facts": {
+   "args": "facts: dict, taxonomy: Taxonomy | None=None",
+   "returns": "None"
+  },
+  "spendtrack.advisor.llm:Redaction.__decorators__": {
+   "args": "@dataclass(frozen=True)",
+   "returns": ""
+  },
+  "spendtrack.advisor.llm:Redaction.hit": {
+   "args": "bool = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.llm:Redaction.reasons": {
+   "args": "tuple[str, ...] = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.llm:Redaction.text": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.llm:ask": {
+   "args": "question: str, facts: dict, slots: Slots, llm: Callable[[str], str] | None=None, taxonomy: Taxonomy | None=None, today: date | None=None, known_tokens: tuple[str, ...]=()",
+   "returns": "Answer"
+  },
+  "spendtrack.advisor.llm:redact_question": {
+   "args": "text: str, known_tokens: tuple[str, ...]=()",
+   "returns": "Redaction"
+  },
+  "spendtrack.advisor.slots:METRICS": {
+   "args": "('total', 'category', 'budget', 'trend', 'top', 'unknown')",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:Slots.__decorators__": {
+   "args": "@dataclass(frozen=True)",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:Slots.ask_back": {
+   "args": "str | None = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:Slots.category": {
+   "args": "str | None = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:Slots.compare": {
+   "args": "bool = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:Slots.metric": {
+   "args": "str = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:Slots.period": {
+   "args": "Period = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:Slots.top_n": {
+   "args": "int = ",
+   "returns": ""
+  },
+  "spendtrack.advisor.slots:category_aliases": {
+   "args": "taxonomy: Taxonomy",
+   "returns": "dict[str, set[str]]"
+  },
+  "spendtrack.advisor.slots:parse_slot_payload": {
+   "args": "payload: object, taxonomy: Taxonomy",
+   "returns": "dict | None"
+  },
+  "spendtrack.advisor.slots:parse_slots": {
+   "args": "text: str, today: date, taxonomy: Taxonomy",
+   "returns": "Slots"
+  },
   "spendtrack.anonymize:ACCOUNT_ALIASES": {
    "args": "{'номер карты', 'номер счёта', 'номер счета', 'карта', 'счёт', 'счет', 'account'}",
    "returns": ""
@@ -149,6 +273,10 @@
    "returns": "int"
   },
   "spendtrack.cli:cmd_anonymize": {
+   "args": "args",
+   "returns": "int"
+  },
+  "spendtrack.cli:cmd_ask": {
    "args": "args",
    "returns": "int"
   },
