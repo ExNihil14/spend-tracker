@@ -5,6 +5,14 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
+## 27.10.2026 (bridge v1.2.5 live; close v1.2)
+- Laptop: oc-tg `d7caa0f5` + relay `12c045cb` (v1.2.5) live, relay PID 9852; paged 11 + legacy 3 live PASS.
+- Phone: v1.2.2 live (watch 19500 / `de685912`); daemon 13537 / serve 24786 untouched; partner-only ACK silent.
+- Wire cross-check v1.2.3<->v1.2.1 PASS; protocol addendum in `D:\dev\docs\machine\MULTI_CHOICE_PROTOCOL.md`.
+- Bootstrap repo pushed: `1dce48a..2f20dfd` (`b54ef51` bridge, `47c5846` watch, `2f20dfd` abacus); worktree clean.
+- v1.2.6 offline: dead `PAGINATION_ENABLED` removed + tests updated (not deployed; live stays v1.2.5).
+- Pending: owner stale tap on menu 2061; Phase C (LLM advisor) next product step; real approval drill; docs commit.
+
 ## Срез 25.10.2026 (privacy finish)
 - HEAD `ba8111c`; origin/main `01d0af2`; **ahead 3** (`9a5630b` deps, `af6e9fb` privacy P1,
   `ba8111c` privacy P2) — push только по команде владельца. Bootstrap `1dce48a` уже на origin.
