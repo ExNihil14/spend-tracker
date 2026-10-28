@@ -30,12 +30,16 @@ class Redaction:
 
 
 def redact_question(text: str, known_tokens: tuple[str, ...] = ()) -> Redaction:
-    """Remove long digit runs and locally known merchant/description strings."""
+    """Remove long digit runs, grouped phone spans and locally known merchant/description strings."""
     out = text or ""
     reasons = []
     cleaned = re.sub(r"\d{4,}", "<num>", out)
     if cleaned != out:
         reasons.append("digits")
+    grouped_phone = re.sub(r"(?<!\d)(?:\+?\d[\s().-]?){7,}\d(?!\d)", "<phone>", cleaned)
+    if grouped_phone != cleaned:
+        cleaned = grouped_phone
+        reasons.append("phone")
     for token in sorted((t for t in known_tokens if t), key=len, reverse=True):
         pattern = r"(?<!\w)" + re.escape(token) + r"(?!\w)"
         if re.search(pattern, cleaned, flags=re.IGNORECASE):
@@ -91,12 +95,17 @@ def _add_compare(allowed: set[str], cmp_: dict) -> None:
         allowed |= _amount_forms(cmp_["total"])
     if cmp_.get("label"):
         allowed.add(str(cmp_["label"]))
+    for d in cmp_.get("daily") or []:
+        _add_daily(allowed, d)
 
 
 def _allowed_numbers(facts: dict) -> set[str]:
     allowed: set[str] = set()
     allowed |= _amount_forms(facts["total"])
     allowed.add(str(facts["tx_count"]))
+    excluded = facts.get("excluded_foreign") or {}
+    if "count" in excluded:
+        allowed.add(str(excluded["count"]))
     for c in facts.get("categories") or []:
         _add_category(allowed, c)
     for b in facts.get("budgets") or []:
@@ -110,18 +119,33 @@ def _allowed_numbers(facts: dict) -> set[str]:
 
 def _numbers_ok(text: str, facts: dict) -> bool:
     allowed = _allowed_numbers(facts)
-    return all(n in allowed for n in re.findall(r"\d+(?:[.,]\d+)?", text or ""))
+    text = (text or "").replace("−", "-")
+    iso_tokens = re.findall(r"(?<!\d)\d{4}-\d{2}(?:-\d{2})?(?!\d)", text)
+    if any(token not in allowed for token in iso_tokens):
+        return False
+    text = re.sub(r"(?<!\d)\d{4}-\d{2}(?:-\d{2})?(?!\d)", " ", text)
+    if re.search(r"\d[\d.,]*[eE][+-]?\d+", text):
+        return False
+    return all(n in allowed for n in re.findall(r"[+-]?\d+(?:[.,]\d+)?", text))
 
 
 def ask(question: str, facts: dict, slots: Slots,
         llm: Callable[[str], str] | None = None,
         taxonomy: Taxonomy | None = None,
         today: date | None = None,
-        known_tokens: tuple[str, ...] = ()) -> Answer:
-    """Template-first answer; free-form LLM only when explicitly injected and safe."""
+        known_tokens: tuple[str, ...] | None = None) -> Answer:
+    """Template-first answer; free-form LLM only when explicitly injected and safe.
+
+    ``known_tokens`` must be supplied by the caller when an LLM is injected (fail closed on
+    ``None``); the CLI/C5 path uses ``llm=None`` and is unaffected.
+    """
     tx = taxonomy or load_taxonomy()
     template = answer(facts, slots, tx, today)
+    if slots.ask_back is not None:
+        return template
     if llm is None:
+        return template
+    if known_tokens is None:
         return template
     red = redact_question(question, known_tokens)
     if red.hit:
