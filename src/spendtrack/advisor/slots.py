@@ -96,10 +96,11 @@ def _top_n(t: str) -> tuple[int, str | None]:
     return n, None
 
 
-def parse_slots(text: str, today: date, taxonomy: Taxonomy) -> Slots:
-    """Deterministic slot fill; returns ask_back instead of raising."""
+def _parse_slots(text: str, today: date, taxonomy: Taxonomy,
+                 period_override: Period | None = None) -> Slots:
+    """Internal parser; a CLI ``--month`` override resolves the period before slot parsing."""
     t = _norm(text)
-    period = parse_period(t, today)
+    period = period_override or parse_period(t, today)
     if period is None:
         hinted = _has(t, _PERIOD_HINT) or re.search(r"\b\d{4}-\d{2}\b", t)
         if hinted:
@@ -118,6 +119,11 @@ def parse_slots(text: str, today: date, taxonomy: Taxonomy) -> Slots:
     compare = _has(t, _COMPARE_WORDS)
     ask_back = "unknown" if metric == "unknown" else None
     return Slots(period, metric, category, top_n, compare, ask_back)
+
+
+def parse_slots(text: str, today: date, taxonomy: Taxonomy) -> Slots:
+    """Deterministic slot fill; returns ask_back instead of raising."""
+    return _parse_slots(text, today, taxonomy)
 
 
 def parse_slot_payload(payload: object, taxonomy: Taxonomy) -> dict | None:

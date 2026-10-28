@@ -48,6 +48,23 @@ def test_ask_invalid_month(store, capsys, month):
     assert rc == 2
 
 
+def test_ask_month_resolves_period_ask_back(store, capsys):
+    store.add_transaction("2026-09-05", "x", -50_000, "restaurants", "rule")
+    rc = main(["ask", "сколько потратил за последние 0 дней?", "--month", "2026-09", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0 and payload["period"]["month"] == "2026-09"
+    assert payload["intent"] == "total"
+    # non-period ask-back reasons are preserved
+    assert main(["ask", "топ-20 категорий", "--month", "2026-09"]) == 3
+
+
+def test_ask_empty_month_exits_2(monkeypatch, capsys):
+    called = []
+    monkeypatch.setattr("spendtrack.cli.make_store", lambda: called.append(1))
+    rc = main(["ask", "сколько потратил", "--month", ""])
+    assert rc == 2 and called == []
+
+
 def test_ask_unknown_ask_back(store, capsys):
     rc = main(["ask", "что происходит?"])
     out = capsys.readouterr().out

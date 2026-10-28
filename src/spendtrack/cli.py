@@ -6,7 +6,6 @@ import re
 import sqlite3
 import sys
 import time
-from dataclasses import replace
 from datetime import date
 from decimal import InvalidOperation
 from pathlib import Path
@@ -96,7 +95,7 @@ def cmd_ask(args) -> int:
     """Deterministic advisor: template-first; no LLM calls in C5."""
     from spendtrack.advisor.facts import build_facts, parse_period
     from spendtrack.advisor.llm import ask as advisor_ask
-    from spendtrack.advisor.slots import parse_slots
+    from spendtrack.advisor.slots import _parse_slots
 
     today = date.today()  # noqa: DTZ011 - локальная календарная дата для периода
     question = " ".join(args.question).strip()
@@ -104,8 +103,8 @@ def cmd_ask(args) -> int:
         print("ask: пустой вопрос", file=sys.stderr)
         return 2
     period = None
-    if args.month:
-        if not re.fullmatch(r"\d{4}-\d{2}", args.month or ""):
+    if args.month is not None:
+        if not re.fullmatch(r"\d{4}-\d{2}", args.month):
             print("ask: --month ожидается YYYY-MM", file=sys.stderr)
             return 2
         period = parse_period(args.month, today)
@@ -114,9 +113,7 @@ def cmd_ask(args) -> int:
             return 2
     store = make_store()
     tx = load_taxonomy()
-    slots = parse_slots(question, today, tx)
-    if period is not None:
-        slots = replace(slots, period=period)
+    slots = _parse_slots(question, today, tx, period_override=period)
     facts = build_facts(store, slots.period, tx, today)
     result = advisor_ask(question, facts, slots, llm=None, taxonomy=tx, today=today)
     if args.json:
