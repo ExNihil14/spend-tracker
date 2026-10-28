@@ -5,6 +5,50 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
+## 28.10.2026 (Phase C implementation + AgentRouter review package)
+- Phase C C1–C5 offline: commit `a75211f` (facts/slots/answer/llm + `spendtrack ask`), **72 advisor tests**
+  / 1231 suite, ruff clean; live v1.2.5 unchanged; v1.2.6 offline.
+- AgentRouter review requests prepared: `D:\dev\docs\machine\agentrouter_review\2026-10-28-phasec-impl`
+  (3 canonical packets: facts/allow-list, slots+templates, LLM/CLI; plus a derived combined prompt).
+  Exclusions: Opus design P1/P2 (spec v2), bridge v1.2.6/autostart, live LLM, optional slot fallback;
+  phone's 2 lean drafts reconciled as reference (no parallel POST).
+- Owner menu **2293**: sol primary, canary → one heavy combined POST; astra no. **Canary 28.10 15:55
+  timed out** (`ReadTimeout` 300 s, HTTP none, usage `{}`, chars 0, no out); **heavy not sent**, no
+  retry/fallback; `BLOCKED`; result `...\2026-10-28-phasec-impl\RESULT.md`.
+- Owner menu **2297**: astra burst; canary astra **ok** (HTTP 200, 4 s, 2 chars, usage 14/26/40);
+  heavy `prompt_llm_cli.md` (PC-3-LLM-CLI, 38,885 B; combined 130 KB over 110 KB input hard, not
+  sent) → HTTP 200 + in-stream `rate_limit_exceeded`, 2 s, chars 0, usage `{}`, no out; **STOP**,
+  no retry/fallback, sol not launched; `ack` read.mark=2299.
+- Owner menu **2302**: split into 7 self-contained parts (facts 3 / slots 2 / LLM-CLI 2; 18.6–28.1 KB);
+  canary 16:06 reused, 3-min gap. Part 1 `01_llm_a` **ok, FIX-FIRST** (input 8,013; output 15,194;
+  387 s; chars 5,498); part 2 `02_llm_b` HTTP 200 + in-stream `rate_limit_exceeded` (8 s, 0 chars);
+  **STOP**, parts 03–07 not sent; `ack` 2303; details `...\RESULT.md`, `split/`.
+- Part 1 adjudication (phone 16:30): **accept 5/5**, reject 0; fixes offline in order P1-11 → P1-03 →
+  P1-12a → P2; copied to `ADJUDICATION_part1.md` (sha `0af24026…`); **no code/POST**; owner menu
+  pending (fix offline / fix+arm 22:00 / pause).
+- Owner menu **2312**: fix part 1 offline — **applied all 5** in `advisor/llm.py` + tests; 23 LLM /
+  **85 advisor** / **1244 full** passed; ruff clean; patch `part1_fixes.patch`. Residual:
+  `contract_delta` **DRIFT** (`known_tokens` default `()` → `None`); baseline snapshot blocked by
+  safety-gate (owner `/careful`); no commit/push/live/POST. Parts 02–07 unreviewed.
+- Owner menu **2317** accepted the delta; snapshot retried and **still blocked** by safety-gate
+  (`/careful`); baseline unchanged (sha `CF53327E…`); `CONTRACT_DELTA_REPORT.md`; 1244 full / 85
+  advisor passed, ruff clean.
+- Owner menu **2324**: **leave DRIFT deliberately**; baseline untouched; no snapshot; **Part 1 closed**;
+  parts 02–07 unreviewed; addendum `ADJUDICATION_part1_owner.md`; no new POST.
+- Owner **20:58**: continue AgentRouter; **armed 22:00 MSK** for parts 02–07 (6 POSTs), canary once,
+  180 s gap, attempts=1, no retry/fallback/sol; stop on first failure. Part 02 refreshed with post-fix
+  tests; `out/arm2200_status.json`; no commit.
+- Arm 22:00: canary ok; **part 02 GO** (input 7,553; output 13,299; 375 s; chars 4,236; 2 P2:
+  `--month`/`ask_back`, empty `--month`); **part 03 ReadTimeout** (~24.5 min, no out); parts 04–07
+  not sent; 3 POSTs; no retry/fallback/sol; no code/live/LLM/DB.
+- Part 02 adjudication: **accept 2 P2**, defer `REG-PC-D-13`; `ADJUDICATION_part2.md` (sha
+  `0976144a…`); no code/POST; owner menu pending (fix offline / defer / pause).
+- Part 2 P2 fixes (menu 2347): **2/2 applied**; `_parse_slots(..., period_override)` private helper
+  (public signature unchanged); empty `--month` exit 2 before store; **87 advisor / 1246 full**,
+  ruff clean; patch `part2_fixes.patch`; D-13 deferred; no commit/live/POST.
+- Next: owner decision on a new slot/retry or a different channel → then adjudicate (`ADJUDICATION.md`,
+  red test first); live LLM wiring not started; v1.2.6 deploy not requested.
+
 ## 27.10.2026 (bridge v1.2.5 live; close v1.2)
 - Laptop: oc-tg `d7caa0f5` + relay `12c045cb` (v1.2.5) live, relay PID 9852; paged 11 + legacy 3 live PASS.
 - Phone: v1.2.2 live (watch 19500 / `de685912`); daemon 13537 / serve 24786 untouched; partner-only ACK silent.
