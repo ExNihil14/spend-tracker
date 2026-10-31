@@ -14,11 +14,12 @@ __all__ = ["Slots", "category_aliases", "parse_slot_payload", "parse_slots"]
 METRICS = ("total", "category", "budget", "trend", "top", "unknown")
 
 _BUDGET_WORDS = ("бюджет", "перерасход", "лимит")
-_TREND_WORDS = ("тренд", "динамик", "средн", "по дням")
-_TOP_WORDS = ("топ", "больше всего", "крупн")
+_TREND_RE = re.compile(r"(?<!\w)(?:тренд\w*|динамик\w*|средн\w*|по дням)(?!\w)")
+_TOP_RE = re.compile(r"(?<!\w)топ(?!\w)|(?<!\w)больше всего|(?<!\w)крупн")
 _TOTAL_WORDS = ("сколько", "потрат", "расход", "итог", "всего")
 _COMPARE_WORDS = ("сравн", "к прошл", "динамик", "тренд")
-_PERIOD_HINT = ("последн", "месяц", "дн")
+_PERIOD_HINT_RE = re.compile(
+    r"(?<!\w)(?:последн\w*|месяц\w*|дн(?:ей|я|и|\.)?|день)(?!\w)")
 
 
 @dataclass(frozen=True)
@@ -39,7 +40,7 @@ def category_aliases(taxonomy: Taxonomy) -> dict[str, set[str]]:
     """alias -> set(canonical names); the caller rejects collisions for matching."""
     out: dict[str, set[str]] = {}
     for c in taxonomy.categories:
-        forms = {c.name.replace("-", " "), _norm(c.display_name)}
+        forms = {c.name.replace("-", " "), _norm(c.name), _norm(c.display_name)}
         for part in re.split(r",| и |/", _norm(c.display_name)):
             part = part.strip()
             if part:
@@ -53,7 +54,7 @@ def category_aliases(taxonomy: Taxonomy) -> dict[str, set[str]]:
 def _match_category(text: str, taxonomy: Taxonomy) -> tuple[str | None, bool]:
     """(category, ambiguous) — longest alias first, word boundaries."""
     aliases = category_aliases(taxonomy)
-    for form in sorted(aliases, key=len, reverse=True):
+    for form in sorted(aliases, key=lambda f: (-len(f), f)):
         if re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text):
             names = aliases[form]
             if len(names) > 1:
@@ -75,9 +76,9 @@ def _default_period(today: date) -> Period:
 def _metric(t: str, category: str | None) -> str:
     if _has(t, _BUDGET_WORDS):
         return "budget"
-    if _has(t, _TREND_WORDS):
+    if _TREND_RE.search(t):
         return "trend"
-    if _has(t, _TOP_WORDS):
+    if _TOP_RE.search(t):
         return "top"
     if category is not None:
         return "category"
@@ -102,7 +103,7 @@ def _parse_slots(text: str, today: date, taxonomy: Taxonomy,
     t = _norm(text)
     period = period_override or parse_period(t, today)
     if period is None:
-        hinted = _has(t, _PERIOD_HINT) or re.search(r"\b\d{4}-\d{2}\b", t)
+        hinted = _PERIOD_HINT_RE.search(t) or re.search(r"\b\d{4}-\d{2}\b", t)
         if hinted:
             return Slots(_default_period(today), "unknown", None, 3, False, "period")
         period = _default_period(today)

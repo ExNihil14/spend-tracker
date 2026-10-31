@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from datetime import date
 
 import pytest
@@ -93,3 +96,56 @@ def test_slots_carry_no_raw_text(taxonomy):
     assert set(Slots.__dataclass_fields__) == {
         "period", "metric", "category", "top_n", "compare", "ask_back"}
     assert "SENTINEL_MERCHANT_7f3a" not in repr(s)
+
+
+def test_fuel_category_is_not_top(taxonomy):
+    s = parse_slots("сколько потратил на топливо за этот месяц?", TODAY, taxonomy)
+    assert s.metric == "category" and s.category == "fuel"
+    assert s.ask_back is None
+
+
+def test_agent_noun_is_not_trend():
+    tx = Taxonomy([Category("services", "#111111", "Услуги посредника")], [])
+    s = parse_slots("Сколько потратил на услуги посредника в этом месяце?", TODAY, tx)
+    assert s.metric == "category" and s.category == "services"
+    assert s.ask_back is None
+
+
+def test_hyphenated_canonical_name_matches():
+    tx = Taxonomy([Category("fast-food", "#111111", "Фастфуд")], [])
+    s = parse_slots("сколько потратил на fast-food?", TODAY, tx)
+    assert s.metric == "category" and s.category == "fast-food"
+
+
+def test_equal_length_alias_tie_is_hash_seed_stable():
+    code = r"""
+from datetime import date
+from spendtrack.advisor.slots import parse_slots
+from spendtrack.taxonomy import Category, Taxonomy
+
+tx = Taxonomy([
+    Category("cafes", "#111111", "кафе"),
+    Category("leisure", "#222222", "кафе"),
+    Category("cinema", "#333333", "кино"),
+], [])
+print(repr(parse_slots("сколько на кафе, кино", date(2026, 10, 10), tx)))
+"""
+    outputs = []
+    for seed in ("1", "2", "3"):
+        env = os.environ.copy()
+        env["PYTHONHASHSEED"] = seed
+        env["PYTHONIOENCODING"] = "utf-8"
+        proc = subprocess.run(
+            [sys.executable, "-c", code], env=env, capture_output=True, text=True, check=True)
+        outputs.append(proc.stdout.strip())
+    assert len(set(outputs)) == 1, outputs
+    assert "ambiguous_category" in outputs[0]
+
+
+def test_period_hint_does_not_match_substrings(taxonomy):
+    avg = parse_slots("Какой средний расход?", TODAY, taxonomy)
+    assert avg.metric == "trend" and avg.ask_back is None
+    assert avg.period.month == "2026-10"
+
+    total = parse_slots("Сколько всего потратил? Ответь одной строкой.", TODAY, taxonomy)
+    assert total.metric == "total" and total.ask_back is None

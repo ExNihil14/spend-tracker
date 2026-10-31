@@ -33,7 +33,7 @@ def redact_question(text: str, known_tokens: tuple[str, ...] = ()) -> Redaction:
     """Remove long digit runs, grouped phone spans and locally known merchant/description strings."""
     out = text or ""
     reasons = []
-    cleaned = re.sub(r"\d{4,}", "<num>", out)
+    cleaned = re.sub(r"(?<![\d-])\d{4,}(?![\d-])", "<num>", out)
     if cleaned != out:
         reasons.append("digits")
     grouped_phone = re.sub(r"(?<!\d)(?:\+?\d[\s().-]?){7,}\d(?!\d)", "<phone>", cleaned)
@@ -41,7 +41,7 @@ def redact_question(text: str, known_tokens: tuple[str, ...] = ()) -> Redaction:
         cleaned = grouped_phone
         reasons.append("phone")
     for token in sorted((t for t in known_tokens if t), key=len, reverse=True):
-        pattern = r"(?<!\w)" + re.escape(token) + r"(?!\w)"
+        pattern = r"(?<![^\W_])" + re.escape(token) + r"(?![^\W_])"
         if re.search(pattern, cleaned, flags=re.IGNORECASE):
             cleaned = re.sub(pattern, "<merchant>", cleaned, flags=re.IGNORECASE)
             reasons.append("merchant")
@@ -126,7 +126,11 @@ def _numbers_ok(text: str, facts: dict) -> bool:
     text = re.sub(r"(?<!\d)\d{4}-\d{2}(?:-\d{2})?(?!\d)", " ", text)
     if re.search(r"\d[\d.,]*[eE][+-]?\d+", text):
         return False
-    return all(n in allowed for n in re.findall(r"[+-]?\d+(?:[.,]\d+)?", text))
+    numbers = re.findall(r"[+-]?\d+(?:[.,]\d+)?", text)
+    if not numbers:
+        low = (text or "").lower()
+        return not re.search(r"руб|₽|процент|%|трат|потрат", low)
+    return all(n in allowed for n in numbers)
 
 
 def ask(question: str, facts: dict, slots: Slots,
@@ -143,13 +147,14 @@ def ask(question: str, facts: dict, slots: Slots,
     template = answer(facts, slots, tx, today)
     if slots.ask_back is not None:
         return template
+    if known_tokens is not None:
+        red = redact_question(question, known_tokens)
+        if red.hit:
+            return Answer(_REFUSAL, "refusal", ())
     if llm is None:
         return template
     if known_tokens is None:
         return template
-    red = redact_question(question, known_tokens)
-    if red.hit:
-        return Answer(_REFUSAL, "refusal", ())
     if not _needs_freeform(question, slots):
         return template
     try:

@@ -39,6 +39,13 @@ def test_parse_period_last_days():
     assert p.month is None and p.start == "2026-09-28" and p.end == "2026-10-27"
 
 
+def test_parse_period_named_month_with_explicit_year():
+    p = parse_period("в мае 2025", today=date(2026, 10, 27))
+    assert p is not None and p.month == "2025-05"
+    p2 = parse_period("расходы за март 2024", today=date(2025, 6, 15))
+    assert p2 is not None and p2.month == "2024-03"
+
+
 def test_parse_period_explicit_month_and_bounds():
     p = parse_period("2026-05", today=date(2026, 10, 27))
     assert p is not None and p.month == "2026-05"
@@ -144,3 +151,37 @@ def test_partial_month_compare_uses_same_day_range(store):
     assert facts["total"] == 100_00
     assert facts["compare"]["total"] == 40_00          # Sep 1..10 only
     assert facts["compare"]["label"] == "2026-09 по 10"
+
+
+def test_compare_refund_same_category_nets_and_daily_matches(store):
+    add(store, "2025-02-01", -10_000, "groceries")
+    add(store, "2025-02-02", 2_000, "groceries")
+    today = date(2025, 3, 2)
+    facts = build_facts(store, parse_period("2025-03", today=today),
+                        taxonomy=load_taxonomy(), today=today)
+    assert facts["compare"]["total"] == 8_000
+    assert sum(d["sum"] for d in facts["compare"]["daily"]) == 8_000
+
+    full = build_facts(store, parse_period("2025-03", today=date(2025, 3, 31)),
+                       taxonomy=load_taxonomy(), today=date(2025, 3, 31))
+    assert full["compare"]["total"] == 8_000
+    assert sum(d["sum"] for d in full["compare"]["daily"]) == 8_000
+
+
+def test_compare_refund_other_category_nets(store):
+    add(store, "2025-02-01", -10_000, "groceries")
+    add(store, "2025-02-02", 20_000, "restaurants")
+    today = date(2025, 3, 2)
+    facts = build_facts(store, parse_period("2025-03", today=today),
+                        taxonomy=load_taxonomy(), today=today)
+    assert facts["compare"]["total"] == 10_000
+    assert sum(d["sum"] for d in facts["compare"]["daily"]) == 10_000
+
+
+def test_compare_label_clamps_previous_month_end(store):
+    facts = build_facts(store, parse_period("2025-03", today=date(2025, 3, 31)),
+                        taxonomy=load_taxonomy(), today=date(2025, 3, 31))
+    assert facts["compare"]["label"] == "2025-02 по 28"
+    leap = build_facts(store, parse_period("2024-03", today=date(2024, 3, 31)),
+                       taxonomy=load_taxonomy(), today=date(2024, 3, 31))
+    assert leap["compare"]["label"] == "2024-02 по 29"

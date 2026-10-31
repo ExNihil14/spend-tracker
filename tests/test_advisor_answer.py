@@ -77,8 +77,27 @@ def test_budget_overrun_and_ok():
                            "spent": 100_000, "overrun": 20_000}])
     a = answer(over, slots(metric="budget"), tx, TODAY)
     assert "Перерасход" in a.text and "+200.00 ₽" in a.text and "125%" in a.text
-    ok = answer(facts(budgets=[]), slots(metric="budget"), tx, TODAY)
+    ok = answer(facts(budgets=[{"category": "groceries", "limit": 120_000,
+                                "spent": 100_000, "overrun": 0}]),
+                slots(metric="budget"), tx, TODAY)
     assert ok.text == "В рамках бюджетов."
+    empty = answer(facts(budgets=[]), slots(metric="budget"), tx, TODAY)
+    assert empty.text == "Бюджеты не заданы."
+
+
+def test_unavailable_range_aggregates_are_not_false_zero():
+    tx = load_taxonomy()
+    range_facts = facts(
+        period={"start": "2026-10-04", "end": "2026-10-10",
+                "label": "последние 7 дней", "month": None},
+        categories=None, budgets=None, unavailable=["categories", "budgets"])
+    for metric, category in (("category", "groceries"), ("budget", None), ("top", None)):
+        a = answer(range_facts, slots(metric=metric, category=category), tx, TODAY)
+        assert a.intent == "ask_back"
+        assert "недоступ" in a.text.lower()
+        assert "0.00 ₽" not in a.text
+        assert "Нет трат" not in a.text
+        assert "В рамках" not in a.text
 
 
 def test_trend_average_and_peak():

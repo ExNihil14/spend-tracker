@@ -68,6 +68,9 @@ def _total(facts: dict, slots: Slots) -> Answer:
 
 
 def _category(facts: dict, slots: Slots, taxonomy: Taxonomy) -> Answer:
+    if facts.get("categories") is None:
+        return Answer("Категории недоступны для этого периода — уточни месяц.",
+                      "ask_back", ())
     name = slots.category or ""
     cats = {c["name"]: c for c in facts.get("categories") or []}
     c = cats.get(name)
@@ -82,7 +85,12 @@ def _category(facts: dict, slots: Slots, taxonomy: Taxonomy) -> Answer:
 
 
 def _budget(facts: dict, taxonomy: Taxonomy) -> Answer:
+    if facts.get("budgets") is None:
+        return Answer("Бюджеты недоступны для этого периода — уточни месяц.",
+                      "ask_back", ())
     budgets = facts.get("budgets") or []
+    if not budgets:
+        return Answer("Бюджеты не заданы.", "budget", ("budgets",))
     over = [b for b in budgets if int(b["overrun"]) > 0]
     if not over:
         return Answer("В рамках бюджетов.", "budget", ("budgets",))
@@ -116,6 +124,9 @@ def _trend(facts: dict, slots: Slots, today: date | None) -> Answer:
 
 
 def _top(facts: dict, slots: Slots, taxonomy: Taxonomy) -> Answer:
+    if facts.get("categories") is None:
+        return Answer("Топ категорий недоступен для этого периода — уточни месяц.",
+                      "ask_back", ())
     cats = list(facts.get("categories") or [])
     if not cats:
         return Answer("Нет трат за период.", "top", ("categories",))

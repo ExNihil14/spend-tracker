@@ -190,3 +190,33 @@ def test_compare_daily_amount_allowed():
     a = ask("почему так много?", f, slots(metric="unknown", ask_back=None),
             spy, load_taxonomy(), TODAY, known_tokens=())
     assert a.intent == "llm" and len(spy.calls) == 1
+
+
+def test_markdown_underscores_do_not_bypass_merchant_redaction():
+    spy = Spy()
+    a = ask("почему списание _Пятёрочка_ на 999.00 ₽?", facts(),
+            slots(metric="unknown", ask_back=None), spy, load_taxonomy(), TODAY,
+            known_tokens=("Пятёрочка",))
+    assert a.intent == "refusal" and spy.calls == []
+
+
+def test_invented_amount_in_words_falls_back():
+    spy = Spy(reply="Потрачено девятьсот девяносто девять рублей.")
+    a = ask("почему так много?", facts(), slots(metric="unknown", ask_back=None),
+            spy, load_taxonomy(), TODAY, known_tokens=())
+    assert a.intent == "ask_back" and len(spy.calls) == 1
+
+
+def test_llm_off_still_refuses_known_merchant():
+    a = ask("сколько в Пятёрочка", facts(), slots(metric="unknown", ask_back=None),
+            None, load_taxonomy(), TODAY, known_tokens=("Пятёрочка",))
+    assert a.intent == "refusal"
+
+
+def test_explicit_month_is_not_redacted_as_digits():
+    red = redact_question("за 2026-09")
+    assert red.hit is False
+    spy = Spy(reply="Всего 1500.00 ₽")
+    a = ask("сколько потратил за 2026-09?", facts(), slots(),
+            spy, load_taxonomy(), TODAY, known_tokens=())
+    assert a.intent == "total" and spy.calls == []

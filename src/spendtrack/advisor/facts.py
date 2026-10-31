@@ -46,9 +46,27 @@ def _month_period(month: str) -> Period:
     return Period(start=start, end=end, label=month, month=month)
 
 
+def _named_month_period(text: str) -> Period | None:
+    m = re.search(r"\b([а-я]+)\s+(\d{4})\b", text)
+    if not m:
+        return None
+    num = _MONTH_FORMS.get(m.group(1))
+    if num is None:
+        return None
+    year = int(m.group(2))
+    try:
+        date(year, num, 1)
+    except ValueError:
+        return None
+    return _month_period(f"{year:04d}-{num:02d}")
+
+
 def parse_period(text: str, today: date) -> Period | None:
     """Deterministic period parser (C1 subset: periods used by templates)."""
     t = (text or "").lower().replace("ё", "е")
+    named = _named_month_period(t)
+    if named is not None:
+        return named
     m = re.search(r"\b(\d{4})-(\d{2})\b", t)
     if m:
         try:
@@ -82,9 +100,28 @@ def _share_bp(part: int, whole: int) -> int:
     return (part * 10_000 + whole // 2) // whole
 
 
-def _spend_daily(store: Store, month: str) -> list[dict]:
-    return [{"date": row["date"], "sum": -int(row["total_k"])}
-            for row in report_daily(store, month) if int(row["total_k"]) < 0]
+def _spend_daily(store: Store, month: str, cutoff_day: int | None = None) -> list[dict]:
+    start, end_excl = month_bounds(month)
+    if cutoff_day is not None:
+        cutoff_end = f"{month}-{cutoff_day:02d}"
+        end_excl = (date.fromisoformat(cutoff_end) + timedelta(days=1)).isoformat()
+    base = base_currency()
+    rows = store.conn.execute(
+        "SELECT date, category, SUM(amount_kopecks) AS total_k FROM transactions"
+        " WHERE date >= ? AND date < ? AND COALESCE(UPPER(NULLIF(currency, '')), 'RUB') = ?"
+        " GROUP BY date, category",
+        (start, end_excl, base),
+    ).fetchall()
+    category_totals: dict[str, int] = {}
+    for row in rows:
+        category_totals[row["category"]] = (
+            category_totals.get(row["category"], 0) + int(row["total_k"]))
+    negative = {cat for cat, total in category_totals.items() if total < 0}
+    acc: dict[str, int] = {}
+    for row in rows:
+        if row["category"] in negative:
+            acc[row["date"]] = acc.get(row["date"], 0) - int(row["total_k"])
+    return [{"date": day, "sum": acc[day]} for day in sorted(acc) if acc[day] != 0]
 
 
 def _foreign(store: Store, start: str, end: str) -> dict:
@@ -146,11 +183,15 @@ def _month_facts(store: Store, period: Period, taxonomy: Taxonomy,
     prev = _prev_month(month)
     prev_rep = report_month(store, prev)
     prev_daily = _spend_daily(store, prev)
+    prev_last_day = date.fromisoformat(_month_period(prev).end).day
     compare_label = prev
+    compare_total = -int(prev_rep["expense_k"])
     if today is not None and month == f"{today.year:04d}-{today.month:02d}":
-        cutoff = f"{prev}-{today.day:02d}"
-        prev_daily = [d for d in prev_daily if d["date"] <= cutoff]
-        compare_label = f"{prev} по {today.day:02d}"
+        cutoff_day = min(today.day, prev_last_day)
+        prev_daily = _spend_daily(store, prev, cutoff_day=cutoff_day)
+        compare_label = f"{prev} по {cutoff_day:02d}"
+        compare_total = (-int(prev_rep["expense_k"]) if cutoff_day == prev_last_day
+                         else sum(d["sum"] for d in prev_daily))
     return {
         "period": {"start": period.start, "end": period.end, "label": period.label,
                    "month": period.month},
@@ -161,8 +202,7 @@ def _month_facts(store: Store, period: Period, taxonomy: Taxonomy,
         "budgets": budgets,
         "daily": _spend_daily(store, month),
         "excluded_foreign": _foreign(store, period.start, period.end),
-        "compare": {"total": -int(prev_rep["expense_k"]) if compare_label == prev
-                    else sum(d["sum"] for d in prev_daily),
+        "compare": {"total": compare_total,
                     "daily": prev_daily, "label": compare_label},
         "unavailable": [],
     }
