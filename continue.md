@@ -5,6 +5,35 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
+## 01.11.2026 (Phase C closed; push c4948e9; Abacus canary STOP; next PWA)
+- Phase C push confirmed: `origin/main = c4948e9`, local = remote, ahead/behind 0; no force.
+  Docs `continue.md` now committed as closeout; worktree clean after commit.
+- Abacus canary: Basic 20K; Agent was unused 0/3; one Agent task (High / Opus 5.5,
+  general-purpose) cost **614 credits**, charged to monthly plan, **not** the 5K promo.
+  5K promo is app-builder only; full review **not** started. Canary PASS with caveats;
+  2 Agent tasks / ~14.7K credits remain; no Pro, no app build, no retry.
+- Canary findings: AB-CANARY-01 phone↔server topology; AB-CANARY-02 Phase C contract
+  freeze; AB-CANARY-03 PWA scope. S1 (no sync engine) accept; S2 (no Telegram bridge)
+  reject — bridge already exists. First PWA slice: one screen, thin client, **no offline
+  queue**; queue is a separate later ticket after ADR + exactly-once test.
+- Next priority: PWA quick-capture ADR/spec/test plan; deferred D-22..D-30 / D-32–D-34 /
+  D-36–D-39 triage; no new Abacus spend, no AgentRouter POST. Live/DB/UI untouched.
+
+## 31.10.2026 (Phase C v2/v3 close; commit c4948e9; push confirmed)
+- Phase C v2/v3 accepted fixes applied: **commit `c4948e9`** — `fix(advisor): apply accepted
+  v2/v3 fixes (D-15..D-21, D-31, D-35, D-43..D-46)`; 8 files, +226/−23; worktree clean.
+- Tests: **1260 full / 101 advisor**, ruff clean; `contract_delta` — only accepted `known_tokens`
+  DRIFT; phone patch review PASS (clean-base apply, py_compile, 6/6 targeted tests).
+- Canonical findings: 1 P1 + 5 P2 accepted; fixed D-15..D-21, D-31, D-35, D-43..D-46.
+  Deferred D-22..D-30, D-32–D-34, D-36–D-39; rejected/unreachable D-40–D-42 untouched.
+- Astra v3: 4 STOP (part2 upstream/truncated; package defect fixed); **Astra не ретраить**;
+  Sol canonical; no new AgentRouter POST. Sol v3: slots/answer/llm-cli 3/3 OK.
+- Push: **confirmed** — `origin/main = c4948e9`, local = remote, ahead/behind 0; no force.
+  `continue.md` closeout committed 01.11.
+- Next priority: (1) push confirmed; (2) triage deferred/backlog; (3) docs/Phase C closed;
+  (4) next product wave (PWA quick-capture, one screen, thin client); new AgentRouter batch
+  only by owner scope. Live/DB/UI untouched.
+
 ## 28.10.2026 (Phase C implementation + AgentRouter review package)
 - Phase C C1–C5 offline: commit `a75211f` (facts/slots/answer/llm + `spendtrack ask`), **72 advisor tests**
   / 1231 suite, ruff clean; live v1.2.5 unchanged; v1.2.6 offline.
