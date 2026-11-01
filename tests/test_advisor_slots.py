@@ -51,6 +51,16 @@ def test_top_n_invalid_asks_back(taxonomy):
     assert s.metric == "unknown" and s.ask_back == "top_n"
 
 
+def test_top_100_asks_back_not_truncated_to_10(taxonomy):
+    s = parse_slots("Покажи топ-100 категорий за этот месяц", TODAY, taxonomy)
+    assert s.ask_back == "top_n" and s.metric == "unknown"
+
+
+def test_embedded_word_top_n_is_not_metric(taxonomy):
+    s = parse_slots("сколько потратил на лэптоп-20?", TODAY, taxonomy)
+    assert s.ask_back is None and s.metric != "top"
+
+
 def test_bad_period_asks_back(taxonomy):
     s = parse_slots("сколько за последние 400 дней", TODAY, taxonomy)
     assert s.metric == "unknown" and s.ask_back == "period"

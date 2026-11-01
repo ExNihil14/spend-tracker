@@ -63,6 +63,14 @@ def test_total_compare_no_previous_data():
     assert "нет данных" in a.text
 
 
+def test_compare_rendered_adds_provenance():
+    tx = load_taxonomy()
+    total = answer(facts(), slots(compare=True), tx, TODAY)
+    trend = answer(facts(), slots(metric="trend", compare=True), tx, TODAY)
+    assert "compare" in total.facts_used
+    assert "compare" in trend.facts_used
+
+
 def test_category_share_and_missing():
     tx = load_taxonomy()
     a = answer(facts(), slots(metric="category", category="groceries"), tx, TODAY)

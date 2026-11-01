@@ -62,9 +62,13 @@ def _compare_line(facts: dict, total: int) -> str:
 
 def _total(facts: dict, slots: Slots) -> Answer:
     text = f"За {facts['period']['label']} — {_money(facts['total'])} ({_ops(facts['tx_count'])})."
+    used = ("total", "tx_count", "period")
     if slots.compare:
-        text += _compare_line(facts, facts["total"])
-    return Answer(text, "total", ("total", "tx_count", "period"))
+        line = _compare_line(facts, facts["total"])
+        if line:
+            text += line
+            used += ("compare",)
+    return Answer(text, "total", used)
 
 
 def _category(facts: dict, slots: Slots, taxonomy: Taxonomy) -> Answer:
@@ -118,9 +122,13 @@ def _trend(facts: dict, slots: Slots, today: date | None) -> Answer:
     peak = max(daily, key=lambda d: int(d["sum"]))
     text = (f"Средний день {_money(avg)}; максимум {peak['date']} — "
             f"{_money(peak['sum'])}.")
+    used = ("daily", "total", "period")
     if slots.compare:
-        text += _compare_line(facts, facts["total"])
-    return Answer(text, "trend", ("daily", "total", "period"))
+        line = _compare_line(facts, facts["total"])
+        if line:
+            text += line
+            used += ("compare",)
+    return Answer(text, "trend", used)
 
 
 def _top(facts: dict, slots: Slots, taxonomy: Taxonomy) -> Answer:

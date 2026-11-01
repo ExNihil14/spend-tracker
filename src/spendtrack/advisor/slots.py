@@ -88,7 +88,7 @@ def _metric(t: str, category: str | None) -> str:
 
 
 def _top_n(t: str) -> tuple[int, str | None]:
-    m = re.search(r"топ[-\s]?(\d{1,2})", t)
+    m = re.search(r"(?<!\w)топ[-\s]?(\d+)", t)
     if not m:
         return 3, None
     n = int(m.group(1))
