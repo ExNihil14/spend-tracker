@@ -198,6 +198,16 @@ def test_trusted_host_extra_proxy_middleware(monkeypatch) -> None:
         assert client.get("/", headers={"Host": "evil.example"}).status_code == 400
 
 
+def test_origin_allowed_trusted_proxy_host() -> None:
+    """Origin-guard не ломается на proxy Host: same-origin ok, чужой — reject."""
+    from spendtrack.security import origin_allowed
+
+    host = "spend.tailnet.ts.net"
+    assert origin_allowed(f"https://{host}", None, host) is True
+    assert origin_allowed("https://evil.example", None, host) is False
+    assert origin_allowed("https://spend.tailnet.ts.net.evil.example", None, host) is False
+
+
 def test_is_loopback_host_for_serve_guard() -> None:
     from spendtrack.security import _is_loopback_host
 

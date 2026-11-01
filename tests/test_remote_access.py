@@ -14,6 +14,7 @@ from spendtrack.security import _RemoteAccessGuard, _reset_capture_rate
 @pytest.fixture(autouse=True)
 def _trusted_proxy_env(monkeypatch):
     monkeypatch.setenv("SPENDTRACK_TRUSTED_HOSTS", "spend.tailnet.ts.net")
+    monkeypatch.setenv("SPENDTRACK_CAPTURE_TOKEN", "test-capture-token")
 
 
 def _app() -> Starlette:
@@ -42,19 +43,32 @@ def _app() -> Starlette:
 
 def test_remote_path_isolation_allows_capture_only() -> None:
     remote = {"Host": "spend.tailnet.ts.net"}
+    authorized = {**remote, "X-Spendtrack-Token": "test-capture-token"}
     with TestClient(_app()) as client:
         assert client.get("/", headers=remote).status_code == 403
         assert client.get("/approve", headers=remote).status_code == 403
         assert client.get("/capture", headers=remote).status_code == 200
         assert client.get("/api/transactions", headers=remote).status_code == 403
-        assert client.post("/api/transactions", headers=remote).status_code == 200
+        assert client.post("/api/transactions", headers=remote).status_code == 401
+        assert client.post("/api/transactions", headers=authorized).status_code == 200
         # control: loopback/test host keeps the full UI
         assert client.get("/", headers={"Host": "testserver"}).status_code == 200
 
 
+def test_remote_capture_token_rejects_missing_and_wrong() -> None:
+    _reset_capture_rate()
+    for token in (None, "wrong"):
+        headers = {"Host": "spend.tailnet.ts.net"}
+        if token is not None:
+            headers["X-Spendtrack-Token"] = token
+        with TestClient(_app()) as client:
+            assert client.post("/api/transactions", headers=headers).status_code == 401
+    _reset_capture_rate()
+
+
 def test_remote_capture_rate_limit() -> None:
     _reset_capture_rate()
-    remote = {"Host": "spend.tailnet.ts.net"}
+    remote = {"Host": "spend.tailnet.ts.net", "X-Spendtrack-Token": "test-capture-token"}
     with TestClient(_app()) as client:
         for _ in range(10):
             assert client.post("/api/transactions", headers=remote).status_code == 200

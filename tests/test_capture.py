@@ -15,10 +15,17 @@ def test_capture_page_is_one_screen_with_accessible_fields(tmp_path, monkeypatch
     with _client(tmp_path, monkeypatch) as client:
         r = client.get("/capture")
         static_page = client.get("/static/capture.html")
+        js = client.get("/static/capture.js")
     assert r.status_code == 200
     assert static_page.status_code == 200
+    assert js.status_code == 200
+    assert "X-Spendtrack-Token" in js.text
+    assert "capture-client-id" in js.text
     body = r.text
     assert 'id="capture-form"' in body
+    assert 'id="capture-client-id"' in body
+    assert 'name="client_id"' in body
+    assert 'id="capture-token"' in body
     for field in ("date", "amount", "description"):
         assert f'name="{field}"' in body
         assert f'for="capture-{field}"' in body

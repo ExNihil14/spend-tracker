@@ -14,6 +14,7 @@ CSRF-токены не нужны: нет сессии/cookie, токен не �
 """
 from __future__ import annotations
 
+import hmac
 import os
 import time
 from urllib.parse import urlsplit
@@ -89,6 +90,16 @@ def _remote_path_allowed(path: str, method: str) -> bool:
 _CAPTURE_RATE_WINDOW_SECONDS = 60.0
 _CAPTURE_RATE_LIMIT = 10
 _capture_rate_buckets: dict[str, list[float]] = {}
+_CAPTURE_TOKEN_ENV = "SPENDTRACK_CAPTURE_TOKEN"
+
+
+def _capture_token_ok(headers: Headers) -> bool:
+    """App-token для remote POST: fail-closed, constant-time; токен не логируем."""
+    expected = os.environ.get(_CAPTURE_TOKEN_ENV, "").strip()
+    if not expected:
+        return False
+    supplied = headers.get("x-spendtrack-token", "")
+    return hmac.compare_digest(supplied, expected)
 
 
 def _capture_rate_ok(client: str, now: float | None = None) -> bool:
@@ -129,6 +140,9 @@ class _RemoteAccessGuard:
                 response = JSONResponse({"detail": "remote path blocked"}, status_code=403)
                 return await response(scope, receive, send)
             if path == "/api/transactions" and method == "POST":
+                if not _capture_token_ok(headers):
+                    response = JSONResponse({"detail": "capture token required"}, status_code=401)
+                    return await response(scope, receive, send)
                 client = (scope.get("client") or ("unknown", 0))[0]
                 if not _capture_rate_ok(client):
                     response = JSONResponse({"detail": "rate limit exceeded"}, status_code=429)

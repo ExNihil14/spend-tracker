@@ -21,6 +21,15 @@
 
     <form id="capture-form" hx-post="/api/transactions" hx-target="#capture-msg" hx-swap="innerHTML"
           hx-indicator="#capture-spinner" autocomplete="off" class="flex flex-col gap-4">
+      <input type="hidden" name="client_id" id="capture-client-id" value="">
+
+      <div class="flex flex-col gap-1.5">
+        <label for="capture-token" class="text-sm font-medium text-fg">Код доступа</label>
+        <input id="capture-token" type="password" autocomplete="off" aria-describedby="capture-token-hint"
+               class="bg-surface-2 text-fg border border-line-strong rounded-lg px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-accent">
+        <p id="capture-token-hint" class="text-xs text-fg-muted">Один раз на телефоне; хранится локально. Не URL и не лог.</p>
+      </div>
+
       <div class="flex flex-col gap-1.5">
         <label for="capture-date" class="text-sm font-medium text-fg">Дата</label>
         <input id="capture-date" name="date" type="date" required
