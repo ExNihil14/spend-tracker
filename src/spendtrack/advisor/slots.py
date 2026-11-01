@@ -52,15 +52,16 @@ def category_aliases(taxonomy: Taxonomy) -> dict[str, set[str]]:
 
 
 def _match_category(text: str, taxonomy: Taxonomy) -> tuple[str | None, bool]:
-    """(category, ambiguous) — longest alias first, word boundaries."""
+    """(category, ambiguous) — longest alias first; any ambiguous match wins (conservative)."""
     aliases = category_aliases(taxonomy)
+    unique: list[str] = []
     for form in sorted(aliases, key=lambda f: (-len(f), f)):
         if re.search(r"(?<!\w)" + re.escape(form) + r"(?!\w)", text):
             names = aliases[form]
             if len(names) > 1:
                 return None, True
-            return next(iter(names)), False
-    return None, False
+            unique.append(next(iter(names)))
+    return (unique[0], False) if unique else (None, False)
 
 
 def _has(text: str, words: tuple[str, ...]) -> bool:

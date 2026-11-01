@@ -97,6 +97,15 @@ def test_ambiguous_alias_asks_back():
     assert s.metric == "unknown" and s.ask_back == "ambiguous_category"
 
 
+def test_longer_unique_alias_does_not_hide_ambiguous_substring():
+    tx = Taxonomy([
+        Category("leisure", "#111111", "Кафе и кино"),
+        Category("cafes", "#222222", "Кафе"),
+    ], [])
+    s = parse_slots("кафе и кино", TODAY, tx)
+    assert s.metric == "unknown" and s.ask_back == "ambiguous_category"
+
+
 def test_garbage_payload_rejected(taxonomy):
     assert parse_slot_payload({"metric": "forecast"}, taxonomy) is None
     assert parse_slot_payload({"metric": "category", "category": "Пятёрочка"},

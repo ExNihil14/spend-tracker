@@ -53,6 +53,8 @@ def _compare_line(facts: dict, total: int) -> str:
     cmp_ = facts.get("compare")
     if not cmp_:
         return ""
+    if total == 0 and int(facts.get("tx_count") or 0) == 0:
+        return " За период нет трат; сравнение с прошлым периодом недоступно."
     prev = int(cmp_.get("total") or 0)
     if prev <= 0:
         return " К прошлому периоду: нет данных."

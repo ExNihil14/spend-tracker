@@ -71,6 +71,16 @@ def test_compare_rendered_adds_provenance():
     assert "compare" in trend.facts_used
 
 
+def test_compare_empty_current_is_unavailable():
+    a = answer(facts(total=0, tx_count=0), slots(compare=True), load_taxonomy(), TODAY)
+    assert "нет трат" in a.text and "−100.0%" not in a.text and "-100.0%" not in a.text
+
+
+def test_compare_refunds_only_keeps_minus_100():
+    a = answer(facts(total=0, tx_count=2), slots(compare=True), load_taxonomy(), TODAY)
+    assert "-100.0%" in a.text
+
+
 def test_category_share_and_missing():
     tx = load_taxonomy()
     a = answer(facts(), slots(metric="category", category="groceries"), tx, TODAY)
