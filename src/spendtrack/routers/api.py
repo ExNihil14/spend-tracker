@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 from datetime import date
 from decimal import InvalidOperation
 from html import escape
@@ -169,25 +170,59 @@ async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
         raise _validation_422(e) from e
 
 
-def _used_client_id_response(
+def _reserve_client_id(
     store: Store, tx: TxIn, request: Request
 ) -> HTMLResponse | None:
-    """Strict client_id: уже использован → HTML «Не добавлено» или 409, без второй строки."""
+    """Атомарно занять client_id (UNIQUE) до вставки транзакции; занят → HTML/409.
+
+    INSERT первым — гонка двух запросов решается UNIQUE, второй не создаёт строку.
+    tx_id=0 — placeholder до успешной вставки; rollback снимет reservation при ошибке.
+    """
     if not tx.client_id:
         return None
-    existing = store.conn.execute(
-        "SELECT tx_id FROM capture_idempotency WHERE client_id = ?",
-        (tx.client_id,),
-    ).fetchone()
-    if not existing:
-        return None
-    if request.headers.get("hx-request", "").lower() == "true":
-        desc = escape(tx.description)
-        return HTMLResponse(
-            f'<p class="text-accent">Не добавлено: {desc} — этот client_id уже использован.</p>'
-            + _oob_badge(store)
+    try:
+        store.conn.execute(
+            "INSERT INTO capture_idempotency(client_id, tx_id) VALUES(?, 0)",
+            (tx.client_id,),
         )
-    raise HTTPException(409, detail="client_id already used")
+    except sqlite3.IntegrityError:
+        if request.headers.get("hx-request", "").lower() == "true":
+            desc = escape(tx.description)
+            return HTMLResponse(
+                f'<p class="text-accent">Не добавлено: {desc} — этот client_id уже использован.</p>'
+                + _oob_badge(store)
+            )
+        raise HTTPException(409, detail="client_id already used") from None
+    return None
+
+
+def _add_capture_transaction(
+    store: Store, tx: TxIn, category: dict, amount: int, account_anon: str | None
+) -> int | None:
+    """Вставка + финализация client_id reservation одной транзакцией; rollback при сбое."""
+    try:
+        tx_id = store.add_transaction(
+            date=tx.date, description=tx.description, amount_kopecks=amount,
+            category=category["category"], category_source=category["source"],
+            confidence=category["confidence"], merchant=category["merchant"],
+            account_anon=account_anon, export_rowid=(f"capture:{tx.client_id}" if tx.client_id else ""),
+            category_llm=category.get("category_llm"),
+            review_status=category.get("review_status", "approved"),
+            currency=tx.currency,
+            commit=not bool(tx.client_id),
+        )
+        if tx.client_id:
+            if tx_id is not None:
+                store.conn.execute(
+                    "UPDATE capture_idempotency SET tx_id = ? WHERE client_id = ?",
+                    (tx_id, tx.client_id),
+                )
+            store.conn.commit()
+        return tx_id
+    except Exception:
+        if tx.client_id:
+            store.conn.rollback()
+        raise
 
 
 @router.post("/transactions")
@@ -212,30 +247,16 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
         except ValidationError as e:  # форма без обязательного поля → 422 (как JSON), а не 500
             raise _validation_422(e) from e
     amount = parse_amount(tx.amount)
-    conflict = _used_client_id_response(store, tx, request)
-    if conflict is not None:
-        return conflict
     account_anon = store.pseudonymize(tx.account)
     category = categorize_transaction(
         {"date": tx.date, "description": tx.description, "amount_kopecks": amount,
          "merchant": tx.description.upper()[:20], "account_anon": account_anon},
         taxonomy, store,
     )
-    tx_id = store.add_transaction(
-        date=tx.date, description=tx.description, amount_kopecks=amount,
-        category=category["category"], category_source=category["source"],
-        confidence=category["confidence"], merchant=category["merchant"],
-        account_anon=account_anon, export_rowid=(f"capture:{tx.client_id}" if tx.client_id else ""),
-        category_llm=category.get("category_llm"),
-        review_status=category.get("review_status", "approved"),
-        currency=tx.currency,
-    )
-    if tx_id is not None and tx.client_id:
-        store.conn.execute(
-            "INSERT OR IGNORE INTO capture_idempotency(client_id, tx_id) VALUES(?, ?)",
-            (tx.client_id, tx_id),
-        )
-        store.conn.commit()
+    conflict = _reserve_client_id(store, tx, request)
+    if conflict is not None:
+        return conflict
+    tx_id = _add_capture_transaction(store, tx, category, amount, account_anon)
     if request.headers.get("hx-request", "").lower() == "true":
         desc = escape(tx.description)  # аудит 24.09: описание — пользовательский ввод, экранируем
         if tx_id is None:
