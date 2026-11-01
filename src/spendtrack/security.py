@@ -23,6 +23,7 @@ ALLOWED_SCHEMES = frozenset({"http", "https"})
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 SAFE_FETCH_SITES = frozenset({"same-origin", "none"})
 DEFAULT_CODESPACES_DOMAIN = "app.github.dev"
+_TRUSTED_HOSTS_ENV = "SPENDTRACK_TRUSTED_HOSTS"
 
 
 def codespaces_enabled() -> bool:
@@ -57,14 +58,28 @@ def _codespace_namespace(host: str) -> str | None:
     return name if sep and name else None
 
 
-def trusted_hosts() -> list[str]:
-    """Host-имена для TrustedHostMiddleware: loopback + testserver (+ домен Codespaces).
+def _is_loopback_host(host: str | None) -> bool:
+    """True для loopback bind; `0.0.0.0`/LAN — нет (нужен HTTPS/явный opt-in)."""
+    return (host or "").strip().lower() in {"127.0.0.1", "localhost", "::1"}
 
-    Прокси Codespaces СОХРАНЯЕТ Host (`<codespace>-<port>.app.github.dev`), поэтому без этого
-    демо-URL отдавал бы 400. Домен контролируется GitHub — DNS-rebinding не расширяется
-    (чужой сайт не может обслуживаться на поддомене app.github.dev).
+
+def _extra_trusted_hosts() -> list[str]:
+    """Явные host-имена из env (HTTPS reverse proxy/Tailscale Serve), только по одному списку.
+
+    Не использовать для LAN HTTP: TLS-терминация и аутентификация — на прокси/оверлее.
+    Формат: `SPENDTRACK_TRUSTED_HOSTS=spend.tailnet.ts.net,spend.example` (без схемы/порта).
     """
-    hosts = sorted(ALLOWED_HOSTNAMES) + ["testserver"]
+    raw = os.environ.get(_TRUSTED_HOSTS_ENV, "")
+    return [h.strip().lower() for h in raw.split(",") if h.strip()]
+
+
+def trusted_hosts() -> list[str]:
+    """Host-имена для TrustedHostMiddleware: loopback + testserver (+ Codespaces, env proxy).
+
+    `SPENDTRACK_TRUSTED_HOSTS` — явный opt-in для HTTPS reverse proxy/Tailscale Serve;
+    дефолт остаётся loopback-only, поэтому случайный `--host 0.0.0.0` не открывает UI по LAN.
+    """
+    hosts = sorted(set(sorted(ALLOWED_HOSTNAMES) + ["testserver"] + _extra_trusted_hosts()))
     if codespaces_enabled():
         hosts.append(f"*.{codespaces_domain()}")
     return hosts

@@ -161,3 +161,48 @@ def test_codespaces_origin_narrowed_to_own_codespace(monkeypatch) -> None:
     # чужой сайт вне домена форвардинга — отказ как раньше
     assert origin_allowed("https://evil.github.dev", None, request_host) is False
     assert origin_allowed("https://evil.example", None, request_host) is False
+
+
+def test_trusted_hosts_extra_proxy_env(monkeypatch) -> None:
+    """`SPENDTRACK_TRUSTED_HOSTS` — явный opt-in для HTTPS-прокси/Tailscale, не для LAN."""
+    from spendtrack.security import trusted_hosts
+
+    monkeypatch.delenv("SPENDTRACK_TRUSTED_HOSTS", raising=False)
+    assert "spend.tailnet.ts.net" not in trusted_hosts()
+
+    monkeypatch.setenv("SPENDTRACK_TRUSTED_HOSTS", " Spend.Tailnet.TS.net , proxy.example ")
+    hosts = trusted_hosts()
+    assert "spend.tailnet.ts.net" in hosts
+    assert "proxy.example" in hosts
+    assert "evil.example" not in hosts
+
+
+def test_trusted_host_extra_proxy_middleware(monkeypatch) -> None:
+    """Смоук: TrustedHostMiddleware принимает явно разрешённый proxy-Host и режет чужой."""
+    monkeypatch.setenv("SPENDTRACK_TRUSTED_HOSTS", "spend.tailnet.ts.net")
+    from starlette.applications import Starlette
+    from starlette.middleware.trustedhost import TrustedHostMiddleware
+    from starlette.responses import PlainTextResponse
+    from starlette.routing import Route
+    from starlette.testclient import TestClient as StarletteTestClient
+
+    from spendtrack.security import trusted_hosts
+
+    async def _home(_request):
+        return PlainTextResponse("ok")
+
+    inner = Starlette(routes=[Route("/", _home)])
+    inner.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts())
+    with StarletteTestClient(inner) as client:
+        assert client.get("/", headers={"Host": "spend.tailnet.ts.net"}).status_code == 200
+        assert client.get("/", headers={"Host": "evil.example"}).status_code == 400
+
+
+def test_is_loopback_host_for_serve_guard() -> None:
+    from spendtrack.security import _is_loopback_host
+
+    assert _is_loopback_host("127.0.0.1") is True
+    assert _is_loopback_host("localhost") is True
+    assert _is_loopback_host("::1") is True
+    assert _is_loopback_host("0.0.0.0") is False
+    assert _is_loopback_host("192.168.1.10") is False

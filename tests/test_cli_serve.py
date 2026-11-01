@@ -38,11 +38,27 @@ def test_serve_custom_host_display(monkeypatch, capsys):
     import uvicorn
 
     calls: dict = {}
+    monkeypatch.setenv("SPENDTRACK_ALLOW_INSECURE_LAN", "1")
     monkeypatch.setattr(uvicorn, "run", lambda app, **kw: calls.update(kw))
     assert cli.main(["serve", "--host", "0.0.0.0", "--port", "8124"]) == 0
     assert calls["host"] == "0.0.0.0"
     out = capsys.readouterr().out
     assert "127.0.0.1:8124" in out  # в консоли — кликабельный локальный адрес
+
+
+def test_serve_refuses_insecure_lan_without_explicit_optin(monkeypatch, capsys):
+    """LAN HTTP без TLS не включаем случайно: нужен явный SPENDTRACK_ALLOW_INSECURE_LAN=1."""
+    import uvicorn
+
+    monkeypatch.delenv("SPENDTRACK_ALLOW_INSECURE_LAN", raising=False)
+
+    def fail(*_args, **_kwargs):
+        raise AssertionError("uvicorn must not run")
+
+    monkeypatch.setattr(uvicorn, "run", fail)
+    assert cli.main(["serve", "--host", "0.0.0.0", "--port", "8124"]) == 2
+    err = capsys.readouterr().err
+    assert "LAN HTTP выключен" in err
 
 
 def test_serve_reports_unwritable_config(monkeypatch, capsys):

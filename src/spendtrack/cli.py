@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import sys
@@ -14,6 +15,7 @@ from spendtrack.categorize import categorize_transaction
 from spendtrack.config import base_currency
 from spendtrack.console import utf8_stdout
 from spendtrack.reports import confidence_calibration, report_month
+from spendtrack.security import _is_loopback_host
 from spendtrack.store import Store, fmt_amount, fmt_money, normalize_currency, parse_amount
 from spendtrack.taxonomy import load_taxonomy
 
@@ -482,6 +484,14 @@ def cmd_serve(args) -> int:
         print("исправьте settings.toml (или задайте SPENDTRACK_CONFIG_DIR) и повторите", file=sys.stderr)
         return 1
     host = args.host or "127.0.0.1"
+    if not _is_loopback_host(host) and os.environ.get("SPENDTRACK_ALLOW_INSECURE_LAN") != "1":
+        print(
+            "LAN HTTP выключен: без TLS трафик и токены не защищены. "
+            "Используйте loopback + HTTPS reverse proxy (Tailscale Serve/Caddy) "
+            "или явно задайте SPENDTRACK_ALLOW_INSECURE_LAN=1 для доверенной сети.",
+            file=sys.stderr,
+        )
+        return 2
     port = int(args.port or cfg.port)
     display_host = "127.0.0.1" if host == "0.0.0.0" else host
     url = f"http://{display_host}:{port}"
