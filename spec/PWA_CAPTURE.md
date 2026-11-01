@@ -62,12 +62,13 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
 | Area | Tests |
 |---|---|
 | Page/fields/hidden client_id | `tests/test_capture.py` (6) |
+| Browser e2e: hidden client_id submit | `tests/e2e/test_capture_e2e.py` (1) |
 | Path isolation/rate/token | `tests/test_remote_access.py` (3) |
 | Trusted hosts/Codespaces/Origin | `tests/test_security_perimeter.py` (16) |
 | CLI LAN guard | `tests/test_cli_serve.py` (8) |
 | Phase C contract v1 | `tests/test_advisor_contract.py` (3) |
 
-Full suite: **1277 passed**, ruff clean.
+Full suite: **1277 passed**, ruff clean. Browser e2e: **1 passed** (`tests/e2e/test_capture_e2e.py`, temp server).
 
 ## Known gaps / not covered
 
