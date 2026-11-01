@@ -6,7 +6,7 @@ from typing import Annotated
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from spendtrack.assets import static_url
@@ -106,6 +106,12 @@ def index(request: Request, store: Annotated[Store, Depends(get_store)], month: 
             "first_run": not has_any and store.batch_count() == 0,
         },
     )
+
+
+@router.get("/capture", response_class=FileResponse)
+def capture_page():
+    """Mobile quick-capture: тот же static-файл, но по короткому URL `/capture`."""
+    return FileResponse(PKG_DIR / "static" / "capture.html", media_type="text/html")
 
 
 @router.get("/goals", response_class=HTMLResponse)

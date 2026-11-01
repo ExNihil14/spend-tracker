@@ -15,7 +15,11 @@ CSRF-токены не нужны: нет сессии/cookie, токен не �
 from __future__ import annotations
 
 import os
+import time
 from urllib.parse import urlsplit
+
+from starlette.datastructures import Headers
+from starlette.responses import JSONResponse
 
 ALLOWED_HOSTNAMES = frozenset({"127.0.0.1", "localhost"})  # IPv6-loopback не поддерживаем:
 # сервер слушает 127.0.0.1, а Starlette TrustedHost не разбирает `[::1]` (split по ':').
@@ -61,6 +65,75 @@ def _codespace_namespace(host: str) -> str | None:
 def _is_loopback_host(host: str | None) -> bool:
     """True для loopback bind; `0.0.0.0`/LAN — нет (нужен HTTPS/явный opt-in)."""
     return (host or "").strip().lower() in {"127.0.0.1", "localhost", "::1"}
+
+
+def _is_trusted_proxy_host(host: str | None) -> bool:
+    """True только для явно разрешённого `SPENDTRACK_TRUSTED_HOSTS` (не loopback/testserver)."""
+    hostname = (host or "").strip().lower().split(":", 1)[0]
+    return bool(hostname) and hostname in set(_extra_trusted_hosts())
+
+
+def _remote_path_allowed(path: str, method: str) -> bool:
+    """Удалённый (proxy/Tailscale) доступ — только к capture-странице и POST транзакции.
+
+    Главный UI (`/`, `/approve`, `/settings`, API чтения) через trusted host не отдаём:
+    даже при ошибке в ACL/прокси это не должно раскрывать финансовые данные.
+    """
+    if path == "/capture" and method == "GET":
+        return True
+    if path.startswith("/static/") and method in {"GET", "HEAD"}:
+        return True
+    return path == "/api/transactions" and method == "POST"
+
+
+_CAPTURE_RATE_WINDOW_SECONDS = 60.0
+_CAPTURE_RATE_LIMIT = 10
+_capture_rate_buckets: dict[str, list[float]] = {}
+
+
+def _capture_rate_ok(client: str, now: float | None = None) -> bool:
+    """Простой in-memory лимит 10 POST/мин на клиента (только remote capture)."""
+    current = time.monotonic() if now is None else now
+    bucket = _capture_rate_buckets.setdefault(client or "unknown", [])
+    cutoff = current - _CAPTURE_RATE_WINDOW_SECONDS
+    while bucket and bucket[0] < cutoff:
+        bucket.pop(0)
+    if len(bucket) >= _CAPTURE_RATE_LIMIT:
+        return False
+    bucket.append(current)
+    return True
+
+
+def _reset_capture_rate() -> None:
+    """Только для тестов/диагностики; не публичный API."""
+    _capture_rate_buckets.clear()
+
+
+class _RemoteAccessGuard:
+    """ASGI-гард для запросов через trusted HTTPS-прокси/Tailscale.
+
+    Path isolation + rate limit; auth — Tailscale ACL (app-token нет, документировано).
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope.get("type") != "http":
+            return await self.app(scope, receive, send)
+        headers = Headers(scope=scope)
+        if _is_trusted_proxy_host(headers.get("host")):
+            path = scope.get("path", "")
+            method = scope.get("method", "GET")
+            if not _remote_path_allowed(path, method):
+                response = JSONResponse({"detail": "remote path blocked"}, status_code=403)
+                return await response(scope, receive, send)
+            if path == "/api/transactions" and method == "POST":
+                client = (scope.get("client") or ("unknown", 0))[0]
+                if not _capture_rate_ok(client):
+                    response = JSONResponse({"detail": "rate limit exceeded"}, status_code=429)
+                    return await response(scope, receive, send)
+        return await self.app(scope, receive, send)
 
 
 def _extra_trusted_hosts() -> list[str]:

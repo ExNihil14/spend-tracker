@@ -59,6 +59,7 @@ class TxIn(BaseModel):
     amount: str = Field(max_length=64)
     account: str | None = Field(default=None, max_length=128)
     currency: str | None = None
+    client_id: str | None = Field(default=None, max_length=128)
 
     @field_validator("date")
     @classmethod
@@ -183,7 +184,7 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
     else:
         form = await request.form()
         payload = {k: str(v) for k, v in
-                   ((k, form.get(k)) for k in ("date", "description", "amount", "account", "currency"))
+                   ((k, form.get(k)) for k in ("date", "description", "amount", "account", "currency", "client_id"))
                    if v not in (None, "")}  # F6: пустое поле формы ≠ «не передано»
         try:
             tx = TxIn(**payload)
@@ -200,7 +201,7 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
         date=tx.date, description=tx.description, amount_kopecks=amount,
         category=category["category"], category_source=category["source"],
         confidence=category["confidence"], merchant=category["merchant"],
-        account_anon=account_anon, export_rowid="",
+        account_anon=account_anon, export_rowid=(f"capture:{tx.client_id}" if tx.client_id else ""),
         category_llm=category.get("category_llm"),
         review_status=category.get("review_status", "approved"),
         currency=tx.currency,

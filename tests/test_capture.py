@@ -13,8 +13,10 @@ def _client(tmp_path, monkeypatch) -> TestClient:
 
 def test_capture_page_is_one_screen_with_accessible_fields(tmp_path, monkeypatch) -> None:
     with _client(tmp_path, monkeypatch) as client:
-        r = client.get("/static/capture.html")
+        r = client.get("/capture")
+        static_page = client.get("/static/capture.html")
     assert r.status_code == 200
+    assert static_page.status_code == 200
     body = r.text
     assert 'id="capture-form"' in body
     for field in ("date", "amount", "description"):
@@ -36,3 +38,22 @@ def test_capture_posts_via_existing_api_and_reports_duplicate(tmp_path, monkeypa
     assert "Добавлено" in first.text
     assert second.status_code == 200
     assert "Не добавлено" in second.text
+
+
+def test_capture_client_id_retry_is_idempotent_and_response_is_no_store(tmp_path, monkeypatch) -> None:
+    form = {
+        "date": "2026-11-01",
+        "description": "КОФЕ С СОБОЙ",
+        "amount": "-180",
+        "client_id": "phone-retry-1",
+    }
+    with _client(tmp_path, monkeypatch) as client:
+        first = client.post("/api/transactions", data=form, headers={"HX-Request": "true"})
+        second = client.post("/api/transactions", data=form, headers={"HX-Request": "true"})
+        json_response = client.post("/api/transactions", json={
+            "date": "2026-11-01", "description": "ЧАЙ", "amount": "-50", "client_id": "phone-retry-2",
+        })
+    assert first.status_code == 200 and "Добавлено" in first.text
+    assert second.status_code == 200 and "Не добавлено" in second.text
+    assert json_response.status_code == 200
+    assert json_response.headers["cache-control"] == "no-store"

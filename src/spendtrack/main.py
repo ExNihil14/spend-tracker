@@ -18,7 +18,13 @@ from spendtrack.redact import redact
 from spendtrack.routers.api import router as api_router
 from spendtrack.routers.frontend import router as frontend_router
 from spendtrack.routers.settings import router as settings_router
-from spendtrack.security import SAFE_METHODS, content_security_policy, origin_allowed, trusted_hosts
+from spendtrack.security import (
+    SAFE_METHODS,
+    _RemoteAccessGuard,
+    content_security_policy,
+    origin_allowed,
+    trusted_hosts,
+)
 
 cfg = load_settings()
 LOG_DIR = resolve_data_dir() / "logs"
@@ -185,6 +191,11 @@ async def _origin_guard(request, call_next):
             request.headers.get("host")):
         return JSONResponse({"detail": "cross-origin request blocked"}, status_code=403)
     return await call_next(request)
+
+
+# Path isolation + rate limit для trusted HTTPS proxy/Tailscale: `/`/`/approve` и API чтения
+# не отдаём удалённо, даже если Host разрешён. Security headers добавляются ниже (внешний слой).
+app.add_middleware(_RemoteAccessGuard)
 
 
 @app.middleware("http")
