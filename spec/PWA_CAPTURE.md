@@ -8,21 +8,29 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
 - Один экран `/capture`: дата, сумма, описание → существующий `POST /api/transactions`.
 - Используется телефоном через loopback или HTTPS reverse proxy (Tailscale Serve/Caddy).
 - Без offline queue, service worker, camera, push, multi-user, облачной БД.
-- `client_id` — optional UUID; strict idempotency для retry.
+- `client_id` — optional UUID в API; страница `/capture` **всегда** отправляет hidden UUID
+  (генерируется на загрузке, сохраняется для retry, ротируется после 200/409).
 
 ## Contract
 
 `GET /capture` → HTML (тот же `static/capture.html`, один экран).
 
 `POST /api/transactions` (JSON или form): `date`, `description`, `amount`, optional
-`account`, `currency`, `client_id` (≤128). Ответ — как у существующего API;
-`HX-Request` → HTML-фрагмент.
+`account`, `currency`, `client_id` (≤128). API `client_id` optional; `/capture` всегда
+отправляет hidden UUID. Ответ — как у существующего API; `HX-Request` → HTML-фрагмент.
 
 `client_id` reservation хранится в `capture_idempotency(client_id PK, tx_id)`:
 - same `client_id` + любой payload → htmx «Не добавлено», JSON **409**;
 - reservation + transaction + UPDATE в одной транзакции (`BEGIN IMMEDIATE`), rollback
   при исключении, DELETE при `tx_id is None`; повторный запрос не получает вечный 409.
-- race двух запросов: один создаёт строку, второй — 409/503; в БД одна строка.
+- race двух запросов: один создаёт строку, второй — 409/503; `BEGIN IMMEDIATE` busy
+  возвращает **503**, клиент повторяет **с тем же** `client_id` (retry → 409, без второй строки).
+
+### Phase C import boundary
+
+Интеграция (PWA/CLI) импортирует только `spendtrack.advisor.contract` (`AdvisorProtocol`,
+`TemplateAdvisor`, `run_advisor_flow`, `PHASE_C_CONTRACT_VERSION`). Прямые импорты
+`advisor.facts`/`slots`/`llm` — вне контракта; breaking change = bump version + adapter.
 
 ## Security
 
