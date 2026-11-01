@@ -53,6 +53,17 @@ def test_contract_version_and_adapters_implement_protocol() -> None:
     assert isinstance(StubAdvisor(), AdvisorProtocol)
 
 
+def test_contract_exports_only_frozen_surface() -> None:
+    from spendtrack.advisor import contract
+
+    assert set(contract.__all__) == {
+        "PHASE_C_CONTRACT_VERSION",
+        "AdvisorProtocol",
+        "TemplateAdvisor",
+        "run_advisor_flow",
+    }
+
+
 def test_frozen_signature_is_explicit() -> None:
     expected = ["self", "question", "facts", "slots", "llm", "taxonomy", "today", "known_tokens"]
     assert list(inspect.signature(AdvisorProtocol.ask).parameters) == expected

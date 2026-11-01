@@ -68,7 +68,10 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
 | CLI LAN guard | `tests/test_cli_serve.py` (8) |
 | Phase C contract v1 | `tests/test_advisor_contract.py` (3) |
 
-Full suite: **1277 passed**, ruff clean. Browser e2e: **1 passed** (`tests/e2e/test_capture_e2e.py`, temp server).
+Full suite: **1277 passed**, ruff clean. Browser e2e: **1 passed** (`tests/e2e/test_capture_e2e.py`, temp server; CI job `e2e` runs `pytest -m e2e`).
+Branch coverage (targeted `test_api` + capture/security/CLI): `routers/api.py` **79%**,
+`security.py` **96%**, `/capture` route covered; module-wide `routers/frontend.py` 51% due
+unrelated pages, not the capture path.
 
 ## Known gaps / not covered
 

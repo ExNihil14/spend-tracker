@@ -8,6 +8,19 @@ import pytest
 pytestmark = pytest.mark.e2e
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _require_chromium() -> None:
+    """Skip gracefully on machines/CI without a Playwright browser binary."""
+    try:
+        from playwright.sync_api import sync_playwright
+
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch()
+            browser.close()
+    except Exception as exc:  # noqa: BLE001 — отсутствие браузера не должно красить unit-контур
+        pytest.skip(f"Playwright chromium unavailable: {exc}")
+
+
 def test_capture_page_submits_with_hidden_client_id(page, live_server, db_path) -> None:
     page.goto(f"{live_server}/capture", wait_until="load")
     assert page.title() == "Быстрый ввод — Spendtrack"
