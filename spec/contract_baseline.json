@@ -24,6 +24,26 @@
    "args": "n: int, one: str, few: str, many: str",
    "returns": "str"
   },
+  "spendtrack.advisor.contract:AdvisorProtocol.__decorators__": {
+   "args": "@runtime_checkable",
+   "returns": ""
+  },
+  "spendtrack.advisor.contract:AdvisorProtocol.ask": {
+   "args": "self, question: str, facts: dict, slots: Slots, llm: Callable[[str], str] | None=None, taxonomy: Taxonomy | None=None, today: date | None=None, known_tokens: tuple[str, ...] | None=None",
+   "returns": "Answer"
+  },
+  "spendtrack.advisor.contract:PHASE_C_CONTRACT_VERSION": {
+   "args": "'1'",
+   "returns": ""
+  },
+  "spendtrack.advisor.contract:TemplateAdvisor.ask": {
+   "args": "self, question: str, facts: dict, slots: Slots, llm: Callable[[str], str] | None=None, taxonomy: Taxonomy | None=None, today: date | None=None, known_tokens: tuple[str, ...] | None=None",
+   "returns": "Answer"
+  },
+  "spendtrack.advisor.contract:run_advisor_flow": {
+   "args": "advisor: AdvisorProtocol, question: str, facts: dict, slots: Slots, *, llm: Callable[[str], str] | None=None, taxonomy: Taxonomy | None=None, today: date | None=None, known_tokens: tuple[str, ...] | None=None",
+   "returns": "Answer"
+  },
   "spendtrack.advisor.facts:Period.__decorators__": {
    "args": "@dataclass(frozen=True)",
    "returns": ""
@@ -73,7 +93,7 @@
    "returns": ""
   },
   "spendtrack.advisor.llm:ask": {
-   "args": "question: str, facts: dict, slots: Slots, llm: Callable[[str], str] | None=None, taxonomy: Taxonomy | None=None, today: date | None=None, known_tokens: tuple[str, ...]=()",
+   "args": "question: str, facts: dict, slots: Slots, llm: Callable[[str], str] | None=None, taxonomy: Taxonomy | None=None, today: date | None=None, known_tokens: tuple[str, ...] | None=None",
    "returns": "Answer"
   },
   "spendtrack.advisor.llm:redact_question": {
@@ -1120,6 +1140,10 @@
    "args": "str = Field(max_length=64)",
    "returns": ""
   },
+  "spendtrack.routers.api:TxIn.client_id": {
+   "args": "str | None = Field(default=None, max_length=128)",
+   "returns": ""
+  },
   "spendtrack.routers.api:TxIn.currency": {
    "args": "str | None = None",
    "returns": ""
@@ -1246,6 +1270,10 @@
   },
   "spendtrack.routers.frontend:approve": {
    "args": "request: Request, store: Annotated[Store, Depends(get_store)]",
+   "returns": ""
+  },
+  "spendtrack.routers.frontend:capture_page": {
+   "args": "",
    "returns": ""
   },
   "spendtrack.routers.frontend:dashboard": {
@@ -1377,7 +1405,7 @@
    "returns": ""
   },
   "spendtrack.store:SCHEMA": {
-   "args": "_TX_DDL + \"\\nCREATE TABLE IF NOT EXISTS categories(\\n  name TEXT PRIMARY KEY,\\n  color TEXT NOT NULL DEFAULT '#9ca3af'\\n);\\n\\nCREATE TABLE IF NOT EXISTS rules(\\n  id INTEGER PRIMARY KEY,\\n  pattern TEXT NOT NULL,\\n  category TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS examples(\\n  id INTEGER PRIMARY KEY,\\n  description TEXT NOT NULL,\\n  amount_kopecks INTEGER NOT NULL,\\n  category TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS import_batches(\\n  id TEXT PRIMARY KEY,\\n  filename TEXT NOT NULL,\\n  sha TEXT NOT NULL,\\n  nrows INTEGER NOT NULL DEFAULT 0,\\n  status TEXT NOT NULL DEFAULT 'ok',\\n  created TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS account_pseudonyms(\\n  original TEXT PRIMARY KEY,\\n  pseudonym TEXT NOT NULL UNIQUE\\n);\\n\\nCREATE TABLE IF NOT EXISTS merchant_cache(\\n  key TEXT PRIMARY KEY,               -- sha1(merchant.upper()); от категории НЕ зависит\\n  merchant TEXT NOT NULL,\\n  category TEXT NOT NULL,\\n  confidence REAL NOT NULL DEFAULT 1.0,\\n  updated TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS budgets(\\n  category        TEXT PRIMARY KEY,            -- имя категории таксономии\\n  amount_kopecks  INTEGER NOT NULL CHECK(amount_kopecks > 0),\\n  updated         TEXT NOT NULL\\n);\\n\\nCREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);\\nCREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);\\nCREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);\\n\" + _GOALS_DDL",
+   "args": "_TX_DDL + \"\\nCREATE TABLE IF NOT EXISTS categories(\\n  name TEXT PRIMARY KEY,\\n  color TEXT NOT NULL DEFAULT '#9ca3af'\\n);\\n\\nCREATE TABLE IF NOT EXISTS rules(\\n  id INTEGER PRIMARY KEY,\\n  pattern TEXT NOT NULL,\\n  category TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS examples(\\n  id INTEGER PRIMARY KEY,\\n  description TEXT NOT NULL,\\n  amount_kopecks INTEGER NOT NULL,\\n  category TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS import_batches(\\n  id TEXT PRIMARY KEY,\\n  filename TEXT NOT NULL,\\n  sha TEXT NOT NULL,\\n  nrows INTEGER NOT NULL DEFAULT 0,\\n  status TEXT NOT NULL DEFAULT 'ok',\\n  created TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS account_pseudonyms(\\n  original TEXT PRIMARY KEY,\\n  pseudonym TEXT NOT NULL UNIQUE\\n);\\n\\nCREATE TABLE IF NOT EXISTS merchant_cache(\\n  key TEXT PRIMARY KEY,               -- sha1(merchant.upper()); от категории НЕ зависит\\n  merchant TEXT NOT NULL,\\n  category TEXT NOT NULL,\\n  confidence REAL NOT NULL DEFAULT 1.0,\\n  updated TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS budgets(\\n  category        TEXT PRIMARY KEY,            -- имя категории таксономии\\n  amount_kopecks  INTEGER NOT NULL CHECK(amount_kopecks > 0),\\n  updated         TEXT NOT NULL\\n);\\n\\nCREATE TABLE IF NOT EXISTS capture_idempotency(\\n  client_id TEXT PRIMARY KEY,\\n  tx_id     INTEGER NOT NULL\\n);\\n\\nCREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);\\nCREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);\\nCREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);\\n\" + _GOALS_DDL",
    "returns": ""
   },
   "spendtrack.store:SCHEMA_VERSION": {
@@ -1737,6 +1765,7 @@
   "GET /api/reviews/count": "8c19c725fd2c",
   "GET /api/transactions/{tx_id}": "a1a5fa6a5173",
   "GET /approve": "8c19c725fd2c",
+  "GET /capture": "d7b51793563e",
   "GET /dashboard": "b67aa5b64d75",
   "GET /export.csv": "faec837bb47f",
   "GET /export.xlsx": "faec837bb47f",
@@ -1775,6 +1804,8 @@
   "budgets.amount_kopecks": "INTEGER|notnull=1|pk=0|dflt=None",
   "budgets.category": "TEXT|notnull=0|pk=1|dflt=None",
   "budgets.updated": "TEXT|notnull=1|pk=0|dflt=None",
+  "capture_idempotency.client_id": "TEXT|notnull=0|pk=1|dflt=None",
+  "capture_idempotency.tx_id": "INTEGER|notnull=1|pk=0|dflt=None",
   "categories.color": "TEXT|notnull=1|pk=0|dflt='#9ca3af'",
   "categories.name": "TEXT|notnull=0|pk=1|dflt=None",
   "examples.amount_kopecks": "INTEGER|notnull=1|pk=0|dflt=None",
@@ -1819,6 +1850,7 @@
   "schema_migrations.version": "INTEGER|notnull=0|pk=1|dflt=None",
   "table:account_pseudonyms": "CREATE TABLE account_pseudonyms( original TEXT PRIMARY KEY, pseudonym TEXT NOT NULL UNIQUE )",
   "table:budgets": "CREATE TABLE budgets( category TEXT PRIMARY KEY, -- имя категории таксономии amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks > 0), updated TEXT NOT NULL )",
+  "table:capture_idempotency": "CREATE TABLE capture_idempotency( client_id TEXT PRIMARY KEY, tx_id INTEGER NOT NULL )",
   "table:categories": "CREATE TABLE categories( name TEXT PRIMARY KEY, color TEXT NOT NULL DEFAULT '#9ca3af' )",
   "table:examples": "CREATE TABLE examples( id INTEGER PRIMARY KEY, description TEXT NOT NULL, amount_kopecks INTEGER NOT NULL, category TEXT NOT NULL )",
   "table:goal_allocations": "CREATE TABLE goal_allocations( id INTEGER PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE RESTRICT, date TEXT NOT NULL CHECK(date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'), amount_kopecks INTEGER NOT NULL CHECK(amount_kopecks <> 0 AND amount_kopecks BETWEEN -100000000000 AND 100000000000), reverses_id INTEGER REFERENCES goal_allocations(id) ON DELETE RESTRICT, created_at TEXT NOT NULL ) STRICT",
