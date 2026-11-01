@@ -18,6 +18,10 @@
   queue**; queue is a separate later ticket after ADR + exactly-once test.
 - Next priority: PWA quick-capture ADR/spec/test plan; deferred D-22..D-30 / D-32–D-34 /
   D-36–D-39 triage; no new Abacus spend, no AgentRouter POST. Live/DB/UI untouched.
+- **Backlog (owner 01.11):** remote CI `docker-smoke` and `lint-and-test` failing. Local fix
+  `6519632`: msgpack 1.2.2 CVE → 1.2.4; Dockerfile sets `SPENDTRACK_ALLOW_INSECURE_LAN=1`
+  (container isolated, host publishes 127.0.0.1). Docker local not verified (daemon down);
+  verify after push. No live.
 - **01.11 security/PWA local commits:** `ceec703` (capture static page, trusted hosts, CLI guard)
   + `147ba68` (path isolation, rate limit, `/capture` route, optional `client_id`)
   + `88a6383` (remote app-token, page UUID client_id)
