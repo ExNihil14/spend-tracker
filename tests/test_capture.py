@@ -104,3 +104,61 @@ def test_capture_client_id_concurrent_race_creates_one_row(tmp_path, monkeypatch
     rows = sqlite3.connect(tmp_path / "capture.db").execute(
         "SELECT COUNT(*) FROM transactions").fetchone()[0]
     assert rows == 1
+
+
+def test_capture_client_id_reservation_removed_on_add_exception(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "capture.db"))
+    from spendtrack.main import app
+    from spendtrack.store import Store
+
+    original = Store.add_transaction
+    monkeypatch.setattr(Store, "add_transaction", lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("boom")))
+    client = TestClient(app, raise_server_exceptions=False)
+    r = client.post("/api/transactions", json={
+        "date": "2026-11-01", "description": "FAIL", "amount": "-100", "client_id": "fail-1",
+    })
+    client.close()
+    assert r.status_code == 500
+    assert sqlite3.connect(tmp_path / "capture.db").execute(
+        "SELECT COUNT(*) FROM capture_idempotency WHERE client_id=?", ("fail-1",)
+    ).fetchone()[0] == 0
+
+    monkeypatch.setattr(Store, "add_transaction", original)
+    client = TestClient(app)
+    retry = client.post("/api/transactions", json={
+        "date": "2026-11-01", "description": "FAIL", "amount": "-100", "client_id": "fail-1",
+    })
+    client.close()
+    assert retry.status_code == 200
+    assert sqlite3.connect(tmp_path / "capture.db").execute(
+        "SELECT COUNT(*) FROM capture_idempotency WHERE client_id=?", ("fail-1",)
+    ).fetchone()[0] == 1
+
+
+def test_capture_client_id_reservation_removed_when_add_returns_none(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "capture.db"))
+    from spendtrack.main import app
+    from spendtrack.store import Store
+
+    original = Store.add_transaction
+    monkeypatch.setattr(Store, "add_transaction", lambda *_a, **_kw: None)
+    client = TestClient(app)
+    r = client.post("/api/transactions", json={
+        "date": "2026-11-01", "description": "DUP", "amount": "-100", "client_id": "none-1",
+    })
+    client.close()
+    assert r.status_code == 200
+    assert sqlite3.connect(tmp_path / "capture.db").execute(
+        "SELECT COUNT(*) FROM capture_idempotency WHERE client_id=?", ("none-1",)
+    ).fetchone()[0] == 0
+
+    monkeypatch.setattr(Store, "add_transaction", original)
+    client = TestClient(app)
+    retry = client.post("/api/transactions", json={
+        "date": "2026-11-01", "description": "DUP", "amount": "-100", "client_id": "none-1",
+    })
+    client.close()
+    assert retry.status_code == 200
+    assert sqlite3.connect(tmp_path / "capture.db").execute(
+        "SELECT COUNT(*) FROM capture_idempotency WHERE client_id=?", ("none-1",)
+    ).fetchone()[0] == 1

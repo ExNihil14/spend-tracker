@@ -181,11 +181,13 @@ def _reserve_client_id(
     if not tx.client_id:
         return None
     try:
+        store.conn.execute("BEGIN IMMEDIATE")
         store.conn.execute(
             "INSERT INTO capture_idempotency(client_id, tx_id) VALUES(?, 0)",
             (tx.client_id,),
         )
     except sqlite3.IntegrityError:
+        store.conn.rollback()
         if request.headers.get("hx-request", "").lower() == "true":
             desc = escape(tx.description)
             return HTMLResponse(
@@ -216,6 +218,11 @@ def _add_capture_transaction(
                 store.conn.execute(
                     "UPDATE capture_idempotency SET tx_id = ? WHERE client_id = ?",
                     (tx_id, tx.client_id),
+                )
+            else:
+                store.conn.execute(
+                    "DELETE FROM capture_idempotency WHERE client_id = ?",
+                    (tx.client_id,),
                 )
             store.conn.commit()
         return tx_id
