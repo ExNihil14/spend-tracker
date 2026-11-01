@@ -1,8 +1,10 @@
 """Frozen Phase C contract: protocol + stub integration test."""
 from __future__ import annotations
 
+import ast
 import inspect
 from datetime import date
+from pathlib import Path
 
 from spendtrack.advisor.answer import Answer
 from spendtrack.advisor.contract import (
@@ -62,6 +64,20 @@ def test_contract_exports_only_frozen_surface() -> None:
         "TemplateAdvisor",
         "run_advisor_flow",
     }
+
+
+def test_cli_consumer_does_not_import_advisor_internals() -> None:
+    """Static boundary: CLI consumer goes through integration facade, not facts/slots/llm."""
+    root = Path(__file__).resolve().parents[1]
+    tree = ast.parse((root / "src" / "spendtrack" / "cli.py").read_text(encoding="utf-8"))
+    forbidden = {"spendtrack.advisor.facts", "spendtrack.advisor.slots", "spendtrack.advisor.llm"}
+    imported: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            imported.append(node.module)
+        elif isinstance(node, ast.Import):
+            imported.extend(alias.name for alias in node.names)
+    assert not any(name == blocked or name.startswith(blocked + ".") for name in imported for blocked in forbidden)
 
 
 def test_frozen_signature_is_explicit() -> None:

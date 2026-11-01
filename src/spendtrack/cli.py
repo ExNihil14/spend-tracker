@@ -95,29 +95,25 @@ def cmd_import(args) -> int:
 
 def cmd_ask(args) -> int:
     """Deterministic advisor: template-first; no LLM calls in C5."""
-    from spendtrack.advisor.facts import build_facts, parse_period
-    from spendtrack.advisor.llm import ask as advisor_ask
-    from spendtrack.advisor.slots import _parse_slots
+    from spendtrack.advisor.integration import _answer_question
 
     today = date.today()  # noqa: DTZ011 - локальная календарная дата для периода
     question = " ".join(args.question).strip()
     if not question:
         print("ask: пустой вопрос", file=sys.stderr)
         return 2
-    period = None
-    if args.month is not None:
-        if not re.fullmatch(r"\d{4}-\d{2}", args.month):
-            print("ask: --month ожидается YYYY-MM", file=sys.stderr)
-            return 2
-        period = parse_period(args.month, today)
-        if period is None:
-            print("ask: некорректный --month", file=sys.stderr)
-            return 2
+    if args.month is not None and not re.fullmatch(r"\d{4}-\d{2}", args.month):
+        print("ask: --month ожидается YYYY-MM", file=sys.stderr)
+        return 2
     store = make_store()
     tx = load_taxonomy()
-    slots = _parse_slots(question, today, tx, period_override=period)
-    facts = build_facts(store, slots.period, tx, today)
-    result = advisor_ask(question, facts, slots, llm=None, taxonomy=tx, today=today)
+    try:
+        result, facts = _answer_question(
+            question, store, tx, today, month=args.month,
+        )
+    except ValueError as e:
+        print(f"ask: {e}", file=sys.stderr)
+        return 2
     if args.json:
         print(json.dumps({"intent": result.intent, "period": facts["period"],
                           "answer": result.text, "facts": facts},

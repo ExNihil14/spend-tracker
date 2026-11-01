@@ -3,8 +3,10 @@
 Integration must import only this module, not the internal facts/slots/llm modules.
 Any breaking change to the protocol bumps PHASE_C_CONTRACT_VERSION and updates the adapter.
 
-Enforcement status: documented convention, not a static linter yet. `cli.py` is legacy and
-still imports internals; new PWA/integration code must use `run_advisor_flow`/`AdvisorProtocol`.
+Enforcement status: `cli.py` consumes `advisor.integration._answer_question` (facade), and
+`tests/test_advisor_contract.py` statically rejects direct facts/slots/llm imports in that
+consumer. The facade itself is the only internal-import seam; new PWA/integration code must use
+`run_advisor_flow`/`AdvisorProtocol`.
 """
 from __future__ import annotations
 
