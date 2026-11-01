@@ -8,7 +8,10 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
     SPENDTRACK_DATA_DIR=/data \
     SPENDTRACK_CONFIG_DIR=/data/config \
+    SPENDTRACK_ALLOW_INSECURE_LAN=1 \
     PATH="/app/.venv/bin:$PATH"
+# Container binds 0.0.0.0 for port publishing; Docker network is isolated and host
+# publishes to 127.0.0.1. Do not reuse this env outside the container.
 
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
