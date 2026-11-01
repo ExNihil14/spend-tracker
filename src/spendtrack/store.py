@@ -334,6 +334,11 @@ CREATE TABLE IF NOT EXISTS budgets(
   updated         TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS capture_idempotency(
+  client_id TEXT PRIMARY KEY,
+  tx_id     INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(date);
 CREATE INDEX IF NOT EXISTS idx_tx_category ON transactions(category);
 CREATE INDEX IF NOT EXISTS idx_tx_merchant ON transactions(merchant);

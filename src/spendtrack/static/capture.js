@@ -27,10 +27,10 @@
   }
 
   if (token) {
-    var savedToken = window.localStorage.getItem(TOKEN_KEY);
+    var savedToken = window.sessionStorage.getItem(TOKEN_KEY);
     if (savedToken) token.value = savedToken;
     token.addEventListener("input", function () {
-      window.localStorage.setItem(TOKEN_KEY, token.value.trim());
+      window.sessionStorage.setItem(TOKEN_KEY, token.value.trim());
     });
   }
 
@@ -43,7 +43,7 @@
   document.body.addEventListener("htmx:afterRequest", function (event) {
     if (!form || event.detail.elt !== form || !clientId) return;
     var xhr = event.detail.xhr;
-    if (event.detail.successful && xhr && xhr.status === 200) {
+    if (xhr && (xhr.status === 200 || xhr.status === 409)) {
       clientId.value = newId();
       window.localStorage.setItem(CLIENT_KEY, clientId.value);
     }

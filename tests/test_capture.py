@@ -57,10 +57,21 @@ def test_capture_client_id_retry_is_idempotent_and_response_is_no_store(tmp_path
     with _client(tmp_path, monkeypatch) as client:
         first = client.post("/api/transactions", data=form, headers={"HX-Request": "true"})
         second = client.post("/api/transactions", data=form, headers={"HX-Request": "true"})
+        changed = client.post("/api/transactions", json={
+            **form, "amount": "-181",
+        })
         json_response = client.post("/api/transactions", json={
             "date": "2026-11-01", "description": "ЧАЙ", "amount": "-50", "client_id": "phone-retry-2",
         })
     assert first.status_code == 200 and "Добавлено" in first.text
     assert second.status_code == 200 and "Не добавлено" in second.text
+    assert changed.status_code == 409
+    assert changed.json()["detail"] == "client_id already used"
     assert json_response.status_code == 200
     assert json_response.headers["cache-control"] == "no-store"
+    import sqlite3
+
+    count = sqlite3.connect(tmp_path / "capture.db").execute(
+        "SELECT COUNT(*) FROM capture_idempotency WHERE client_id = ?", ("phone-retry-1",)
+    ).fetchone()[0]
+    assert count == 1

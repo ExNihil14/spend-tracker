@@ -169,6 +169,27 @@ async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
         raise _validation_422(e) from e
 
 
+def _used_client_id_response(
+    store: Store, tx: TxIn, request: Request
+) -> HTMLResponse | None:
+    """Strict client_id: уже использован → HTML «Не добавлено» или 409, без второй строки."""
+    if not tx.client_id:
+        return None
+    existing = store.conn.execute(
+        "SELECT tx_id FROM capture_idempotency WHERE client_id = ?",
+        (tx.client_id,),
+    ).fetchone()
+    if not existing:
+        return None
+    if request.headers.get("hx-request", "").lower() == "true":
+        desc = escape(tx.description)
+        return HTMLResponse(
+            f'<p class="text-accent">Не добавлено: {desc} — этот client_id уже использован.</p>'
+            + _oob_badge(store)
+        )
+    raise HTTPException(409, detail="client_id already used")
+
+
 @router.post("/transactions")
 async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
     taxonomy = load_taxonomy()
@@ -191,6 +212,9 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
         except ValidationError as e:  # форма без обязательного поля → 422 (как JSON), а не 500
             raise _validation_422(e) from e
     amount = parse_amount(tx.amount)
+    conflict = _used_client_id_response(store, tx, request)
+    if conflict is not None:
+        return conflict
     account_anon = store.pseudonymize(tx.account)
     category = categorize_transaction(
         {"date": tx.date, "description": tx.description, "amount_kopecks": amount,
@@ -206,6 +230,12 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
         review_status=category.get("review_status", "approved"),
         currency=tx.currency,
     )
+    if tx_id is not None and tx.client_id:
+        store.conn.execute(
+            "INSERT OR IGNORE INTO capture_idempotency(client_id, tx_id) VALUES(?, ?)",
+            (tx.client_id, tx_id),
+        )
+        store.conn.commit()
     if request.headers.get("hx-request", "").lower() == "true":
         desc = escape(tx.description)  # аудит 24.09: описание — пользовательский ввод, экранируем
         if tx_id is None:
