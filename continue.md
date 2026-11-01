@@ -18,6 +18,32 @@
   queue**; queue is a separate later ticket after ADR + exactly-once test.
 - Next priority: PWA quick-capture ADR/spec/test plan; deferred D-22..D-30 / D-32–D-34 /
   D-36–D-39 triage; no new Abacus spend, no AgentRouter POST. Live/DB/UI untouched.
+- **01.11 security/PWA local commits:** `ceec703` (capture static page, trusted hosts, CLI guard)
+  + `147ba68` (path isolation, rate limit, `/capture` route, optional `client_id`)
+  + `88a6383` (remote app-token, page UUID client_id)
+  + `dbb1a3a` (strict client_id: `capture_idempotency`, 409/no second row)
+  + `c33edad` (atomic insert-first reservation + rollback; concurrent test)
+  + `d9dbe17` (rollback/deleted reservation on add exception/None; failure-injection tests)
+  + `4422f8f` (Phase C contract v1: `AdvisorProtocol`, `TemplateAdvisor`, `run_advisor_flow`,
+  stub/signature tests). Tests **1277** / ruff clean; contract DRIFT — new `/capture`, `client_id`,
+  `capture_idempotency`, contract v1, plus previously accepted `known_tokens`; baseline **updated**
+  by owner `/careful` (schema 79 / api 439 / routes 39; `contract_delta check` ok) and committed
+  `1f112fb`; `continue.md` still uncommitted.
+  Auth =
+  Tailscale ACL + required `SPENDTRACK_CAPTURE_TOKEN` (remote POST); `/`/`/approve` remote → 403,
+  `/capture` → 200; no offline/SW; API no-store. Live 8766 static page smoked; app code **not
+  restarted**, Tailscale not configured. **Pushed**: origin/main = `1f112fb`, local=remote.
+- **PWA spec/coverage:** `spec/PWA_CAPTURE.md` — scope/security/deploy, coverage matrix,
+  known gaps; PWA/offline/service worker explicitly deferred. Local commits `91b19b1`
+  (`docs(pwa): capture spec...`) + `2278b7a` (clarify client_id/busy retry/import boundary);
+  now pushed in `1f112fb`. Browser e2e `3dbade3` (local, not pushed): hidden client_id submit,
+  reservation row=1, UUID rotation; e2e 1 passed. Test/coverage commit `66c3776`: e2e CI/doc,
+  graceful skip, branch coverage API 79% / security 96%, contract `__all__` surface.
+  `fa7233f`: CI e2e fails if browser missing; import-boundary limitation documented.
+  `969b8be`: CLI uses `advisor.integration` facade; static AST test blocks direct facts/slots/llm
+  imports. Local `e212294`: top-100 boundary + compare provenance. Local `84271c8`: compact
+  «топ5» regex fix. Local `e0c8514`: conservative alias ambiguity + empty-current compare.
+  Full **1286**, contract check ok. Deferred triage — D-36/D-39/D-37 fixed; allow-list P3 open.
 
 ## 31.10.2026 (Phase C v2/v3 close; commit c4948e9; push confirmed)
 - Phase C v2/v3 accepted fixes applied: **commit `c4948e9`** — `fix(advisor): apply accepted
