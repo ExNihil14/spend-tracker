@@ -15,7 +15,7 @@ METRICS = ("total", "category", "budget", "trend", "top", "unknown")
 
 _BUDGET_WORDS = ("бюджет", "перерасход", "лимит")
 _TREND_RE = re.compile(r"(?<!\w)(?:тренд\w*|динамик\w*|средн\w*|по дням)(?!\w)")
-_TOP_RE = re.compile(r"(?<!\w)топ(?!\w)|(?<!\w)больше всего|(?<!\w)крупн")
+_TOP_RE = re.compile(r"(?<!\w)топ(?=\s|$|[-\d])|(?<!\w)больше всего|(?<!\w)крупн")
 _TOTAL_WORDS = ("сколько", "потрат", "расход", "итог", "всего")
 _COMPARE_WORDS = ("сравн", "к прошл", "динамик", "тренд")
 _PERIOD_HINT_RE = re.compile(

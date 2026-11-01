@@ -56,6 +56,11 @@ def test_top_100_asks_back_not_truncated_to_10(taxonomy):
     assert s.ask_back == "top_n" and s.metric == "unknown"
 
 
+def test_compact_top5_is_parsed(taxonomy):
+    s = parse_slots("топ5 категорий за октябрь", TODAY, taxonomy)
+    assert s.metric == "top" and s.top_n == 5 and s.ask_back is None
+
+
 def test_embedded_word_top_n_is_not_metric(taxonomy):
     s = parse_slots("сколько потратил на лэптоп-20?", TODAY, taxonomy)
     assert s.ask_back is None and s.metric != "top"
