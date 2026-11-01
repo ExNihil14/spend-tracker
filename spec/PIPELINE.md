@@ -738,7 +738,7 @@ Backup-скрипты bootstrap (`backup-knowledge.py`, `backup-opencode-db.py`)
 ## Тесты / анализ
 ```bash
 uv run pytest -q                # unit-тесты (e2e отдельно: uv run pytest tests/e2e -m e2e), все оффлайн (LLM-стаб)
-uv run pytest tests/e2e/test_capture_e2e.py -m e2e  # /capture browser; graceful skip без chromium
+uv run pytest tests/e2e/test_capture_e2e.py -m e2e  # /capture browser; local skip if no chromium, CI fails
 uv run ruff check               # lint, чистый
 uv run --with coverage coverage run --branch -m pytest -q tests/test_api.py tests/test_capture.py tests/test_remote_access.py tests/test_security_perimeter.py tests/test_cli_serve.py
 uv run --with coverage coverage report -m --include="src/spendtrack/routers/api.py,src/spendtrack/security.py,src/spendtrack/routers/frontend.py,src/spendtrack/advisor/contract.py"

@@ -28,9 +28,11 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
 
 ### Phase C import boundary
 
-Интеграция (PWA/CLI) импортирует только `spendtrack.advisor.contract` (`AdvisorProtocol`,
+Интеграция (PWA/new code) импортирует только `spendtrack.advisor.contract` (`AdvisorProtocol`,
 `TemplateAdvisor`, `run_advisor_flow`, `PHASE_C_CONTRACT_VERSION`). Прямые импорты
 `advisor.facts`/`slots`/`llm` — вне контракта; breaking change = bump version + adapter.
+**Ограничение:** это документированная конвенция, не статический линтер; `cli.py` — legacy
+и пока импортирует internals напрямую. Новый PWA/интеграционный код обязан идти через contract.
 
 ## Security
 
@@ -68,10 +70,10 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
 | CLI LAN guard | `tests/test_cli_serve.py` (8) |
 | Phase C contract v1 | `tests/test_advisor_contract.py` (3) |
 
-Full suite: **1277 passed**, ruff clean. Browser e2e: **1 passed** (`tests/e2e/test_capture_e2e.py`, temp server; CI job `e2e` runs `pytest -m e2e`).
+Full suite: **1278 passed**, ruff clean. Browser e2e: **1 passed** (`tests/e2e/test_capture_e2e.py`, temp server; CI job `e2e` installs chromium and runs `pytest -m e2e`; without browser local run skips, in CI it fails).
 Branch coverage (targeted `test_api` + capture/security/CLI): `routers/api.py` **79%**,
 `security.py` **96%**, `/capture` route covered; module-wide `routers/frontend.py` 51% due
-unrelated pages, not the capture path.
+unrelated pages, **capture path itself covered**.
 
 ## Known gaps / not covered
 

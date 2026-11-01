@@ -1,6 +1,7 @@
 """E2E: mobile capture page in a real browser (temp server, loopback)."""
 from __future__ import annotations
 
+import os
 import sqlite3
 
 import pytest
@@ -18,7 +19,10 @@ def _require_chromium() -> None:
             browser = playwright.chromium.launch()
             browser.close()
     except Exception as exc:  # noqa: BLE001 — отсутствие браузера не должно красить unit-контур
-        pytest.skip(f"Playwright chromium unavailable: {exc}")
+        message = f"Playwright chromium unavailable: {exc}"
+        if os.environ.get("CI"):
+            pytest.fail(f"{message}; CI e2e job must install chromium")
+        pytest.skip(message)
 
 
 def test_capture_page_submits_with_hidden_client_id(page, live_server, db_path) -> None:
