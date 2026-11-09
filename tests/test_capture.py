@@ -63,19 +63,78 @@ def test_capture_client_id_retry_is_idempotent_and_response_is_no_store(tmp_path
         changed = client.post("/api/transactions", json={
             **form, "amount": "-181",
         })
+        changed_html = client.post("/api/transactions", data={**form, "amount": "-182"},
+                                   headers={"HX-Request": "true"})
         json_response = client.post("/api/transactions", json={
             "date": "2026-11-01", "description": "ЧАЙ", "amount": "-50", "client_id": "phone-retry-2",
         })
     assert first.status_code == 200 and "Добавлено" in first.text
-    assert second.status_code == 200 and "Не добавлено" in second.text
+    assert second.status_code == 200 and "Уже добавлено" in second.text
     assert changed.status_code == 409
     assert changed.json()["detail"] == "client_id already used"
+    assert changed_html.status_code == 200 and "Не добавлено" in changed_html.text
     assert json_response.status_code == 200
     assert json_response.headers["cache-control"] == "no-store"
-    count = sqlite3.connect(tmp_path / "capture.db").execute(
+    db = sqlite3.connect(tmp_path / "capture.db")
+    count = db.execute(
         "SELECT COUNT(*) FROM capture_idempotency WHERE client_id = ?", ("phone-retry-1",)
     ).fetchone()[0]
+    tx_count = db.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+    db.close()
     assert count == 1
+    assert tx_count == 2  # повтор не создал третью строку
+
+
+def test_capture_same_payload_replay_returns_original_json_id(tmp_path, monkeypatch) -> None:
+    """Потерянный ответ после commit: тот же client_id/payload — успешный replay, не 409."""
+    payload = {
+        "date": "2026-11-01",
+        "description": "ПОТЕРЯННЫЙ ОТВЕТ",
+        "amount": "-250",
+        "client_id": "lost-response-1",
+    }
+    with _client(tmp_path, monkeypatch) as client:
+        first = client.post("/api/transactions", json=payload)
+        replay = client.post("/api/transactions", json=payload)
+    assert first.status_code == 200
+    assert replay.status_code == 200
+    assert replay.json()["id"] == first.json()["id"]
+    assert replay.headers["cache-control"] == "no-store"
+    db = sqlite3.connect(tmp_path / "capture.db")
+    rows = db.execute(
+        "SELECT COUNT(*) FROM transactions WHERE description=?", ("ПОТЕРЯННЫЙ ОТВЕТ",)
+    ).fetchone()[0]
+    mapping = db.execute(
+        "SELECT tx_id FROM capture_idempotency WHERE client_id=?", ("lost-response-1",)
+    ).fetchone()
+    db.close()
+    assert rows == 1
+    assert mapping == (first.json()["id"],)
+
+
+def test_capture_same_payload_replay_does_not_reclassify(tmp_path, monkeypatch) -> None:
+    """Replay не должен заново звать категоризатор/LLM: payload уже зафиксирован."""
+    from spendtrack.routers import api as api_module
+
+    calls = {"n": 0}
+    original = api_module.categorize_transaction
+
+    def counting(*args, **kwargs):
+        calls["n"] += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(api_module, "categorize_transaction", counting)
+    payload = {
+        "date": "2026-11-01",
+        "description": "БЕЗ ПОВТОРНОЙ КАТЕГОРИЗАЦИИ",
+        "amount": "-99",
+        "client_id": "no-reclassify-1",
+    }
+    with _client(tmp_path, monkeypatch) as client:
+        assert client.post("/api/transactions", json=payload).status_code == 200
+        replay = client.post("/api/transactions", json=payload)
+    assert replay.status_code == 200
+    assert calls["n"] == 1
 
 
 def test_capture_client_id_concurrent_race_creates_one_row(tmp_path, monkeypatch) -> None:
@@ -101,6 +160,34 @@ def test_capture_client_id_concurrent_race_creates_one_row(tmp_path, monkeypatch
     for client in clients:
         client.close()
     assert sorted(statuses) == [200, 409]
+    rows = sqlite3.connect(tmp_path / "capture.db").execute(
+        "SELECT COUNT(*) FROM transactions").fetchone()[0]
+    assert rows == 1
+
+
+def test_capture_client_id_concurrent_same_payload_replays_one_row(tmp_path, monkeypatch) -> None:
+    """Гонка двух одинаковых retry: оба получают один tx_id, вторая строка не появляется."""
+    monkeypatch.setenv("SPENDTRACK_DB_PATH", str(tmp_path / "capture.db"))
+    from spendtrack.main import app
+
+    payload = {"date": "2026-11-01", "description": "ОДИН", "amount": "-100",
+               "client_id": "race-same-1"}
+    clients = [TestClient(app), TestClient(app)]
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(
+            lambda client: client.post("/api/transactions", json=payload), clients
+        ))
+    statuses = [r.status_code for r in results]
+    for index, status in enumerate(statuses):
+        if status == 503:  # SQLite busy: повтор с тем же payload — replay, не новый id
+            retry = clients[index].post("/api/transactions", json=payload)
+            assert retry.status_code == 200
+            results[index] = retry
+            statuses[index] = 200
+    for client in clients:
+        client.close()
+    assert sorted(statuses) == [200, 200]
+    assert results[0].json()["id"] == results[1].json()["id"]
     rows = sqlite3.connect(tmp_path / "capture.db").execute(
         "SELECT COUNT(*) FROM transactions").fetchone()[0]
     assert rows == 1

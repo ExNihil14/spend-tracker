@@ -20,11 +20,14 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
 отправляет hidden UUID. Ответ — как у существующего API; `HX-Request` → HTML-фрагмент.
 
 `client_id` reservation хранится в `capture_idempotency(client_id PK, tx_id)`:
-- same `client_id` + любой payload → htmx «Не добавлено», JSON **409**;
+- same `client_id` + тот же payload (date/amount/description/account/currency после
+  нормализации) → **replay**: 200, htmx «Уже добавлено», тот же `tx_id`, второй строки нет;
+- same `client_id` + другой payload → htmx «Не добавлено», JSON **409**;
 - reservation + transaction + UPDATE в одной транзакции (`BEGIN IMMEDIATE`), rollback
   при исключении, DELETE при `tx_id is None`; повторный запрос не получает вечный 409.
-- race двух запросов: один создаёт строку, второй — 409/503; `BEGIN IMMEDIATE` busy
-  возвращает **503**, клиент повторяет **с тем же** `client_id` (retry → 409, без второй строки).
+- race двух запросов: один создаёт строку, второй — replay/409/503; `BEGIN IMMEDIATE` busy
+  возвращает **503**, клиент повторяет **с тем же** `client_id` (после commit первого — replay
+  200, без второй строки).
 
 ### Phase C import boundary
 
@@ -48,8 +51,12 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
   backend видит 127.0.0.1 → bucket общий; для single owner принято.
 - `Cache-Control: no-store` для API/HTML (existing middleware); static — no-cache.
 - `spendtrack serve --host` не-loopback без `SPENDTRACK_ALLOW_INSECURE_LAN=1` → отказ (rc=2).
-- Token хранится в sessionStorage; `client_id` — localStorage (для retry).
-- **Tailscale ACL:** grant owner user/device → laptop:8766; никаких tagged/foreign identities.
+- Token хранится в sessionStorage; `client_id` — localStorage (для retry). CSP —
+  `script-src 'self'`, сторонних скриптов нет; описания экранируются (XSS-regression
+  `test_ui_polish`). sessionStorage остаётся same-origin поверхностью: компрометация
+  скрипта приложения равна компрометации сессии, принято для single-owner.
+- **Tailscale ACL:** grant owner user/device → laptop:443 (Serve), backend `127.0.0.1:8766`
+  в tailnet не публикуется; никаких tagged/foreign identities.
   ACL вживую не проверялся (Tailscale не установлен); app-token обязателен.
 
 ## Deployment (B)
@@ -65,14 +72,14 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
 
 | Area | Tests |
 |---|---|
-| Page/fields/hidden client_id | `tests/test_capture.py` (6) |
+| Page/fields/hidden client_id | `tests/test_capture.py` (9) |
 | Browser e2e: hidden client_id submit | `tests/e2e/test_capture_e2e.py` (1) |
 | Path isolation/rate/token | `tests/test_remote_access.py` (3) |
 | Trusted hosts/Codespaces/Origin | `tests/test_security_perimeter.py` (16) |
 | CLI LAN guard | `tests/test_cli_serve.py` (8) |
 | Phase C contract v1 | `tests/test_advisor_contract.py` (5) |
 
-Full suite: **1279 passed**, ruff clean. Browser e2e: **1 passed** (`tests/e2e/test_capture_e2e.py`, temp server; CI job `e2e` installs chromium and runs `pytest -m e2e`; without browser local run skips, in CI it fails).
+Full suite: **1288 passed, 1 skipped**, ruff clean. Browser e2e: **1 passed** (`tests/e2e/test_capture_e2e.py`, temp server; CI job `e2e` installs chromium and runs `pytest -m e2e`; without browser local run skips, in CI it fails).
 Branch coverage (targeted `test_api` + capture/security/CLI): `routers/api.py` **79%**,
 `security.py` **96%**, `/capture` route covered; module-wide `routers/frontend.py` 51% due
 unrelated pages, **capture path itself covered**.
@@ -80,8 +87,11 @@ unrelated pages, **capture path itself covered**.
 ## Known gaps / not covered
 
 - Real Tailscale Serve/ACL, live proxy Host/Origin, live CSRF — no Tailscale installed.
+  **Host — единственный app-level признак remote-запроса:** если Serve пропускает
+  подменённый `127.0.0.1` без перезаписи/X-Forwarded, приложение не отличит такой запрос
+  от локального. До live-проверки remote-пилот заблокирован.
 - Actual phone/browser install, iOS Safari quirks, service worker/offline — out of scope.
-- `capture_idempotency` race under real concurrent load only unit-tested (503→retry 409).
+- `capture_idempotency` race under real concurrent load only unit-tested (503→replay 200).
 - Contract baseline (`/capture`, `client_id`, `capture_idempotency`, contract v1) not snapshotted;
   `contract_delta.py snapshot` blocked by safety-gate until owner `/careful`.
 - Rate limit is per-process, not shared across workers; current single-process service.
@@ -91,9 +101,11 @@ unrelated pages, **capture path itself covered**.
 - [x] one-screen page, accessible labels/focus/min 44px targets.
 - [x] reuse POST, no new financial read API, no-store.
 - [x] remote path isolation + app token + rate limit.
-- [x] strict client_id + failure rollback.
+- [x] strict client_id: same-payload replay, different-payload 409, failure rollback.
 - [x] unit/integration tests, full suite green.
-- [ ] Tailscale/ACL + live CSRF smoke.
+- [ ] backup + restore drill (`spendtrack backup --drill`) перед remote-пилотом.
+- [ ] Tailscale/ACL + live CSRF smoke, включая попытку `Host: 127.0.0.1` через Serve;
+  при обходе path isolation/token — STOP и отключить Serve.
 - [ ] contract baseline update (owner `/careful`).
 - [ ] owner review/push/live restart.
 

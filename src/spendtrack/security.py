@@ -123,7 +123,7 @@ def _reset_capture_rate() -> None:
 class _RemoteAccessGuard:
     """ASGI-гард для запросов через trusted HTTPS-прокси/Tailscale.
 
-    Path isolation + rate limit; auth — Tailscale ACL (app-token нет, документировано).
+    Path isolation + rate limit + app-token; Tailscale ACL — дополнительный сетевой слой.
     """
 
     def __init__(self, app):

@@ -19,7 +19,7 @@ from spendtrack.assets import static_url
 from spendtrack.cat_icons import cat_icon
 from spendtrack.categorize import categorize_transaction
 from spendtrack.colors import badge_text_color
-from spendtrack.config import PKG_DIR
+from spendtrack.config import PKG_DIR, base_currency
 from spendtrack.csv_import import (
     MAX_AMOUNT_KOPECKS,
     MAX_CSV_BYTES,
@@ -34,6 +34,7 @@ from spendtrack.store import (
     Store,
     conf_level,
     currency_symbol,
+    fingerprint,
     fmt_amount,
     fmt_date,
     fmt_money,
@@ -170,16 +171,112 @@ async def _json_payload[T: BaseModel](request: Request, model: type[T]) -> T:
         raise _validation_422(e) from e
 
 
-def _reserve_client_id(
-    store: Store, tx: TxIn, request: Request
-) -> HTMLResponse | None:
-    """Атомарно занять client_id (UNIQUE) до вставки транзакции; занят → HTML/409.
+def _capture_fingerprint(tx: TxIn, amount: int, account_anon: str | None) -> str:
+    """Отпечаток входного payload для replay; category/LLM в него не входят намеренно."""
+    code = normalize_currency(tx.currency)
+    if code is None:
+        code = base_currency()
+    return fingerprint(
+        tx.date, amount, tx.description, account_anon or "",
+        f"capture:{tx.client_id}", code,
+    )
 
-    INSERT первым — гонка двух запросов решается UNIQUE, второй не создаёт строку.
+
+def _capture_state(
+    store: Store, client_id: str | None, expected_fp: str
+) -> tuple[dict | None, bool]:
+    """(transaction для replay, client_id уже занят). replay — только тот же payload."""
+    if not client_id:
+        return None, False
+    row = store.conn.execute(
+        "SELECT tx_id FROM capture_idempotency WHERE client_id=?", (client_id,)
+    ).fetchone()
+    if row is None:
+        return None, False
+    tx_id = int(row["tx_id"])
+    existing = store.get_transaction(tx_id) if tx_id > 0 else None
+    if existing is not None and existing["fingerprint"] == expected_fp:
+        return existing, True
+    return None, True
+
+
+def _client_id_conflict(store: Store, tx: TxIn, request: Request) -> HTMLResponse:
+    """client_id занят другим payload: htmx-фрагмент или JSON 409."""
+    if request.headers.get("hx-request", "").lower() == "true":
+        desc = escape(tx.description)
+        return HTMLResponse(
+            f'<p class="text-accent">Не добавлено: {desc} — этот client_id уже использован.</p>'
+            + _oob_badge(store)
+        )
+    raise HTTPException(409, detail="client_id already used") from None
+
+
+def _capture_replay_response(
+    store: Store, tx: TxIn, existing: dict, request: Request
+) -> HTMLResponse | dict:
+    """Повтор после потерянного ответа: тот же tx_id, без второй строки и рекатегоризации."""
+    if request.headers.get("hx-request", "").lower() == "true":
+        desc = escape(tx.description)
+        label = escape(existing["category"])
+        return HTMLResponse(
+            f'<p class="text-accent">Уже добавлено: {desc} → <b>{label}</b></p>'
+            + _oob_badge(store)
+        )
+    return {
+        "id": existing["id"],
+        "category": existing["category"],
+        "source": existing["category_source"],
+        "confidence": existing["confidence"],
+        "merchant": existing["merchant"],
+        "category_llm": existing["category_llm"],
+        "review_status": existing["review_status"],
+    }
+
+
+def _capture_early_response(
+    store: Store, tx: TxIn, expected_fp: str, request: Request
+) -> HTMLResponse | dict | None:
+    """Ответ до категоризации: replay потерянного ответа или конфликт занятого client_id."""
+    existing, occupied = _capture_state(store, tx.client_id, expected_fp)
+    if existing is not None:
+        return _capture_replay_response(store, tx, existing, request)
+    if occupied:
+        return _client_id_conflict(store, tx, request)
+    return None
+
+
+def _capture_created_response(
+    store: Store, tx: TxIn, tx_id: int | None, category: dict, request: Request
+) -> HTMLResponse | dict:
+    """Успешный ответ create (htmx-фрагмент или JSON) — один рендер для нового id."""
+    if request.headers.get("hx-request", "").lower() == "true":
+        desc = escape(tx.description)  # аудит 24.09: описание — пользовательский ввод, экранируем
+        if tx_id is None:
+            # HELP1 #2 (wave13): дедуп-коллизия отпечатка — честный отказ (паритет с CLI `dup`),
+            # а не «Добавлено» при отсутствующей записи.
+            return HTMLResponse(f'<p class="text-accent">Не добавлено: {desc} — '
+                                "такая операция уже есть.</p>" + _oob_badge(store))
+        label = escape(category["category"])
+        if category["source"] == "llm_pending_review":
+            msg = (f'Добавлено: {desc} → <b>{label}</b> '
+                   f"(conf {category['confidence']:.2f}), ждёт подтверждения.")
+        else:
+            msg = f'Добавлено: {desc} → <b>{label}</b>'
+        return HTMLResponse(f'<p class="text-accent">{msg}</p>' + _oob_badge(store))
+    return {"id": tx_id, **category}
+
+
+def _reserve_client_id(
+    store: Store, tx: TxIn, request: Request, expected_fp: str
+) -> tuple[dict | None, HTMLResponse | None]:
+    """Атомарно занять client_id (UNIQUE) до вставки транзакции.
+
+    Занят тем же payload → возвращает существующую transaction (replay); другим payload →
+    HTML/409. INSERT первым — гонка двух запросов решается UNIQUE, второй не создаёт строку.
     tx_id=0 — placeholder до успешной вставки; rollback снимет reservation при ошибке.
     """
     if not tx.client_id:
-        return None
+        return None, None
     try:
         store.conn.execute("BEGIN IMMEDIATE")
         store.conn.execute(
@@ -188,14 +285,11 @@ def _reserve_client_id(
         )
     except sqlite3.IntegrityError:
         store.conn.rollback()
-        if request.headers.get("hx-request", "").lower() == "true":
-            desc = escape(tx.description)
-            return HTMLResponse(
-                f'<p class="text-accent">Не добавлено: {desc} — этот client_id уже использован.</p>'
-                + _oob_badge(store)
-            )
-        raise HTTPException(409, detail="client_id already used") from None
-    return None
+        existing, _occupied = _capture_state(store, tx.client_id, expected_fp)
+        if existing is not None:
+            return existing, None
+        return None, _client_id_conflict(store, tx, request)
+    return None, None
 
 
 def _add_capture_transaction(
@@ -255,30 +349,25 @@ async def create(request: Request, store: Annotated[Store, Depends(get_store)]):
             raise _validation_422(e) from e
     amount = parse_amount(tx.amount)
     account_anon = store.pseudonymize(tx.account)
+    expected_fp = _capture_fingerprint(tx, amount, account_anon)
+
+    # Replay проверяем до категоризации: потерянный ответ не должен повторно звать LLM.
+    early = _capture_early_response(store, tx, expected_fp, request)
+    if early is not None:
+        return early
+
     category = categorize_transaction(
         {"date": tx.date, "description": tx.description, "amount_kopecks": amount,
          "merchant": tx.description.upper()[:20], "account_anon": account_anon},
         taxonomy, store,
     )
-    conflict = _reserve_client_id(store, tx, request)
+    existing, conflict = _reserve_client_id(store, tx, request, expected_fp)
+    if existing is not None:  # гонка: другой запрос успел зафиксировать тот же payload
+        return _capture_replay_response(store, tx, existing, request)
     if conflict is not None:
         return conflict
     tx_id = _add_capture_transaction(store, tx, category, amount, account_anon)
-    if request.headers.get("hx-request", "").lower() == "true":
-        desc = escape(tx.description)  # аудит 24.09: описание — пользовательский ввод, экранируем
-        if tx_id is None:
-            # HELP1 #2 (wave13): дедуп-коллизия отпечатка — честный отказ (паритет с CLI `dup`),
-            # а не «Добавлено» при отсутствующей записи.
-            return HTMLResponse(f'<p class="text-accent">Не добавлено: {desc} — '
-                                "такая операция уже есть.</p>" + _oob_badge(store))
-        label = escape(category["category"])
-        if category["source"] == "llm_pending_review":
-            msg = (f"Добавлено: {desc} → <b>{label}</b> "
-                   f"(conf {category['confidence']:.2f}), ждёт подтверждения.")
-        else:
-            msg = f"Добавлено: {desc} → <b>{label}</b>"
-        return HTMLResponse(f'<p class="text-accent">{msg}</p>' + _oob_badge(store))
-    return {"id": tx_id, **category}
+    return _capture_created_response(store, tx, tx_id, category, request)
 
 
 @router.get("/budgets")

@@ -5,6 +5,19 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
+## 09.11.2026 (`/capture` review adjudication; same-payload replay fix; remote gate)
+- Review adjudicated by code facts: `CAP-01` Host-as-remote-marker accepted and **deferred to
+  live Tailscale gate**; `CAP-02` sessionStorage/XSS rejected as P1 (strict CSP + escaped
+  descriptions already tested); `CAP-03` accepted and fixed; `CAP-04` deferred (token-gated,
+  single-owner); `CAP-05` rejected (backup/restore drill already implemented).
+  Artifact: `D:\dev\docs\machine\agentrouter_review\2026-11-09-capture-security\ADJUDICATION.md`.
+- Fix `CAP-03`: same `client_id` + same normalized payload now replays **200 with the same
+  `tx_id`**/«Уже добавлено», different payload remains **409**; replay checked before
+  categorization so no duplicate LLM call. Tests: same-payload JSON replay, no reclassify,
+  concurrent same payload; full **1288 passed, 1 skipped**, ruff/contract ok.
+  No push/live/DB/UI. Remote pilot still blocked on `CAP-01` live Host-spoof test + ACL/Funnel
+  + `spendtrack backup --drill`.
+
 ## 01.11.2026 (Phase C closed; push c4948e9; Abacus canary STOP; next PWA)
 - Phase C push confirmed: `origin/main = c4948e9`, local = remote, ahead/behind 0; no force.
   Docs `continue.md` now committed as closeout; worktree clean after commit.
