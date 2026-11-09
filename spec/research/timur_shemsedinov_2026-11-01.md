@@ -171,6 +171,16 @@ engineering. При этом всё это — не более ~30% фокуса
 9. **Не копировать Metarhia/Node/DSL** в spend-tracker: наш масштаб/стек другие; брать принципы,
    не инфраструктуру.
 
+### Статус после адъюдикации 09.11
+
+- П.1 применён как лёгкая tech map в `spec/ARCHITECTURE.md`; DSL не вводится.
+- П.2 и отдельная tech map из п.4 отклонены как дубли существующих спек и `continue.md`.
+- П.3 уточнён: PWA не связан с advisor; import boundary перенесён в `spec/PHASE_C_ADVISOR.md`
+  и расширяется только на реальных consumers advisor.
+- П.5 уже покрыт правилом новой вводной/STOP в `spec/PIPELINE.md`; отдельный preflight не нужен.
+- П.6 уже покрыт lockfile, pip-audit, Dependabot и пиннингом actions; cooldown без подтверждённой
+  поддержки и измеренной необходимости не добавляем.
+
 ## Secondary findings (phone scan) [Ч]
 
 - **reslop** — ACP-оркестратор на 12 агентов (OpenCode/Claude/Codex/Cursor, worktrees);

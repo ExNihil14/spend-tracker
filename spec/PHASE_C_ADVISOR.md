@@ -136,6 +136,20 @@ Exit codes: 0 answer (including template fallback on LLM failure), 2 empty quest
 pinned schema (including `null`/`unavailable`). With LLM off and no `--no-llm`, a spy asserts zero
 LLM calls.
 
+### 3.7 Consumer import boundary
+
+Потребитель advisor импортирует только `spendtrack.advisor.contract` (`AdvisorProtocol`,
+`TemplateAdvisor`, `run_advisor_flow`, `PHASE_C_CONTRACT_VERSION`) либо публичный facade
+`advisor.integration`. Прямые импорты `advisor.facts`/`slots`/`llm` — вне контракта; breaking
+change требует bump version + adapter. `cli.py` идёт через `advisor.integration._answer_question`;
+static AST test `test_cli_consumer_does_not_import_advisor_internals` запрещает direct imports.
+`integration.py` — единственный seam, который сам может импортировать internals, но не является
+публичным contract.
+
+PWA/capture не является потребителем advisor и не должен импортировать его internals: он идёт
+через существующий transactions API. Расширять AST-guard нужно только при появлении нового
+реального consumer advisor, а не заранее для несвязанных модулей.
+
 ## 4. Milestones (TDD)
 
 | # | deliverable | tests |

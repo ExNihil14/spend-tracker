@@ -5,6 +5,22 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
+## 09.11.2026 (Kimi operating-model adjudication; review/docs contour)
+- Prompt B adjudicated against code/spec/history. **Limited GO**: K3.1 Pro only as owner-gated P3
+  one-shot for a concrete cross-contour architecture/bridge question; **NO-GO** as default second
+  opinion or automatic post-free review. No new canary: bridge review 25.10 already produced 3
+  accepted fixes + 2 rejected findings; Go latency/bucket remain per-run facts, not assumptions.
+- Applied docs-only: lightweight contour/tech map in `spec/ARCHITECTURE.md`; review roles, packet,
+  evidence/dedup/stop in `spec/PIPELINE.md`; advisor import boundary moved out of PWA spec into
+  `spec/PHASE_C_ADVISOR.md` (PWA is not an advisor consumer); research statuses synchronized.
+- Rejected as duplicates/unproven: standalone ADR index/tech map, new empty-loop preflight,
+  dependency-review procedure/cooldown, automatic reviewer chains/router/RAG/dashboard. Existing
+  contract/tests, empty-loop rule, lockfile/pip-audit/Dependabot/SHA actions remain canonical.
+- Artifact: `D:\dev\docs\machine\KIMI_K3_1_PRO_ADJUDICATION_B_2026-11-09.md`.
+  No code/live/DB/UI/paid-run/push; next K3.1 call only with a new real packet + owner go.
+  Fresh `go-usage` 21:55: 5h 30% / week 12% / month 49%, **STOP** (week forecast 106%);
+  therefore no premium run before reset. Gates: **1288 passed, 1 skipped**, ruff/contract/context audit ok.
+
 ## 09.11.2026 (`/capture` review adjudication; same-payload replay fix; remote gate)
 - Review adjudicated by code facts: `CAP-01` Host-as-remote-marker accepted and **deferred to
   live Tailscale gate**; `CAP-02` sessionStorage/XSS rejected as P1 (strict CSP + escaped

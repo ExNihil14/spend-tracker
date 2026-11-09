@@ -36,15 +36,14 @@
 - `compact_run.py` = идея testr (сжатый вывод тестов).
 - «Не гонять пустые итерации» = empty loop.
 
-## Что применить (P3, без кода сейчас)
+## Что применить (статус после адъюдикации 09.11)
 
-1. Карта трёх контуров в `spec/ARCHITECTURE.md`.
-2. ADR index (`spec/ADR/`).
-3. Расширить import-boundary на PWA/integration.
-4. Tech map + architectural tests (спека ↔ файлы/функции).
-5. Empty-loop gate в preflight.
-6. Dependency review/cooldown.
-7. Отдельные refactoring sessions + skills из повторяющегося фидбека.
+1. Карта трёх контуров — **внесена** в `spec/ARCHITECTURE.md` как лёгкая tech map.
+2. ADR index и отдельная tech map — **не создавать**: дубли существующих спек/`continue.md`.
+3. Import-boundary — **перенесён** в `spec/PHASE_C_ADVISOR.md`; PWA не является consumer advisor.
+4. Empty-loop gate — **уже есть** в `spec/PIPELINE.md`; новый preflight не строим.
+5. Dependency review — **уже есть** (lockfile/pip-audit/Dependabot/SHA actions); cooldown отложен.
+6. Отдельные refactoring sessions + skills из повторяющегося фидбека — остаются P3 по потребности.
 
 ## Не делать
 

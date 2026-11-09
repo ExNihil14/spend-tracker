@@ -26,6 +26,18 @@
 - `config/settings.toml` — порт, LLM-эндпоинты (primary/fallback/offline), авто-приём conf.
 - `config/taxonomy.toml` — 18 категорий + keyword-правила (без кода); `config/taxonomy.by.toml` — opt-in BY-пакет (настройка `taxonomy_overlay`, Ф1).
 
+## Контуры и границы изменений
+
+| Контур | Файлы/модули | Обязательная проверка |
+|---|---|---|
+| 1. Core/runtime | `store.py`, `categorize.py`, `security.py`, схема БД и публичные контракты | red-first тест на публичном интерфейсе + `contract_delta`; смена сигнатур ядра — только по тикету и ревью |
+| 2. Переиспользуемые адаптеры | `advisor/contract.py`, `advisor/integration.py`, capture/idempotency в `routers/api.py` | потребители используют явный seam; границы импорта и идемпотентность проверяются тестами |
+| 3. Product | `routers/frontend.py`, шаблоны/static, CLI, `config/taxonomy*.toml` | не дублировать инварианты ядра; UI — браузерная проверка, CLI/API — контрактные тесты |
+
+Это лёгкая tech map «контур → файлы → проверка», а не новый DSL. Отдельные ADR-index и
+tech-map не вводим: указатель решений уже живёт в этой спеке, `CONTEXT.md`, профильных спеках
+и `continue.md`; новый документ без автопроверки был бы дублирующим процессным долгом.
+
 ## LLM-маршрут (llm.py; резолв — resolve_providers(), статус — `spendtrack llm-status`)
 LLM выключен по умолчанию (без конфига сеть не трогается). Приоритет явного выбора:
 1. BYO (SPENDTRACK_LLM_BASE_URL + MODEL + API_KEY) — свой OpenAI-совместимый сервер; единственный

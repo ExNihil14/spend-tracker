@@ -29,16 +29,6 @@ mobile web first, **не** installable PWA (нет manifest/service worker/offli
   возвращает **503**, клиент повторяет **с тем же** `client_id` (после commit первого — replay
   200, без второй строки).
 
-### Phase C import boundary
-
-Интеграция (PWA/new code) импортирует только `spendtrack.advisor.contract` (`AdvisorProtocol`,
-`TemplateAdvisor`, `run_advisor_flow`, `PHASE_C_CONTRACT_VERSION`). Прямые импорты
-`advisor.facts`/`slots`/`llm` — вне контракта; breaking change = bump version + adapter.
-`cli.py` идёт через `advisor.integration._answer_question`; static AST test
-(`test_cli_consumer_does_not_import_advisor_internals`) запрещает direct imports в consumer.
-**Ограничение:** adapter `integration.py` сам импортирует internals; это единственный seam,
-не публичный contract.
-
 ## Security
 
 - Remote Host разрешается только явным `SPENDTRACK_TRUSTED_HOSTS` (HTTPS proxy/Tailscale).
