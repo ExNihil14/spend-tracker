@@ -3,13 +3,9 @@
 ## Что это
 Трекер расходов с LLM-категоризацией. FastAPI + SQLite + htmx, offline-first детерминированное ядро, LLM-шов только для остатка (~30-40% транзакций).
 
-## Обязательные файлы в начале сессии
-- `continue.md` — состояние проекта и следующие шаги (источник для продолжения работы).
-- `spec/ARCHITECTURE.md` — архитектура/решения/план (источник истины).
-- `CONTEXT.md` — словарь терминов (не перифразировать).
-- `spec/PIPELINE.md` + `spec/stack.md` — команды/контур верификации и стек.
-- `spec/QA_APPROVE_SMOKE.md` — QA-план очереди `/approve` (читать при работах по очереди/категоризации).
-- Мастер-план из `D:\dev\docs\vibecoding\out_analysis\MASTER_PLAN.md` — практики/грабли/промпты (читай spec-раздел при изменениях).
+## Старт сессии
+- **Всегда:** `continue.md` — активный срез (состояние, шаги, блокеры).
+- **По триггеру:** архитектура/контракты → `spec/ARCHITECTURE.md`; команды/верификация → `spec/PIPELINE.md` + `spec/stack.md`; очередь `/approve`/категоризация → `spec/QA_APPROVE_SMOKE.md`; термины → `CONTEXT.md`; практики/промпты → `D:\dev\docs\vibecoding\out_analysis\MASTER_PLAN.md` (spec-раздел при изменениях).
 
 ## Команды
 - Тест: `uv run pytest`
@@ -56,44 +52,35 @@
 
 ## Не делать
 - Не читать и не печатать значения из `.env*`/секретов без явного разрешения (наружу/в отчёты — только имена
-  ключей; гейт `safety-gate` блокирует правки, это правило — про чтение и вывод) — Habr-ресёрч 04.10
-- Не кидать сырые суммы REAL/DECIMAL в БД
-- Не тестировать через сеть: LLM всегда через стаб в тестах
-- Не добавлять pandas/embeddings в этом проекте (для RAG — отдельная вилка)
-- Новые границы делать иммутабельными: новые модули/методы отдают вызывающему `tuple`/frozen-объекты, изменение — new-state
-  (существующие `list[dict]` — унаследованная поверхность; не расширять шаринг мутабельных коллекций между слоями)
-- Пользовательские строки и форматы — только через централизованные хелперы (`fmt_amount` и т.п.; текст не склеивать
-  в шаблонах/CLI); при введении i18n — через `t()`, каталоги `config/locales/` (см. `DESIGN_I18N_LEGAL_A11Y.md`)
-- UI-изменение готово только с базовым a11y: у полей есть accessible-имя (label/aria-label), фокус видим (`:focus-visible`)
-- Новые тесты — на публичный интерфейс (CLI/роутер/Store-метод), не на внутренние структуры: смена реализации не красит тесты;
-  тест-дизайн usage-first: сначала примеры вызова, затем тесты «чтобы это не развалилось»
-- Не фиксить баг без падающего регресс-теста: сначала красный тест (в том же коммите/до фикса), затем фикс «не трогая тест»
-  (TDD-порядок, практика mattpocock `tdd`; см. `D:\dev\docs\machine\MATTPOCOCK_SKILLS_AUDIT.md`)
-- Не менять сигнатуры ядра (`store.py`/`categorize.py`, контракты копеек/fingerprint/очереди) без явного тикета и ревью;
-  после AI-рефакторинга обязательна контракт-дельта — автопроверка `uv run python scripts/contract_delta.py check`
-  (CI-шаг; блокер при расхождении сигнатур/полей БД/роутов с `spec/contract_baseline.json`); при осознанном
-  изменении контракта — `snapshot` и baseline в том же коммите;
-  правило «дисциплины данных» и чек-лист ревью — `D:\dev\docs\machine\REVIEW_CHECKLIST.md`
-- **Protected paths:** `spec/contract_baseline.json` (только через `contract_delta.py snapshot`),
-  `spec/ratchet_baseline.json` (только через `scripts/ratchet.py snapshot`),
-  `spec/cc_baseline.json` (только через `scripts/cc_ratchet.py update`), `data/**`, `.env` —
-  агентский гейт-плагин `safety-gate.js` блокирует прямые правки; деструктив (force-push/`reset --hard`/`rm -rf`/
-  NSSM remove) — только после `/careful` (окно 10 мин)
-- Не гонять итерации «вхолостую» (анти-«пустой цикл»): новая итерация — только с новой вводной
-  (лог/замечание/новый тест); сигнатура падений не меняется — стоп и эскалация (см. `spec/PIPELINE.md` §AI-контур)
+  ключей; гейт `safety-gate` блокирует правки, это правило — про чтение и вывод).
+- Не кидать сырые суммы REAL/DECIMAL в БД; деньги — только копейки INTEGER.
+- Не тестировать через сеть: LLM всегда через стаб в тестах.
+- Не добавлять pandas/embeddings в этом проекте (для RAG — отдельная вилка).
+- Новые границы — иммутабельные: `tuple`/frozen, изменение — new-state (унаследованные `list[dict]` не расширять).
+- Пользовательские строки/форматы — через хелперы (`fmt_amount` и т.п.), не склеивать в шаблонах/CLI;
+  i18n — через `t()` и `config/locales/` (см. `DESIGN_I18N_LEGAL_A11Y.md`).
+- UI готов только с базовой a11y: accessible-имя у полей, видимый `:focus-visible`.
+- Новые тесты — на публичный интерфейс (CLI/роутер/Store), не на внутренние структуры; usage-first.
+- Не фиксить баг без падающего регресс-теста: сначала красный тест, затем фикс «не трогая тест» (TDD; см. `D:\dev\docs\machine\MATTPOCOCK_SKILLS_AUDIT.md`).
+- Не менять сигнатуры ядра (`store.py`/`categorize.py`, копейки/fingerprint/очереди) без тикета и ревью;
+  после AI-рефакторинга — `uv run python scripts/contract_delta.py check` (CI-блокер); при осознанном
+  изменении — `snapshot` и baseline в том же коммите (дисциплина данных — `D:\dev\docs\machine\REVIEW_CHECKLIST.md`).
+- **Protected paths:** `spec/contract_baseline.json` (только `contract_delta.py snapshot`),
+  `spec/ratchet_baseline.json` (только `scripts/ratchet.py snapshot`), `spec/cc_baseline.json`
+  (только `scripts/cc_ratchet.py update`), `data/**`, `.env` — прямые правки блокирует `safety-gate.js`;
+  деструктив (force-push/`reset --hard`/`rm -rf`/NSSM remove) — только после `/careful`.
+- Не гонять итерации «вхолостую»: новая итерация — только с новой вводной (лог/замечание/новый тест);
+  сигнатура падений не меняется — стоп и эскалация (см. `spec/PIPELINE.md` §AI-контур).
 - Не отправлять в каналы ревью реальные выписки/фикстуры: наружу не уходят `data/**`, `tests/fixtures/**`,
-  `*.csv/*.sqlite/*.db` (фильтр в `review.py`); фикстуры — только синтетические; `done` в ревью-артефакте —
-  только после verify с привязкой к `base_sha`/`diff_sha`
+  `*.csv/*.sqlite/*.db`; фикстуры — только синтетические; `done` — только после verify с `base_sha`/`diff_sha`.
 
-## Git-процесс (обязательно, из GIT_WORKFLOW_RECOMMENDATIONS.md)
-- Стратегия: trunk-based + короткие feature-ветки. `main` — единственная долгоживущая, всегда зелёная. НЕ создавать develop/release/*/hotfix/*.
-- Ветки: `feature/<slug>` (1-3 дня), `fix/<slug>`, `chore/<slug>`; после merge — `git branch -d`.
+## Git-процесс (из GIT_WORKFLOW_RECOMMENDATIONS.md)
+- Trunk-based + короткие ветки: `feature/<slug>` (1-3 дня), `fix/<slug>`, `chore/<slug>`; `main` — единственная долгоживущая и всегда зелёная; develop/release/*/hotfix/* не создавать; после merge — `git branch -d`.
 - НЕ коммитить без явной команды пользователя. НЕ пушить без отдельной явной команды.
 - Перед коммитом: `uv run pytest && uv run ruff check`. Красные тесты — не коммитить.
-- Один коммит = один смысловой блок (Conventional Commits, тип(scope): тело). Не смешивать рефакторинг и фичу.
-- Merge в main: `git rebase main` → `git switch main && git merge --ff-only`. Не делать merge-коммиты.
-- Squash только для wip/fix-опечаток; осмысленные тематические коммиты — оставлять.
-- НИКОГДА `git push --force` и `git reset --hard` на main. Только на своей feature-ветке и с подтверждения.
-- НЕ коммитить: .env, data/, *.sqlite, ключи, токены.
-- Версии: SemVer `0.x.y` + аннотированные теги (git tag -a v0.1.0 -m "..."). CHANGELOG.md — из Conventional Commits.
+- Один коммит = один смысловой блок (Conventional Commits). Не смешивать рефакторинг и фичу.
+- Merge в main: `git rebase main` → `git switch main && git merge --ff-only`; merge-коммиты не делать. Squash — только для wip/опечаток.
+- НИКОГДА `git push --force` и `git reset --hard` на main; только на своей ветке и с подтверждения.
+- НЕ коммитить: `.env`, `data/`, `*.sqlite`, ключи, токены.
+- Версии: SemVer `0.x.y` + аннотированные теги; CHANGELOG — из Conventional Commits.
 - Перед отчётом о готовности: показать `git status` и `git diff --stat` (факт, не слова).
