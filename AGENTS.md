@@ -16,8 +16,10 @@
 - Тяжёлые прогоны (pytest/e2e/логи) — через токен-раннер: `python D:\dev\bootstrap\scripts\compact_run.py -- uv run pytest -q`
   (полный вывод в `.logs/`, в контекст — только ошибки/хвост; playbook `D:\dev\docs\machine\TOKEN_OPTIMIZATION_PLAYBOOK.md`)
 - Линт: `uv run ruff check .` (как в CI — покрывает и `scripts/`)
-- Запуск: `uv run spendtrack serve` / `uv run uvicorn spendtrack.main:app --port 8766` (или `.\run.ps1`)
-- CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии) / `llm-status` (режим LLM: off/byo/ollama/free) / `export` (CSV/XLSX) / `backup` (снимок + offsite-копия) / `anonymize` (обезличить образец для issue)
+- Запуск: `uv run spendtrack serve` / `uv run uvicorn spendtrack.main:app --port 8766` (или `.\run.ps1`);
+  remote capture — только отдельный `spendtrack capture-serve --port 8767 --token-file <file>`
+  (Tailscale Serve → 8767, не 8766; текущий деплой — user Startup + 5-мин watchdog, admin task/NSSM optional)
+- CLI: `uv run python -m spendtrack.cli add -23.45 "milk"` / `report` / `import file.csv --bank auto` / `count` / `confidence` (калибровка порога 0.9) / `budget` (прогресс по бюджетам) / `doctor` (целостность) / `recurring` (рекурринги/подписки) / `suggest-rules` (подсказки правил из правок) / `digest` (дайджест недели + аномалии) / `llm-status` (режим LLM: off/byo/ollama/free) / `export` (CSV/XLSX) / `backup` (снимок + offsite-копия) / `anonymize` (обезличить образец для issue) / `capture-serve` (capture-only listener)
 - Верификация (правило из MASTER_PLAN.md): после изменений проверять факт (diff/запуск/UI в браузере), а не только отчёт
 
 ## Layout
@@ -35,6 +37,9 @@
   (рублёвые отпечатки неизменны); не-RUB исключён из ₽-агрегаций (отчёты/бюджеты/дайджест/рекурринги)
 - Fingerprint-дедуп `sha1(date|amount|desc|account_anon|export_rowid)` — для валюты ≠ RUB в отпечаток добавляется суффикс `|CUR` (base-независимо); повторный импорт = no-op
 - account псевдонимизируется (`account_pseudonyms`), сырые номера карт не хранятся
+- Remote capture: единственная публикуемая поверхность — отдельный `capture-serve` (8767);
+  главный UI 8766 в `tailscale serve` не указывать. `CaptureOnlyApp` решает path/token независимо
+  от `Host`; `Host: 127.0.0.1` через Serve не должен открывать `/`/`/approve` (CAP-01 regression)
 - Авто-приём категории от LLM при confidence ≥ 0.9, иначе → очередь «на подтверждение» (`review_status='pending'`, `category_llm` = предложение LLM)
 - Правила детерминированные и тестируются на РЕАЛЬНЫХ описаниях (урок: «ЗАРПЛАТА» не ловит «ЗАРАБОТНАЯ»)
 - Правка юзера → merchant_cache (выигрывает над LLM) + пример в few-shot

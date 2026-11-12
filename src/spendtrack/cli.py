@@ -512,6 +512,47 @@ def cmd_serve(args) -> int:
     return 0
 
 
+def _cmd_capture_serve(args) -> int:
+    """Отдельный capture-only listener для Tailscale Serve (не главный UI)."""
+    from spendtrack.capture_gateway import _DEFAULT_CAPTURE_PORT, CaptureOnlyApp
+    from spendtrack.config import ensure_config_dir
+
+    try:
+        ensure_config_dir()
+    except OSError as e:
+        print(f"не удалось создать каталог конфига: {e}", file=sys.stderr)
+        print("проверьте права на пользовательскую папку или задайте SPENDTRACK_CONFIG_DIR",
+              file=sys.stderr)
+        return 1
+    token_file = getattr(args, "token_file", None)
+    if token_file:
+        try:
+            token = Path(token_file).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError) as e:
+            print(f"capture-serve: не удалось прочитать token file: {e}", file=sys.stderr)
+            return 2
+        if not token:
+            print("capture-serve: token file пуст — отказ (fail-closed)", file=sys.stderr)
+            return 2
+        os.environ["SPENDTRACK_CAPTURE_TOKEN"] = token
+    if not os.environ.get("SPENDTRACK_CAPTURE_TOKEN", "").strip():
+        print("capture-serve: SPENDTRACK_CAPTURE_TOKEN не задан — отказ (fail-closed)",
+              file=sys.stderr)
+        return 2
+    port = int(args.port or _DEFAULT_CAPTURE_PORT)
+    print(f"Spendtrack capture: http://127.0.0.1:{port}/capture  "
+          "(только /capture, /static/* и POST /api/transactions)")
+    sys.stdout.flush()
+    import uvicorn
+
+    from spendtrack.main import app as main_app
+
+    # Same process/app, but every request crosses CaptureOnlyApp first. Do not
+    # point Tailscale Serve at the main 8766 port: this listener is the boundary.
+    uvicorn.run(CaptureOnlyApp(main_app), host="127.0.0.1", port=port, log_config=None)
+    return 0
+
+
 def cmd_paths(args) -> int:
     from spendtrack.config import paths_info
     info = paths_info()
@@ -691,6 +732,14 @@ def main(argv: list[str] | None = None) -> int:
     a_srv.add_argument("--port", type=int, default=None, help="по умолчанию — port из settings.toml")
     a_srv.add_argument("--open", action="store_true", help="открыть браузер")
     a_srv.set_defaults(fn=cmd_serve)
+
+    a_cap = sub.add_parser("capture-serve",
+                           help="capture-only listener для HTTPS-прокси (127.0.0.1)")
+    a_cap.add_argument("--port", type=int, default=8767,
+                       help="локальный порт (по умолчанию 8767)")
+    a_cap.add_argument("--token-file", default=None,
+                       help="файл с capture-токеном (значение не печатается)")
+    a_cap.set_defaults(fn=_cmd_capture_serve)
 
     a_paths = sub.add_parser("paths", help="раскладка конфиг/данные/БД (диагностика)")
     a_paths.add_argument("--json", action="store_true", help="машинный вывод (JSON)")

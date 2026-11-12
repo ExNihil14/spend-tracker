@@ -91,6 +91,9 @@ _CAPTURE_RATE_WINDOW_SECONDS = 60.0
 _CAPTURE_RATE_LIMIT = 10
 _capture_rate_buckets: dict[str, list[float]] = {}
 _CAPTURE_TOKEN_ENV = "SPENDTRACK_CAPTURE_TOKEN"
+# Same-process marker set only by CaptureOnlyApp (capture_gateway.py); not a
+# header, so a network client cannot spoof it.
+_CAPTURE_EDGE_MARKER = "spendtrack.capture_edge_verified"
 
 
 def _capture_token_ok(headers: Headers) -> bool:
@@ -99,7 +102,12 @@ def _capture_token_ok(headers: Headers) -> bool:
     if not expected:
         return False
     supplied = headers.get("x-spendtrack-token", "")
-    return hmac.compare_digest(supplied, expected)
+    try:
+        return hmac.compare_digest(supplied, expected)
+    except TypeError:
+        # Header bytes are decoded as Latin-1; non-ASCII str is unsupported by
+        # compare_digest. Treat it as a wrong token, not an unhandled 500.
+        return False
 
 
 def _capture_rate_ok(client: str, now: float | None = None) -> bool:
@@ -131,6 +139,10 @@ class _RemoteAccessGuard:
 
     async def __call__(self, scope, receive, send):
         if scope.get("type") != "http":
+            return await self.app(scope, receive, send)
+        state = scope.get("state") or {}
+        if state.get(_CAPTURE_EDGE_MARKER) is True:
+            # CaptureOnlyApp already enforced path isolation + token + rate limit.
             return await self.app(scope, receive, send)
         headers = Headers(scope=scope)
         if _is_trusted_proxy_host(headers.get("host")):

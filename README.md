@@ -361,6 +361,7 @@ Register-ScheduledTask -TaskName spendtrack-backup -Force `
 | Команда | Что делает |
 |---|---|
 | `spendtrack serve [--port N] [--open]` | запускает интерфейс |
+| `spendtrack capture-serve [--port N] [--token-file FILE]` | отдельный capture-only listener для HTTPS-прокси (8767) |
 | `spendtrack import file.csv --bank auto [--json]` | импорт выписки (отчёт «добавлено/пропущено/подозрительно») |
 | `spendtrack add -23.45 "milk"` | добавить расход вручную |
 | `spendtrack report --month 2026-09` | отчёт за месяц |

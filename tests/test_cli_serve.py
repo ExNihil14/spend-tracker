@@ -84,6 +84,72 @@ def test_serve_broken_settings_friendly_error(tmp_path, monkeypatch, capsys):
     assert "настройки не читаются" in err and "Traceback" not in err
 
 
+def test_capture_serve_wraps_app_and_uses_loopback(monkeypatch, capsys):
+    import uvicorn
+
+    from spendtrack.capture_gateway import CaptureOnlyApp
+
+    monkeypatch.setenv("SPENDTRACK_CAPTURE_TOKEN", "test-capture-token")
+    calls: dict = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: calls.update(app=app, **kw))
+    assert cli.main(["capture-serve", "--port", "8767"]) == 0
+    assert isinstance(calls["app"], CaptureOnlyApp)
+    assert calls["host"] == "127.0.0.1"
+    assert calls["port"] == 8767
+    assert calls["log_config"] is None
+    assert "/capture" in capsys.readouterr().out
+
+
+def test_capture_serve_reads_token_file(monkeypatch, tmp_path, capsys):
+    import os
+
+    import uvicorn
+
+    from spendtrack.capture_gateway import CaptureOnlyApp
+
+    token_file = tmp_path / "capture-token.txt"
+    token_file.write_text("file-token\n", encoding="utf-8")
+    monkeypatch.setenv("SPENDTRACK_CAPTURE_TOKEN", "")
+    calls: dict = {}
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: calls.update(app=app, **kw))
+    assert cli.main([
+        "capture-serve", "--port", "8767", "--token-file", str(token_file),
+    ]) == 0
+    assert isinstance(calls["app"], CaptureOnlyApp)
+    assert os.environ["SPENDTRACK_CAPTURE_TOKEN"] == "file-token"
+    assert "/capture" in capsys.readouterr().out
+
+
+def test_capture_serve_refuses_without_token(monkeypatch, capsys):
+    import uvicorn
+
+    monkeypatch.delenv("SPENDTRACK_CAPTURE_TOKEN", raising=False)
+
+    def fail(*_args, **_kwargs):
+        raise AssertionError("uvicorn must not run without a capture token")
+
+    monkeypatch.setattr(uvicorn, "run", fail)
+    assert cli.main(["capture-serve", "--port", "8767"]) == 2
+    assert "SPENDTRACK_CAPTURE_TOKEN" in capsys.readouterr().err
+
+
+def test_capture_serve_refuses_non_utf8_token_file(monkeypatch, tmp_path, capsys):
+    import uvicorn
+
+    token_file = tmp_path / "capture-token.txt"
+    token_file.write_bytes(b"\xff")
+    monkeypatch.delenv("SPENDTRACK_CAPTURE_TOKEN", raising=False)
+
+    def fail(*_args, **_kwargs):
+        raise AssertionError("uvicorn must not run with an unreadable token file")
+
+    monkeypatch.setattr(uvicorn, "run", fail)
+    assert cli.main([
+        "capture-serve", "--port", "8767", "--token-file", str(token_file),
+    ]) == 2
+    assert "token file" in capsys.readouterr().err
+
+
 def test_paths_json(capsys):
     assert cli.main(["paths", "--json"]) == 0
     info = json.loads(capsys.readouterr().out)

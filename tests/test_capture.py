@@ -29,6 +29,9 @@ def test_capture_page_is_one_screen_with_accessible_fields(tmp_path, monkeypatch
     assert 'id="capture-client-id"' in body
     assert 'name="client_id"' in body
     assert 'id="capture-token"' in body
+    assert 'id="capture-home"' in body
+    assert "capture-home" in js.text
+    assert "location.hostname" in js.text
     for field in ("date", "amount", "description"):
         assert f'name="{field}"' in body
         assert f'for="capture-{field}"' in body

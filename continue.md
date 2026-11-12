@@ -5,6 +5,67 @@
 `D:\dev\docs\machine\spendtrack\SESSION_HISTORY.md` (progressive disclosure; выносы 24.09 и 16.10).
 Бюджет файла — гейт `agent_context_audit.py` (WARN 400 стр / 60 КБ; держим заметно ниже, без «осадка»).
 
+## 12.11.2026 (SEC-01 fixed; AgentRouter review partial; free review PASS)
+- AgentRouter Sol review requests: canary OK; initial oversized packet produced one finding
+  `SEC-01` (P2); packet 2 and canonical C1 returned `empty` (HTTP 200, no text); series stopped
+  per canon, no retry/fallback. Details: `D:\dev\docs\machine\agentrouter_review\2026-11-11-capture-edge\RESULT_2026-11-11.md`.
+- `SEC-01` fixed TDD: non-ASCII `X-Spendtrack-Token` byte now returns controlled 401, not
+  `TypeError`/500; test `test_capture_edge_non_ascii_token_is_unauthorized`; F10 (non-UTF-8
+  token file) also fixed with CLI red test; full **1312 passed, 1 skipped, 102 deselected**;
+  edge **20 passed**; ruff/contract OK.
+- Free `arch-reviewer`: no new P0/P1 bypass; `ACCEPTABLE-WITH-NOTES`; both P2 fixes closed.
+  Evidence: `FREE_REVIEW_2026-11-12.md`.
+- Live re-gate after fixes **PASS**: capture edge restarted only (PID 11980; main 8766 untouched);
+  local/public non-ASCII token **401**; `/capture` 200; `/` and `/static/../approve` 403;
+  tokenless POST 401; valid token + `{}` 422; temp non-UTF-8 token file fail-closed. `count` 8,
+  `doctor` OK, main `/health` 200. Evidence: `LIVE_GATE_2026-11-12.md`.
+- Canonical AgentRouter GO 22:04: canary **ok**, C1 `rate_limit_exceeded` (eastus2, 6 s, 0
+  chars); single 24K retry 22:28 also 429 (2 s). **Not balance/402** — account/pool token rate
+  limit, not just max-output reservation; stopped. Research:
+  `D:\dev\docs\machine\AGENTERROUTER_RATE_LIMIT_INVESTIGATION_2026-11-12.md`; run evidence:
+  `canonical/RUN_2026-11-12_GO.md`.
+- Next: owner phone pilot/token and owner-only ACL; this capture work is committed locally
+  (push remains a separate owner command). No more Sol POST without a new gate.
+
+## 11.11.2026 (CAP-01 fixed; capture-only live gate PASS)
+- CAP-01 root cause confirmed: Host was the only app-level remote marker; Serve passed
+  `Host: 127.0.0.1` through and exposed `/`/`/approve`. Fix is a separate `capture-serve`
+  listener (default 8767) with `CaptureOnlyApp`: path/token decisions are independent of Host;
+  `/`, `/approve`, `/settings` are blocked at the edge; every POST requires
+  `SPENDTRACK_CAPTURE_TOKEN`. Main UI 8766 stays loopback-only and is never a Serve target.
+- Code (working tree, **not committed/pushed**): `capture_gateway.py`, CLI `capture-serve`
+  (`--token-file`), scope marker in `security._RemoteAccessGuard`, tests `test_capture_gateway.py`
+  + CLI tests; docs `PWA_CAPTURE.md`, `AGENTS.md`, README, live-gate/deploy evidence.
+- Gates: full **1310 passed, 1 skipped**; targeted **19 passed**; ruff/contract/context OK.
+  No production restart/DB write (`count` 8, `doctor` OK); `tailscale serve` temp target 8767.
+- Live gate **PASS**: normal and spoofed Host — `/`, `/approve`, `/settings` 403; tokenless/wrong
+  token 401; valid token + empty body 422. Initial gate reset Serve; remote 443 and
+  `100.84.63.2:8766` refused; local 8766 still 200. Phone not connected; token not printed.
+- Persistent edge deployed 22:15: user Startup `spendtrack-capture-8767.vbs` +
+  `capture-watchdog.ps1` (5-min idempotent restart, no admin); task registration requires
+  elevation, so `register-capture-task.ps1` is kept for later. 8767 loopback, logs under
+  `data/capture`, DB `data/spend.db`, token via `capture-serve --token-file` (not in action/log).
+- Owner runbook refreshed for 8767: old `Serve → 8766` instructions removed; phone steps,
+  ACL, checks, rollback are current. File:
+  `D:\dev\docs\machine\PWA_CAPTURE_OWNER_RUNBOOK_2026-11-01.md`.
+- Serve re-enabled on 8767 for pilot; re-gate PASS. Remote `/capture` 200, `/` 403;
+  `100.84.63.2:8766`/`8767` refused; local 8766 200. Serve left ON for phone pilot; token not
+  entered on phone yet.
+- ACL check 11.11: `tailscale debug netmap` shows **default allow-all tailnet**, not owner-only;
+  tailnet 1 user/1 device, so effectively owner-only today. Need narrow to `:443` before a second
+  device; evidence `ACL_CHECK_2026-11-11.md`.
+- Public UI smoke 11.11 (390x844 via Serve): `/capture` 200; `/`, `/approve`, `/settings`,
+  `/health`, GET API 403; no asset/CSP/JS errors; token not entered, no POST. Footer
+  `На главную` now hidden on non-loopback hosts (local keeps it); browser check PASS. Evidence:
+  `LIVE_UI_SMOKE_2026-11-11.md`. Full suite after change: **1310 passed, 1 skipped**; ruff/contract OK.
+- Edge hardening 11.11: `/static/*` rejects `.`/`..` segments, backslash and NUL after
+  percent-decoding (path-normalization defense; 19 edge tests). Capture-serve restarted only
+  (main 8766 untouched); live local/public `/capture` 200, `/` 403, `/static/../approve`
+  403 via `curl --path-as-is`; count 8, doctor OK. Post-hardening re-gate in `LIVE_GATE`.
+- Next: owner phone pilot (token from protected file), owner-only ACL console check, commit/push;
+  optional elevated task/NSSM for boot-service; optional cleanup of legacy capture env in the
+  main NSSM service (needs elevated restart). Keep 8766 out of Serve.
+
 ## 09.11.2026 (Kimi operating-model adjudication; review/docs contour)
 - Prompt B adjudicated against code/spec/history. **Limited GO**: K3.1 Pro only as owner-gated P3
   one-shot for a concrete cross-contour architecture/bridge question; **NO-GO** as default second

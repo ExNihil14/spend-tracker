@@ -34,6 +34,14 @@
     });
   }
 
+  // The main UI is loopback-only. Hide the dead "На главную" link when this
+  // page is reached through the remote capture edge.
+  var home = document.getElementById("capture-home");
+  if (home && window.location.hostname !== "127.0.0.1" &&
+      window.location.hostname !== "localhost") {
+    home.hidden = true;
+  }
+
   document.body.addEventListener("htmx:configRequest", function (event) {
     if (!token || event.detail.path !== "/api/transactions") return;
     var value = token.value.trim();
